@@ -27,7 +27,8 @@ const usage = `agenterm - workspace daemon for coding agents
 
 Usage:
   agenterm daemon [--detach]          run the daemon (foreground unless --detach)
-  agenterm stop                       stop the daemon (kills all sessions)
+  agenterm stop [--force]             stop the daemon; refuses while sessions are alive
+                                      unless --force (which kills them)
   agenterm project add <dir> [--name N]
   agenterm project list
   agenterm project rm <id>
@@ -46,7 +47,7 @@ Usage:
 Environment:
   AGENTERM_HOME     single dir overriding ~/.agenterm and ~/.config/agenterm
   AGENTERM_SESSION  default session for notify (set inside sessions)
-  AGENTERM_SOCK     daemon socket (set inside sessions)
+  AGENTERM_SOCK     daemon socket (set inside sessions); ignored when AGENTERM_HOME is set
 `
 
 func main() {
@@ -81,7 +82,7 @@ func run(args []string) error {
 
 	switch cmd {
 	case "stop":
-		return cmdStop(ctx)
+		return cmdStop(ctx, rest)
 	case "project":
 		return cmdProject(ctx, c, rest)
 	case "profiles":
@@ -139,12 +140,14 @@ func run(args []string) error {
 
 // newClient builds a client; with autoStart the daemon is launched on demand.
 func newClient(autoStart bool) (*client.Client, error) {
-	sock, err := client.SocketFromEnv()
+	sock, fromSession, err := client.ResolveSocket()
 	if err != nil {
 		return nil, err
 	}
 	c := client.New(sock)
-	if autoStart && os.Getenv(protocol.EnvSock) == "" {
+	// Inside a session (only $AGENTERM_SOCK) the daemon is the session's own:
+	// never start another one.
+	if autoStart && !fromSession {
 		c.AutoStart = func(ctx context.Context) error {
 			p, err := paths.Default()
 			if err != nil {
@@ -160,12 +163,21 @@ func newClient(autoStart bool) (*client.Client, error) {
 	return c, nil
 }
 
-func cmdStop(ctx context.Context) error {
+func cmdStop(ctx context.Context, args []string) error {
+	fs := flag.NewFlagSet("stop", flag.ContinueOnError)
+	force := fs.Bool("force", false, "also kill live sessions")
+	if err := parseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() != 0 {
+		return errors.New("usage: agenterm stop [--force]")
+	}
 	c, err := newClient(false)
 	if err != nil {
 		return err
 	}
-	if err := c.Shutdown(ctx); err != nil {
+	// The daemon enforces the live-session check (and logs who asked).
+	if err := c.Shutdown(ctx, *force); err != nil {
 		return err
 	}
 	// Wait for the socket to go away so callers can rely on a clean state.

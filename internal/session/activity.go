@@ -1,6 +1,7 @@
 package session
 
 import (
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -205,6 +206,9 @@ func decorative(r rune) bool {
 // or digits. It returns "" for lines that are not worth showing.
 func meaningfulLine(s string) string {
 	s = strings.ToValidUTF8(s, "")
+	if looksLikePrompt(s) {
+		return ""
+	}
 	s = strings.TrimFunc(s, decorative)
 	alnum := 0
 	for _, r := range s {
@@ -220,6 +224,53 @@ func meaningfulLine(s string) string {
 		s = string(r[:maxActivityRunes-1]) + "…"
 	}
 	return s
+}
+
+// maxPromptRunes bounds what may be taken for a shell prompt: longer lines
+// are output even if they end like one.
+const maxPromptRunes = 80
+
+// userHost matches the user@host (or user@host:dir) start of common prompts
+// (optionally after a "(venv)" marker); shellName bash's default "bash-5.2".
+var (
+	userHost  = regexp.MustCompile(`^\s*(\(\S+\)\s+)?\[?[\w.-]+@[\w.-]+[\]:\s]`)
+	shellName = regexp.MustCompile(`^\s*[a-z]*sh(-[\d.]+)?$`)
+	dirToken  = regexp.MustCompile(`^\s*[\w.~/-]+$`)
+)
+
+// looksLikePrompt reports whether a line is (heuristically) an idle shell
+// prompt, so shell sessions show their last output rather than "user@mac ~ %":
+// a short line ending in $ % # > ❯ ➜ (plus optional spaces) where, for the
+// ASCII ones, the symbol stands alone, follows a single directory-like word
+// and a space, a path-ish character (~ / \ ] ) }), "bash-5.2", or the line
+// starts with user@host — so "50%", "cost: $" or "<div>" are not prompts. A
+// line starting with ➜ (oh-my-zsh) counts too. A prompt with a command typed
+// after it is not one: that is the user's input, worth showing.
+func looksLikePrompt(s string) bool {
+	t := strings.TrimRightFunc(s, unicode.IsSpace)
+	r := []rune(strings.TrimLeftFunc(t, unicode.IsSpace))
+	if len(r) == 0 || len(r) > maxPromptRunes {
+		return false
+	}
+	if r[0] == '➜' {
+		return true
+	}
+	switch r[len(r)-1] {
+	case '❯', '➜':
+		return true
+	case '$', '%', '#', '>':
+	default:
+		return false
+	}
+	body := strings.TrimRightFunc(string(r[:len(r)-1]), unicode.IsSpace)
+	if body == "" || userHost.MatchString(body+" ") || shellName.MatchString(body) {
+		return true
+	}
+	if spaced := len(body) < len(string(r[:len(r)-1])); spaced && dirToken.MatchString(body) {
+		return true // "agenterm %", "~/Dev $"
+	}
+	prev, _ := utf8.DecodeLastRuneInString(body)
+	return strings.ContainsRune("~/\\])}", prev)
 }
 
 // Tail limits.

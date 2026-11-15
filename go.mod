@@ -5,6 +5,7 @@ go 1.27.4
 require (
 	github.com/creack/pty v1.1.24
 	github.com/wailsapp/wails/v2 v2.17.1
+	golang.org/x/sys v0.50.0
 	golang.org/x/term v0.48.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -36,6 +37,5 @@ require (
 	github.com/wailsapp/go-webview2 v1.0.22 // indirect
 	golang.org/x/crypto v0.57.0 // indirect
 	golang.org/x/net v0.60.0 // indirect
-	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 )

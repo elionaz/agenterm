@@ -26,13 +26,24 @@ agenterm attach <sessionId>         # Ctrl-\ para desacoplar; la sesión sigue v
 agenterm notify --kind permission --message "¿Borro node_modules?"  # dentro de una sesión
 agenterm ack <sessionId>            # marca la atención como vista
 agenterm kill <sessionId>           # una segunda vez la elimina de la lista
-agenterm stop                       # mata las sesiones y apaga el daemon
+agenterm stop                       # apaga el daemon si no quedan sesiones vivas
+agenterm stop --force               # mata las sesiones vivas y apaga el daemon
 ```
 
+`agenterm stop` **se niega** (y sale con 1) si hay sesiones sin terminar: `hay N sesiones activas:
+<id> (<perfil>), …; usa --force para cerrarlas`. La comprobación la hace el propio daemon
+(`daemon.shutdown` con `{"force": true|false}`; sin parámetros = sin force), así que también protege
+de clientes antiguos o scripts. Las sesiones ya terminadas (`exited`) no cuentan. SIGTERM/SIGINT al
+daemon lo siguen apagando siempre (es el sistema quien lo pide). Cada petición de apagado, aceptada o
+rechazada, queda en `daemon.log` con quién la hizo: `peer_pid`, `peer_cmd`, `peer_ppid` y
+`peer_parent_cmd` (PID del otro extremo del socket con `LOCAL_PEERPID` en macOS / `SO_PEERCRED` en
+Linux, y su línea de comandos vía `ps`), además de `force` y `live`.
+
 `notify` acepta `--state running|waiting_input|idle` (alias `waiting`, `done`), `--kind
-permission|question|done|error` (implica el estado si no se da), `--message` y `--activity "texto"`
-(la línea de actividad; sin `--state` solo actualiza eso). Usa
-`$AGENTERM_SESSION` / `$AGENTERM_SOCK`, nunca arranca el daemon y tiene timeout de 3 s.
+permission|question|done|error` (implica el estado si no se da), `--message`, `--activity "texto"`
+(la línea de actividad; sin `--state` solo actualiza eso) y `--sock RUTA`. Usa
+`$AGENTERM_SESSION` y el socket según la regla de abajo (o `--sock`), nunca arranca el daemon y tiene
+timeout de 3 s.
 `notify --from-hook claude|codex` lee el payload del hook (stdin, o último argumento en codex),
 no imprime nada y **siempre** sale con 0 (timeout 2 s): nunca bloquea ni rompe al agente.
 
@@ -45,6 +56,16 @@ no imprime nada y **siempre** sale con 0 (timeout 2 s): nunca bloquea ni rompe a
 | ficheros de hooks generados | `~/.agenterm/hooks/` | `/x/hooks/` |
 
 Ojo: en macOS la ruta de un unix socket tiene un límite de ~104 bytes.
+
+**Qué daemon usa un comando.** Si `AGENTERM_HOME` está definido, **manda siempre** (su `d.sock`);
+`$AGENTERM_SOCK` (que el daemon inyecta en sus sesiones) solo se usa si `AGENTERM_HOME` no está
+definido; si no hay ninguno, `~/.agenterm/d.sock`. Así `AGENTERM_HOME=/tmp/x agenterm stop` lanzado
+desde dentro de una sesión va a `/tmp/x` y no al daemon real. Con solo `$AGENTERM_SOCK` (dentro de una
+sesión) la CLI nunca arranca otro daemon. Para que todo sea coherente, el daemon inyecta en cada
+sesión `AGENTERM_SOCK=<su socket>` y, si usa `AGENTERM_HOME`, también `AGENTERM_HOME=<su dir>` (si
+usa las rutas por defecto, quita cualquier `AGENTERM_HOME` heredado). Los hooks generados además
+llaman a `notify --sock <socket del daemon>`, así que llegan a su daemon aunque cambies
+`AGENTERM_HOME` dentro de la sesión.
 
 ### Agentes y perfiles
 
@@ -146,8 +167,8 @@ con `agenterm ack`. Un `idle` explícito tras un turno (Stop / turn-complete) es
 
 Nunca se tocan `~/.claude/settings.json`, `~/.codex/config.toml`, la config de opencode ni el
 proyecto: todo va por flags en la línea de comandos y ficheros en `~/.agenterm/hooks/`. Los hooks
-llaman a `<ejecutable del daemon> notify --from-hook …` con ruta absoluta (la CLI o el propio
-ejecutable del `.app`, que también implementa `notify`).
+llaman a `<ejecutable del daemon> notify --sock <socket> --from-hook …` con ruta absoluta (la CLI o
+el propio ejecutable del `.app`, que también implementa `notify`).
 
 **Señales de terminal** (agnósticas del agente; los bytes llegan intactos a la terminal): BEL
 suelto (no el que cierra un OSC), `OSC 9 ; mensaje` (iTerm2/Ghostty; `OSC 9;4` es **progreso**, ver fase 4, y nunca pide
@@ -164,9 +185,21 @@ sesiones con hooks solo cuentan mientras el agente trabaja o para completar el m
   del Dock con el número de sesiones pendientes y rebote del icono en aprobaciones. En la sidebar:
   punto ámbar pulsante, etiqueta (aprobación/pregunta/terminó/error) y tooltip con el mensaje;
   contador por proyecto y `agenterm (N)` en el título de la ventana.
-- **App cerrada**: el daemon avisa con `osascript` (`display notification`) cuando ningún
-  cliente UI está suscrito (`events.subscribe` con `{"client":"ui"}`). Esas notificaciones salen
-  a nombre de "Script Editor" y no abren la app.
+- **App cerrada**: el daemon avisa cuando ningún cliente UI está suscrito (`events.subscribe` con
+  `{"client":"ui"}`). Si el ejecutable del daemon está dentro de un `.app` (ruta con
+  `.app/Contents/MacOS/`, es decir, lo arrancó la app) y el bundle tiene permiso, usa
+  UNUserNotificationCenter (`internal/macnotify`, el mismo código que la app): la notificación sale
+  como **agenterm**, con su icono, `userInfo.sessionId` y el mismo identificador que usa la app
+  (`agenterm-<id>`, así que al hacer *ack* en la app se retira también). Al pulsarla, el daemon (que
+  sirve el run loop principal de Cocoa en el hilo principal mientras el resto corre en otras
+  goroutines) ejecuta `open -a <su .app> [--env AGENTERM_HOME=…] agenterm://session/<id>`: la app se
+  abre (o se activa) y selecciona esa sesión (esquema `agenterm://` registrado en `CFBundleURLTypes`
+  vía `wails.json` → `protocols`, recibido con `mac.Options.OnUrlOpen`). Si el daemon no está en un
+  bundle (la CLI), no hay permiso o falla el envío, cae a `osascript` (`display notification`, a
+  nombre de "Script Editor" y sin abrir la app). `daemon.log` dice en cada aviso qué se usó
+  (`notifier=native|osascript`, o `auth=denied|not-determined` si no hay permiso) y registra los
+  clics (`notification clicked`). Nada de esto bloquea el daemon: el envío nativo tiene timeout de
+  3 s, `osascript` de 5 s, todo corre en su goroutine y con `recover`.
 - **Permiso**: la primera vez que abras el `.app` macOS pregunta si permites notificaciones. Si lo
   rechazaste: *Ajustes del Sistema → Notificaciones → agenterm* → "Permitir notificaciones" (y
   estilo "Alertas" si quieres que se queden en pantalla). Si la app no tiene permiso, cae a
@@ -216,7 +249,11 @@ mantienen su valor actual.
   cronómetro del turno). Con hooks, la salida no pisa la actividad.
 - *Resto de agentes*: la última línea con contenido de la salida (sin ANSI, el texto que ya extrae el
   parser de terminal), recortada, con un CR que redibuja la línea quedándose con su última versión,
-  ignorando líneas solo de spinner, de dibujo de cajas o con menos de dos letras/dígitos, y como mucho
+  ignorando líneas solo de spinner, de dibujo de cajas, con menos de dos letras/dígitos o que parecen el
+  **prompt de la shell** (cortas y terminadas en `$ % # > ❯ ➜`, con el símbolo suelto, tras una
+  palabra tipo directorio, tras `~ / \ ] ) }`, tras `bash-5.2`, o empezando por `usuario@host`; o
+  empezando por `➜`; "45%" o "<div>" no cuentan), así que en una shell se ve la última salida y no
+  `usuario@mac ~ %`; y como mucho
   una actualización cada 500 ms. En TUIs que redibujan la pantalla (opencode, codex…) será la última
   línea que pintaron, que no siempre es la más informativa.
 - El daemon emite `session.activity` agrupado: como mucho uno cada 500 ms por sesión (siempre con el
@@ -268,7 +305,7 @@ Solo frontend: `cd app/frontend && npm install && npm run check && npm run build
 - El `.app` es autosuficiente: su ejecutable también es el daemon (`agenterm.app/Contents/MacOS/agenterm daemon`).
   Al abrirse, si el daemon no responde, lo lanza desacoplado (`client.StartDaemon` con su propio
   `os.Executable()`). Cerrar la ventana o salir de la app **no** mata el daemon ni las sesiones; al
-  reabrir se reconecta y repinta el scrollback. Para apagarlo todo: `agenterm stop`. La CLI y la app comparten daemon.
+  reabrir se reconecta y repinta el scrollback. Para apagarlo todo: `agenterm stop --force` (sin `--force` se niega si quedan sesiones vivas). La CLI y la app comparten daemon.
 - Antes de lanzar el daemon, la app toma el `PATH` de tu shell de login (`$SHELL -l -i -c`) y fija
   `TERM=xterm-256color`, `COLORTERM=truecolor` y `LANG` si falta: las apps abiertas desde Finder
   heredan el entorno mínimo de launchd y no encontrarían `claude`/`codex`.
@@ -307,6 +344,8 @@ internal/termsig    parser streaming de BEL / OSC 9 / 777 / 99 y progreso OSC 9;
 internal/hooks      config de hooks por sesión (claude, codex) y parseo de payloads
 internal/notifycmd  subcomando `notify` compartido por la CLI y la app
 internal/desktopnotify  textos de notificación + fallback osascript
+internal/macnotify  UNUserNotificationCenter (cgo, darwin): envío, permiso, clics y run loop del daemon
+internal/peercred   PID del proceso al otro lado del socket (LOCAL_PEERPID / SO_PEERCRED) + `ps`
 internal/settings   settings.yaml
 internal/profile    catálogo de agentes, detección, merge con profiles.yaml y escritura
 internal/shellenv   PATH del shell de login (app y daemon)
@@ -322,6 +361,8 @@ internal/paths      resolución de directorios
   peticiones seguidas. Métodos: `project.add|list|remove`,
   `profile.list|catalog|save|delete|reorder|rescan`, `settings.get|save`,
   `session.spawn|list|kill|resize|notify|ack|attach|tail`, `events.subscribe`, `daemon.ping|shutdown`.
+  `daemon.shutdown` (`{"force":false}`) falla con `hay N sesiones activas: …` si quedan sesiones
+  vivas y no se pasa `force: true`.
   `session.tail` (`{"sessionId":…,"lines":8}`, máx. 200) devuelve `{"lines":[…]}`: el final del
   scrollback (últimos 64 KiB) sin ANSI, con CR sobrescribiendo desde la columna 0 y sin tandas de
   líneas en blanco.
@@ -342,14 +383,16 @@ internal/paths      resolución de directorios
 
 - Cada sesión tiene un ring buffer (8 MiB por defecto) y N suscriptores con cola acotada; un
   suscriptor lento se desconecta (frame `0x04`) en vez de bloquear la lectura del PTY.
-- Se inyecta `AGENTERM_SESSION` y `AGENTERM_SOCK` en el entorno del proceso.
+- Se inyecta `AGENTERM_SESSION` y `AGENTERM_SOCK` en el entorno del proceso (y `AGENTERM_HOME` si el
+  daemon usa uno; ver *Rutas*).
 - Estados: `running`, `waiting_input`, `idle`, `exited`. Heurística: salida → `running`, 3 s
   sin salida → `idle`; `waiting_input` no lo termina la salida (spinners), sino lo que escribas.
   En perfiles `status: hooks`, el primer evento explícito desactiva la heurística para esa sesión.
   `exited` es terminal. Las respuestas automáticas de la terminal (focus, DA, DSR) no cuentan como
   "escribir".
 - `kill` envía SIGHUP+SIGTERM al grupo de procesos y SIGKILL tras 2 s. SIGTERM/SIGINT al
-  daemon (o `agenterm stop`) mata todas las sesiones y borra socket y pid file. Un socket
+  daemon (o `agenterm stop` sin sesiones vivas / `agenterm stop --force`) mata todas las sesiones y
+  borra socket y pid file. Un socket
   huérfano (nadie escuchando) se detecta y se reemplaza al arrancar.
 
 ## Tests

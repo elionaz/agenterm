@@ -12,6 +12,7 @@ import (
 	"github.com/elionaz/agenterm/internal/client"
 	"github.com/elionaz/agenterm/internal/daemon"
 	"github.com/elionaz/agenterm/internal/notifycmd"
+	"github.com/elionaz/agenterm/internal/paths"
 	"github.com/elionaz/agenterm/internal/protocol"
 )
 
@@ -188,6 +189,7 @@ func TestNotifyKindsAndHookPayloads(t *testing.T) {
 
 	t.Setenv(protocol.EnvSession, sess.ID)
 	t.Setenv(protocol.EnvSock, p.Socket())
+	t.Setenv(paths.EnvHome, "") // AGENTERM_HOME would win over AGENTERM_SOCK
 	run := func(stdin string, args ...string) string {
 		t.Helper()
 		var out, errb bytes.Buffer
@@ -230,6 +232,14 @@ func TestNotifyKindsAndHookPayloads(t *testing.T) {
 	run(`{"hook_event_name":"Stop"}`, "--from-hook", "claude")
 	if time.Since(start) > 3*time.Second {
 		t.Fatal("hook notify took too long without a daemon")
+	}
+	// An explicit --sock (what generated hooks pass) wins over the env,
+	// even over AGENTERM_HOME pointing at another daemon.
+	t.Setenv(paths.EnvHome, t.TempDir())
+	run("", "--sock", p.Socket(), "--kind", "question", "--message", "¿Sigo?")
+	e = waitEvent(t, evc, "question via --sock", func(e protocol.Event) bool { return isMine(e) && e.Raised })
+	if e.AttentionKind != "question" || e.AttentionMessage != "¿Sigo?" {
+		t.Fatalf("bad --sock event %+v", e)
 	}
 	// The plain form still reports errors.
 	if err := notifycmd.Run([]string{"--state", "bogus"}, strings.NewReader(""), io.Discard, io.Discard); err == nil {
@@ -274,7 +284,8 @@ func TestClaudeHookInjection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(data), `"'/opt/agenterm test/agenterm' notify --from-hook claude"`) {
+	// --sock pins the hooks to this daemon, whatever the agent's env says.
+	if !strings.Contains(string(data), `"'/opt/agenterm test/agenterm' notify --sock `+p.Socket()+` --from-hook claude"`) {
 		t.Fatalf("settings file: %s", data)
 	}
 	if !strings.HasPrefix(settingsFile, p.RuntimeDir) {

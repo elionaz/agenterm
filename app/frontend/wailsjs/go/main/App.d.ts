@@ -48,3 +48,5 @@ export function SetVisibleSession(arg1:string):Promise<void>;
 export function Spawn(arg1:string,arg2:string,arg3:number,arg4:number):Promise<protocol.SessionInfo>;
 
 export function Tail(arg1:string,arg2:number):Promise<Array<string>>;
+
+export function TakePendingFocus():Promise<string>;

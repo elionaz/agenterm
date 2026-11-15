@@ -60,6 +60,12 @@ type App struct {
 
 	mu      sync.Mutex
 	streams map[string]*attachment
+
+	// Notification-click focus (urlopen.go).
+	focusMu       sync.Mutex
+	started       bool   // startup ran: focusSession may be used
+	frontendReady bool   // the frontend called TakePendingFocus
+	pendingFocus  string // session to select once the frontend is ready
 }
 
 type attachment struct {
@@ -87,6 +93,9 @@ func (a *App) startup(ctx context.Context) {
 	a.desk = newDesktop(ctx, a.focusSession)
 	installPreferencesMenu(func() { a.emit(evOpenSettings) })
 	a.start(ctx, p)
+	a.focusMu.Lock()
+	a.started = true
+	a.focusMu.Unlock()
 }
 
 func (a *App) start(ctx context.Context, p paths.Paths) {

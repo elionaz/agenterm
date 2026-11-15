@@ -89,3 +89,7 @@ export function Spawn(arg1, arg2, arg3, arg4) {
 export function Tail(arg1, arg2) {
   return window['go']['main']['App']['Tail'](arg1, arg2);
 }
+
+export function TakePendingFocus() {
+  return window['go']['main']['App']['TakePendingFocus']();
+}

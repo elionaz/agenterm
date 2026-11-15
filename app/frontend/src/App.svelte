@@ -247,6 +247,11 @@
     if (pid && prof) void spawn(pid, prof.id)
   }
 
+  function focusFromNotification(id: string) {
+    if (sessions.some((s) => s.id === id)) select(id)
+    else void refreshSessions().then(() => sessions.some((s) => s.id === id) && select(id))
+  }
+
   const offs: Array<() => void> = []
   onMount(() => {
     terms.mount(termHost)
@@ -260,12 +265,12 @@
       // App menu "Preferencias…" (⌘,).
       EventsOn('app:open-settings', openSettings),
       // A notification was clicked.
-      EventsOn('app:focus-session', (id: string) => {
-        if (sessions.some((s) => s.id === id)) select(id)
-        else void refreshSessions().then(() => select(id))
-      }),
+      EventsOn('app:focus-session', focusFromNotification),
     )
-    void refreshAll()
+    // A click on a daemon notification may have launched the app.
+    void refreshAll().then(() =>
+      guard(api.takePendingFocus()).then((id) => id && focusFromNotification(id)),
+    )
     const onFocus = () => {
       void guard(api.listProjects()).then((ps) => ps && (projects = ps))
       ackIfVisible(selectedId)

@@ -22,10 +22,6 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 	switch req.Method {
 	case protocol.MethodDaemonPing:
 		return map[string]any{"ok": true}, nil
-	case protocol.MethodDaemonShutdown:
-		s.stopOnce.Do(func() { close(s.stop) })
-		return map[string]any{"ok": true}, nil
-
 	case protocol.MethodProjectAdd:
 		p, err := decode[protocol.ProjectAddParams](req.Params)
 		if err != nil {
@@ -216,7 +212,7 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 	if err != nil {
 		return protocol.SessionInfo{}, err
 	}
-	inj, err := hooks.Setup(prof.SetupHooks, s.cfg.Paths.HooksDir(), s.cfg.Exe)
+	inj, err := hooks.Setup(prof.SetupHooks, s.cfg.Paths.HooksDir(), s.cfg.Exe, s.sock)
 	if err != nil {
 		return protocol.SessionInfo{}, fmt.Errorf("profile %s: %w", prof.ID, err)
 	}
@@ -246,6 +242,7 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 		Args:        append(inj.Args, prof.Args...),
 		Env:         append(prof.Environ(), inj.Env...),
 		SockPath:    s.sock,
+		Home:        s.homeEnv(),
 		Cols:        p.Cols,
 		Rows:        p.Rows,
 		RingSize:    s.cfg.RingSize,

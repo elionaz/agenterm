@@ -399,7 +399,7 @@ func TestDaemonRejectsSecondInstanceAndStaleSocket(t *testing.T) {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	if err := c.Shutdown(context.Background()); err != nil {
+	if err := c.Shutdown(context.Background(), false); err != nil {
 		t.Fatal(err)
 	}
 	if err := <-done; err != nil {

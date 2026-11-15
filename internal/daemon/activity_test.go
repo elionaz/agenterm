@@ -10,6 +10,7 @@ import (
 
 	"github.com/elionaz/agenterm/internal/daemon"
 	"github.com/elionaz/agenterm/internal/notifycmd"
+	"github.com/elionaz/agenterm/internal/paths"
 	"github.com/elionaz/agenterm/internal/protocol"
 )
 
@@ -28,6 +29,7 @@ func TestHookActivityAndTimers(t *testing.T) {
 	isMine := func(e protocol.Event) bool { return e.SessionID == sess.ID }
 	t.Setenv(protocol.EnvSession, sess.ID)
 	t.Setenv(protocol.EnvSock, p.Socket())
+	t.Setenv(paths.EnvHome, "")
 	hook := func(payload string) {
 		t.Helper()
 		var out, errb bytes.Buffer

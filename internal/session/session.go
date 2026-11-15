@@ -17,6 +17,7 @@ import (
 
 	"github.com/creack/pty"
 
+	"github.com/elionaz/agenterm/internal/paths"
 	"github.com/elionaz/agenterm/internal/protocol"
 	"github.com/elionaz/agenterm/internal/status"
 	"github.com/elionaz/agenterm/internal/termsig"
@@ -26,6 +27,7 @@ import (
 const (
 	EnvSession = protocol.EnvSession
 	EnvSock    = protocol.EnvSock
+	EnvHome    = paths.EnvHome
 )
 
 // subscriberQueue is how many output chunks a subscriber may lag behind
@@ -44,8 +46,12 @@ type Options struct {
 	Env         []string // extra KEY=VALUE pairs appended to os.Environ()
 	Cwd         string   // defaults to ProjectDir
 	SockPath    string   // exported as AGENTERM_SOCK
-	Cols, Rows  uint16
-	RingSize    int
+	// Home is exported as AGENTERM_HOME; empty removes any inherited value.
+	// Clients prefer AGENTERM_HOME over AGENTERM_SOCK, so the daemon sets
+	// both consistently (see client.ResolveSocket).
+	Home       string
+	Cols, Rows uint16
+	RingSize   int
 
 	StatusMode status.Mode
 	IdleAfter  time.Duration
@@ -172,12 +178,16 @@ func Spawn(o Options) (*Session, error) {
 }
 
 func buildEnv(o Options) []string {
-	env := os.Environ()
+	var env []string
 	hasTerm := false
-	for _, kv := range env {
-		if len(kv) > 5 && kv[:5] == "TERM=" {
+	for _, kv := range os.Environ() {
+		if strings.HasPrefix(kv, EnvHome+"=") {
+			continue
+		}
+		if strings.HasPrefix(kv, "TERM=") {
 			hasTerm = true
 		}
+		env = append(env, kv)
 	}
 	if !hasTerm {
 		env = append(env, "TERM=xterm-256color")
@@ -186,6 +196,9 @@ func buildEnv(o Options) []string {
 	env = append(env, EnvSession+"="+o.ID)
 	if o.SockPath != "" {
 		env = append(env, EnvSock+"="+o.SockPath)
+	}
+	if o.Home != "" {
+		env = append(env, EnvHome+"="+o.Home)
 	}
 	return env
 }

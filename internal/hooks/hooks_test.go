@@ -98,7 +98,7 @@ func TestClipLongMessage(t *testing.T) {
 func TestSetupClaudeWritesSettings(t *testing.T) {
 	dir := t.TempDir()
 	exe := "/Applications/My Apps/agenterm.app/Contents/MacOS/agenterm"
-	inj, err := Setup("claude", dir, exe)
+	inj, err := Setup("claude", dir, exe, "/tmp/agt x/d.sock")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,26 +121,26 @@ func TestSetupClaudeWritesSettings(t *testing.T) {
 	for _, ev := range claudeEvents {
 		g := cfg.Hooks[ev]
 		if len(g) != 1 || len(g[0].Hooks) != 1 || g[0].Hooks[0].Type != "command" ||
-			g[0].Hooks[0].Command != `'`+exe+`' notify --from-hook claude` {
+			g[0].Hooks[0].Command != `'`+exe+`' notify --sock '/tmp/agt x/d.sock' --from-hook claude` {
 			t.Errorf("%s: %+v", ev, g)
 		}
 	}
 }
 
 func TestSetupCodexArgs(t *testing.T) {
-	inj, err := Setup("codex", t.TempDir(), "/usr/local/bin/agenterm")
+	inj, err := Setup("codex", t.TempDir(), "/usr/local/bin/agenterm", "/tmp/a/d.sock")
 	if err != nil {
 		t.Fatal(err)
 	}
 	joined := strings.Join(inj.Args, " ")
-	if !strings.Contains(joined, `notify=["/usr/local/bin/agenterm","notify","--from-hook","codex"]`) ||
+	if !strings.Contains(joined, `notify=["/usr/local/bin/agenterm","notify","--sock","/tmp/a/d.sock","--from-hook","codex"]`) ||
 		!strings.Contains(joined, `tui.notification_method="osc9"`) {
 		t.Fatalf("args %v", inj.Args)
 	}
-	if inj, _ := Setup("", "", ""); len(inj.Args) != 0 {
+	if inj, _ := Setup("", "", "", ""); len(inj.Args) != 0 {
 		t.Fatal("no integration expected")
 	}
-	if _, err := Setup("bogus", "", ""); err == nil {
+	if _, err := Setup("bogus", "", "", ""); err == nil {
 		t.Fatal("expected error")
 	}
 }
@@ -186,7 +186,7 @@ func TestClaudeSettingsPreToolUse(t *testing.T) {
 			}
 		}
 	}
-	if err := json.Unmarshal(ClaudeSettings("/x/agenterm"), &cfg); err != nil {
+	if err := json.Unmarshal(ClaudeSettings("/x/agenterm", ""), &cfg); err != nil {
 		t.Fatal(err)
 	}
 	g := cfg.Hooks["PreToolUse"]

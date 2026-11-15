@@ -54,6 +54,52 @@ func TestOutputActivityLine(t *testing.T) {
 	}
 }
 
+func TestShellPromptIsNotActivity(t *testing.T) {
+	prompts := []string{
+		"elionaz@mac ~ % ",
+		"elionaz@mac agenterm %",
+		"elionaz@mac:~/Dev/agenterm$ ",
+		"[elionaz@mac agenterm]$ ",
+		"(.venv) elionaz@mac:~/x$ ",
+		"root@box:/# ",
+		"bash-5.2$ ",
+		"~/Dev/agenterm ❯ ",
+		"❯ ",
+		"agenterm ➜ ",
+		"➜  agenterm git:(main) ✗ ",
+		"~/Dev/agenterm $ ",
+		"$ ",
+		"% ",
+		"PS C:\\> ",
+		"/tmp/>",
+	}
+	for _, p := range prompts {
+		if !looksLikePrompt(p) {
+			t.Errorf("%q should look like a prompt", p)
+		}
+		// After real output, the prompt does not replace it.
+		if got := lastLine("go test ./...\r\nok  pkg 0.2s\r\n" + p); got != "ok pkg 0.2s" {
+			t.Errorf("after %q: activity %q", p, got)
+		}
+	}
+	notPrompts := []string{
+		"Downloading 45%",
+		"Progress 55%",
+		"<div class=x>",
+		"cost: $",
+		"see issue #",
+		"elionaz@mac ~ % ls -la", // a typed command is input, not idle
+		"Compiling agenterm v0.2.0 -> target/debug/agenterm and running a very long build step that ends in >", // too long
+		"Deploying to prod --> staging",
+		"Thinking",
+	}
+	for _, p := range notPrompts {
+		if looksLikePrompt(p) {
+			t.Errorf("%q should not look like a prompt", p)
+		}
+	}
+}
+
 func TestTrackerThrottle(t *testing.T) {
 	var tr tracker
 	t0 := time.Unix(1_700_000_000, 0)

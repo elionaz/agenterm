@@ -71,6 +71,9 @@ func main() {
 		},
 		Bind: []any{app},
 		Mac: &mac.Options{
+			// agenterm://session/<id> (CFBundleURLTypes from wails.json
+			// "protocols"): daemon notification clicks.
+			OnUrlOpen:  app.openURL,
 			TitleBar:   mac.TitleBarHiddenInset(),
 			Appearance: mac.NSAppearanceNameDarkAqua,
 			About: &mac.AboutInfo{

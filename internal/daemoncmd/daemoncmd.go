@@ -10,11 +10,13 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
 	"github.com/elionaz/agenterm/internal/client"
 	"github.com/elionaz/agenterm/internal/daemon"
+	"github.com/elionaz/agenterm/internal/macnotify"
 	"github.com/elionaz/agenterm/internal/paths"
 	"github.com/elionaz/agenterm/internal/transport"
 )
@@ -64,14 +66,28 @@ func Run(args []string) error {
 		}
 	}()
 	signal.Ignore(syscall.SIGHUP, syscall.SIGPIPE)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	exe, _ := os.Executable()
+	if real, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = real
+	}
+	n := newNotifier(logger, exe)
 	srv, err := daemon.New(daemon.Config{
 		Paths:     p,
 		IdleAfter: *idle,
 		KillGrace: 2 * time.Second,
-		Logger:    slog.New(slog.NewTextHandler(os.Stderr, nil)),
+		Logger:    logger,
+		Exe:       exe,
+		Notifier:  n.Notify,
 	})
 	if err != nil {
 		return err
 	}
-	return srv.Run(ctx)
+	if !n.clicks {
+		return srv.Run(ctx)
+	}
+	// Notification clicks are delivered on the main dispatch queue: the main
+	// thread serves the Cocoa run loop while the daemon runs elsewhere.
+	macnotify.RunMainLoop(func() { err = srv.Run(ctx) })
+	return err
 }

@@ -83,6 +83,9 @@ type Server struct {
 
 	stopOnce sync.Once
 	stop     chan struct{}
+	// stopAttrs describe the accepted daemon.shutdown request (peer, force);
+	// written before stop is closed.
+	stopAttrs []any
 }
 
 // New prepares a Server; it does not bind the socket yet.
@@ -132,6 +135,16 @@ func New(cfg Config) (*Server, error) {
 	}, nil
 }
 
+// homeEnv is the AGENTERM_HOME sessions get: the daemon's own single-dir
+// home (AGENTERM_HOME layout), or none for the default layout. Clients
+// prefer AGENTERM_HOME over AGENTERM_SOCK, so both must name this daemon.
+func (s *Server) homeEnv() string {
+	if p := s.cfg.Paths; p.RuntimeDir == p.ConfigDir {
+		return p.RuntimeDir
+	}
+	return ""
+}
+
 // Socket returns the address the server listens on.
 func (s *Server) Socket() string { return s.sock }
 
@@ -175,16 +188,18 @@ func (s *Server) Run(ctx context.Context) error {
 		}
 	}()
 
-	reason := "daemon.shutdown RPC"
+	var attrs []any
 	select {
 	case <-ctx.Done():
-		reason = "context cancelled"
+		reason := "context cancelled"
 		if c := context.Cause(ctx); c != nil && c != context.Canceled {
 			reason = c.Error()
 		}
+		attrs = []any{"reason", reason}
 	case <-s.stop:
+		attrs = append([]any{"reason", "daemon.shutdown RPC"}, s.stopAttrs...)
 	}
-	s.log.Info("daemon shutting down", "reason", reason)
+	s.log.Info("daemon shutting down", attrs...)
 	ln.Close()
 	<-acceptDone
 	s.killAll()
@@ -241,6 +256,13 @@ func (s *Server) serveConn(conn net.Conn) {
 			return
 		}
 		switch req.Method {
+		case protocol.MethodDaemonShutdown:
+			// Needs the connection (to identify the peer).
+			result, err := s.handleShutdown(conn, req)
+			if werr := writeResponse(conn, req.ID, result, err); werr != nil {
+				return
+			}
+			continue
 		case protocol.MethodSessionAttach:
 			s.handleAttach(conn, br, req)
 			return

@@ -36,11 +36,14 @@ const (
 
 // Setup prepares the hook integration for agent. exe is the absolute path
 // of a binary implementing `notify --from-hook` (the daemon's own
-// executable); dir is where generated files go (paths.HooksDir). Nothing is
+// executable); sock is the daemon's socket, passed explicitly (`--sock`) so
+// hooks reach that daemon whatever AGENTERM_HOME / AGENTERM_SOCK the
+// agent's environment ends up with; dir is where generated files go
+// (paths.HooksDir, which belongs to that same daemon). Nothing is
 // written outside dir: the user's agent configuration and the project are
 // left alone, and the integration only applies to sessions agenterm spawns.
 // An empty agent (or "none") means no integration.
-func Setup(agent, dir, exe string) (Injection, error) {
+func Setup(agent, dir, exe, sock string) (Injection, error) {
 	switch agent {
 	case "", "none":
 		return Injection{}, nil
@@ -48,7 +51,7 @@ func Setup(agent, dir, exe string) (Injection, error) {
 		// `claude --settings <file>` loads additional settings for this
 		// invocation only; hook lists merge with the user's own hooks.
 		file := filepath.Join(dir, "claude-settings.json")
-		if err := writeIfChanged(file, ClaudeSettings(exe)); err != nil {
+		if err := writeIfChanged(file, ClaudeSettings(exe, sock)); err != nil {
 			return Injection{}, err
 		}
 		return Injection{Args: []string{"--settings", file}}, nil
@@ -57,7 +60,7 @@ func Setup(agent, dir, exe string) (Injection, error) {
 		// notify runs our binary with the turn-complete JSON as last argv;
 		// the TUI's own OSC 9 notifications cover approvals and questions
 		// (picked up by the terminal-signal parser).
-		notify, _ := json.Marshal([]string{exe, "notify", "--from-hook", AgentCodex})
+		notify, _ := json.Marshal(append(notifyArgv(exe, sock), "--from-hook", AgentCodex))
 		return Injection{Args: []string{
 			"-c", "notify=" + string(notify),
 			"-c", `tui.notifications=["approval-requested","plan-mode-prompt","async-question"]`,
@@ -68,11 +71,24 @@ func Setup(agent, dir, exe string) (Injection, error) {
 	return Injection{}, fmt.Errorf("unknown setup_hooks %q (want claude, codex or none)", agent)
 }
 
+// notifyArgv is `<exe> notify [--sock <sock>]`.
+func notifyArgv(exe, sock string) []string {
+	argv := []string{exe, "notify"}
+	if sock != "" {
+		argv = append(argv, "--sock", sock)
+	}
+	return argv
+}
+
 // ClaudeSettings returns the --settings JSON wiring every relevant Claude
-// Code hook event to `<exe> notify --from-hook claude`, which reads the
-// event from stdin, prints nothing and always exits 0.
-func ClaudeSettings(exe string) []byte {
-	cmd := shellQuote(exe) + " notify --from-hook claude"
+// Code hook event to `<exe> notify [--sock S] --from-hook claude`, which
+// reads the event from stdin, prints nothing and always exits 0.
+func ClaudeSettings(exe, sock string) []byte {
+	var parts []string
+	for _, a := range notifyArgv(exe, sock) {
+		parts = append(parts, shellQuote(a))
+	}
+	cmd := strings.Join(parts, " ") + " --from-hook claude"
 	type handler struct {
 		Type    string `json:"type"`
 		Command string `json:"command"`

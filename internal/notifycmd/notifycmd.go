@@ -23,8 +23,8 @@ import (
 const Name = "notify"
 
 // Usage is the one-line synopsis.
-const Usage = `agenterm notify [--session ID] [--state S] [--kind K] [--message M] [--activity A]
-  agenterm notify --from-hook claude|codex [JSON]   (hook payload on stdin or as last arg)`
+const Usage = `agenterm notify [--session ID] [--sock PATH] [--state S] [--kind K] [--message M] [--activity A]
+  agenterm notify [--sock PATH] --from-hook claude|codex [JSON]   (hook payload on stdin or as last arg)`
 
 const (
 	timeout     = 3 * time.Second
@@ -44,6 +44,7 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	msg := fs.String("message", "", "message shown in the notification")
 	activity := fs.String("activity", "", "what the agent is doing (activity line); alone it only updates that")
 	fromHook := fs.String("from-hook", "", "read an agent hook payload: claude (stdin) | codex (last argument)")
+	sock := fs.String("sock", "", "daemon socket (default: $AGENTERM_HOME's, else $AGENTERM_SOCK)")
 	if err := fs.Parse(args); err != nil {
 		if *fromHook != "" || hasHookFlag(args) {
 			return nil
@@ -51,7 +52,7 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return err
 	}
 	if *fromHook != "" {
-		if err := runHook(*fromHook, *id, fs.Args(), stdin); err != nil {
+		if err := runHook(*fromHook, *id, *sock, fs.Args(), stdin); err != nil {
 			fmt.Fprintln(stderr, "agenterm notify:", err)
 		}
 		return nil
@@ -69,7 +70,7 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	info, err := send(ctx, protocol.NotifyParams{SessionID: *id, State: *state, Kind: string(k), Message: *msg, Activity: *activity})
+	info, err := send(ctx, *sock, protocol.NotifyParams{SessionID: *id, State: *state, Kind: string(k), Message: *msg, Activity: *activity})
 	if err != nil {
 		return err
 	}
@@ -96,7 +97,7 @@ func stateForKind(k status.Kind) string {
 	return ""
 }
 
-func runHook(agent, id string, rest []string, stdin io.Reader) error {
+func runHook(agent, id, sock string, rest []string, stdin io.Reader) error {
 	if id == "" {
 		return nil // not an agenterm session: nothing to report
 	}
@@ -116,7 +117,7 @@ func runHook(agent, id string, rest []string, stdin io.Reader) error {
 	}
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
-	_, err = send(ctx, protocol.NotifyParams{SessionID: id, State: string(ev.State), Kind: string(ev.Kind), Message: ev.Message,
+	_, err = send(ctx, sock, protocol.NotifyParams{SessionID: id, State: string(ev.State), Kind: string(ev.Kind), Message: ev.Message,
 		Activity: ev.Activity, Turn: ev.Turn})
 	return err
 }
@@ -140,11 +141,14 @@ func readBounded(r io.Reader, d time.Duration) ([]byte, error) {
 	}
 }
 
-// send never starts a daemon: hooks must not spawn one.
-func send(ctx context.Context, p protocol.NotifyParams) (protocol.SessionInfo, error) {
-	sock, err := client.SocketFromEnv()
-	if err != nil {
-		return protocol.SessionInfo{}, err
+// send never starts a daemon: hooks must not spawn one. An explicit sock
+// (what generated hooks pass) wins over the environment.
+func send(ctx context.Context, sock string, p protocol.NotifyParams) (protocol.SessionInfo, error) {
+	if sock == "" {
+		var err error
+		if sock, err = client.SocketFromEnv(); err != nil {
+			return protocol.SessionInfo{}, err
+		}
 	}
 	return client.New(sock).NotifyEvent(ctx, p)
 }

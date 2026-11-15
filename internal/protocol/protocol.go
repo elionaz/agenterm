@@ -123,6 +123,12 @@ type SpawnParams struct {
 	Rows      uint16 `json:"rows,omitempty"`
 }
 
+// ShutdownParams are daemon.shutdown's. Without Force the daemon refuses
+// while any session is still alive (only exited ones may be discarded).
+type ShutdownParams struct {
+	Force bool `json:"force,omitempty"`
+}
+
 type SessionRef struct {
 	SessionID string `json:"sessionId"`
 }

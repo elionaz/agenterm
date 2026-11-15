@@ -101,6 +101,8 @@ export const api = {
   ack: (id: string) => App.Ack(id),
   /** Which session the window shows ('' for none): no notifications for it. */
   setVisibleSession: (id: string) => App.SetVisibleSession(id),
+  /** Session a notification click asked for before the UI was up ('' if none). */
+  takePendingFocus: (): Promise<string> => App.TakePendingFocus(),
 }
 
 /** Profiles that belong in a spawn menu (enabled, installed, valid). */

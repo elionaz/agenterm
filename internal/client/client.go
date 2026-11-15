@@ -40,16 +40,30 @@ func New(sock string) *Client {
 	return &Client{Sock: sock, Transport: transport.Default()}
 }
 
-// SocketFromEnv returns $AGENTERM_SOCK if set, else the default socket path.
+// SocketFromEnv resolves the daemon socket; see ResolveSocket.
 func SocketFromEnv() (string, error) {
-	if s := os.Getenv(protocol.EnvSock); s != "" {
-		return s, nil
+	sock, _, err := ResolveSocket()
+	return sock, err
+}
+
+// ResolveSocket picks the daemon socket from the environment. An explicit
+// AGENTERM_HOME always wins (so `AGENTERM_HOME=/tmp/x agenterm stop` run
+// inside a session targets /tmp/x, not the session's daemon);
+// $AGENTERM_SOCK, which the daemon injects into its sessions, applies only
+// when AGENTERM_HOME is unset; otherwise the default home. fromSession
+// reports that $AGENTERM_SOCK was used (callers must not auto-start a
+// daemon for it).
+func ResolveSocket() (sock string, fromSession bool, err error) {
+	if os.Getenv(paths.EnvHome) == "" {
+		if s := os.Getenv(protocol.EnvSock); s != "" {
+			return s, true, nil
+		}
 	}
 	p, err := paths.Default()
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
-	return p.Socket(), nil
+	return p.Socket(), false, nil
 }
 
 // RemoteError is an error reported by the daemon.
@@ -137,9 +151,10 @@ func (c *Client) Ping(ctx context.Context) error {
 	return c.Call(ctx, protocol.MethodDaemonPing, nil, nil)
 }
 
-// Shutdown asks the daemon to kill all sessions and exit.
-func (c *Client) Shutdown(ctx context.Context) error {
-	return c.Call(ctx, protocol.MethodDaemonShutdown, nil, nil)
+// Shutdown asks the daemon to kill all sessions and exit. Without force the
+// daemon refuses (RemoteError) while any session is still alive.
+func (c *Client) Shutdown(ctx context.Context, force bool) error {
+	return c.Call(ctx, protocol.MethodDaemonShutdown, protocol.ShutdownParams{Force: force}, nil)
 }
 
 func (c *Client) ProjectAdd(ctx context.Context, path, name string) (project.Project, error) {
