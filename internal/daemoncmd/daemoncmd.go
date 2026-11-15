@@ -1,4 +1,7 @@
-package main
+// Package daemoncmd is the `daemon` subcommand shared by every binary that can
+// host the agenterm daemon (the CLI and the desktop app), so the .app does not
+// depend on a separately installed CLI.
+package daemoncmd
 
 import (
 	"context"
@@ -16,8 +19,14 @@ import (
 	"github.com/elionaz/agenterm/internal/transport"
 )
 
-func cmdDaemon(args []string) error {
-	fs := flag.NewFlagSet("daemon", flag.ContinueOnError)
+// Name is the subcommand that selects daemon mode (os.Args[1]).
+const Name = "daemon"
+
+// Run executes `daemon [--detach] [--idle D]`. In the foreground it blocks
+// until SIGTERM/SIGINT or a shutdown request; with --detach it starts the
+// current executable in daemon mode and returns once the socket is up.
+func Run(args []string) error {
+	fs := flag.NewFlagSet(Name, flag.ContinueOnError)
 	detach := fs.Bool("detach", false, "start in the background and return once it is ready")
 	idle := fs.Duration("idle", 0, "heuristic idle timeout (default 3s)")
 	if err := fs.Parse(args); err != nil {

@@ -1,0 +1,163 @@
+package main
+
+import (
+	"context"
+	"encoding/base64"
+	"io"
+	"log/slog"
+	"os"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/elionaz/agenterm/internal/daemon"
+	"github.com/elionaz/agenterm/internal/paths"
+)
+
+type recorder struct {
+	mu  sync.Mutex
+	evs []recorded
+}
+
+type recorded struct {
+	name string
+	data []any
+}
+
+func (r *recorder) emit(name string, data ...any) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.evs = append(r.evs, recorded{name, data})
+}
+
+// output concatenates the decoded pty:<id> payloads.
+func (r *recorder) output(id string) string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var sb strings.Builder
+	for _, e := range r.evs {
+		if e.name == evPty+":"+id {
+			b, _ := base64.StdEncoding.DecodeString(e.data[0].(string))
+			sb.Write(b)
+		}
+	}
+	return sb.String()
+}
+
+func (r *recorder) has(name string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, e := range r.evs {
+		if e.name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func waitFor(t *testing.T, what string, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for !cond() {
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for %s", what)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// TestAppAgainstDaemon drives the bound methods against an in-process daemon
+// and checks the event stream the frontend would see.
+func TestAppAgainstDaemon(t *testing.T) {
+	dir, err := os.MkdirTemp("/tmp", "agapp") // short: unix socket path limit
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	p := paths.In(dir)
+	if err := os.WriteFile(p.Profiles(), []byte("- id: sh\n  cmd: /bin/sh\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	srv, err := daemon.New(daemon.Config{Paths: p, IdleAfter: time.Hour, KillGrace: time.Second,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	dctx, stopDaemon := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- srv.Run(dctx) }()
+	t.Cleanup(func() {
+		stopDaemon()
+		<-done
+	})
+
+	var rec recorder
+	a := NewApp()
+	a.emit = rec.emit
+	a.start(context.Background(), p)
+	t.Cleanup(func() { a.shutdown(context.Background()) })
+
+	waitFor(t, "resync", func() bool { return rec.has(evResync) })
+
+	proj, err := a.client.ProjectAdd(context.Background(), dir, "t")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ps, err := a.ListProjects()
+	if err != nil || len(ps) != 1 || ps[0].ID != proj.ID {
+		t.Fatalf("ListProjects = %v, %v", ps, err)
+	}
+	if ss, err := a.ListSessions(); err != nil || ss == nil || len(ss) != 0 {
+		t.Fatalf("ListSessions = %#v, %v (want empty, non-nil)", ss, err)
+	}
+
+	info, err := a.Spawn(proj.ID, "sh", 90, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := info.ID
+	waitFor(t, "spawned event", func() bool { return rec.has(evDaemon) })
+
+	if err := a.Input(id, "x"); err == nil {
+		t.Fatal("Input before Attach should fail")
+	}
+	if _, err := a.Attach(id, 100, 30); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "replay done", func() bool { return rec.has(evReplayDone + ":" + id) })
+
+	if err := a.Input(id, "echo agent-$((40+2))\n"); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "echo output", func() bool { return strings.Contains(rec.output(id), "agent-42") })
+
+	if err := a.Resize(id, 120, 40); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.Input(id, "stty size\n"); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "new size", func() bool { return strings.Contains(rec.output(id), "40 120") })
+
+	// Reattach replays the scrollback (what a reloaded frontend relies on)
+	// and the replaced stream must not report a spurious error.
+	before := strings.Count(rec.output(id), "agent-42")
+	if _, err := a.Attach(id, 0, 0); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "replayed scrollback", func() bool { return strings.Count(rec.output(id), "agent-42") > before })
+	if rec.has(evError + ":" + id) {
+		t.Fatal("replacing a stream emitted pty-error")
+	}
+
+	if _, err := a.Kill(id); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "exit event", func() bool { return rec.has(evExit + ":" + id) })
+
+	ss, err := a.ListSessions()
+	if err != nil || len(ss) != 1 || ss[0].State != "exited" {
+		t.Fatalf("after kill: %v, %v", ss, err)
+	}
+}

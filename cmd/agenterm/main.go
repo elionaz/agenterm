@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/elionaz/agenterm/internal/client"
+	"github.com/elionaz/agenterm/internal/daemoncmd"
 	"github.com/elionaz/agenterm/internal/paths"
 	"github.com/elionaz/agenterm/internal/protocol"
 )
@@ -54,8 +55,8 @@ func run(args []string) error {
 	}
 	cmd, rest := args[0], args[1:]
 	switch cmd {
-	case "daemon":
-		return cmdDaemon(rest)
+	case daemoncmd.Name:
+		return daemoncmd.Run(rest)
 	case "notify":
 		return cmdNotify(rest)
 	case "help", "-h", "--help":

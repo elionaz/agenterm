@@ -1,0 +1,64 @@
+:root {
+  --bg: #141518;
+  --sidebar-bg: #1a1b1f;
+  --menu-bg: #22242a;
+  --fg: #e6e7eb;
+  --fg-dim: #b4b6bd;
+  --muted: #6e717b;
+  --border: #25272d;
+  --border-strong: #343741;
+  --hover: #23252b;
+  --hover-strong: #2e3038;
+  --accent-bg: #2a3346;
+  --blue: #61afef;
+  --amber: #e5b04b;
+  --green: #7fbf6a;
+  --red: #e06c75;
+  --grey: #5c6070;
+  --mono: 'SF Mono', Menlo, Monaco, monospace;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--fg);
+  font: 13px/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  height: 100%;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: default;
+}
+
+/* macOS hidden-inset titlebar: these areas drag the window. */
+.drag {
+  --wails-draggable: drag;
+}
+.drag button {
+  --wails-draggable: no-drag;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #2c2f36;
+  border-radius: 4px;
+}

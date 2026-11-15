@@ -9,7 +9,9 @@ coverage.*
 # Wails (fase 2)
 /app/build/bin/
 /app/frontend/node_modules/
-/app/frontend/dist/
+/app/frontend/package.json.md5
+/app/frontend/dist/*
+!/app/frontend/dist/.gitkeep
 
 # local state
 .omc/

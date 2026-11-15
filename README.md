@@ -1,8 +1,9 @@
 # agenterm
 
 Workspace de escritorio para agentes de código (Claude Code, codex, opencode, shell…),
-organizado por proyecto. **Fase 1**: daemon + PTYs + CLI. La UI (Wails) llega en la fase 2
-y se conectará al daemon como un cliente más (`internal/client`).
+organizado por proyecto. **Fase 1**: daemon + PTYs + CLI. **Fase 2**: app de escritorio
+macOS (Wails v2 + Svelte + xterm.js) en `app/`, que es un cliente más del daemon
+(`internal/client`).
 
 ## Uso
 
@@ -48,10 +49,51 @@ Formato:
   idle_seconds: 3      # opcional, sobreescribe el timeout heurístico
 ```
 
+## App de escritorio (fase 2)
+
+Requisitos: Go, Node/npm y la CLI de Wails v2 (`go install github.com/wailsapp/wails/v2/cmd/wails@v2.17.1`;
+`wails doctor` debe pasar).
+
+```sh
+cd app
+wails dev     # app con hot reload (frontend en Vite); también sirve http://localhost:34115
+wails build   # -> app/build/bin/agenterm.app
+open build/bin/agenterm.app
+```
+
+Solo frontend: `cd app/frontend && npm install && npm run check && npm run build`.
+
+- El `.app` es autosuficiente: su ejecutable también es el daemon (`agenterm.app/Contents/MacOS/agenterm daemon`).
+  Al abrirse, si el daemon no responde, lo lanza desacoplado (`client.StartDaemon` con su propio
+  `os.Executable()`). Cerrar la ventana o salir de la app **no** mata el daemon ni las sesiones; al
+  reabrir se reconecta y repinta el scrollback. Para apagarlo todo: `agenterm stop`. La CLI y la app comparten daemon.
+- Antes de lanzar el daemon, la app toma el `PATH` de tu shell de login (`$SHELL -l -i -c`) y fija
+  `TERM=xterm-256color`, `COLORTERM=truecolor` y `LANG` si falta: las apps abiertas desde Finder
+  heredan el entorno mínimo de launchd y no encontrarían `claude`/`codex`.
+- Atajos: ⌘1…⌘9 seleccionan la sesión n del proyecto actual, ⌘N lanza una sesión con el primer
+  perfil en el proyecto actual, ⌘C/⌘V copian/pegan en la terminal.
+- `AGENTERM_HOME` también vale para la app (útil para probar sin tocar `~/.agenterm`):
+  `AGENTERM_HOME=/tmp/at wails dev`.
+
+### Eventos Go → frontend
+
+| evento | payload |
+|---|---|
+| `pty:<id>` | salida en base64, agrupada (≤ 8 ms o 32 KiB por evento) |
+| `pty-replay-done:<id>` | fin del replay del scrollback |
+| `pty-exit:<id>` | código de salida |
+| `pty-error:<id>` | stream perdido (el frontend se reengancha y repinta) |
+| `daemon:event` | `session.spawned/state/removed` del daemon |
+| `daemon:resync` | (re)suscrito: recargar listas |
+| `daemon:down` | sin conexión con el daemon (se reintenta y se relanza) |
+
 ## Arquitectura
 
 ```
 cmd/agenterm        CLI + subcomando `daemon` (un solo binario)
+app/                App Wails: bindings (app.go), coalescer de salida, entorno del daemon
+app/frontend        Svelte 5 + TypeScript + xterm.js (WebGL, fit, unicode11)
+internal/daemoncmd  subcomando `daemon` compartido por la CLI y la app
 internal/daemon     servidor: registro de sesiones, RPC, attach, eventos, pid/socket
 internal/client     cliente reutilizable (CLI hoy, Wails mañana) + StartDaemon
 internal/protocol   tipos del wire: JSON por líneas + frames binarios
