@@ -1,0 +1,16 @@
+# binaries
+/agenterm
+/bin/
+/dist/
+*.test
+*.out
+coverage.*
+
+# Wails (fase 2)
+/app/build/bin/
+/app/frontend/node_modules/
+/app/frontend/dist/
+
+# local state
+.omc/
+.DS_Store

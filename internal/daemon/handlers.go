@@ -1,0 +1,278 @@
+package daemon
+
+import (
+	"bufio"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net"
+	"time"
+
+	"github.com/elionaz/agenterm/internal/profile"
+	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/agenterm/internal/session"
+	"github.com/elionaz/agenterm/internal/status"
+)
+
+func (s *Server) dispatch(req protocol.Request) (any, error) {
+	switch req.Method {
+	case protocol.MethodDaemonPing:
+		return map[string]any{"ok": true}, nil
+	case protocol.MethodDaemonShutdown:
+		s.stopOnce.Do(func() { close(s.stop) })
+		return map[string]any{"ok": true}, nil
+
+	case protocol.MethodProjectAdd:
+		p, err := decode[protocol.ProjectAddParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.projects.Add(p.Path, p.Name)
+	case protocol.MethodProjectList:
+		return protocol.ProjectList{Projects: s.projects.List()}, nil
+	case protocol.MethodProjectRemove:
+		p, err := decode[protocol.ProjectRef](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"ok": true}, s.projects.Remove(p.ID)
+
+	case protocol.MethodProfileList:
+		ps, err := profile.Load(s.cfg.Paths.Profiles())
+		if err != nil {
+			return nil, err
+		}
+		return protocol.ProfileList{Profiles: ps}, nil
+
+	case protocol.MethodSessionSpawn:
+		p, err := decode[protocol.SpawnParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.spawn(p)
+	case protocol.MethodSessionList:
+		return s.list(), nil
+	case protocol.MethodSessionKill:
+		p, err := decode[protocol.SessionRef](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.kill(p.SessionID)
+	case protocol.MethodSessionResize:
+		p, err := decode[protocol.ResizeParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		sess, err := s.lookup(p.SessionID)
+		if err != nil {
+			return nil, err
+		}
+		if err := sess.Resize(p.Cols, p.Rows); err != nil {
+			return nil, err
+		}
+		return sessionInfo(sess), nil
+	case protocol.MethodSessionNotify:
+		p, err := decode[protocol.NotifyParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		st, err := status.ParseState(p.State)
+		if err != nil {
+			return nil, err
+		}
+		sess, err := s.lookup(p.SessionID)
+		if err != nil {
+			return nil, err
+		}
+		if err := sess.Notify(st); err != nil {
+			return nil, err
+		}
+		return sessionInfo(sess), nil
+	}
+	return nil, fmt.Errorf("unknown method %q", req.Method)
+}
+
+func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
+	proj, err := s.projects.Get(p.ProjectID)
+	if err != nil {
+		return protocol.SessionInfo{}, err
+	}
+	profiles, err := profile.Load(s.cfg.Paths.Profiles())
+	if err != nil {
+		return protocol.SessionInfo{}, err
+	}
+	prof, ok := profile.Find(profiles, p.ProfileID)
+	if !ok {
+		return protocol.SessionInfo{}, fmt.Errorf("profile not found: %s", p.ProfileID)
+	}
+	idle := s.cfg.IdleAfter
+	if prof.IdleSeconds > 0 {
+		idle = time.Duration(prof.IdleSeconds * float64(time.Second))
+	}
+
+	s.mu.Lock()
+	id := newID()
+	for s.sessions[id] != nil {
+		id = newID()
+	}
+	s.mu.Unlock()
+
+	sess, err := session.Spawn(session.Options{
+		ID:         id,
+		ProjectID:  proj.ID,
+		ProjectDir: proj.Path,
+		ProfileID:  prof.ID,
+		Cmd:        prof.Command(),
+		Args:       prof.Args,
+		Env:        prof.Environ(),
+		SockPath:   s.sock,
+		Cols:       p.Cols,
+		Rows:       p.Rows,
+		RingSize:   s.cfg.RingSize,
+		StatusMode: prof.Status,
+		IdleAfter:  idle,
+		OnState:    func(c status.Change) { s.publishState(id, c) },
+	})
+	if err != nil {
+		return protocol.SessionInfo{}, err
+	}
+	s.mu.Lock()
+	s.sessions[id] = sess
+	s.order = append(s.order, id)
+	s.mu.Unlock()
+	s.log.Info("session spawned", "id", id, "project", proj.Name, "profile", prof.ID, "pid", sess.Pid)
+
+	info := sessionInfo(sess)
+	s.bus.publish(protocol.Event{Type: protocol.EventSessionSpawned, SessionID: id, State: info.State, At: time.Now().UTC()})
+	go func() {
+		<-sess.Done()
+		code, _ := sess.ExitCode()
+		s.log.Info("session exited", "id", id, "code", code)
+	}()
+	return info, nil
+}
+
+func (s *Server) list() protocol.SessionList {
+	s.mu.Lock()
+	list := make([]*session.Session, 0, len(s.order))
+	for _, id := range s.order {
+		list = append(list, s.sessions[id])
+	}
+	s.mu.Unlock()
+	out := protocol.SessionList{Sessions: make([]protocol.SessionInfo, 0, len(list))}
+	for _, sess := range list {
+		out.Sessions = append(out.Sessions, sessionInfo(sess))
+	}
+	return out
+}
+
+// kill terminates a live session. Killing an already-exited session removes
+// it from the daemon.
+func (s *Server) kill(id string) (protocol.SessionInfo, error) {
+	sess, err := s.lookup(id)
+	if err != nil {
+		return protocol.SessionInfo{}, err
+	}
+	if _, exited := sess.ExitCode(); exited {
+		s.mu.Lock()
+		delete(s.sessions, id)
+		for i, oid := range s.order {
+			if oid == id {
+				s.order = append(s.order[:i:i], s.order[i+1:]...)
+				break
+			}
+		}
+		s.mu.Unlock()
+		s.bus.publish(protocol.Event{Type: protocol.EventSessionRemoved, SessionID: id, At: time.Now().UTC()})
+		return sessionInfo(sess), nil
+	}
+	sess.Kill(s.cfg.KillGrace)
+	return sessionInfo(sess), nil
+}
+
+// handleAttach upgrades conn to the framed attach protocol: scrollback, a
+// ReplayDone marker, then live output until exit or detach. Input and resize
+// frames from the client are applied to the PTY.
+func (s *Server) handleAttach(conn net.Conn, br *bufio.Reader, req protocol.Request) {
+	p, err := decode[protocol.AttachParams](req.Params)
+	if err != nil {
+		writeResponse(conn, req.ID, nil, err)
+		return
+	}
+	sess, err := s.lookup(p.SessionID)
+	if err != nil {
+		writeResponse(conn, req.ID, nil, err)
+		return
+	}
+	if p.Cols > 0 && p.Rows > 0 {
+		_ = sess.Resize(p.Cols, p.Rows) // fails only if already exited
+	}
+	snapshot, sub := sess.Attach()
+	defer sub.Close()
+	if err := writeResponse(conn, req.ID, sessionInfo(sess), nil); err != nil {
+		return
+	}
+
+	readerDone := make(chan struct{})
+	go func() {
+		defer close(readerDone)
+		defer sub.Close() // client went away: stop the writer
+		for {
+			f, err := protocol.ReadFrame(br)
+			if err != nil {
+				if !errors.Is(err, io.EOF) && !errors.Is(err, net.ErrClosed) {
+					s.log.Debug("attach read", "id", sess.ID, "err", err)
+				}
+				return
+			}
+			switch f.Type {
+			case protocol.FrameInput:
+				if _, err := sess.Write(f.Payload); err != nil {
+					return
+				}
+			case protocol.FrameResize:
+				if cols, rows, err := protocol.ParseResize(f.Payload); err == nil {
+					_ = sess.Resize(cols, rows)
+				}
+			}
+		}
+	}()
+
+	ok := protocol.WriteChunked(conn, protocol.FrameOutput, snapshot) == nil &&
+		protocol.WriteFrame(conn, protocol.FrameReplayDone, nil) == nil
+	for chunk := range sub.C {
+		if ok && protocol.WriteFrame(conn, protocol.FrameOutput, chunk) != nil {
+			ok = false
+			sub.Close()
+		}
+	}
+	if ok {
+		if code, exited := sess.ExitCode(); exited {
+			protocol.WriteFrame(conn, protocol.FrameExit, protocol.ExitPayload(code))
+		} else if sub.Dropped() {
+			protocol.WriteFrame(conn, protocol.FrameError, []byte("client too slow; reattach to resync"))
+		}
+	}
+	conn.Close()
+	<-readerDone
+}
+
+// handleSubscribe streams events as JSON lines until the client disconnects.
+func (s *Server) handleSubscribe(conn net.Conn, br *bufio.Reader, req protocol.Request) {
+	events, cancel := s.bus.subscribe()
+	defer cancel()
+	if err := writeResponse(conn, req.ID, map[string]any{"ok": true}, nil); err != nil {
+		return
+	}
+	go func() {
+		_, _ = io.Copy(io.Discard, br) // returns when the client closes
+		cancel()
+	}()
+	for ev := range events {
+		b, _ := json.Marshal(ev)
+		if _, err := conn.Write(append(b, '\n')); err != nil {
+			return
+		}
+	}
+}
