@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -37,6 +38,21 @@ type Config struct {
 	RingSize  int                 // per-session scrollback; 0 means session.DefaultRingSize
 	KillGrace time.Duration       // SIGTERM -> SIGKILL delay; 0 means 2s
 	Logger    *slog.Logger
+	// Exe is the binary agent hooks call back (`<Exe> notify --from-hook …`).
+	// Empty means this process's own executable, which is right for the CLI
+	// and the .app (both implement `notify`).
+	Exe string
+	// Notifier shows a desktop notification when no UI client is
+	// subscribed. nil means osascript on macOS (no-op elsewhere).
+	Notifier func(n Notification)
+}
+
+// Notification is what the daemon's fallback notifier displays.
+type Notification struct {
+	Title, Body string
+	Sound       bool
+	SessionID   string
+	Kind        string
 }
 
 // Server is the daemon.
@@ -69,6 +85,17 @@ func New(cfg Config) (*Server, error) {
 	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
+	}
+	if cfg.Exe == "" {
+		if exe, err := os.Executable(); err == nil {
+			if real, err := filepath.EvalSymlinks(exe); err == nil {
+				exe = real
+			}
+			cfg.Exe = exe
+		}
+	}
+	if cfg.Notifier == nil {
+		cfg.Notifier = osascriptNotify
 	}
 	if err := cfg.Paths.Ensure(); err != nil {
 		return nil, err
@@ -253,37 +280,60 @@ func (s *Server) lookup(id string) (*session.Session, error) {
 func sessionInfo(sess *session.Session) protocol.SessionInfo {
 	cols, rows := sess.Size()
 	info := protocol.SessionInfo{
-		ID:         sess.ID,
-		ProjectID:  sess.ProjectID,
-		ProjectDir: sess.ProjectDir,
-		ProfileID:  sess.ProfileID,
-		Cmd:        sess.Cmd,
-		Args:       sess.Args,
-		Cwd:        sess.Cwd,
-		Pid:        sess.Pid,
-		CreatedAt:  sess.CreatedAt,
-		State:      string(sess.State()),
-		Cols:       cols,
-		Rows:       rows,
+		ID:          sess.ID,
+		ProjectID:   sess.ProjectID,
+		ProjectDir:  sess.ProjectDir,
+		ProjectName: sess.ProjectName,
+		ProfileID:   sess.ProfileID,
+		Cmd:         sess.Cmd,
+		Args:        sess.Args,
+		Cwd:         sess.Cwd,
+		Pid:         sess.Pid,
+		CreatedAt:   sess.CreatedAt,
+		State:       string(sess.State()),
+		Cols:        cols,
+		Rows:        rows,
 	}
 	if code, exited := sess.ExitCode(); exited {
 		info.ExitCode = &code
 	}
+	a := sess.Attention()
+	info.AttentionKind, info.AttentionMessage, info.AttentionAt, info.Unread = attentionFields(a)
 	return info
 }
 
-func (s *Server) publishState(id string, c status.Change) {
-	ev := protocol.Event{
-		Type:      protocol.EventSessionState,
-		SessionID: id,
-		State:     string(c.To),
-		PrevState: string(c.From),
-		Source:    string(c.Source),
-		At:        c.At,
+func attentionFields(a status.Attention) (kind, msg string, at *time.Time, unread bool) {
+	if !a.Active() {
+		return "", "", nil, false
 	}
+	t := a.At.UTC()
+	return string(a.Kind), a.Message, &t, a.Unread
+}
+
+// publishState turns a status change into an event and, when a new
+// attention was raised and no UI is listening, a fallback notification.
+func (s *Server) publishState(id, projectName, profileID string, c status.Change) {
+	ev := protocol.Event{
+		Type:        protocol.EventSessionState,
+		SessionID:   id,
+		State:       string(c.To),
+		PrevState:   string(c.From),
+		Source:      string(c.Source),
+		At:          c.At,
+		Raised:      c.Raised,
+		ProjectName: projectName,
+		ProfileID:   profileID,
+	}
+	if c.From == c.To {
+		ev.Type = protocol.EventSessionAttention
+	}
+	ev.AttentionKind, ev.AttentionMessage, ev.AttentionAt, ev.Unread = attentionFields(c.Attention)
 	if c.To == status.Exited {
 		code := c.ExitCode
 		ev.ExitCode = &code
 	}
 	s.bus.publish(ev)
+	if ev.Raised && s.bus.uiCount() == 0 {
+		s.fallbackNotify(ev)
+	}
 }

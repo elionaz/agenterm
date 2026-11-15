@@ -1,9 +1,18 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte'
-  import { EventsOn } from '../wailsjs/runtime/runtime'
+  import { EventsOn, WindowSetTitle } from '../wailsjs/runtime/runtime'
   import Sidebar from './lib/Sidebar.svelte'
   import { TerminalManager } from './lib/terminals'
-  import { api, errorMessage, type DaemonEvent, type Profile, type Project, type Session } from './lib/api'
+  import {
+    api,
+    attentionLabel,
+    errorMessage,
+    needsAttention,
+    type DaemonEvent,
+    type Profile,
+    type Project,
+    type Session,
+  } from './lib/api'
 
   let projects = $state<Project[]>([])
   let sessions = $state<Session[]>([])
@@ -19,6 +28,18 @@
 
   const selected = $derived(sessions.find((s) => s.id === selectedId) ?? null)
   const currentProject = $derived(projects.find((p) => p.id === currentProjectId) ?? null)
+  const attentionCount = $derived(sessions.filter(needsAttention).length)
+
+  $effect(() => {
+    WindowSetTitle(attentionCount ? `agenterm (${attentionCount})` : 'agenterm')
+  })
+
+  /** Acks the selected session if the user can actually see it. */
+  function ackIfVisible(id: string | null) {
+    if (!id || !document.hasFocus()) return
+    const s = sessions.find((x) => x.id === id)
+    if (s && needsAttention(s)) void api.ack(id).catch(() => {})
+  }
 
   function isAppShortcut(e: KeyboardEvent): boolean {
     if (!e.metaKey || e.ctrlKey || e.altKey) return false
@@ -73,6 +94,8 @@
     const s = id ? sessions.find((x) => x.id === id) : undefined
     if (s) currentProjectId = s.projectId
     terms.show(id)
+    void api.setVisibleSession(id ?? '').catch(() => {})
+    ackIfVisible(id)
   }
 
   function selectProject(id: string) {
@@ -117,9 +140,22 @@
   function onDaemonEvent(ev: DaemonEvent) {
     switch (ev.type) {
       case 'session.state':
+      case 'session.attention':
+        // Attention fields are omitted when cleared, so copy them as-is.
         sessions = sessions.map((s) =>
-          s.id === ev.sessionId ? { ...s, state: ev.state ?? s.state, exitCode: ev.exitCode ?? s.exitCode } : s,
+          s.id === ev.sessionId
+            ? {
+                ...s,
+                state: ev.state ?? s.state,
+                exitCode: ev.exitCode ?? s.exitCode,
+                attentionKind: ev.attentionKind,
+                attentionMessage: ev.attentionMessage,
+                attentionAt: ev.attentionAt,
+                unread: ev.unread,
+              }
+            : s,
         )
+        if (ev.raised && ev.sessionId === selectedId) ackIfVisible(selectedId)
         break
       case 'session.spawned':
         void refreshSessions()
@@ -157,10 +193,16 @@
         void refreshAll()
       }),
       EventsOn('daemon:down', (msg: string) => (daemonDown = msg)),
+      // A notification was clicked.
+      EventsOn('app:focus-session', (id: string) => {
+        if (sessions.some((s) => s.id === id)) select(id)
+        else void refreshSessions().then(() => select(id))
+      }),
     )
     void refreshAll()
     const onFocus = () => {
       void guard(api.listProjects()).then((ps) => ps && (projects = ps))
+      ackIfVisible(selectedId)
     }
     window.addEventListener('focus', onFocus)
     offs.push(() => window.removeEventListener('focus', onFocus))
@@ -192,6 +234,11 @@
     <header class="titlebar drag">
       {#if selected}
         <span class="title">{selected.profileId}</span>
+        {#if selected.attentionKind && selected.state !== 'exited'}
+          <span class="attn {selected.attentionKind}" title={selected.attentionMessage ?? ''}>
+            {attentionLabel(selected.attentionKind)}{#if selected.attentionMessage}: {selected.attentionMessage}{/if}
+          </span>
+        {/if}
         <span class="subtitle">{selected.cwd}</span>
       {:else if currentProject}
         <span class="title">{currentProject.name}</span>
@@ -266,6 +313,28 @@
   .title {
     font-weight: 600;
     color: var(--fg);
+  }
+  .attn {
+    flex: none;
+    max-width: 45%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    color: var(--amber);
+    background: color-mix(in srgb, var(--amber) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--amber) 35%, transparent);
+  }
+  .attn.done {
+    color: var(--green);
+    background: color-mix(in srgb, var(--green) 10%, transparent);
+    border-color: color-mix(in srgb, var(--green) 30%, transparent);
+  }
+  .attn.error {
+    color: var(--red);
+    background: color-mix(in srgb, var(--red) 10%, transparent);
+    border-color: color-mix(in srgb, var(--red) 30%, transparent);
   }
   .subtitle {
     color: var(--muted);

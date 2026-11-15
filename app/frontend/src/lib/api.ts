@@ -7,16 +7,43 @@ export type Project = Omit<project.Project, 'convertValues'>
 export type Profile = profile.Profile
 export type Session = Omit<protocol.SessionInfo, 'convertValues'>
 export type SessionState = 'running' | 'waiting_input' | 'idle' | 'exited'
+export type AttentionKind = 'permission' | 'question' | 'done' | 'error'
 
 /** Mirrors protocol.Event (Go). */
 export interface DaemonEvent {
-  type: 'session.spawned' | 'session.state' | 'session.removed'
+  type: 'session.spawned' | 'session.state' | 'session.removed' | 'session.attention'
   sessionId: string
   state?: SessionState
   prevState?: string
   source?: string
   exitCode?: number
   at: string
+  attentionKind?: AttentionKind
+  attentionMessage?: string
+  attentionAt?: string
+  unread?: boolean
+  /** A new attention was raised (the backend already decided on notifying). */
+  raised?: boolean
+}
+
+/** A session needs the user and they have not looked at it yet. */
+export function needsAttention(s: Session): boolean {
+  return !!s.unread && !!s.attentionKind && s.state !== 'exited'
+}
+
+export function attentionLabel(kind: string | undefined): string {
+  switch (kind) {
+    case 'permission':
+      return 'aprobación'
+    case 'question':
+      return 'pregunta'
+    case 'done':
+      return 'terminó'
+    case 'error':
+      return 'error'
+    default:
+      return ''
+  }
 }
 
 export const api = {
@@ -34,6 +61,10 @@ export const api = {
   /** Raw bytes to the PTY (keystrokes are UTF-8 encoded by the caller). */
   inputBytes: (id: string, data: Uint8Array) => App.InputBase64(id, bytesToB64(data)),
   resize: (id: string, cols: number, rows: number) => App.Resize(id, cols, rows),
+  /** Marks a session's attention as seen. */
+  ack: (id: string) => App.Ack(id),
+  /** Which session the window shows ('' for none): no notifications for it. */
+  setVisibleSession: (id: string) => App.SetVisibleSession(id),
 }
 
 export function errorMessage(e: unknown): string {

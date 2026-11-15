@@ -48,6 +48,10 @@ type App struct {
 	paths  paths.Paths
 	client *client.Client
 	emit   func(event string, data ...any) // runtime.EventsEmit; swapped in tests
+	desk   desktop                         // OS notifications / Dock; nopDesktop in tests
+	att    attention
+
+	wailsCtx context.Context // the Wails runtime context (nil in tests)
 
 	startMu sync.Mutex // serialises daemon auto-start
 
@@ -63,7 +67,11 @@ type attachment struct {
 }
 
 func NewApp() *App {
-	return &App{streams: make(map[string]*attachment)}
+	return &App{
+		streams: make(map[string]*attachment),
+		desk:    nopDesktop{},
+		att:     attention{unread: make(map[string]bool)},
+	}
 }
 
 func (a *App) startup(ctx context.Context) {
@@ -72,6 +80,8 @@ func (a *App) startup(ctx context.Context) {
 		log.Printf("agenterm: resolve paths: %v", err)
 	}
 	a.emit = func(event string, data ...any) { runtime.EventsEmit(ctx, event, data...) }
+	a.wailsCtx = ctx
+	a.desk = newDesktop(ctx, a.focusSession)
 	a.start(ctx, p)
 }
 
@@ -132,7 +142,8 @@ func (a *App) eventLoop() {
 		var ev *client.Events
 		err := a.call(func(ctx context.Context) error {
 			var err error
-			ev, err = a.client.Subscribe(ctx)
+			// As a UI client: the daemon leaves notifications to us.
+			ev, err = a.client.SubscribeAs(ctx, protocol.ClientUI)
 			return err
 		})
 		if err != nil {
@@ -147,12 +158,16 @@ func (a *App) eventLoop() {
 		}
 		backoff = 250 * time.Millisecond
 		stop := context.AfterFunc(a.ctx, func() { ev.Close() })
+		if list, err := a.ListSessions(); err == nil {
+			a.syncAttention(list)
+		}
 		a.emit(evResync)
 		for {
 			e, err := ev.Next()
 			if err != nil {
 				break
 			}
+			a.onDaemonEvent(e)
 			a.emit(evDaemon, e)
 		}
 		stop()

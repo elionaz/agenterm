@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Profile, Project, Session } from './api'
+  import { attentionLabel, needsAttention, type Profile, type Project, type Session } from './api'
 
   interface Props {
     projects: Project[]
@@ -43,6 +43,7 @@
   })
 
   function stateLabel(s: Session): string {
+    if (needsAttention(s)) return attentionLabel(s.attentionKind)
     switch (s.state) {
       case 'running':
         return 'trabajando'
@@ -59,7 +60,15 @@
 
   function badgeClass(s: Session): string {
     if (s.state === 'exited') return s.exitCode ? 'exited fail' : 'exited'
+    if (needsAttention(s)) return `${s.state} attention ${s.attentionKind}`
     return s.state
+  }
+
+  function tooltip(s: Session): string {
+    const base = `${s.cmd} · ${s.cwd} · ${s.id}`
+    if (!s.attentionKind || s.state === 'exited') return base
+    const what = attentionLabel(s.attentionKind)
+    return `${what}${s.attentionMessage ? `: ${s.attentionMessage}` : ''}\n${base}`
   }
 
   function toggleMenu(projectId: string, ev: MouseEvent) {
@@ -87,6 +96,7 @@
   <div class="projects">
     {#each projects as p (p.id)}
       {@const list = byProject.get(p.id) ?? []}
+      {@const pending = list.filter(needsAttention).length}
       <section class="project" class:current={p.id === currentProjectId}>
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -101,7 +111,11 @@
             }}>▾</button
           >
           <span class="project-name">{p.name}</span>
-          {#if list.length}<span class="count">{list.length}</span>{/if}
+          {#if pending}
+            <span class="attn-count" title={`${pending} ${pending === 1 ? 'sesión necesita' : 'sesiones necesitan'} tu atención`}
+              >{pending}</span
+            >
+          {:else if list.length}<span class="count">{list.length}</span>{/if}
           <span class="row-actions">
             <button class="icon" title="Quitar proyecto (no borra archivos)" onclick={(e) => {
               e.stopPropagation()
@@ -134,7 +148,8 @@
                 <div
                   class="session"
                   class:selected={s.id === selectedId}
-                  title={`${s.cmd} · ${s.cwd} · ${s.id}`}
+                  class:needs={needsAttention(s)}
+                  title={tooltip(s)}
                   onclick={() => onSelect(s.id)}
                 >
                   <span class="dot {badgeClass(s)}"></span>
@@ -325,8 +340,36 @@
     font-size: 10.5px;
     color: var(--muted);
   }
-  .state.waiting_input {
+  .state.waiting_input,
+  .state.attention {
     color: var(--amber);
+    font-weight: 600;
+  }
+  .state.attention.done {
+    color: var(--green);
+  }
+  .state.attention.error {
+    color: var(--red);
+  }
+  .session.needs {
+    color: var(--fg);
+    background: color-mix(in srgb, var(--amber) 9%, transparent);
+    box-shadow: inset 2px 0 0 var(--amber);
+  }
+  .session.needs.selected {
+    background: var(--accent-bg);
+  }
+  .attn-count {
+    min-width: 16px;
+    height: 16px;
+    padding: 0 5px;
+    border-radius: 8px;
+    background: var(--amber);
+    color: #1d1f24;
+    font-size: 10.5px;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
   }
   .state.exited.fail {
     color: var(--red);
@@ -362,6 +405,29 @@
   }
   .dot.idle {
     background: var(--green);
+  }
+  .dot.attention {
+    background: var(--amber);
+    animation: attn 1.4s ease-in-out infinite;
+  }
+  .dot.attention.done {
+    background: var(--green);
+    animation: none;
+    box-shadow: 0 0 6px var(--green);
+  }
+  .dot.attention.error {
+    background: var(--red);
+    animation: none;
+    box-shadow: 0 0 6px var(--red);
+  }
+  @keyframes attn {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--amber) 70%, transparent);
+    }
+    50% {
+      box-shadow: 0 0 0 4px color-mix(in srgb, var(--amber) 0%, transparent);
+    }
   }
   .dot.exited {
     background: var(--grey);

@@ -1,6 +1,7 @@
 // Command agenterm (desktop) is the Wails app. The same executable doubles as
-// the daemon: `agenterm daemon` (what client.StartDaemon runs) never opens a
-// window, so the .app is self-contained.
+// the daemon (`agenterm daemon`, what client.StartDaemon runs) and as the
+// hook callback (`agenterm notify`); neither opens a window, so the .app is
+// self-contained.
 package main
 
 import (
@@ -16,6 +17,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/elionaz/agenterm/internal/daemoncmd"
+	"github.com/elionaz/agenterm/internal/notifycmd"
 )
 
 // dist/.gitkeep keeps this embed valid (and `go build ./...` green) before
@@ -28,6 +30,14 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == daemoncmd.Name {
 		if err := daemoncmd.Run(os.Args[2:]); err != nil {
 			fmt.Fprintln(os.Stderr, "agenterm daemon:", err)
+			os.Exit(1)
+		}
+		return
+	}
+	// Agent hooks call back the daemon's executable, which may be this one.
+	if len(os.Args) > 1 && os.Args[1] == notifycmd.Name {
+		if err := notifycmd.Run(os.Args[2:], os.Stdin, os.Stdout, os.Stderr); err != nil {
+			fmt.Fprintln(os.Stderr, "agenterm notify:", err)
 			os.Exit(1)
 		}
 		return

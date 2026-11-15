@@ -33,6 +33,13 @@ const testProfiles = `
 // are limited to ~104 bytes on macOS, so t.TempDir() can be too long).
 func startDaemon(t *testing.T) (*client.Client, paths.Paths, func()) {
 	t.Helper()
+	return startDaemonWith(t, func(daemon.Notification) {})
+}
+
+// startDaemonWith is startDaemon with a fallback notifier (tests must never
+// post real desktop notifications).
+func startDaemonWith(t *testing.T, notifier func(daemon.Notification)) (*client.Client, paths.Paths, func()) {
+	t.Helper()
 	dir, err := os.MkdirTemp("/tmp", "agt")
 	if err != nil {
 		t.Fatal(err)
@@ -47,6 +54,8 @@ func startDaemon(t *testing.T) (*client.Client, paths.Paths, func()) {
 		IdleAfter: time.Hour, // keep the heuristic out of the way unless a profile overrides it
 		KillGrace: time.Second,
 		Logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Exe:       "/opt/agenterm test/agenterm",
+		Notifier:  notifier,
 	})
 	if err != nil {
 		t.Fatal(err)

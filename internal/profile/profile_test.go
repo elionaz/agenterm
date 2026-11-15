@@ -13,7 +13,7 @@ func TestLoadMissingUsesDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]status.Mode{"claude": status.ModeHooks, "codex": status.ModeHooks, "opencode": status.ModeHeuristic, "shell": status.ModeHeuristic}
+	want := map[string]status.Mode{"claude": status.ModeHooks, "codex": status.ModeHeuristic, "opencode": status.ModeHeuristic, "shell": status.ModeHeuristic}
 	if len(ps) != len(want) {
 		t.Fatalf("got %d profiles", len(ps))
 	}
@@ -93,5 +93,22 @@ func TestLoadFile(t *testing.T) {
 	ps, err := Load(p)
 	if err != nil || len(ps) != 1 || ps[0].ID != "x" {
 		t.Fatalf("%+v %v", ps, err)
+	}
+}
+
+func TestAttentionPatternsAndSetupHooks(t *testing.T) {
+	ps, err := Parse([]byte("- id: x\n  cmd: x\n  attention_patterns: ['\\(y/n\\)', 'Do you want to proceed\\?']\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := ps[0].Patterns()
+	if err != nil || len(res) != 2 || !res[0].MatchString("Continue? (y/n)") {
+		t.Fatalf("patterns %v %v", res, err)
+	}
+	if _, err := Parse([]byte("- id: x\n  cmd: x\n  attention_patterns: ['(']\n")); err == nil {
+		t.Fatal("bad regexp should fail")
+	}
+	if _, err := Parse([]byte("- id: x\n  cmd: x\n  setup_hooks: bogus\n")); err == nil {
+		t.Fatal("bad setup_hooks should fail")
 	}
 }

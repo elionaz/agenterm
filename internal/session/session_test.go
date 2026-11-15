@@ -3,6 +3,7 @@ package session
 import (
 	"bytes"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -126,4 +127,44 @@ func TestKillInteractiveShell(t *testing.T) {
 		t.Fatalf("state %s", s.State())
 	}
 	t.Logf("killed in %s", time.Since(start))
+}
+
+func TestAttentionPatterns(t *testing.T) {
+	changes := make(chan status.Change, 16)
+	s := spawn(t, Options{Cmd: "/bin/sh", Args: []string{"-c", `printf '\033[1mDo you want to proceed?\033[0m (y/n) '; read a; printf 'ok\n'; sleep 5`},
+		IdleAfter:         time.Hour,
+		AttentionPatterns: []*regexp.Regexp{regexp.MustCompile(`proceed\?`)},
+		OnState:           func(c status.Change) { changes <- c },
+	})
+	deadline := time.After(5 * time.Second)
+	for {
+		select {
+		case c := <-changes:
+			if !c.Raised {
+				continue
+			}
+			if c.To != status.WaitingInput || c.Attention.Message != "Do you want to proceed? (y/n)" {
+				t.Fatalf("bad change %+v", c)
+			}
+			// Answering resumes and lets the same prompt fire again later.
+			s.Write([]byte("y\n"))
+			if s.State() != status.Running {
+				t.Fatalf("state after input %s", s.State())
+			}
+			return
+		case <-deadline:
+			t.Fatal("pattern did not raise attention")
+		}
+	}
+}
+
+func TestIsTerminalReply(t *testing.T) {
+	for in, want := range map[string]bool{
+		"\x1b[I": true, "\x1b[O": true, "\x1b[?1;2c": true, "\x1b[12;5R": true, "\x1b]11;rgb:1414/1515/1818\x1b\\": true,
+		"y": false, "\r": false, "\x1b[A": false, "\x1b[Ix": false,
+	} {
+		if got := isTerminalReply([]byte(in)); got != want {
+			t.Errorf("isTerminalReply(%q) = %v", in, got)
+		}
+	}
 }

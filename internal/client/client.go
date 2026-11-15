@@ -186,8 +186,21 @@ func (c *Client) Resize(ctx context.Context, id string, cols, rows uint16) error
 }
 
 func (c *Client) Notify(ctx context.Context, id, state string) (protocol.SessionInfo, error) {
+	return c.NotifyEvent(ctx, protocol.NotifyParams{SessionID: id, State: state})
+}
+
+// NotifyEvent reports an explicit state with optional attention kind and
+// message.
+func (c *Client) NotifyEvent(ctx context.Context, p protocol.NotifyParams) (protocol.SessionInfo, error) {
 	var info protocol.SessionInfo
-	err := c.Call(ctx, protocol.MethodSessionNotify, protocol.NotifyParams{SessionID: id, State: state}, &info)
+	err := c.Call(ctx, protocol.MethodSessionNotify, p, &info)
+	return info, err
+}
+
+// Ack marks a session's attention as seen.
+func (c *Client) Ack(ctx context.Context, id string) (protocol.SessionInfo, error) {
+	var info protocol.SessionInfo
+	err := c.Call(ctx, protocol.MethodSessionAck, protocol.SessionRef{SessionID: id}, &info)
 	return info, err
 }
 
@@ -240,7 +253,17 @@ type Events struct {
 
 // Subscribe opens an event stream.
 func (c *Client) Subscribe(ctx context.Context) (*Events, error) {
-	conn, br, err := c.open(ctx, protocol.MethodEventsSubscribe, nil, nil)
+	return c.SubscribeAs(ctx, "")
+}
+
+// SubscribeAs opens an event stream identifying the client kind
+// (protocol.ClientUI for desktop apps that show their own notifications).
+func (c *Client) SubscribeAs(ctx context.Context, client string) (*Events, error) {
+	var params any
+	if client != "" {
+		params = protocol.SubscribeParams{Client: client}
+	}
+	conn, br, err := c.open(ctx, protocol.MethodEventsSubscribe, params, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -3,7 +3,8 @@
 Workspace de escritorio para agentes de código (Claude Code, codex, opencode, shell…),
 organizado por proyecto. **Fase 1**: daemon + PTYs + CLI. **Fase 2**: app de escritorio
 macOS (Wails v2 + Svelte + xterm.js) en `app/`, que es un cliente más del daemon
-(`internal/client`).
+(`internal/client`). **Fase 3**: detección de "necesita tu atención" (hooks de los agentes +
+señales de terminal) y notificaciones nativas, badge del Dock y sidebar.
 
 ## Uso
 
@@ -17,20 +18,25 @@ agenterm profiles
 agenterm spawn <projectId|nombre> shell   # -> <sessionId>
 agenterm ls
 agenterm attach <sessionId>         # Ctrl-\ para desacoplar; la sesión sigue viva
-agenterm notify --state waiting     # dentro de una sesión usa $AGENTERM_SESSION / $AGENTERM_SOCK
+agenterm notify --kind permission --message "¿Borro node_modules?"  # dentro de una sesión
+agenterm ack <sessionId>            # marca la atención como vista
 agenterm kill <sessionId>           # una segunda vez la elimina de la lista
 agenterm stop                       # mata las sesiones y apaga el daemon
 ```
 
-`notify` acepta `running`, `waiting_input` (`waiting`) e `idle` (`done`). Nunca arranca el
-daemon y tiene timeout de 3 s, así que es seguro usarlo desde hooks.
+`notify` acepta `--state running|waiting_input|idle` (alias `waiting`, `done`), `--kind
+permission|question|done|error` (implica el estado si no se da) y `--message`. Usa
+`$AGENTERM_SESSION` / `$AGENTERM_SOCK`, nunca arranca el daemon y tiene timeout de 3 s.
+`notify --from-hook claude|codex` lee el payload del hook (stdin, o último argumento en codex),
+no imprime nada y **siempre** sale con 0 (timeout 2 s): nunca bloquea ni rompe al agente.
 
 ### Rutas
 
 | | por defecto | con `AGENTERM_HOME=/x` |
 |---|---|---|
 | socket, pid, log | `~/.agenterm/{d.sock,d.pid,daemon.log}` | `/x/…` |
-| perfiles, proyectos | `~/.config/agenterm/{profiles.yaml,projects.json}` | `/x/…` |
+| perfiles, proyectos, ajustes | `~/.config/agenterm/{profiles.yaml,projects.json,settings.yaml}` | `/x/…` |
+| ficheros de hooks generados | `~/.agenterm/hooks/` | `/x/hooks/` |
 
 Ojo: en macOS la ruta de un unix socket tiene un límite de ~104 bytes.
 
@@ -45,9 +51,71 @@ Formato:
   args: []
   env: {}
   status: hooks        # hooks | heuristic
-  setup_hooks: claude  # reservado para la fase 3
+  setup_hooks: claude  # claude | codex | none: integra los hooks del agente (ver abajo)
   idle_seconds: 3      # opcional, sobreescribe el timeout heurístico
+  attention_patterns:  # opcional: regex sobre la salida reciente (sin ANSI)
+    - 'Do you want to proceed\?'
+    - '\(y/n\)'
 ```
+
+Los perfiles integrados son `claude` (`status: hooks`, `setup_hooks: claude`), `codex`
+(`status: heuristic`, `setup_hooks: codex`), `opencode` y `shell` (heurística). Si ya tienes un
+`profiles.yaml` propio, añade `setup_hooks` a mano.
+
+## Atención y notificaciones (fase 3)
+
+Cada sesión tiene, además del estado, una **atención**: `attentionKind`
+(`permission` | `question` | `done` | `error`), `attentionMessage`, `attentionAt` y `unread`.
+`unread` se borra al seleccionar la sesión en la app (RPC `session.ack`), al escribir en ella o
+con `agenterm ack`. Un `idle` explícito tras un turno (Stop / turn-complete) es un `done`; el
+`idle` heurístico (3 s sin salida) **no** avisa.
+
+### De dónde salen las señales
+
+| agente | mecanismo (solo en sesiones lanzadas por agenterm) | señales |
+|---|---|---|
+| Claude Code | `claude --settings ~/.agenterm/hooks/claude-settings.json` (generado). Los hooks de `--settings` se **suman** a los tuyos | `UserPromptSubmit`/`PostToolUse` → trabajando; `PermissionRequest` y `Notification` (`permission_prompt`, `elicitation_dialog`, `agent_needs_input`) → aprobación/pregunta con mensaje; `Stop` → terminó (con el último mensaje); `StopFailure` → error |
+| codex | `codex -c notify=[…] -c tui.notification_method="osc9" -c tui.notification_condition="always" -c tui.notifications=[…]` | `notify` (`agent-turn-complete`) → terminó; las notificaciones OSC 9 del TUI (aprobaciones, preguntas) → las recoge el parser de terminal |
+| opencode y cualquier otro | — | BEL y notificaciones de terminal (abajo) + `attention_patterns` |
+
+Nunca se tocan `~/.claude/settings.json`, `~/.codex/config.toml`, la config de opencode ni el
+proyecto: todo va por flags en la línea de comandos y ficheros en `~/.agenterm/hooks/`. Los hooks
+llaman a `<ejecutable del daemon> notify --from-hook …` con ruta absoluta (la CLI o el propio
+ejecutable del `.app`, que también implementa `notify`).
+
+**Señales de terminal** (agnósticas del agente; los bytes llegan intactos a la terminal): BEL
+suelto (no el que cierra un OSC), `OSC 9 ; mensaje` (iTerm2/Ghostty; se ignora `OSC 9;4` de
+progreso y los subcomandos numéricos de ConEmu), `OSC 777 ; notify ; título ; cuerpo` y
+`OSC 99` (kitty). En sesiones `heuristic` levantan "esperando" (que dura hasta que escribas); en
+sesiones con hooks solo cuentan mientras el agente trabaja o para completar el mensaje.
+
+### Notificaciones
+
+- **App abierta**: notificación nativa (UNUserNotificationCenter) si la ventana no está activa o
+  la sesión no es la visible. Título `"<proyecto> · <perfil>"`, cuerpo el mensaje (o "Necesita tu
+  aprobación", "Está esperando tu respuesta", "Terminó", "Terminó con un error"). Al pulsarla se
+  activa la app y se selecciona la sesión. Sonido por defecto solo en aprobación/pregunta. Badge
+  del Dock con el número de sesiones pendientes y rebote del icono en aprobaciones. En la sidebar:
+  punto ámbar pulsante, etiqueta (aprobación/pregunta/terminó/error) y tooltip con el mensaje;
+  contador por proyecto y `agenterm (N)` en el título de la ventana.
+- **App cerrada**: el daemon avisa con `osascript` (`display notification`) cuando ningún
+  cliente UI está suscrito (`events.subscribe` con `{"client":"ui"}`). Esas notificaciones salen
+  a nombre de "Script Editor" y no abren la app.
+- **Permiso**: la primera vez que abras el `.app` macOS pregunta si permites notificaciones. Si lo
+  rechazaste: *Ajustes del Sistema → Notificaciones → agenterm* → "Permitir notificaciones" (y
+  estilo "Alertas" si quieres que se queden en pantalla). Si la app no tiene permiso, cae a
+  `osascript` (para esas: *Notificaciones → Script Editor*).
+
+### `settings.yaml`
+
+```yaml
+notify:
+  enabled: true         # notificaciones (app y daemon)
+  sound: true           # sonido en aprobación/pregunta
+  notify_on_done: true  # avisar también cuando un agente termina
+```
+
+Todo está activado por defecto; el fichero es opcional y se relee en cada aviso.
 
 ## App de escritorio (fase 2)
 
@@ -83,7 +151,8 @@ Solo frontend: `cd app/frontend && npm install && npm run check && npm run build
 | `pty-replay-done:<id>` | fin del replay del scrollback |
 | `pty-exit:<id>` | código de salida |
 | `pty-error:<id>` | stream perdido (el frontend se reengancha y repinta) |
-| `daemon:event` | `session.spawned/state/removed` del daemon |
+| `daemon:event` | `session.spawned/state/attention/removed` del daemon (con `attention*`, `unread`, `raised`) |
+| `app:focus-session` | se pulsó una notificación: seleccionar esa sesión |
 | `daemon:resync` | (re)suscrito: recargar listas |
 | `daemon:down` | sin conexión con el daemon (se reintenta y se relanza) |
 
@@ -99,7 +168,12 @@ internal/client     cliente reutilizable (CLI hoy, Wails mañana) + StartDaemon
 internal/protocol   tipos del wire: JSON por líneas + frames binarios
 internal/transport  interfaz Listen/Dial/Cleanup (unix socket; named pipe en el futuro)
 internal/session    PTY (creack/pty), ring buffer, fan-out a suscriptores, kill/wait
-internal/status     máquina de estados + heurística (reloj inyectable)
+internal/status     máquina de estados + atención + heurística (reloj inyectable)
+internal/termsig    parser streaming de BEL / OSC 9 / 777 / 99
+internal/hooks      config de hooks por sesión (claude, codex) y parseo de payloads
+internal/notifycmd  subcomando `notify` compartido por la CLI y la app
+internal/desktopnotify  textos de notificación + fallback osascript
+internal/settings   settings.yaml
 internal/profile    perfiles YAML
 internal/project    registro de proyectos en JSON
 internal/paths      resolución de directorios
@@ -110,9 +184,10 @@ internal/paths      resolución de directorios
 - **Control**: JSON delimitado por `\n`. Petición `{"id":1,"method":"session.list","params":{…}}`,
   respuesta `{"id":1,"result":{…}}` o `{"id":1,"error":"…"}`. Una conexión admite varias
   peticiones seguidas. Métodos: `project.add|list|remove`, `profile.list`,
-  `session.spawn|list|kill|resize|notify|attach`, `events.subscribe`, `daemon.ping|shutdown`.
-- **`events.subscribe`**: tras la respuesta, el daemon emite un evento JSON por línea
-  (`session.spawned`, `session.state`, `session.removed`). Si el cliente se retrasa se le
+  `session.spawn|list|kill|resize|notify|ack|attach`, `events.subscribe`, `daemon.ping|shutdown`.
+- **`events.subscribe`** (`{"client":"ui"}` opcional): tras la respuesta, el daemon emite un evento
+  JSON por línea (`session.spawned`, `session.state`, `session.attention`, `session.removed`).
+  `raised: true` marca una atención nueva (lo que merece notificación). Si el cliente se retrasa se le
   desconecta (debe resuscribirse y hacer `session.list`).
 - **`session.attach`**: tras la respuesta JSON la conexión pasa a frames binarios
   `tipo(1 byte) | longitud(4 bytes BE) | payload` (máx. 1 MiB):
@@ -128,8 +203,10 @@ internal/paths      resolución de directorios
   suscriptor lento se desconecta (frame `0x04`) en vez de bloquear la lectura del PTY.
 - Se inyecta `AGENTERM_SESSION` y `AGENTERM_SOCK` en el entorno del proceso.
 - Estados: `running`, `waiting_input`, `idle`, `exited`. Heurística: salida → `running`, 3 s
-  sin salida → `idle`. En perfiles `status: hooks`, el primer evento explícito desactiva la
-  heurística para esa sesión. `exited` es terminal.
+  sin salida → `idle`; `waiting_input` no lo termina la salida (spinners), sino lo que escribas.
+  En perfiles `status: hooks`, el primer evento explícito desactiva la heurística para esa sesión.
+  `exited` es terminal. Las respuestas automáticas de la terminal (focus, DA, DSR) no cuentan como
+  "escribir".
 - `kill` envía SIGHUP+SIGTERM al grupo de procesos y SIGKILL tras 2 s. SIGTERM/SIGINT al
   daemon (o `agenterm stop`) mata todas las sesiones y borra socket y pid file. Un socket
   huérfano (nadie escuchando) se detecta y se reemplaza al arrancar.

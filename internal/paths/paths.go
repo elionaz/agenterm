@@ -1,7 +1,7 @@
 // Package paths resolves the on-disk locations used by agenterm.
 //
 // By default runtime state (socket, pid file, logs) lives in ~/.agenterm and
-// configuration (profiles, projects) in ~/.config/agenterm. Setting
+// configuration (profiles, projects, settings) in ~/.config/agenterm. Setting
 // AGENTERM_HOME overrides both with a single directory, which is what tests use.
 package paths
 
@@ -57,3 +57,8 @@ func (p Paths) PidFile() string  { return filepath.Join(p.RuntimeDir, "d.pid") }
 func (p Paths) LogFile() string  { return filepath.Join(p.RuntimeDir, "daemon.log") }
 func (p Paths) Profiles() string { return filepath.Join(p.ConfigDir, "profiles.yaml") }
 func (p Paths) Projects() string { return filepath.Join(p.ConfigDir, "projects.json") }
+func (p Paths) Settings() string { return filepath.Join(p.ConfigDir, "settings.yaml") }
+
+// HooksDir holds generated, agenterm-only agent integration files (Claude
+// settings, opencode plugin…). It is never inside a project.
+func (p Paths) HooksDir() string { return filepath.Join(p.RuntimeDir, "hooks") }

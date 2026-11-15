@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -16,6 +18,7 @@ import (
 
 	"github.com/elionaz/agenterm/internal/protocol"
 	"github.com/elionaz/agenterm/internal/status"
+	"github.com/elionaz/agenterm/internal/termsig"
 )
 
 // Environment variables injected into every session.
@@ -30,36 +33,49 @@ const subscriberQueue = 256
 
 // Options configures Spawn.
 type Options struct {
-	ID         string
-	ProjectID  string
-	ProjectDir string
-	ProfileID  string
-	Cmd        string
-	Args       []string
-	Env        []string // extra KEY=VALUE pairs appended to os.Environ()
-	Cwd        string   // defaults to ProjectDir
-	SockPath   string   // exported as AGENTERM_SOCK
-	Cols, Rows uint16
-	RingSize   int
+	ID          string
+	ProjectID   string
+	ProjectDir  string
+	ProjectName string
+	ProfileID   string
+	Cmd         string
+	Args        []string
+	Env         []string // extra KEY=VALUE pairs appended to os.Environ()
+	Cwd         string   // defaults to ProjectDir
+	SockPath    string   // exported as AGENTERM_SOCK
+	Cols, Rows  uint16
+	RingSize    int
 
 	StatusMode status.Mode
 	IdleAfter  time.Duration
 	OnState    func(status.Change) // see status.Options.OnChange
+
+	// AttentionPatterns are matched against the recent ANSI-free output
+	// once it settles; a match raises a "question" attention.
+	AttentionPatterns []*regexp.Regexp
 }
+
+// Pattern matching: how long output must be quiet before the tail is
+// checked, and how much of it is kept.
+const (
+	patternQuiet = 300 * time.Millisecond
+	tailSize     = 2048
+)
 
 // Session is a running (or exited) PTY process. Identity fields are immutable
 // after Spawn; dynamic state is read through methods.
 type Session struct {
-	ID         string
-	ProjectID  string
-	ProjectDir string
-	ProfileID  string
-	Cmd        string
-	Args       []string
-	Env        []string
-	Cwd        string
-	CreatedAt  time.Time
-	Pid        int
+	ID          string
+	ProjectID   string
+	ProjectDir  string
+	ProjectName string
+	ProfileID   string
+	Cmd         string
+	Args        []string
+	Env         []string
+	Cwd         string
+	CreatedAt   time.Time
+	Pid         int
 
 	cmd    *exec.Cmd
 	ptmx   *os.File
@@ -73,6 +89,14 @@ type Session struct {
 
 	sizeMu     sync.Mutex
 	cols, rows uint16
+
+	sig      termsig.Parser // only used by readLoop
+	patterns []*regexp.Regexp
+	tailMu   sync.Mutex
+	tail     []byte    // ANSI-free recent output, for patterns
+	tailAt   time.Time // last append
+	tailDirt bool      // appended since last pattern check
+	matched  string    // last line that matched (debounce)
 
 	done     chan struct{}
 	readDone chan struct{}
@@ -94,21 +118,23 @@ func Spawn(o Options) (*Session, error) {
 		o.Cwd = o.ProjectDir
 	}
 	s := &Session{
-		ID:         o.ID,
-		ProjectID:  o.ProjectID,
-		ProjectDir: o.ProjectDir,
-		ProfileID:  o.ProfileID,
-		Cmd:        o.Cmd,
-		Args:       append([]string(nil), o.Args...),
-		Env:        append([]string(nil), o.Env...),
-		Cwd:        o.Cwd,
-		CreatedAt:  time.Now().UTC(),
-		ring:       NewRing(o.RingSize),
-		subs:       make(map[*Subscriber]struct{}),
-		cols:       o.Cols,
-		rows:       o.Rows,
-		done:       make(chan struct{}),
-		readDone:   make(chan struct{}),
+		ID:          o.ID,
+		ProjectID:   o.ProjectID,
+		ProjectDir:  o.ProjectDir,
+		ProjectName: o.ProjectName,
+		ProfileID:   o.ProfileID,
+		Cmd:         o.Cmd,
+		Args:        append([]string(nil), o.Args...),
+		Env:         append([]string(nil), o.Env...),
+		Cwd:         o.Cwd,
+		CreatedAt:   time.Now().UTC(),
+		ring:        NewRing(o.RingSize),
+		subs:        make(map[*Subscriber]struct{}),
+		cols:        o.Cols,
+		rows:        o.Rows,
+		done:        make(chan struct{}),
+		readDone:    make(chan struct{}),
+		patterns:    o.AttentionPatterns,
 	}
 	s.status = status.New(status.Options{Mode: o.StatusMode, IdleAfter: o.IdleAfter, OnChange: o.OnState})
 
@@ -154,6 +180,7 @@ func (s *Session) readLoop() {
 		if n > 0 {
 			chunk := append([]byte(nil), buf[:n]...)
 			s.status.Output()
+			s.scan(chunk)
 			s.broadcast(chunk)
 		}
 		if err != nil {
@@ -161,6 +188,73 @@ func (s *Session) readLoop() {
 			return
 		}
 	}
+}
+
+// scan looks for terminal notifications (BEL, OSC 9/777/99) and feeds the
+// pattern tail. The chunk itself is passed to subscribers untouched.
+func (s *Session) scan(chunk []byte) {
+	var onText func([]byte)
+	if len(s.patterns) > 0 {
+		onText = s.appendTail
+	}
+	s.sig.Feed(chunk, func(sg termsig.Signal) {
+		s.status.Signal(status.KindQuestion, sg.Text())
+	}, onText)
+}
+
+func (s *Session) appendTail(b []byte) {
+	s.tailMu.Lock()
+	defer s.tailMu.Unlock()
+	s.tail = append(s.tail, b...)
+	if over := len(s.tail) - tailSize; over > 0 {
+		s.tail = append(s.tail[:0], s.tail[over:]...)
+	}
+	s.tailAt = time.Now()
+	s.tailDirt = true
+}
+
+// checkPatterns runs once output has been quiet for patternQuiet. A line
+// that already matched does not fire again until the user types.
+func (s *Session) checkPatterns() {
+	if len(s.patterns) == 0 {
+		return
+	}
+	s.tailMu.Lock()
+	if !s.tailDirt || time.Since(s.tailAt) < patternQuiet {
+		s.tailMu.Unlock()
+		return
+	}
+	s.tailDirt = false
+	text := string(s.tail)
+	var line string
+	for _, re := range s.patterns {
+		if loc := re.FindStringIndex(text); loc != nil {
+			line = lineAround(text, loc[0], loc[1])
+			break
+		}
+	}
+	fire := line != "" && line != s.matched
+	if fire {
+		s.matched = line
+	}
+	s.tailMu.Unlock()
+	if fire {
+		s.status.Signal(status.KindQuestion, line)
+	}
+}
+
+// lineAround returns the trimmed line(s) containing text[i:j].
+func lineAround(text string, i, j int) string {
+	start := strings.LastIndexAny(text[:i], "\r\n") + 1
+	end := len(text)
+	if k := strings.IndexAny(text[j:], "\r\n"); k >= 0 {
+		end = j + k
+	}
+	line := strings.Join(strings.Fields(text[start:end]), " ")
+	if r := []rune(line); len(r) > 200 {
+		line = string(r[:200])
+	}
+	return line
 }
 
 func (s *Session) broadcast(chunk []byte) {
@@ -216,6 +310,9 @@ func exitCode(ps *os.ProcessState, err error) int {
 
 func (s *Session) tickLoop() {
 	interval := max(s.status.IdleAfter()/4, 50*time.Millisecond)
+	if len(s.patterns) > 0 {
+		interval = min(interval, patternQuiet/2)
+	}
 	t := time.NewTicker(interval)
 	defer t.Stop()
 	for {
@@ -224,6 +321,7 @@ func (s *Session) tickLoop() {
 			return
 		case <-t.C:
 			s.status.Tick()
+			s.checkPatterns()
 		}
 	}
 }
@@ -276,14 +374,71 @@ func (s *Session) Attach() (snapshot []byte, sub *Subscriber) {
 // Scrollback returns a copy of the ring buffer.
 func (s *Session) Scrollback() []byte { return s.ring.Snapshot() }
 
-// Write sends input to the PTY.
+// Write sends input to the PTY. Input that is not just an automatic
+// terminal reply counts as the user answering: it acknowledges attention.
 func (s *Session) Write(p []byte) (int, error) {
 	select {
 	case <-s.done:
 		return 0, errors.New("session exited")
 	default:
 	}
+	if !isTerminalReply(p) {
+		s.status.Input()
+		s.tailMu.Lock()
+		s.tail, s.matched, s.tailDirt = s.tail[:0], "", false
+		s.tailMu.Unlock()
+	}
 	return s.ptmx.Write(p)
+}
+
+// isTerminalReply reports whether p consists only of sequences a terminal
+// emulator sends on its own: device attribute / status / mode reports
+// (CSI … c|n|R|y|t|u), focus in/out (CSI I|O), and OSC/DCS replies.
+func isTerminalReply(p []byte) bool {
+	if len(p) == 0 {
+		return true
+	}
+	for len(p) > 0 {
+		if len(p) < 2 || p[0] != 0x1b {
+			return false
+		}
+		switch p[1] {
+		case '[':
+			i := 2
+			for i < len(p) && p[i] >= 0x20 && p[i] <= 0x3f {
+				i++
+			}
+			if i >= len(p) {
+				return false
+			}
+			switch p[i] {
+			case 'c', 'n', 'R', 'y', 't', 'u', 'I', 'O':
+			default:
+				return false
+			}
+			p = p[i+1:]
+		case ']', 'P':
+			// Ends at BEL or ST.
+			end := -1
+			for i := 2; i < len(p); i++ {
+				if p[i] == 0x07 {
+					end = i + 1
+					break
+				}
+				if p[i] == 0x1b && i+1 < len(p) && p[i+1] == '\\' {
+					end = i + 2
+					break
+				}
+			}
+			if end < 0 {
+				return false
+			}
+			p = p[end:]
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // Resize changes the PTY window size.
@@ -314,6 +469,15 @@ func (s *Session) Size() (cols, rows uint16) {
 
 // Notify applies an explicit status event.
 func (s *Session) Notify(st status.State) error { return s.status.Notify(st) }
+
+// NotifyEvent applies an explicit status event with attention details.
+func (s *Session) NotifyEvent(ev status.Event) error { return s.status.NotifyEvent(ev) }
+
+// Ack marks the session's attention as seen.
+func (s *Session) Ack() bool { return s.status.Ack() }
+
+// Attention returns the session's current attention.
+func (s *Session) Attention() status.Attention { return s.status.Attention() }
 
 // State returns the current status.
 func (s *Session) State() status.State { return s.status.State() }

@@ -16,6 +16,7 @@ import (
 
 	"github.com/elionaz/agenterm/internal/client"
 	"github.com/elionaz/agenterm/internal/daemoncmd"
+	"github.com/elionaz/agenterm/internal/notifycmd"
 	"github.com/elionaz/agenterm/internal/paths"
 	"github.com/elionaz/agenterm/internal/protocol"
 )
@@ -33,7 +34,10 @@ Usage:
   agenterm ls                         list sessions
   agenterm attach <sessionId>         attach (detach with Ctrl-\)
   agenterm kill <sessionId>           kill a session (again to forget an exited one)
-  agenterm notify [--session ID] --state running|waiting_input|idle
+  agenterm notify [--session ID] [--state S] [--kind K] [--message M]
+                                      report state/attention (from agent hooks)
+  agenterm notify --from-hook claude|codex   read a hook payload (stdin / last arg)
+  agenterm ack <sessionId>            mark a session's attention as seen
 
 Environment:
   AGENTERM_HOME     single dir overriding ~/.agenterm and ~/.config/agenterm
@@ -57,8 +61,8 @@ func run(args []string) error {
 	switch cmd {
 	case daemoncmd.Name:
 		return daemoncmd.Run(rest)
-	case "notify":
-		return cmdNotify(rest)
+	case notifycmd.Name:
+		return notifycmd.Run(rest, os.Stdin, os.Stdout, os.Stderr)
 	case "help", "-h", "--help":
 		fmt.Print(usage)
 		return nil
@@ -87,6 +91,16 @@ func run(args []string) error {
 			return errors.New("usage: agenterm attach <sessionId>")
 		}
 		return attach(ctx, c, rest[0])
+	case "ack":
+		if len(rest) != 1 {
+			return errors.New("usage: agenterm ack <sessionId>")
+		}
+		info, err := c.Ack(ctx, rest[0])
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%s %s\n", info.ID, info.State)
+		return nil
 	case "kill":
 		if len(rest) != 1 {
 			return errors.New("usage: agenterm kill <sessionId>")
@@ -233,12 +247,23 @@ func cmdLs(ctx context.Context, c *client.Client) error {
 		return err
 	}
 	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tPROJECT\tPROFILE\tSTATE\tPID\tSIZE\tAGE\tCWD")
+	fmt.Fprintln(w, "ID\tPROJECT\tPROFILE\tSTATE\tATTENTION\tPID\tSIZE\tAGE\tCWD")
 	for _, s := range ss {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s%s\t%d\t%dx%d\t%s\t%s\n", s.ID, s.ProjectID, s.ProfileID, s.State, exitSuffix(s),
-			s.Pid, s.Cols, s.Rows, time.Since(s.CreatedAt).Round(time.Second), s.Cwd)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s%s\t%s\t%d\t%dx%d\t%s\t%s\n", s.ID, s.ProjectID, s.ProfileID, s.State, exitSuffix(s),
+			attention(s), s.Pid, s.Cols, s.Rows, time.Since(s.CreatedAt).Round(time.Second), s.Cwd)
 	}
 	return w.Flush()
+}
+
+// attention renders "permission*" (unread) or "-".
+func attention(s protocol.SessionInfo) string {
+	if s.AttentionKind == "" {
+		return "-"
+	}
+	if s.Unread {
+		return s.AttentionKind + "*"
+	}
+	return s.AttentionKind
 }
 
 func exitSuffix(s protocol.SessionInfo) string {
@@ -246,31 +271,6 @@ func exitSuffix(s protocol.SessionInfo) string {
 		return fmt.Sprintf("(%d)", *s.ExitCode)
 	}
 	return ""
-}
-
-func cmdNotify(args []string) error {
-	fs := flag.NewFlagSet("notify", flag.ContinueOnError)
-	id := fs.String("session", os.Getenv(protocol.EnvSession), "session id (default $AGENTERM_SESSION)")
-	state := fs.String("state", "", "running | waiting_input | idle (aliases: waiting, done)")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-	if *id == "" || *state == "" {
-		return errors.New("usage: agenterm notify [--session ID] --state STATE")
-	}
-	// Hooks must never spawn a daemon, and must not hang an agent.
-	c, err := newClient(false)
-	if err != nil {
-		return err
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	info, err := c.Notify(ctx, *id, *state)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("%s %s\n", info.ID, info.State)
-	return nil
 }
 
 // parseInterspersed lets flags appear after positional arguments.

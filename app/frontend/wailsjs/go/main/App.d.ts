@@ -4,6 +4,8 @@ import {project} from '../models';
 import {protocol} from '../models';
 import {profile} from '../models';
 
+export function Ack(arg1:string):Promise<void>;
+
 export function AddProject():Promise<project.Project>;
 
 export function Attach(arg1:string,arg2:number,arg3:number):Promise<protocol.SessionInfo>;
@@ -25,5 +27,7 @@ export function ListSessions():Promise<Array<protocol.SessionInfo>>;
 export function RemoveProject(arg1:string):Promise<void>;
 
 export function Resize(arg1:string,arg2:number,arg3:number):Promise<void>;
+
+export function SetVisibleSession(arg1:string):Promise<void>;
 
 export function Spawn(arg1:string,arg2:string,arg3:number,arg4:number):Promise<protocol.SessionInfo>;

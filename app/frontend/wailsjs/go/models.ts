@@ -7,6 +7,7 @@ export namespace profile {
 	    env?: Record<string, string>;
 	    status: string;
 	    setupHooks?: string;
+	    attentionPatterns?: string[];
 	    idleSeconds?: number;
 	
 	    static createFrom(source: any = {}) {
@@ -21,6 +22,7 @@ export namespace profile {
 	        this.env = source["env"];
 	        this.status = source["status"];
 	        this.setupHooks = source["setupHooks"];
+	        this.attentionPatterns = source["attentionPatterns"];
 	        this.idleSeconds = source["idleSeconds"];
 	    }
 	}
@@ -76,6 +78,7 @@ export namespace protocol {
 	    projectId: string;
 	    projectDir: string;
 	    profileId: string;
+	    projectName?: string;
 	    cmd: string;
 	    args?: string[];
 	    cwd: string;
@@ -86,6 +89,11 @@ export namespace protocol {
 	    exitCode?: number;
 	    cols: number;
 	    rows: number;
+	    attentionKind?: string;
+	    attentionMessage?: string;
+	    // Go type: time
+	    attentionAt?: any;
+	    unread?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new SessionInfo(source);
@@ -97,6 +105,7 @@ export namespace protocol {
 	        this.projectId = source["projectId"];
 	        this.projectDir = source["projectDir"];
 	        this.profileId = source["profileId"];
+	        this.projectName = source["projectName"];
 	        this.cmd = source["cmd"];
 	        this.args = source["args"];
 	        this.cwd = source["cwd"];
@@ -106,6 +115,10 @@ export namespace protocol {
 	        this.exitCode = source["exitCode"];
 	        this.cols = source["cols"];
 	        this.rows = source["rows"];
+	        this.attentionKind = source["attentionKind"];
+	        this.attentionMessage = source["attentionMessage"];
+	        this.attentionAt = this.convertValues(source["attentionAt"], null);
+	        this.unread = source["unread"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

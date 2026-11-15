@@ -35,6 +35,7 @@ const (
 	MethodSessionKill     = "session.kill"
 	MethodSessionResize   = "session.resize"
 	MethodSessionNotify   = "session.notify"
+	MethodSessionAck      = "session.ack"
 	MethodSessionAttach   = "session.attach"
 	MethodProfileList     = "profile.list"
 	MethodEventsSubscribe = "events.subscribe"
@@ -97,7 +98,18 @@ type ResizeParams struct {
 type NotifyParams struct {
 	SessionID string `json:"sessionId"`
 	State     string `json:"state"`
+	Kind      string `json:"kind,omitempty"`    // permission | question | done | error
+	Message   string `json:"message,omitempty"` // shown in notifications
 }
+
+// SubscribeParams identifies the subscriber. Client "ui" marks a desktop
+// app that shows its own notifications (the daemon then stays quiet).
+type SubscribeParams struct {
+	Client string `json:"client,omitempty"`
+}
+
+// ClientUI is SubscribeParams.Client for desktop UIs.
+const ClientUI = "ui"
 
 type AttachParams struct {
 	SessionID string `json:"sessionId"`
@@ -108,19 +120,28 @@ type AttachParams struct {
 
 // SessionInfo describes a session on the wire.
 type SessionInfo struct {
-	ID         string    `json:"id"`
-	ProjectID  string    `json:"projectId"`
-	ProjectDir string    `json:"projectDir"`
-	ProfileID  string    `json:"profileId"`
-	Cmd        string    `json:"cmd"`
-	Args       []string  `json:"args,omitempty"`
-	Cwd        string    `json:"cwd"`
-	Pid        int       `json:"pid"`
-	CreatedAt  time.Time `json:"createdAt"`
-	State      string    `json:"state"`
-	ExitCode   *int      `json:"exitCode,omitempty"`
-	Cols       uint16    `json:"cols"`
-	Rows       uint16    `json:"rows"`
+	ID         string `json:"id"`
+	ProjectID  string `json:"projectId"`
+	ProjectDir string `json:"projectDir"`
+	ProfileID  string `json:"profileId"`
+	// ProjectName is the project's display name (for notifications).
+	ProjectName string    `json:"projectName,omitempty"`
+	Cmd         string    `json:"cmd"`
+	Args        []string  `json:"args,omitempty"`
+	Cwd         string    `json:"cwd"`
+	Pid         int       `json:"pid"`
+	CreatedAt   time.Time `json:"createdAt"`
+	State       string    `json:"state"`
+	ExitCode    *int      `json:"exitCode,omitempty"`
+	Cols        uint16    `json:"cols"`
+	Rows        uint16    `json:"rows"`
+	// Attention: why the session needs the user. AttentionKind
+	// (permission | question | done | error) is empty when it doesn't.
+	// Unread stays true until session.ack (or the user types).
+	AttentionKind    string     `json:"attentionKind,omitempty"`
+	AttentionMessage string     `json:"attentionMessage,omitempty"`
+	AttentionAt      *time.Time `json:"attentionAt,omitempty"`
+	Unread           bool       `json:"unread,omitempty"`
 }
 
 type SessionList struct {
@@ -132,6 +153,9 @@ const (
 	EventSessionSpawned = "session.spawned"
 	EventSessionState   = "session.state"
 	EventSessionRemoved = "session.removed"
+	// EventSessionAttention: the attention changed without a state change
+	// (message filled in, acknowledged).
+	EventSessionAttention = "session.attention"
 )
 
 // Event is pushed to events.subscribe streams.
@@ -143,4 +167,16 @@ type Event struct {
 	Source    string    `json:"source,omitempty"`
 	ExitCode  *int      `json:"exitCode,omitempty"`
 	At        time.Time `json:"at"`
+	// Attention: why the session needs the user. AttentionKind
+	// (permission | question | done | error) is empty when it doesn't.
+	// Unread stays true until session.ack (or the user types).
+	AttentionKind    string     `json:"attentionKind,omitempty"`
+	AttentionMessage string     `json:"attentionMessage,omitempty"`
+	AttentionAt      *time.Time `json:"attentionAt,omitempty"`
+	Unread           bool       `json:"unread,omitempty"`
+	// Raised: a new attention was raised by this event; UIs notify on it.
+	Raised bool `json:"raised,omitempty"`
+	// ProjectName and ProfileID label notifications.
+	ProjectName string `json:"projectName,omitempty"`
+	ProfileID   string `json:"profileId,omitempty"`
 }

@@ -9,6 +9,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/elionaz/agenterm/internal/hooks"
 	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/protocol"
 	"github.com/elionaz/agenterm/internal/session"
@@ -81,13 +82,28 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 		if err != nil {
 			return nil, err
 		}
+		kind, err := status.ParseKind(p.Kind)
+		if err != nil {
+			return nil, err
+		}
 		sess, err := s.lookup(p.SessionID)
 		if err != nil {
 			return nil, err
 		}
-		if err := sess.Notify(st); err != nil {
+		if err := sess.NotifyEvent(status.Event{State: st, Kind: kind, Message: p.Message}); err != nil {
 			return nil, err
 		}
+		return sessionInfo(sess), nil
+	case protocol.MethodSessionAck:
+		p, err := decode[protocol.SessionRef](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		sess, err := s.lookup(p.SessionID)
+		if err != nil {
+			return nil, err
+		}
+		sess.Ack()
 		return sessionInfo(sess), nil
 	}
 	return nil, fmt.Errorf("unknown method %q", req.Method)
@@ -106,6 +122,14 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 	if !ok {
 		return protocol.SessionInfo{}, fmt.Errorf("profile not found: %s", p.ProfileID)
 	}
+	patterns, err := prof.Patterns()
+	if err != nil {
+		return protocol.SessionInfo{}, err
+	}
+	inj, err := hooks.Setup(prof.SetupHooks, s.cfg.Paths.HooksDir(), s.cfg.Exe)
+	if err != nil {
+		return protocol.SessionInfo{}, fmt.Errorf("profile %s: %w", prof.ID, err)
+	}
 	idle := s.cfg.IdleAfter
 	if prof.IdleSeconds > 0 {
 		idle = time.Duration(prof.IdleSeconds * float64(time.Second))
@@ -119,20 +143,23 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 	s.mu.Unlock()
 
 	sess, err := session.Spawn(session.Options{
-		ID:         id,
-		ProjectID:  proj.ID,
-		ProjectDir: proj.Path,
-		ProfileID:  prof.ID,
-		Cmd:        prof.Command(),
-		Args:       prof.Args,
-		Env:        prof.Environ(),
-		SockPath:   s.sock,
-		Cols:       p.Cols,
-		Rows:       p.Rows,
-		RingSize:   s.cfg.RingSize,
-		StatusMode: prof.Status,
-		IdleAfter:  idle,
-		OnState:    func(c status.Change) { s.publishState(id, c) },
+		ID:          id,
+		ProjectID:   proj.ID,
+		ProjectDir:  proj.Path,
+		ProjectName: proj.Name,
+		ProfileID:   prof.ID,
+		Cmd:         prof.Command(),
+		Args:        append(inj.Args, prof.Args...),
+		Env:         append(prof.Environ(), inj.Env...),
+		SockPath:    s.sock,
+		Cols:        p.Cols,
+		Rows:        p.Rows,
+		RingSize:    s.cfg.RingSize,
+		StatusMode:  prof.Status,
+		IdleAfter:   idle,
+		OnState:     func(c status.Change) { s.publishState(id, proj.Name, prof.ID, c) },
+
+		AttentionPatterns: patterns,
 	})
 	if err != nil {
 		return protocol.SessionInfo{}, err
@@ -144,7 +171,8 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 	s.log.Info("session spawned", "id", id, "project", proj.Name, "profile", prof.ID, "pid", sess.Pid)
 
 	info := sessionInfo(sess)
-	s.bus.publish(protocol.Event{Type: protocol.EventSessionSpawned, SessionID: id, State: info.State, At: time.Now().UTC()})
+	s.bus.publish(protocol.Event{Type: protocol.EventSessionSpawned, SessionID: id, State: info.State, At: time.Now().UTC(),
+		ProjectName: proj.Name, ProfileID: prof.ID})
 	go func() {
 		<-sess.Done()
 		code, _ := sess.ExitCode()
@@ -260,7 +288,12 @@ func (s *Server) handleAttach(conn net.Conn, br *bufio.Reader, req protocol.Requ
 
 // handleSubscribe streams events as JSON lines until the client disconnects.
 func (s *Server) handleSubscribe(conn net.Conn, br *bufio.Reader, req protocol.Request) {
-	events, cancel := s.bus.subscribe()
+	p, err := decode[protocol.SubscribeParams](req.Params)
+	if err != nil {
+		writeResponse(conn, req.ID, nil, err)
+		return
+	}
+	events, cancel := s.bus.subscribe(p.Client == protocol.ClientUI)
 	defer cancel()
 	if err := writeResponse(conn, req.ID, map[string]any{"ok": true}, nil); err != nil {
 		return

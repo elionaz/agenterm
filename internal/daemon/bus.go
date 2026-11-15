@@ -11,15 +11,16 @@ import (
 // resync with session.list instead of silently missing transitions.
 type bus struct {
 	mu   sync.Mutex
-	subs map[chan protocol.Event]struct{}
+	subs map[chan protocol.Event]bool // value: subscriber is a UI client
 }
 
-func newBus() *bus { return &bus{subs: make(map[chan protocol.Event]struct{})} }
+func newBus() *bus { return &bus{subs: make(map[chan protocol.Event]bool)} }
 
-func (b *bus) subscribe() (<-chan protocol.Event, func()) {
+// subscribe registers a stream; ui marks desktop apps (see uiCount).
+func (b *bus) subscribe(ui bool) (<-chan protocol.Event, func()) {
 	ch := make(chan protocol.Event, 256)
 	b.mu.Lock()
-	b.subs[ch] = struct{}{}
+	b.subs[ch] = ui
 	b.mu.Unlock()
 	return ch, func() {
 		b.mu.Lock()
@@ -29,6 +30,19 @@ func (b *bus) subscribe() (<-chan protocol.Event, func()) {
 			close(ch)
 		}
 	}
+}
+
+// uiCount is the number of subscribed UI clients.
+func (b *bus) uiCount() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	n := 0
+	for _, ui := range b.subs {
+		if ui {
+			n++
+		}
+	}
+	return n
 }
 
 func (b *bus) publish(ev protocol.Event) {

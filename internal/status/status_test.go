@@ -69,8 +69,13 @@ func TestHeuristicModeEventsThenActivity(t *testing.T) {
 	if m.State() != WaitingInput {
 		t.Fatalf("got %s", m.State())
 	}
-	// In heuristic mode output still wins.
+	// Output alone (spinners, redraws) does not end a wait...
 	m.Output()
+	if m.State() != WaitingInput {
+		t.Fatalf("got %s", m.State())
+	}
+	// ...user input does, and then the heuristic is back in charge.
+	m.Input()
 	if m.State() != Running {
 		t.Fatalf("got %s", m.State())
 	}

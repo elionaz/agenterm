@@ -9,6 +9,13 @@
 // For profiles in ModeHooks the heuristic is only a fallback: once the first
 // explicit event arrives, output activity and idle timeouts no longer change
 // the state. Exited is terminal in every mode.
+//
+// On top of the state, a Machine tracks an Attention: why the session needs
+// the user (permission, question, done, error), with an optional message and
+// an unread flag cleared by Ack or user input. Attention comes from explicit
+// events (waiting_input, and idle after a turn) and from terminal signals
+// (BEL / OSC notifications / profile patterns) via Signal. Heuristic idle
+// never raises attention: quiet output is not "done".
 package status
 
 import (
@@ -69,16 +76,74 @@ type Source string
 const (
 	SourceHeuristic Source = "heuristic"
 	SourceEvent     Source = "event"
+	SourceSignal    Source = "signal" // terminal BEL/OSC notification or attention pattern
+	SourceInput     Source = "input"  // the user typed into the session
+	SourceAck       Source = "ack"
 	SourceExit      Source = "exit"
 )
 
-// Change describes a transition.
-type Change struct {
-	From, To State
-	Source   Source
-	At       time.Time
-	ExitCode int // only meaningful when To == Exited
+// Kind classifies why a session needs the user.
+type Kind string
+
+const (
+	KindPermission Kind = "permission" // the agent asks for approval
+	KindQuestion   Kind = "question"   // the agent waits for an answer / input
+	KindDone       Kind = "done"       // the agent finished its turn
+	KindError      Kind = "error"      // the turn ended with an error
+)
+
+// ParseKind accepts the canonical kinds; empty input yields "".
+func ParseKind(s string) (Kind, error) {
+	switch k := Kind(strings.ToLower(strings.TrimSpace(s))); k {
+	case "", KindPermission, KindQuestion, KindDone, KindError:
+		return k, nil
+	case "approval":
+		return KindPermission, nil
+	case "input", "waiting":
+		return KindQuestion, nil
+	case "idle", "stop", "finished":
+		return KindDone, nil
+	}
+	return "", fmt.Errorf("unknown attention kind %q", s)
 }
+
+// Attention says that (and why) a session needs the user. The zero value
+// means "nothing to see". Unread stays true until the user acknowledges it
+// (focuses or types into the session).
+type Attention struct {
+	Kind    Kind
+	Message string
+	At      time.Time
+	Unread  bool
+	Source  Source
+}
+
+// Active reports whether there is an attention at all.
+func (a Attention) Active() bool { return a.Kind != "" }
+
+// Event is an explicit notification (agent hook or `agenterm notify`).
+type Event struct {
+	State   State
+	Kind    Kind   // optional; derived from State when empty
+	Message string // optional, shown to the user
+}
+
+// Change describes a transition. Attention-only changes (a message filled
+// in, an ack) have From == To.
+type Change struct {
+	From, To  State
+	Source    Source
+	At        time.Time
+	ExitCode  int       // only meaningful when To == Exited
+	Attention Attention // attention after the change
+	// Raised is true when a new attention was raised by this change: the
+	// signal UIs use to notify the user.
+	Raised bool
+}
+
+// DoneGrace is how long a fresh explicit "idle/done" resists output in
+// heuristic mode.
+const DoneGrace = 2 * time.Second
 
 // DefaultIdleAfter is the quiet period after which a running session is idle.
 const DefaultIdleAfter = 3 * time.Second
@@ -106,6 +171,7 @@ type Machine struct {
 	lastOutput time.Time
 	hooked     bool // an explicit event has been received
 	exitCode   int
+	att        Attention
 }
 
 // New returns a Machine in the Running state.
@@ -151,12 +217,29 @@ func (m *Machine) heuristicActive() bool {
 	return !(m.mode == ModeHooks && m.hooked)
 }
 
+// Attention returns the current attention.
+func (m *Machine) Attention() Attention {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.att
+}
+
 func (m *Machine) set(to State, src Source, at time.Time) {
-	if m.state == to {
+	att := m.att
+	if to == Running || to == Exited {
+		att = Attention{}
+	}
+	m.commit(to, src, at, att, false)
+}
+
+// commit applies a new state and attention, emitting one Change if anything
+// changed.
+func (m *Machine) commit(to State, src Source, at time.Time, att Attention, raised bool) {
+	if m.state == to && m.att == att && !raised {
 		return
 	}
-	c := Change{From: m.state, To: to, Source: src, At: at, ExitCode: m.exitCode}
-	m.state = to
+	c := Change{From: m.state, To: to, Source: src, At: at, ExitCode: m.exitCode, Attention: att, Raised: raised}
+	m.state, m.att = to, att
 	if m.onChange != nil {
 		m.onChange(c)
 	}
@@ -171,7 +254,81 @@ func (m *Machine) Output() {
 	if m.state == Exited || !m.heuristicActive() {
 		return
 	}
+	// Agents keep redrawing while they wait (spinners, cursor blink), so
+	// output alone never ends a wait: user input or an explicit event does.
+	if m.state == WaitingInput {
+		return
+	}
+	// A turn-complete event and the agent's final redraw race each other;
+	// don't let that redraw swallow the fresh "done".
+	if m.state == Idle && m.att.Unread && now.Sub(m.att.At) < DoneGrace {
+		return
+	}
 	m.set(Running, SourceHeuristic, now)
+}
+
+// Input records that the user typed into the session. It acknowledges any
+// attention and, when the wait was detected heuristically (or from a
+// terminal signal), resumes the running state.
+func (m *Machine) Input() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.state == Exited {
+		return
+	}
+	now := m.now()
+	if m.state == WaitingInput && (m.heuristicActive() || m.att.Source == SourceSignal) {
+		m.lastOutput = now
+		m.set(Running, SourceInput, now)
+		return
+	}
+	if m.att.Unread {
+		att := m.att
+		att.Unread = false
+		m.commit(m.state, SourceInput, now, att, false)
+	}
+}
+
+// Ack marks the current attention as seen. It reports whether anything
+// changed.
+func (m *Machine) Ack() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if !m.att.Unread {
+		return false
+	}
+	att := m.att
+	att.Unread = false
+	m.commit(m.state, SourceAck, m.now(), att, false)
+	return true
+}
+
+// Signal records a terminal-level request for attention (BEL, OSC 9/777/99
+// or a profile attention pattern). An unread attention only gets its
+// message filled in. Sessions driven by hooks only take signals while
+// running (the hooks already report waits and turn ends).
+func (m *Machine) Signal(kind Kind, msg string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.state == Exited {
+		return
+	}
+	now := m.now()
+	if m.att.Active() && m.att.Unread {
+		if m.att.Message == "" && msg != "" {
+			att := m.att
+			att.Message = msg
+			m.commit(m.state, SourceSignal, now, att, false)
+		}
+		return
+	}
+	if !m.heuristicActive() && m.state != Running {
+		return
+	}
+	if kind == "" {
+		kind = KindQuestion
+	}
+	m.commit(WaitingInput, SourceSignal, now, Attention{Kind: kind, Message: msg, At: now, Unread: true, Source: SourceSignal}, true)
 }
 
 // Tick evaluates the idle timeout. Callers invoke it periodically.
@@ -187,12 +344,21 @@ func (m *Machine) Tick() {
 	}
 }
 
-// Notify applies an explicit event. Exited cannot be set explicitly.
-func (m *Machine) Notify(s State) error {
-	switch s {
+// Notify applies an explicit state. See NotifyEvent.
+func (m *Machine) Notify(s State) error { return m.NotifyEvent(Event{State: s}) }
+
+// NotifyEvent applies an explicit event. Exited cannot be set explicitly.
+//
+//   - running clears any attention;
+//   - waiting_input raises a permission/question attention (a repeat of the
+//     same unread wait only fills in a missing message);
+//   - idle raises "done" when it ends a turn (running/waiting → idle) or
+//     whenever a Kind is given (e.g. one per turn-complete hook).
+func (m *Machine) NotifyEvent(ev Event) error {
+	switch ev.State {
 	case Running, WaitingInput, Idle:
 	default:
-		return fmt.Errorf("state %q cannot be notified", s)
+		return fmt.Errorf("state %q cannot be notified", ev.State)
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -201,12 +367,36 @@ func (m *Machine) Notify(s State) error {
 	}
 	m.hooked = true
 	now := m.now()
-	// Treat an explicit "running" as fresh activity so the heuristic (in
-	// heuristic mode) doesn't immediately flip it back to idle.
-	if s == Running {
+	switch ev.State {
+	case Running:
+		// Treat an explicit "running" as fresh activity so the heuristic (in
+		// heuristic mode) doesn't immediately flip it back to idle.
 		m.lastOutput = now
+		m.set(Running, SourceEvent, now)
+	case WaitingInput:
+		kind := ev.Kind
+		if kind == "" || kind == KindDone {
+			kind = KindQuestion
+		}
+		if m.state == WaitingInput && m.att.Unread && m.att.Kind == kind {
+			if m.att.Message == "" && ev.Message != "" {
+				att := m.att
+				att.Message = ev.Message
+				m.commit(m.state, SourceEvent, now, att, false)
+			}
+			return nil
+		}
+		m.commit(WaitingInput, SourceEvent, now, Attention{Kind: kind, Message: ev.Message, At: now, Unread: true, Source: SourceEvent}, true)
+	case Idle:
+		kind := ev.Kind
+		if kind == "" && m.state != Idle {
+			kind = KindDone
+		}
+		if kind == "" {
+			return nil // idle → idle without news
+		}
+		m.commit(Idle, SourceEvent, now, Attention{Kind: kind, Message: ev.Message, At: now, Unread: true, Source: SourceEvent}, true)
 	}
-	m.set(s, SourceEvent, now)
 	return nil
 }
 
