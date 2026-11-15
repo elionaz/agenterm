@@ -82,9 +82,13 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 		}
 		return st, nil
 	case protocol.MethodSettingsSave:
-		st, err := decode[settings.Settings](req.Params)
-		if err != nil {
-			return nil, err
+		// Fields a (possibly older) client does not send keep their
+		// current values.
+		st, _ := settings.Load(s.cfg.Paths.Settings())
+		if len(req.Params) > 0 {
+			if err := json.Unmarshal(req.Params, &st); err != nil {
+				return nil, fmt.Errorf("bad params: %w", err)
+			}
 		}
 		if err := settings.Save(s.cfg.Paths.Settings(), st); err != nil {
 			return nil, err
@@ -123,6 +127,14 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 		if err != nil {
 			return nil, err
 		}
+		if p.State == "" && p.Activity != "" {
+			sess, err := s.lookup(p.SessionID)
+			if err != nil {
+				return nil, err
+			}
+			sess.SetActivity(p.Activity)
+			return sessionInfo(sess), nil
+		}
 		st, err := status.ParseState(p.State)
 		if err != nil {
 			return nil, err
@@ -135,10 +147,20 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := sess.NotifyEvent(status.Event{State: st, Kind: kind, Message: p.Message}); err != nil {
+		if err := sess.NotifyEvent(status.Event{State: st, Kind: kind, Message: p.Message, Activity: p.Activity, Turn: p.Turn}); err != nil {
 			return nil, err
 		}
 		return sessionInfo(sess), nil
+	case protocol.MethodSessionTail:
+		p, err := decode[protocol.TailParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		sess, err := s.lookup(p.SessionID)
+		if err != nil {
+			return nil, err
+		}
+		return protocol.TailResult{SessionID: sess.ID, Lines: sess.Tail(p.Lines)}, nil
 	case protocol.MethodSessionAck:
 		p, err := decode[protocol.SessionRef](req.Params)
 		if err != nil {
@@ -202,6 +224,10 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 	if prof.IdleSeconds > 0 {
 		idle = time.Duration(prof.IdleSeconds * float64(time.Second))
 	}
+	st, err := settings.Load(s.cfg.Paths.Settings())
+	if err != nil {
+		s.log.Warn("settings", "err", err)
+	}
 
 	s.mu.Lock()
 	id := newID()
@@ -226,6 +252,8 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 		StatusMode:  prof.Status,
 		IdleAfter:   idle,
 		OnState:     func(c status.Change) { s.publishState(id, proj.Name, prof.ID, c) },
+		OnActivity:  s.publishActivity,
+		StallAfter:  st.Activity.StallAfter(),
 
 		AttentionPatterns: patterns,
 	})

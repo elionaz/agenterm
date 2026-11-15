@@ -79,6 +79,15 @@ func (a *App) onDaemonEvent(e protocol.Event) {
 		if was && !e.Unread {
 			a.desk.Withdraw(e.SessionID)
 		}
+	case protocol.EventSessionActivity:
+		// A stall is a quiet heads-up, not an attention: no badge, no
+		// unread, no sound (WantsSound is false for "stall").
+		if e.StallRaised {
+			e.AttentionKind = "stall"
+			e.AttentionMessage = desktopnotify.StallBody(e.Activity, e.LastOutputAt, e.LastEventAt, e.StalledAt)
+			a.notify(e)
+		}
+		return
 	case protocol.EventSessionRemoved:
 		a.att.mu.Lock()
 		delete(a.att.unread, e.SessionID)

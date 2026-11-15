@@ -85,3 +85,7 @@ export function SetVisibleSession(arg1) {
 export function Spawn(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['Spawn'](arg1, arg2, arg3, arg4);
 }
+
+export function Tail(arg1, arg2) {
+  return window['go']['main']['App']['Tail'](arg1, arg2);
+}

@@ -7,6 +7,8 @@ package hooks
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
+	"path"
 	"strings"
 
 	"github.com/elionaz/agenterm/internal/status"
@@ -50,7 +52,11 @@ func parseClaude(data []byte) (status.Event, bool, error) {
 		return status.Event{}, false, fmt.Errorf("claude hook payload: %w", err)
 	}
 	switch p.HookEventName {
-	case "UserPromptSubmit", "PostToolUse", "PostToolUseFailure":
+	case "UserPromptSubmit":
+		return status.Event{State: status.Running, Turn: true, Activity: "Pensando…"}, true, nil
+	case "PreToolUse":
+		return status.Event{State: status.Running, Activity: ToolActivity(p.ToolName, p.ToolInput)}, true, nil
+	case "PostToolUse", "PostToolUseFailure":
 		return status.Event{State: status.Running}, true, nil
 	case "PermissionRequest":
 		return status.Event{State: status.WaitingInput, Kind: status.KindPermission, Message: permissionMessage(p.ToolName, p.ToolInput)}, true, nil
@@ -75,6 +81,80 @@ func parseClaude(data []byte) (status.Event, bool, error) {
 	}
 	return status.Event{}, false, nil
 }
+
+// maxActivity bounds activity strings (sidebar rows, cards); Bash commands
+// get a tighter limit so the verb stays readable.
+const (
+	maxActivity = 120
+	maxCommand  = 60
+)
+
+// ToolActivity describes a Claude Code tool call in Spanish for the
+// activity line: "Editando main.go", "Bash: go test ./...". Field names follow
+// the tool_input shapes of the hooks reference
+// (https://code.claude.com/docs/en/hooks#pretooluse-input).
+func ToolActivity(tool string, input json.RawMessage) string {
+	var in map[string]any
+	_ = json.Unmarshal(input, &in)
+	str := func(keys ...string) string {
+		for _, k := range keys {
+			if v, ok := in[k].(string); ok && strings.TrimSpace(v) != "" {
+				return oneLine(v)
+			}
+		}
+		return ""
+	}
+	with := func(verb, arg string) string {
+		if arg == "" {
+			return verb
+		}
+		return clipTo(verb+" "+arg, maxActivity)
+	}
+	switch tool {
+	case "Edit", "Write", "MultiEdit":
+		return with("Editando", base(str("file_path", "path")))
+	case "NotebookEdit":
+		return with("Editando", base(str("notebook_path", "file_path")))
+	case "Read":
+		return with("Leyendo", base(str("file_path", "path")))
+	case "Bash":
+		if c := str("command"); c != "" {
+			return "Bash: " + clipTo(c, maxCommand)
+		}
+		return "Bash"
+	case "Grep", "Glob":
+		return with("Buscando", str("pattern"))
+	case "WebFetch":
+		u := str("url")
+		if pu, err := url.Parse(u); err == nil && pu.Host != "" {
+			u = pu.Host
+		}
+		return with("Web:", u)
+	case "WebSearch":
+		return with("Web:", str("query"))
+	case "Task", "Agent":
+		return with("Subagente:", str("description", "subagent_type"))
+	case "TodoWrite":
+		return "Actualizando tareas"
+	}
+	if rest, ok := strings.CutPrefix(tool, "mcp__"); ok {
+		server, name, _ := strings.Cut(rest, "__")
+		if name != "" {
+			return clipTo("MCP: "+server+"."+name, maxActivity)
+		}
+		return clipTo("MCP: "+server, maxActivity)
+	}
+	return clipTo(tool, maxActivity)
+}
+
+func base(p string) string {
+	if p == "" {
+		return ""
+	}
+	return path.Base(strings.TrimRight(p, "/"))
+}
+
+func oneLine(s string) string { return strings.Join(strings.Fields(s), " ") }
 
 // permissionMessage summarises a tool call: "Bash: rm -rf node_modules".
 func permissionMessage(tool string, input json.RawMessage) string {
@@ -115,11 +195,14 @@ func parseCodex(data []byte) (status.Event, bool, error) {
 }
 
 // clip flattens whitespace and truncates to maxMessage runes.
-func clip(s string) string {
-	s = strings.Join(strings.Fields(s), " ")
+func clip(s string) string { return clipTo(s, maxMessage) }
+
+// clipTo flattens whitespace and truncates to n runes (with an ellipsis).
+func clipTo(s string, n int) string {
+	s = oneLine(s)
 	r := []rune(s)
-	if len(r) > maxMessage {
-		return string(r[:maxMessage-1]) + "…"
+	if len(r) > n {
+		return string(r[:n-1]) + "…"
 	}
 	return s
 }

@@ -137,3 +137,53 @@ func TestAppAttentionNotifications(t *testing.T) {
 		t.Fatalf("bad done note %+v", n[1])
 	}
 }
+
+func TestAppStallNotificationAndTail(t *testing.T) {
+	dir, err := os.MkdirTemp("/tmp", "agstl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	p := paths.In(dir)
+	os.WriteFile(p.Profiles(), []byte("- id: cat\n  cmd: /bin/cat\n  status: hooks\n"), 0o600)
+	os.WriteFile(p.Settings(), []byte("activity:\n  stall_seconds: 1\n"), 0o600)
+	srv, err := daemon.New(daemon.Config{Paths: p, SearchPath: func() string { return "/usr/bin:/bin" }, IdleAfter: time.Hour, KillGrace: time.Second,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), Notifier: func(daemon.Notification) {}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	dctx, stopDaemon := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- srv.Run(dctx) }()
+	t.Cleanup(func() {
+		stopDaemon()
+		<-done
+	})
+	var rec recorder
+	fd := &fakeDesktop{}
+	a := NewApp()
+	a.emit = rec.emit
+	a.desk = fd
+	a.start(context.Background(), p)
+	t.Cleanup(func() { a.shutdown(context.Background()) })
+	waitFor(t, "resync", func() bool { return rec.has(evResync) })
+
+	ctx := context.Background()
+	proj, _ := a.client.ProjectAdd(ctx, dir, "web")
+	info, err := a.Spawn(proj.ID, "cat", 80, 24)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.client.NotifyEvent(ctx, protocol.NotifyParams{SessionID: info.ID, State: "running", Activity: "Leyendo go.mod"}); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "stall note", func() bool { n, _, _ := fd.snapshot(); return len(n) == 1 })
+	notes, badge, bounces := fd.snapshot()
+	if n := notes[0]; n.Kind != "stall" || n.Sound || badge != 0 || bounces != 0 || n.Body == "" {
+		t.Fatalf("stall note %+v badge=%d bounces=%d", n, badge, bounces)
+	}
+	lines, err := a.Tail(info.ID, 8)
+	if err != nil || lines == nil {
+		t.Fatalf("tail %v %v", lines, err)
+	}
+}

@@ -5,7 +5,9 @@ Copilot, aider, shell…),
 organizado por proyecto. **Fase 1**: daemon + PTYs + CLI. **Fase 2**: app de escritorio
 macOS (Wails v2 + Svelte + xterm.js) en `app/`, que es un cliente más del daemon
 (`internal/client`). **Fase 3**: detección de "necesita tu atención" (hooks de los agentes +
-señales de terminal) y notificaciones nativas, badge del Dock y sidebar.
+señales de terminal) y notificaciones nativas, badge del Dock y sidebar. **Fase 4**: visibilidad de la
+actividad — qué está haciendo cada agente ahora mismo, cuánto lleva, si parece trabado, barras de
+progreso y una vista general en rejilla.
 
 ## Uso
 
@@ -18,7 +20,8 @@ agenterm project list
 agenterm profiles                   # catálogo + profiles.yaml, con instalado/activado
 agenterm profiles scan              # re-detecta los agentes instalados
 agenterm spawn <projectId|nombre> shell   # -> <sessionId>
-agenterm ls
+agenterm ls                         # con TURN (cronómetro del turno) y ACTIVITY
+agenterm tail [-n 8] <sessionId>    # últimas líneas de salida en texto plano
 agenterm attach <sessionId>         # Ctrl-\ para desacoplar; la sesión sigue viva
 agenterm notify --kind permission --message "¿Borro node_modules?"  # dentro de una sesión
 agenterm ack <sessionId>            # marca la atención como vista
@@ -27,7 +30,8 @@ agenterm stop                       # mata las sesiones y apaga el daemon
 ```
 
 `notify` acepta `--state running|waiting_input|idle` (alias `waiting`, `done`), `--kind
-permission|question|done|error` (implica el estado si no se da) y `--message`. Usa
+permission|question|done|error` (implica el estado si no se da), `--message` y `--activity "texto"`
+(la línea de actividad; sin `--state` solo actualiza eso). Usa
 `$AGENTERM_SESSION` / `$AGENTERM_SOCK`, nunca arranca el daemon y tiene timeout de 3 s.
 `notify --from-hook claude|codex` lee el payload del hook (stdin, o último argumento en codex),
 no imprime nada y **siempre** sale con 0 (timeout 2 s): nunca bloquea ni rompe al agente.
@@ -119,7 +123,8 @@ agenterm profiles scan   # vuelve a leer el PATH del shell de login y detecta de
   argumentos, entorno `CLAVE=valor`, modo de estado, integración de hooks, segundos de inactividad,
   patrones de atención), *Duplicar como variante*, *+ Agente personalizado*, *Borrar* (propios) o
   *Restablecer* (los del catálogo modificados), con confirmación en línea, y *Re-escanear*.
-- **Notificaciones**: los tres interruptores de `settings.yaml`, con *Guardar*.
+- **Notificaciones**: los interruptores de `settings.yaml` (incluido *Avisar si parece trabado*) y
+  los segundos sin actividad para el aviso de «¿trabado?», con *Guardar*.
 
 Los menús de **+** y ⌘N usan solo los perfiles activados e instalados, en ese orden.
 
@@ -135,7 +140,7 @@ con `agenterm ack`. Un `idle` explícito tras un turno (Stop / turn-complete) es
 
 | agente | mecanismo (solo en sesiones lanzadas por agenterm) | señales |
 |---|---|---|
-| Claude Code | `claude --settings ~/.agenterm/hooks/claude-settings.json` (generado). Los hooks de `--settings` se **suman** a los tuyos | `UserPromptSubmit`/`PostToolUse` → trabajando; `PermissionRequest` y `Notification` (`permission_prompt`, `elicitation_dialog`, `agent_needs_input`) → aprobación/pregunta con mensaje; `Stop` → terminó (con el último mensaje); `StopFailure` → error |
+| Claude Code | `claude --settings ~/.agenterm/hooks/claude-settings.json` (generado). Los hooks de `--settings` se **suman** a los tuyos | `UserPromptSubmit`/`PreToolUse`/`PostToolUse` → trabajando (y línea de actividad, ver fase 4); `PermissionRequest` y `Notification` (`permission_prompt`, `elicitation_dialog`, `agent_needs_input`) → aprobación/pregunta con mensaje; `Stop` → terminó (con el último mensaje); `StopFailure` → error |
 | codex | `codex -c notify=[…] -c tui.notification_method="osc9" -c tui.notification_condition="always" -c tui.notifications=[…]` | `notify` (`agent-turn-complete`) → terminó; las notificaciones OSC 9 del TUI (aprobaciones, preguntas) → las recoge el parser de terminal |
 | opencode y cualquier otro | — | BEL y notificaciones de terminal (abajo) + `attention_patterns` |
 
@@ -145,8 +150,8 @@ llaman a `<ejecutable del daemon> notify --from-hook …` con ruta absoluta (la 
 ejecutable del `.app`, que también implementa `notify`).
 
 **Señales de terminal** (agnósticas del agente; los bytes llegan intactos a la terminal): BEL
-suelto (no el que cierra un OSC), `OSC 9 ; mensaje` (iTerm2/Ghostty; se ignora `OSC 9;4` de
-progreso y los subcomandos numéricos de ConEmu), `OSC 777 ; notify ; título ; cuerpo` y
+suelto (no el que cierra un OSC), `OSC 9 ; mensaje` (iTerm2/Ghostty; `OSC 9;4` es **progreso**, ver fase 4, y nunca pide
+atención; el resto de subcomandos numéricos de ConEmu se ignoran), `OSC 777 ; notify ; título ; cuerpo` y
 `OSC 99` (kitty). En sesiones `heuristic` levantan "esperando" (que dura hasta que escribas); en
 sesiones con hooks solo cuentan mientras el agente trabaja o para completar el mensaje.
 
@@ -171,13 +176,80 @@ sesiones con hooks solo cuentan mientras el agente trabaja o para completar el m
 
 ```yaml
 notify:
-  enabled: true         # notificaciones (app y daemon)
-  sound: true           # sonido en aprobación/pregunta
-  notify_on_done: true  # avisar también cuando un agente termina
+  enabled: true          # notificaciones (app y daemon)
+  sound: true            # sonido en aprobación/pregunta
+  notify_on_done: true   # avisar también cuando un agente termina
+  notify_on_stall: true  # aviso discreto si un turno parece trabado (sin sonido)
+activity:
+  stall_seconds: 180     # segundos sin salida ni eventos para marcar «¿trabado?»; 0 lo desactiva
 ```
 
-Todo está activado por defecto; el fichero es opcional y se relee en cada aviso. La app lo
-edita desde *Ajustes → Notificaciones* (RPC `settings.save`, escritura atómica con `.bak`).
+Todo está activado por defecto; el fichero es opcional y se relee en cada aviso (`stall_seconds`
+se lee al lanzar cada sesión). La app lo edita desde *Ajustes → Notificaciones* (RPC
+`settings.save`, escritura atómica con `.bak`). Al guardar se edita el fichero en su sitio: se
+**conservan** las claves desconocidas y los comentarios, y los campos que un cliente no envía
+mantienen su valor actual.
+
+## Actividad (fase 4)
+
+"Trabajando" ya no significa solo "hubo salida en los últimos 3 s". Cada sesión lleva, en
+`session.list` y en los eventos:
+
+| campo | qué es |
+|---|---|
+| `activity`, `activityAt`, `activitySource` | línea de actividad y de dónde sale: `hook` u `output` |
+| `turnStartedAt`, `turnEndedAt` | inicio del turno actual (o último) y su fin (al pasar a `idle`/`exited`) |
+| `lastOutputAt`, `lastEventAt` | última salida del PTY y último evento explícito (hook / `notify`) |
+| `stalled`, `stalledAt` | el turno parece trabado (es una marca, no un estado) |
+| `progress` | `{state: normal\|error\|indeterminate\|paused, value: 0-100}` (OSC 9;4) |
+
+**Línea de actividad.**
+
+- *Claude Code*: el fichero de hooks generado incluye `PreToolUse` (sin `matcher`: todas las
+  herramientas; timeout 3 s). `notify --from-hook` no imprime nada y sale con 0, así que **nunca**
+  emite una decisión de permisos: la llamada sigue el flujo normal de aprobación de Claude.
+  `tool_name` + `tool_input` se traducen así: `Edit`/`Write`/`MultiEdit`/`NotebookEdit` →
+  "Editando main.go", `Read` → "Leyendo go.mod", `Bash` → "Bash: <comando, ~60 caracteres>",
+  `Grep`/`Glob` → "Buscando <patrón>", `WebFetch` → "Web: <host>", `WebSearch` → "Web: <consulta>",
+  `Task`/`Agent` → "Subagente: <descripción>", `TodoWrite` → "Actualizando tareas", `mcp__srv__tool`
+  → "MCP: srv.tool"; cualquier otra, su nombre. `UserPromptSubmit` → "Pensando…" (y reinicia el
+  cronómetro del turno). Con hooks, la salida no pisa la actividad.
+- *Resto de agentes*: la última línea con contenido de la salida (sin ANSI, el texto que ya extrae el
+  parser de terminal), recortada, con un CR que redibuja la línea quedándose con su última versión,
+  ignorando líneas solo de spinner, de dibujo de cajas o con menos de dos letras/dígitos, y como mucho
+  una actualización cada 500 ms. En TUIs que redibujan la pantalla (opencode, codex…) será la última
+  línea que pintaron, que no siempre es la más informativa.
+- El daemon emite `session.activity` agrupado: como mucho uno cada 500 ms por sesión (siempre con el
+  último valor), más un latido cada 5 s mientras haya salida (para refrescar "última salida").
+
+**Cronómetros.** `turnStartedAt` se fija al pasar a `running` desde `idle` (o al responder tú a una
+espera detectada por la terminal) y en cada `UserPromptSubmit`; una aprobación (espera explícita →
+`running`) continúa el mismo turno. La app muestra "trabajando 4m 12s", "última salida hace 12s"
+(si pasan ≥ 10 s) y, en reposo, "terminó en 6m".
+
+**¿Trabado?** Si un turno abierto **por un hook** (`running` explícito) pasa `activity.stall_seconds`
+sin salida y sin eventos, la sesión se marca `stalled` (evento `session.activity` con
+`stallRaised: true`) y la app lo muestra en naranja: "¿trabado? sin actividad hace 5m". Se borra con
+cualquier salida o evento. Con `notify.notify_on_stall` se envía una notificación de tipo `stall`:
+sin sonido, sin rebote del Dock, no cuenta en el badge ni como pendiente (por el mismo camino que el
+resto; con la app cerrada, el daemon vía `osascript`). Las sesiones heurísticas no tienen "turno
+abierto" (3 s sin salida ya es `idle`), así que nunca se marcan. Ojo: el spinner de Claude Code
+redibuja cada segundo mientras trabaja y eso cuenta como salida, así que en Claude el aviso detecta
+sobre todo cuelgues completos (proceso parado, terminal congelada), no una herramienta lenta.
+
+**Progreso.** `OSC 9 ; 4 ; st ; pr` (ConEmu / Windows Terminal / Ghostty; `st` 0 borra, 1 normal,
+2 error, 3 indeterminado, 4 pausa; `pr` 0-100) se interpreta como progreso: barra fina bajo la fila
+de la sesión y arriba del panel de terminal. Nunca levanta atención. Los bytes siguen llegando
+intactos a xterm.
+
+**Vista general (⌘0).** El botón ▦ de la cabecera de la sidebar (o el de cada proyecto) abre una
+rejilla con las sesiones del proyecto actual (interruptor "todos los proyectos"): perfil, estado,
+atención, actividad, cronómetros, progreso y las últimas 8 líneas de salida en texto plano (RPC
+`session.tail`, refrescadas al llegar eventos y como mucho cada 1,5 s por sesión; sin instancias
+extra de xterm). Pulsar una tarjeta abre la sesión; Esc o ⌘0 la cierran.
+
+**Sidebar.** Bajo el nombre del perfil: la actividad (recortada, tenue; completa en el tooltip) y el
+cronómetro del turno.
 
 ## App de escritorio (fase 2)
 
@@ -200,7 +272,7 @@ Solo frontend: `cd app/frontend && npm install && npm run check && npm run build
 - Antes de lanzar el daemon, la app toma el `PATH` de tu shell de login (`$SHELL -l -i -c`) y fija
   `TERM=xterm-256color`, `COLORTERM=truecolor` y `LANG` si falta: las apps abiertas desde Finder
   heredan el entorno mínimo de launchd y no encontrarían `claude`/`codex`.
-- Atajos: ⌘1…⌘9 seleccionan la sesión n del proyecto actual, ⌘N lanza una sesión con el primer
+- Atajos: ⌘0 abre/cierra la vista general, ⌘1…⌘9 seleccionan la sesión n del proyecto actual, ⌘N lanza una sesión con el primer
   perfil activado e instalado en el proyecto actual, ⌘, abre Ajustes, ⌘C/⌘V copian/pegan en la terminal.
 - `AGENTERM_HOME` también vale para la app (útil para probar sin tocar `~/.agenterm`):
   `AGENTERM_HOME=/tmp/at wails dev`.
@@ -213,7 +285,7 @@ Solo frontend: `cd app/frontend && npm install && npm run check && npm run build
 | `pty-replay-done:<id>` | fin del replay del scrollback |
 | `pty-exit:<id>` | código de salida |
 | `pty-error:<id>` | stream perdido (el frontend se reengancha y repinta) |
-| `daemon:event` | `session.spawned/state/attention/removed` del daemon (con `attention*`, `unread`, `raised`) |
+| `daemon:event` | `session.spawned/state/attention/activity/removed` del daemon (con `attention*`, `unread`, `raised`, y los campos de actividad) |
 | `app:focus-session` | se pulsó una notificación: seleccionar esa sesión |
 | `daemon:resync` | (re)suscrito: recargar listas |
 | `daemon:down` | sin conexión con el daemon (se reintenta y se relanza) |
@@ -229,9 +301,9 @@ internal/daemon     servidor: registro de sesiones, RPC, attach, eventos, pid/so
 internal/client     cliente reutilizable (CLI hoy, Wails mañana) + StartDaemon
 internal/protocol   tipos del wire: JSON por líneas + frames binarios
 internal/transport  interfaz Listen/Dial/Cleanup (unix socket; named pipe en el futuro)
-internal/session    PTY (creack/pty), ring buffer, fan-out a suscriptores, kill/wait
+internal/session    PTY (creack/pty), ring buffer, fan-out, kill/wait, actividad (línea, progreso, tail)
 internal/status     máquina de estados + atención + heurística (reloj inyectable)
-internal/termsig    parser streaming de BEL / OSC 9 / 777 / 99
+internal/termsig    parser streaming de BEL / OSC 9 / 777 / 99 y progreso OSC 9;4
 internal/hooks      config de hooks por sesión (claude, codex) y parseo de payloads
 internal/notifycmd  subcomando `notify` compartido por la CLI y la app
 internal/desktopnotify  textos de notificación + fallback osascript
@@ -249,10 +321,14 @@ internal/paths      resolución de directorios
   respuesta `{"id":1,"result":{…}}` o `{"id":1,"error":"…"}`. Una conexión admite varias
   peticiones seguidas. Métodos: `project.add|list|remove`,
   `profile.list|catalog|save|delete|reorder|rescan`, `settings.get|save`,
-  `session.spawn|list|kill|resize|notify|ack|attach`, `events.subscribe`, `daemon.ping|shutdown`.
+  `session.spawn|list|kill|resize|notify|ack|attach|tail`, `events.subscribe`, `daemon.ping|shutdown`.
+  `session.tail` (`{"sessionId":…,"lines":8}`, máx. 200) devuelve `{"lines":[…]}`: el final del
+  scrollback (últimos 64 KiB) sin ANSI, con CR sobrescribiendo desde la columna 0 y sin tandas de
+  líneas en blanco.
 - **`events.subscribe`** (`{"client":"ui"}` opcional): tras la respuesta, el daemon emite un evento
-  JSON por línea (`session.spawned`, `session.state`, `session.attention`, `session.removed`).
-  `raised: true` marca una atención nueva (lo que merece notificación). Si el cliente se retrasa se le
+  JSON por línea (`session.spawned`, `session.state`, `session.attention`, `session.activity`,
+  `session.removed`). `raised: true` marca una atención nueva (lo que merece notificación);
+  `stallRaised: true` (en `session.activity`) una sesión que acaba de quedarse "¿trabada?". Si el cliente se retrasa se le
   desconecta (debe resuscribirse y hacer `session.list`).
 - **`session.attach`**: tras la respuesta JSON la conexión pasa a frames binarios
   `tipo(1 byte) | longitud(4 bytes BE) | payload` (máx. 1 MiB):

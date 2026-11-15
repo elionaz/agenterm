@@ -23,7 +23,7 @@ import (
 const Name = "notify"
 
 // Usage is the one-line synopsis.
-const Usage = `agenterm notify [--session ID] [--state S] [--kind K] [--message M]
+const Usage = `agenterm notify [--session ID] [--state S] [--kind K] [--message M] [--activity A]
   agenterm notify --from-hook claude|codex [JSON]   (hook payload on stdin or as last arg)`
 
 const (
@@ -42,6 +42,7 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	state := fs.String("state", "", "running | waiting_input | idle (aliases: waiting, done)")
 	kind := fs.String("kind", "", "permission | question | done | error (implies --state when omitted)")
 	msg := fs.String("message", "", "message shown in the notification")
+	activity := fs.String("activity", "", "what the agent is doing (activity line); alone it only updates that")
 	fromHook := fs.String("from-hook", "", "read an agent hook payload: claude (stdin) | codex (last argument)")
 	if err := fs.Parse(args); err != nil {
 		if *fromHook != "" || hasHookFlag(args) {
@@ -63,12 +64,12 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	if *state == "" {
 		*state = stateForKind(k)
 	}
-	if *id == "" || *state == "" {
+	if *id == "" || (*state == "" && *activity == "") {
 		return errors.New("usage: " + Usage)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	info, err := send(ctx, protocol.NotifyParams{SessionID: *id, State: *state, Kind: string(k), Message: *msg})
+	info, err := send(ctx, protocol.NotifyParams{SessionID: *id, State: *state, Kind: string(k), Message: *msg, Activity: *activity})
 	if err != nil {
 		return err
 	}
@@ -115,7 +116,8 @@ func runHook(agent, id string, rest []string, stdin io.Reader) error {
 	}
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
-	_, err = send(ctx, protocol.NotifyParams{SessionID: id, State: string(ev.State), Kind: string(ev.Kind), Message: ev.Message})
+	_, err = send(ctx, protocol.NotifyParams{SessionID: id, State: string(ev.State), Kind: string(ev.Kind), Message: ev.Message,
+		Activity: ev.Activity, Turn: ev.Turn})
 	return err
 }
 

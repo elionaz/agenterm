@@ -46,12 +46,14 @@
   let dropAt = $state<number | null>(null)
 
   let notify = $state<Settings['notify'] | null>(null)
+  /** activity.stall_seconds as typed (validated on save). */
+  let stallSeconds = $state('')
   let savedNotify = $state<string>('')
   let notifyError = $state<string | null>(null)
   let notifySaved = $state(false)
 
   const installedCount = $derived(profiles.filter((p) => p.installed).length)
-  const notifyDirty = $derived(notify != null && JSON.stringify(notify) !== savedNotify)
+  const notifyDirty = $derived(notify != null && JSON.stringify([notify, stallSeconds.trim()]) !== savedNotify)
 
   function sourceLabel(p: Profile): string {
     if (p.extends) return `variante de ${p.extends}`
@@ -266,21 +268,30 @@
   async function loadSettings() {
     try {
       const s = await api.getSettings()
-      notify = { ...s.notify }
-      savedNotify = JSON.stringify(notify)
+      applySettings(s)
       notifyError = null
     } catch (e) {
       notifyError = errorMessage(e)
     }
   }
 
+  function applySettings(s: Settings) {
+    notify = { ...s.notify, notifyOnStall: s.notify.notifyOnStall ?? true }
+    stallSeconds = String(s.activity?.stallSeconds ?? 180)
+    savedNotify = JSON.stringify([notify, stallSeconds.trim()])
+  }
+
   async function saveNotify() {
     if (!notify) return
     notifySaved = false
+    const secs = Number(stallSeconds.trim())
+    if (stallSeconds.trim() === '' || !Number.isInteger(secs) || secs < 0) {
+      notifyError = 'Segundos sin actividad: escribe un número entero (0 desactiva la detección)'
+      return
+    }
     try {
-      const s = await api.saveSettings({ notify: { ...notify } })
-      notify = { ...s.notify }
-      savedNotify = JSON.stringify(notify)
+      const s = await api.saveSettings({ notify: { ...notify }, activity: { stallSeconds: secs } })
+      applySettings(s)
       notifyError = null
       notifySaved = true
     } catch (e) {
@@ -520,6 +531,20 @@
               <b>Avisar al terminar</b>
               <em>También cuando un agente acaba su turno.</em>
             </span>
+          </label>
+          <label class="check" class:dim={!notify.enabled}>
+            <input type="checkbox" bind:checked={notify.notifyOnStall} disabled={!notify.enabled} />
+            <span>
+              <b>Avisar si parece trabado</b>
+              <em>Aviso discreto (sin sonido, no cuenta como pendiente) cuando un turno lleva un rato sin salida ni eventos.</em>
+            </span>
+          </label>
+          <label class="field">
+            <span>
+              <b>Segundos sin actividad para «¿trabado?»</b>
+              <em>Solo en agentes con hooks (Claude Code) mientras hay un turno abierto. 0 desactiva la detección. Se aplica a las sesiones nuevas.</em>
+            </span>
+            <input class="num" bind:value={stallSeconds} inputmode="numeric" placeholder="180" />
           </label>
           <div class="editor-actions left">
             <button class="btn primary" disabled={!notifyDirty} onclick={saveNotify}>Guardar</button>
@@ -942,5 +967,26 @@
   .check input {
     margin-top: 3px;
     accent-color: var(--blue);
+  }
+  .field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 0 10px 23px;
+    border-bottom: 1px solid var(--border);
+  }
+  .field span {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .field em {
+    font-size: 12px;
+  }
+  .field .num {
+    width: 80px;
+    flex: none;
+    text-align: right;
   }
 </style>

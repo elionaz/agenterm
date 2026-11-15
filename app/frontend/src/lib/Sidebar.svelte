@@ -1,5 +1,7 @@
 <script lang="ts">
   import { attentionLabel, needsAttention, type Profile, type Project, type Session } from './api'
+  import { progressOf, shortTimer } from './activity'
+  import ProgressBar from './ProgressBar.svelte'
 
   interface Props {
     projects: Project[]
@@ -14,6 +16,10 @@
     onAddProject: () => void
     onRemoveProject: (id: string) => void
     onOpenSettings: () => void
+    /** Opens the grid overview (focused on a project when given). */
+    onOpenGrid: (projectId?: string) => void
+    /** Current time (ms), ticking once per second, for the timers. */
+    now: number
   }
 
   let {
@@ -29,6 +35,8 @@
     onAddProject,
     onRemoveProject,
     onOpenSettings,
+    onOpenGrid,
+    now,
   }: Props = $props()
 
   let collapsed = $state<Record<string, boolean>>({})
@@ -67,7 +75,8 @@
   }
 
   function tooltip(s: Session): string {
-    const base = `${s.cmd} · ${s.cwd} · ${s.id}`
+    let base = `${s.cmd} · ${s.cwd} · ${s.id}`
+    if (s.activity) base = `${s.activity}\n${base}`
     if (!s.attentionKind || s.state === 'exited') return base
     const what = attentionLabel(s.attentionKind)
     return `${what}${s.attentionMessage ? `: ${s.attentionMessage}` : ''}\n${base}`
@@ -92,6 +101,7 @@
 
 <aside class="sidebar">
   <div class="titlebar drag">
+    <button class="icon grid-btn" title="Vista general (⌘0)" aria-label="Vista general" onclick={() => onOpenGrid()}>▦</button>
     <span class="brand">agenterm</span>
   </div>
 
@@ -119,6 +129,10 @@
             >
           {:else if list.length}<span class="count">{list.length}</span>{/if}
           <span class="row-actions">
+            <button class="icon" title="Vista general del proyecto (⌘0)" onclick={(e) => {
+              e.stopPropagation()
+              onOpenGrid(p.id)
+            }}>▦</button>
             <button class="icon" title="Quitar proyecto (no borra archivos)" onclick={(e) => {
               e.stopPropagation()
               onRemoveProject(p.id)
@@ -152,6 +166,8 @@
         {#if !collapsed[p.id]}
           <ul class="sessions">
             {#each list as s, i (s.id)}
+              {@const timer = shortTimer(s, now)}
+              {@const prog = s.state !== 'exited' ? progressOf(s) : undefined}
               <li>
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -162,18 +178,27 @@
                   title={tooltip(s)}
                   onclick={() => onSelect(s.id)}
                 >
-                  <span class="dot {badgeClass(s)}"></span>
-                  <span class="session-name">{s.profileId}</span>
-                  <span class="state {badgeClass(s)}">{stateLabel(s)}</span>
-                  {#if i < 9 && p.id === currentProjectId}<span class="kbd">⌘{i + 1}</span>{/if}
-                  <button
-                    class="icon kill"
-                    title={s.state === 'exited' ? 'Quitar de la lista' : 'Terminar sesión'}
-                    onclick={(e) => {
-                      e.stopPropagation()
-                      onKill(s.id)
-                    }}>×</button
-                  >
+                  <div class="line">
+                    <span class="dot {badgeClass(s)}"></span>
+                    <span class="session-name">{s.profileId}</span>
+                    <span class="state {badgeClass(s)}">{stateLabel(s)}</span>
+                    {#if i < 9 && p.id === currentProjectId}<span class="kbd">⌘{i + 1}</span>{/if}
+                    <button
+                      class="icon kill"
+                      title={s.state === 'exited' ? 'Quitar de la lista' : 'Terminar sesión'}
+                      onclick={(e) => {
+                        e.stopPropagation()
+                        onKill(s.id)
+                      }}>×</button
+                    >
+                  </div>
+                  {#if (s.activity && s.state !== 'exited') || timer.text}
+                    <div class="sub">
+                      <span class="activity">{s.state !== 'exited' ? (s.activity ?? '') : ''}</span>
+                      {#if timer.text}<span class="timer" class:stalled={timer.stalled}>{timer.text}</span>{/if}
+                    </div>
+                  {/if}
+                  {#if prog}<div class="row-progress"><ProgressBar progress={prog} /></div>{/if}
                 </div>
               </li>
             {:else}
@@ -266,10 +291,10 @@
     display: flex;
     gap: 2px;
   }
-  .row-actions .icon:first-child {
+  .row-actions .icon:not(:last-child) {
     visibility: hidden;
   }
-  .project-row:hover .row-actions .icon:first-child {
+  .project-row:hover .row-actions .icon:not(:last-child) {
     visibility: visible;
   }
   .icon {
@@ -326,13 +351,50 @@
   }
   .session {
     display: flex;
-    align-items: center;
-    gap: 7px;
-    height: 26px;
-    padding: 0 4px 0 8px;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 26px;
+    padding: 2px 4px 2px 8px;
     border-radius: 6px;
     color: var(--fg-dim);
     cursor: default;
+  }
+  .line {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    height: 22px;
+  }
+  .sub {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin: -2px 0 2px 14px;
+    font-size: 10.5px;
+    color: var(--muted);
+    min-width: 0;
+  }
+  .activity {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .timer {
+    flex: none;
+    font-variant-numeric: tabular-nums;
+  }
+  .timer.stalled {
+    color: var(--amber);
+    font-weight: 600;
+  }
+  .row-progress {
+    margin: 0 0 2px 14px;
+  }
+  .grid-btn {
+    margin-right: auto;
+    font-size: 13px;
   }
   .session:hover {
     background: var(--hover);

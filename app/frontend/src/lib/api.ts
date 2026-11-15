@@ -13,9 +13,29 @@ export type Session = Omit<protocol.SessionInfo, 'convertValues'>
 export type SessionState = 'running' | 'waiting_input' | 'idle' | 'exited'
 export type AttentionKind = 'permission' | 'question' | 'done' | 'error'
 
+/** Mirrors protocol.Progress (terminal OSC 9;4 progress). */
+export interface Progress {
+  state: 'normal' | 'error' | 'indeterminate' | 'paused'
+  value: number
+}
+
+/** Mirrors protocol.Live: activity line, timers, stall, progress. */
+export interface Live {
+  activity?: string
+  activityAt?: string
+  activitySource?: 'hook' | 'output'
+  turnStartedAt?: string
+  turnEndedAt?: string
+  lastOutputAt?: string
+  lastEventAt?: string
+  stalled?: boolean
+  stalledAt?: string
+  progress?: Progress
+}
+
 /** Mirrors protocol.Event (Go). */
-export interface DaemonEvent {
-  type: 'session.spawned' | 'session.state' | 'session.removed' | 'session.attention'
+export interface DaemonEvent extends Live {
+  type: 'session.spawned' | 'session.state' | 'session.removed' | 'session.attention' | 'session.activity'
   sessionId: string
   state?: SessionState
   prevState?: string
@@ -28,6 +48,8 @@ export interface DaemonEvent {
   unread?: boolean
   /** A new attention was raised (the backend already decided on notifying). */
   raised?: boolean
+  /** session.activity: the session just became stalled. */
+  stallRaised?: boolean
 }
 
 /** A session needs the user and they have not looked at it yet. */
@@ -73,6 +95,8 @@ export const api = {
   /** Raw bytes to the PTY (keystrokes are UTF-8 encoded by the caller). */
   inputBytes: (id: string, data: Uint8Array) => App.InputBase64(id, bytesToB64(data)),
   resize: (id: string, cols: number, rows: number) => App.Resize(id, cols, rows),
+  /** Last lines of output, ANSI-stripped (grid cards). */
+  tail: (id: string, lines: number): Promise<string[]> => App.Tail(id, lines),
   /** Marks a session's attention as seen. */
   ack: (id: string) => App.Ack(id),
   /** Which session the window shows ('' for none): no notifications for it. */

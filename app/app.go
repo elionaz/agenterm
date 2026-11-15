@@ -305,6 +305,17 @@ func (a *App) Spawn(projectID, profileID string, cols, rows int) (protocol.Sessi
 	return info, err
 }
 
+// Tail returns the last lines of a session's output as plain text (for
+// the grid overview cards).
+func (a *App) Tail(id string, lines int) ([]string, error) {
+	var out []string
+	err := a.call(func(ctx context.Context) (err error) {
+		out, err = a.client.Tail(ctx, id, lines)
+		return err
+	})
+	return nonNil(out), err
+}
+
 // Kill terminates a running session, or forgets an exited one.
 func (a *App) Kill(id string) (protocol.SessionInfo, error) {
 	var info protocol.SessionInfo

@@ -23,7 +23,16 @@ const (
 
 // claudeEvents are the Claude Code hook events agenterm listens to; see
 // parseClaude for what each one means.
-var claudeEvents = []string{"UserPromptSubmit", "PermissionRequest", "Notification", "PostToolUse", "Stop", "StopFailure"}
+var claudeEvents = []string{"UserPromptSubmit", "PreToolUse", "PermissionRequest", "Notification", "PostToolUse", "Stop", "StopFailure"}
+
+// Hook timeouts (seconds). PreToolUse runs before every tool call, so it
+// gets the tightest bound; `notify --from-hook` gives up after 2 s anyway and
+// never prints a permission decision (exit 0, empty stdout = "no opinion":
+// the call goes through Claude's normal permission flow).
+const (
+	hookTimeout    = 5
+	preToolTimeout = 3
+)
 
 // Setup prepares the hook integration for agent. exe is the absolute path
 // of a binary implementing `notify --from-hook` (the daemon's own
@@ -74,7 +83,11 @@ func ClaudeSettings(exe string) []byte {
 	}
 	hooks := make(map[string][]group, len(claudeEvents))
 	for _, ev := range claudeEvents {
-		hooks[ev] = []group{{Hooks: []handler{{Type: "command", Command: cmd, Timeout: 5}}}}
+		to := hookTimeout
+		if ev == "PreToolUse" {
+			to = preToolTimeout
+		}
+		hooks[ev] = []group{{Hooks: []handler{{Type: "command", Command: cmd, Timeout: to}}}}
 	}
 	b, _ := json.MarshalIndent(map[string]any{"hooks": hooks}, "", "  ")
 	return append(b, '\n')

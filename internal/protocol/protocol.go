@@ -37,6 +37,7 @@ const (
 	MethodSessionNotify   = "session.notify"
 	MethodSessionAck      = "session.ack"
 	MethodSessionAttach   = "session.attach"
+	MethodSessionTail     = "session.tail"
 	MethodProfileList     = "profile.list"
 	MethodProfileCatalog  = "profile.catalog"
 	MethodProfileSave     = "profile.save"
@@ -137,6 +138,52 @@ type NotifyParams struct {
 	State     string `json:"state"`
 	Kind      string `json:"kind,omitempty"`    // permission | question | done | error
 	Message   string `json:"message,omitempty"` // shown in notifications
+	// Activity describes what the agent is doing ("Leyendo main.go"). With
+	// an empty State only the activity is updated.
+	Activity string `json:"activity,omitempty"`
+	// Turn marks a new turn (prompt submitted): restarts the turn timer.
+	Turn bool `json:"turn,omitempty"`
+}
+
+// TailParams asks for the last Lines lines of a session's output.
+type TailParams struct {
+	SessionID string `json:"sessionId"`
+	Lines     int    `json:"lines,omitempty"` // default 8, max 200
+}
+
+// TailResult is the ANSI-stripped tail of the scrollback, oldest first.
+type TailResult struct {
+	SessionID string   `json:"sessionId"`
+	Lines     []string `json:"lines"`
+}
+
+// Progress mirrors a terminal progress report (OSC 9;4). State is
+// normal | error | indeterminate | paused; Value is 0-100.
+type Progress struct {
+	State string `json:"state"`
+	Value int    `json:"value"`
+}
+
+// Live is what a session is doing right now: its activity line, timers,
+// stall flag and progress. It is embedded (flattened) in SessionInfo and in
+// session.activity / session.state events.
+type Live struct {
+	// Activity is a short human description ("Editando main.go", or the
+	// last meaningful line of output); ActivitySource is hook | output.
+	Activity       string     `json:"activity,omitempty"`
+	ActivityAt     *time.Time `json:"activityAt,omitempty"`
+	ActivitySource string     `json:"activitySource,omitempty"`
+	// TurnStartedAt is when the current (or last) turn started;
+	// TurnEndedAt is set once it ended (idle/exited).
+	TurnStartedAt *time.Time `json:"turnStartedAt,omitempty"`
+	TurnEndedAt   *time.Time `json:"turnEndedAt,omitempty"`
+	LastOutputAt  *time.Time `json:"lastOutputAt,omitempty"`
+	LastEventAt   *time.Time `json:"lastEventAt,omitempty"`
+	// Stalled: a hook-driven turn saw no output nor events for
+	// activity.stall_seconds.
+	Stalled   bool       `json:"stalled,omitempty"`
+	StalledAt *time.Time `json:"stalledAt,omitempty"`
+	Progress  *Progress  `json:"progress,omitempty"`
 }
 
 // SubscribeParams identifies the subscriber. Client "ui" marks a desktop
@@ -179,6 +226,7 @@ type SessionInfo struct {
 	AttentionMessage string     `json:"attentionMessage,omitempty"`
 	AttentionAt      *time.Time `json:"attentionAt,omitempty"`
 	Unread           bool       `json:"unread,omitempty"`
+	Live
 }
 
 type SessionList struct {
@@ -193,6 +241,9 @@ const (
 	// EventSessionAttention: the attention changed without a state change
 	// (message filled in, acknowledged).
 	EventSessionAttention = "session.attention"
+	// EventSessionActivity: activity line, progress, stall flag or output
+	// heartbeat changed (coalesced: at most ~2 per second per session).
+	EventSessionActivity = "session.activity"
 )
 
 // Event is pushed to events.subscribe streams.
@@ -216,4 +267,10 @@ type Event struct {
 	// ProjectName and ProfileID label notifications.
 	ProjectName string `json:"projectName,omitempty"`
 	ProfileID   string `json:"profileId,omitempty"`
+	// StallRaised (session.activity): the session just became stalled;
+	// UIs may show a low-urgency notification (kind "stall"). It is not an
+	// attention: it does not count as unread.
+	StallRaised bool `json:"stallRaised,omitempty"`
+	// Live is filled in session.activity and session.state events.
+	Live
 }

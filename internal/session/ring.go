@@ -63,3 +63,15 @@ func (r *Ring) Cap() int { return len(r.buf) }
 
 // Total returns the number of bytes ever written.
 func (r *Ring) Total() int64 { r.mu.Lock(); defer r.mu.Unlock(); return r.total }
+
+// Tail returns a copy of the last n stored bytes (fewer if not available).
+func (r *Ring) Tail(n int) []byte {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	n = max(0, min(n, r.n))
+	out := make([]byte, n)
+	start := (r.w - n + len(r.buf)) % len(r.buf)
+	k := copy(out, r.buf[start:min(start+n, len(r.buf))])
+	copy(out[k:], r.buf[:n-k])
+	return out
+}

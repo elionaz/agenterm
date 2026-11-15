@@ -13,11 +13,46 @@ import (
 	"unicode/utf8"
 )
 
-// Signal is one notification found in the stream.
+// Signal is one notification found in the stream. When Progress is set the
+// signal is a ConEmu progress report (OSC 9;4), not a request for attention.
 type Signal struct {
-	Bell    bool   // a bare BEL (no message)
-	Title   string // optional (OSC 777 / OSC 99)
-	Message string
+	Bell     bool   // a bare BEL (no message)
+	Title    string // optional (OSC 777 / OSC 99)
+	Message  string
+	Progress *Progress
+}
+
+// ProgressState is the st field of OSC 9;4.
+type ProgressState uint8
+
+const (
+	ProgressNone          ProgressState = 0 // clear / hide
+	ProgressNormal        ProgressState = 1
+	ProgressError         ProgressState = 2
+	ProgressIndeterminate ProgressState = 3
+	ProgressPaused        ProgressState = 4
+)
+
+// String is the wire name ("" for ProgressNone).
+func (s ProgressState) String() string {
+	switch s {
+	case ProgressNormal:
+		return "normal"
+	case ProgressError:
+		return "error"
+	case ProgressIndeterminate:
+		return "indeterminate"
+	case ProgressPaused:
+		return "paused"
+	}
+	return ""
+}
+
+// Progress is a parsed `OSC 9 ; 4 ; st ; pr` (ConEmu / Windows Terminal /
+// Ghostty progress bar). Value is 0-100 (meaningless when indeterminate).
+type Progress struct {
+	State ProgressState
+	Value int
 }
 
 // Text returns a single-line description: "title: message", or whichever
@@ -179,6 +214,12 @@ func (p *Parser) endOSC(onSignal func(Signal)) {
 		// ConEmu reuses OSC 9 with numeric sub-commands ("9;4;…" is the
 		// progress bar Ghostty/Windows Terminal show): only free text is a
 		// notification.
+		if pr, ok := parseProgress(rest); ok {
+			if onSignal != nil {
+				onSignal(Signal{Progress: &pr})
+			}
+			return
+		}
 		if isConEmuSubcommand(rest) || strings.TrimSpace(rest) == "" {
 			return
 		}
@@ -235,6 +276,42 @@ func (p *Parser) endOSC(onSignal func(Signal)) {
 	if onSignal != nil {
 		onSignal(sig)
 	}
+}
+
+// parseProgress parses the part after "9;" of `OSC 9;4;st;pr`. A missing
+// pr means 0; out-of-range values are clamped; an unknown st is ignored.
+func parseProgress(s string) (Progress, bool) {
+	rest, ok := strings.CutPrefix(s, "4")
+	if !ok || (rest != "" && rest[0] != ';') {
+		return Progress{}, false
+	}
+	parts := strings.Split(strings.TrimPrefix(rest, ";"), ";")
+	st, ok := atoi(parts[0])
+	if !ok && parts[0] != "" {
+		return Progress{}, false
+	}
+	if st > int(ProgressPaused) {
+		return Progress{}, false
+	}
+	pr := 0
+	if len(parts) > 1 {
+		pr, _ = atoi(parts[1])
+	}
+	return Progress{State: ProgressState(st), Value: min(max(pr, 0), 100)}, true
+}
+
+func atoi(s string) (int, bool) {
+	if s == "" || len(s) > 6 {
+		return 0, false
+	}
+	n := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return 0, false
+		}
+		n = n*10 + int(s[i]-'0')
+	}
+	return n, true
 }
 
 func isConEmuSubcommand(s string) bool {

@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/elionaz/agenterm/internal/desktopnotify"
 	"github.com/elionaz/agenterm/internal/paths"
 	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/project"
@@ -26,6 +27,7 @@ import (
 	"github.com/elionaz/agenterm/internal/session"
 	"github.com/elionaz/agenterm/internal/shellenv"
 	"github.com/elionaz/agenterm/internal/status"
+	"github.com/elionaz/agenterm/internal/termsig"
 	"github.com/elionaz/agenterm/internal/transport"
 )
 
@@ -319,7 +321,64 @@ func sessionInfo(sess *session.Session) protocol.SessionInfo {
 	}
 	a := sess.Attention()
 	info.AttentionKind, info.AttentionMessage, info.AttentionAt, info.Unread = attentionFields(a)
+	info.Live = liveInfo(sess.Live(), sess.Timers())
 	return info
+}
+
+func timePtr(t time.Time) *time.Time {
+	if t.IsZero() {
+		return nil
+	}
+	u := t.UTC()
+	return &u
+}
+
+// liveInfo converts a session's activity and timers to the wire format.
+func liveInfo(l session.Live, t status.Timers) protocol.Live {
+	out := timersInfo(t)
+	out.Activity, out.ActivitySource, out.ActivityAt = l.Activity, l.ActivitySource, timePtr(l.ActivityAt)
+	if l.Progress.State != termsig.ProgressNone {
+		out.Progress = &protocol.Progress{State: l.Progress.State.String(), Value: l.Progress.Value}
+	}
+	return out
+}
+
+func timersInfo(t status.Timers) protocol.Live {
+	return protocol.Live{
+		TurnStartedAt: timePtr(t.TurnStartedAt),
+		TurnEndedAt:   timePtr(t.TurnEndedAt),
+		LastOutputAt:  timePtr(t.LastOutputAt),
+		LastEventAt:   timePtr(t.LastEventAt),
+		Stalled:       t.Stalled,
+		StalledAt:     timePtr(t.StalledAt),
+	}
+}
+
+// publishActivity emits a coalesced session.activity event and, when the
+// session just stalled and no UI is listening, a quiet fallback
+// notification.
+func (s *Server) publishActivity(sess *session.Session, stallRaised bool) {
+	ev := protocol.Event{
+		Type:        protocol.EventSessionActivity,
+		SessionID:   sess.ID,
+		State:       string(sess.State()),
+		At:          time.Now().UTC(),
+		ProjectName: sess.ProjectName,
+		ProfileID:   sess.ProfileID,
+		StallRaised: stallRaised,
+		Live:        liveInfo(sess.Live(), sess.Timers()),
+	}
+	s.bus.publish(ev)
+	if stallRaised && s.bus.uiCount() == 0 {
+		s.fallbackNotify(stallEvent(ev))
+	}
+}
+
+// stallEvent shapes a stall for the notification path (kind "stall").
+func stallEvent(ev protocol.Event) protocol.Event {
+	ev.AttentionKind = "stall"
+	ev.AttentionMessage = desktopnotify.StallBody(ev.Activity, ev.LastOutputAt, ev.LastEventAt, ev.StalledAt)
+	return ev
 }
 
 func attentionFields(a status.Attention) (kind, msg string, at *time.Time, unread bool) {
@@ -348,6 +407,7 @@ func (s *Server) publishState(id, projectName, profileID string, c status.Change
 		ev.Type = protocol.EventSessionAttention
 	}
 	ev.AttentionKind, ev.AttentionMessage, ev.AttentionAt, ev.Unread = attentionFields(c.Attention)
+	ev.Live = timersInfo(c.Timers)
 	if c.To == status.Exited {
 		code := c.ExitCode
 		ev.ExitCode = &code

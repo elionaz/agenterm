@@ -6,6 +6,7 @@ import (
 	"context"
 	"os/exec"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -37,6 +38,8 @@ func Body(kind, message string) string {
 		return "Terminó"
 	case "error":
 		return "Terminó con un error"
+	case "stall":
+		return "¿Trabado? Sin actividad"
 	}
 	return "Necesita tu atención"
 }
@@ -65,4 +68,41 @@ func appleScriptString(s string) string {
 		return r
 	}, s)
 	return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(s) + `"`
+}
+
+// StallBody describes a stalled turn: "¿Trabado? Sin actividad hace 5m ·
+// <activity>". The quiet period counts from the last output or event.
+func StallBody(activity string, lastOutput, lastEvent, stalledAt *time.Time) string {
+	msg := "¿Trabado? Sin actividad"
+	if stalledAt != nil {
+		var last time.Time
+		for _, t := range []*time.Time{lastOutput, lastEvent} {
+			if t != nil && t.After(last) {
+				last = *t
+			}
+		}
+		if !last.IsZero() {
+			msg += " hace " + ShortDuration(stalledAt.Sub(last))
+		}
+	}
+	if activity != "" {
+		msg += " · " + activity
+	}
+	return msg
+}
+
+// ShortDuration renders 45s, 5m, 1h 20m.
+func ShortDuration(d time.Duration) string {
+	s := int(d.Round(time.Second) / time.Second)
+	switch {
+	case s < 60:
+		return strconv.Itoa(max(s, 0)) + "s"
+	case s < 3600:
+		return strconv.Itoa(s/60) + "m"
+	}
+	h, m := s/3600, (s%3600)/60
+	if m == 0 {
+		return strconv.Itoa(h) + "h"
+	}
+	return strconv.Itoa(h) + "h " + strconv.Itoa(m) + "m"
 }

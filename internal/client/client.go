@@ -243,6 +243,13 @@ func (c *Client) NotifyEvent(ctx context.Context, p protocol.NotifyParams) (prot
 	return info, err
 }
 
+// Tail returns the last lines of a session's output as plain text.
+func (c *Client) Tail(ctx context.Context, id string, lines int) ([]string, error) {
+	var r protocol.TailResult
+	err := c.Call(ctx, protocol.MethodSessionTail, protocol.TailParams{SessionID: id, Lines: lines}, &r)
+	return r.Lines, err
+}
+
 // Ack marks a session's attention as seen.
 func (c *Client) Ack(ctx context.Context, id string) (protocol.SessionInfo, error) {
 	var info protocol.SessionInfo

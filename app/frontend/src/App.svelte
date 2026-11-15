@@ -1,8 +1,11 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte'
   import { EventsOn, WindowSetTitle } from '../wailsjs/runtime/runtime'
+  import Grid from './lib/Grid.svelte'
+  import ProgressBar from './lib/ProgressBar.svelte'
   import Settings from './lib/Settings.svelte'
   import Sidebar from './lib/Sidebar.svelte'
+  import { mergeLive, progressOf, timerInfo } from './lib/activity'
   import { TerminalManager } from './lib/terminals'
   import {
     api,
@@ -25,6 +28,11 @@
   let daemonDown = $state<string | null>(null)
   let loaded = $state(false)
   let settingsOpen = $state(false)
+  let gridOpen = $state(false)
+  /** Project the grid shows (null: the current one). */
+  let gridProjectId = $state<string | null>(null)
+  /** Ticks every second for the elapsed timers. */
+  let now = $state(Date.now())
 
   let termHost: HTMLDivElement
   let errorTimer: number | undefined
@@ -34,6 +42,8 @@
   const attentionCount = $derived(sessions.filter(needsAttention).length)
   /** What the spawn menus offer, in order (the first one is ⌘N's). */
   const spawnable = $derived(launchable(profiles))
+  const selectedTimer = $derived(selected ? timerInfo(selected, now, true) : null)
+  const selectedProgress = $derived(selected && selected.state !== 'exited' ? progressOf(selected) : undefined)
 
   $effect(() => {
     WindowSetTitle(attentionCount ? `agenterm (${attentionCount})` : 'agenterm')
@@ -48,7 +58,7 @@
 
   function isAppShortcut(e: KeyboardEvent): boolean {
     if (!e.metaKey || e.ctrlKey || e.altKey) return false
-    if (/^Digit[1-9]$/.test(e.code)) return true
+    if (/^Digit[0-9]$/.test(e.code)) return true
     if (e.key === ',' && !e.shiftKey) return true
     return e.key.toLowerCase() === 'n' && !e.shiftKey
   }
@@ -75,7 +85,7 @@
     if (!list) return
     sessions = list
     terms.retain(new Set(list.map((s) => s.id)))
-    if (selectedId && !list.some((s) => s.id === selectedId)) select(fallbackSelection())
+    if (selectedId && !list.some((s) => s.id === selectedId)) select(fallbackSelection(), true)
   }
 
   async function refreshAll() {
@@ -86,7 +96,7 @@
     if (!currentProjectId || !projects.some((p) => p.id === currentProjectId)) {
       currentProjectId = projects[0]?.id ?? null
     }
-    if (!selectedId) select(fallbackSelection())
+    if (!selectedId) select(fallbackSelection(), true)
     loaded = true
   }
 
@@ -95,7 +105,8 @@
     return (inProject.find((s) => s.state !== 'exited') ?? inProject[0] ?? sessions[0])?.id ?? null
   }
 
-  function select(id: string | null) {
+  function select(id: string | null, keepGrid = false) {
+    if (!keepGrid) gridOpen = false
     selectedId = id
     const s = id ? sessions.find((x) => x.id === id) : undefined
     if (s) currentProjectId = s.projectId
@@ -104,10 +115,28 @@
     ackIfVisible(id)
   }
 
+  function openGrid(projectId?: string) {
+    gridProjectId = projectId ?? null
+    if (projectId) currentProjectId = projectId
+    gridOpen = true
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+  }
+
+  function closeGrid() {
+    gridOpen = false
+    terms.focus()
+  }
+
+  function openFromGrid(id: string) {
+    gridOpen = false
+    select(id)
+  }
+
   function selectProject(id: string) {
     currentProjectId = id
+    if (gridOpen) gridProjectId = id // the grid follows the project
     const first = sessions.find((s) => s.projectId === id)
-    if (first && selected?.projectId !== id) select(first.id)
+    if (first && selected?.projectId !== id) select(first.id, gridOpen)
   }
 
   function openSettings() {
@@ -163,18 +192,24 @@
         // Attention fields are omitted when cleared, so copy them as-is.
         sessions = sessions.map((s) =>
           s.id === ev.sessionId
-            ? {
-                ...s,
-                state: ev.state ?? s.state,
-                exitCode: ev.exitCode ?? s.exitCode,
-                attentionKind: ev.attentionKind,
-                attentionMessage: ev.attentionMessage,
-                attentionAt: ev.attentionAt,
-                unread: ev.unread,
-              }
+            ? mergeLive(
+                {
+                  ...s,
+                  state: ev.state ?? s.state,
+                  exitCode: ev.exitCode ?? s.exitCode,
+                  attentionKind: ev.attentionKind,
+                  attentionMessage: ev.attentionMessage,
+                  attentionAt: ev.attentionAt,
+                  unread: ev.unread,
+                },
+                ev,
+              )
             : s,
         )
         if (ev.raised && ev.sessionId === selectedId) ackIfVisible(selectedId)
+        break
+      case 'session.activity':
+        sessions = sessions.map((s) => (s.id === ev.sessionId ? mergeLive(s, ev) : s))
         break
       case 'session.spawned':
         void refreshSessions()
@@ -182,7 +217,7 @@
       case 'session.removed':
         sessions = sessions.filter((s) => s.id !== ev.sessionId)
         terms.dispose(ev.sessionId)
-        if (selectedId === ev.sessionId) select(fallbackSelection())
+        if (selectedId === ev.sessionId) select(fallbackSelection(), true)
         break
     }
   }
@@ -195,6 +230,11 @@
       return
     }
     if (settingsOpen) return
+    if (e.code === 'Digit0') {
+      if (gridOpen) closeGrid()
+      else openGrid()
+      return
+    }
     if (e.code.startsWith('Digit')) {
       const n = Number(e.code.slice(5)) - 1
       const list = sessions.filter((s) => s.projectId === currentProjectId)
@@ -232,6 +272,8 @@
     }
     window.addEventListener('focus', onFocus)
     offs.push(() => window.removeEventListener('focus', onFocus))
+    const tick = window.setInterval(() => (now = Date.now()), 1000)
+    offs.push(() => clearInterval(tick))
   })
   onDestroy(() => {
     offs.forEach((off) => off())
@@ -255,6 +297,8 @@
     onAddProject={addProject}
     onRemoveProject={removeProject}
     onOpenSettings={openSettings}
+    onOpenGrid={openGrid}
+    {now}
   />
 
   <main class="main">
@@ -266,6 +310,12 @@
             {attentionLabel(selected.attentionKind)}{#if selected.attentionMessage}: {selected.attentionMessage}{/if}
           </span>
         {/if}
+        {#if selected.state !== 'exited' && selected.activity}
+          <span class="activity" title={selected.activity}>{selected.activity}</span>
+        {/if}
+        {#if selectedTimer?.text}
+          <span class="timer" class:stalled={selectedTimer.stalled}>{selectedTimer.text}</span>
+        {/if}
         <span class="subtitle">{selected.cwd}</span>
       {:else if currentProject}
         <span class="title">{currentProject.name}</span>
@@ -274,6 +324,7 @@
     </header>
 
     <div class="term-area">
+      {#if selectedProgress}<div class="pane-progress"><ProgressBar progress={selectedProgress} thick /></div>{/if}
       <div class="term-host" bind:this={termHost}></div>
 
       {#if loaded && !selected}
@@ -300,6 +351,18 @@
         </div>
       {/if}
     </div>
+
+    {#if gridOpen && !settingsOpen}
+      <Grid
+        {projects}
+        {sessions}
+        projectId={gridProjectId ?? currentProjectId}
+        {selectedId}
+        {now}
+        onOpen={openFromGrid}
+        onClose={closeGrid}
+      />
+    {/if}
 
     {#if settingsOpen}
       <Settings {profiles} onProfiles={(ps) => (profiles = ps)} onClose={closeSettings} />
@@ -367,6 +430,32 @@
     color: var(--red);
     background: color-mix(in srgb, var(--red) 10%, transparent);
     border-color: color-mix(in srgb, var(--red) 30%, transparent);
+  }
+  .activity {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 40%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--fg-dim);
+    font-size: 12px;
+  }
+  .timer {
+    flex: none;
+    color: var(--muted);
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+  }
+  .timer.stalled {
+    color: #e08a3c;
+    font-weight: 600;
+  }
+  .pane-progress {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 2;
   }
   .subtitle {
     color: var(--muted);

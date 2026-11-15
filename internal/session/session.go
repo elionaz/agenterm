@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -53,6 +54,15 @@ type Options struct {
 	// AttentionPatterns are matched against the recent ANSI-free output
 	// once it settles; a match raises a "question" attention.
 	AttentionPatterns []*regexp.Regexp
+
+	// StallAfter flags a hook-driven turn without output nor events as
+	// stalled (0 disables it). See status.Options.StallAfter.
+	StallAfter time.Duration
+	// OnActivity is called (from the session's goroutines, without locks
+	// held) when the activity line, progress or stall flag changed, at most
+	// about twice per second, plus an output heartbeat every few seconds.
+	// stallRaised is true when the session has just become stalled.
+	OnActivity func(s *Session, stallRaised bool)
 }
 
 // Pattern matching: how long output must be quiet before the tail is
@@ -98,6 +108,12 @@ type Session struct {
 	tailDirt bool      // appended since last pattern check
 	matched  string    // last line that matched (debounce)
 
+	act        tracker
+	lines      lineTracker
+	onActivity func(*Session, bool)
+	stallFlip  atomic.Bool // the stalled flag flipped since the last emission
+	emitMu     sync.Mutex  // serialises OnActivity calls
+
 	done     chan struct{}
 	readDone chan struct{}
 	killOnce sync.Once
@@ -135,8 +151,10 @@ func Spawn(o Options) (*Session, error) {
 		done:        make(chan struct{}),
 		readDone:    make(chan struct{}),
 		patterns:    o.AttentionPatterns,
+		onActivity:  o.OnActivity,
 	}
-	s.status = status.New(status.Options{Mode: o.StatusMode, IdleAfter: o.IdleAfter, OnChange: o.OnState})
+	s.status = status.New(status.Options{Mode: o.StatusMode, IdleAfter: o.IdleAfter, OnChange: o.OnState,
+		StallAfter: o.StallAfter, OnStall: func(bool) { s.stallFlip.Store(true) }})
 
 	cmd := exec.Command(o.Cmd, o.Args...)
 	cmd.Dir = o.Cwd
@@ -180,8 +198,10 @@ func (s *Session) readLoop() {
 		if n > 0 {
 			chunk := append([]byte(nil), buf[:n]...)
 			s.status.Output()
+			s.act.output()
 			s.scan(chunk)
 			s.broadcast(chunk)
+			s.refreshActivity(time.Now())
 		}
 		if err != nil {
 			// EIO is the normal "slave closed" signal on Linux/macOS.
@@ -193,13 +213,44 @@ func (s *Session) readLoop() {
 // scan looks for terminal notifications (BEL, OSC 9/777/99) and feeds the
 // pattern tail. The chunk itself is passed to subscribers untouched.
 func (s *Session) scan(chunk []byte) {
-	var onText func([]byte)
-	if len(s.patterns) > 0 {
-		onText = s.appendTail
+	onText := func(b []byte) {
+		s.lines.feed(b)
+		if len(s.patterns) > 0 {
+			s.appendTail(b)
+		}
 	}
 	s.sig.Feed(chunk, func(sg termsig.Signal) {
+		if sg.Progress != nil {
+			// Progress bars are information, never a request for attention.
+			s.act.setProgress(*sg.Progress)
+			return
+		}
 		s.status.Signal(status.KindQuestion, sg.Text())
 	}, onText)
+}
+
+// refreshActivity recomputes the output-derived activity line (rate
+// limited) and emits a coalesced activity notification when one is due.
+func (s *Session) refreshActivity(now time.Time) {
+	if s.act.evalDue(now) {
+		if line, ok := s.lines.candidate(); ok {
+			s.act.setOutput(line, now)
+		}
+	}
+	s.emitActivity(now)
+}
+
+func (s *Session) emitActivity(now time.Time) {
+	if s.onActivity == nil {
+		return
+	}
+	s.emitMu.Lock()
+	defer s.emitMu.Unlock()
+	flip := s.stallFlip.Swap(false)
+	if !s.act.due(now, flip) {
+		return
+	}
+	s.onActivity(s, flip && s.status.Stalled())
 }
 
 func (s *Session) appendTail(b []byte) {
@@ -309,7 +360,7 @@ func exitCode(ps *os.ProcessState, err error) int {
 }
 
 func (s *Session) tickLoop() {
-	interval := max(s.status.IdleAfter()/4, 50*time.Millisecond)
+	interval := min(max(s.status.IdleAfter()/4, 50*time.Millisecond), activityInterval/2)
 	if len(s.patterns) > 0 {
 		interval = min(interval, patternQuiet/2)
 	}
@@ -322,6 +373,7 @@ func (s *Session) tickLoop() {
 		case <-t.C:
 			s.status.Tick()
 			s.checkPatterns()
+			s.refreshActivity(time.Now())
 		}
 	}
 }
@@ -470,8 +522,36 @@ func (s *Session) Size() (cols, rows uint16) {
 // Notify applies an explicit status event.
 func (s *Session) Notify(st status.State) error { return s.status.Notify(st) }
 
-// NotifyEvent applies an explicit status event with attention details.
-func (s *Session) NotifyEvent(ev status.Event) error { return s.status.NotifyEvent(ev) }
+// NotifyEvent applies an explicit status event with attention details and
+// optional activity.
+func (s *Session) NotifyEvent(ev status.Event) error {
+	if ev.Activity != "" {
+		s.act.setHook(ev.Activity, time.Now())
+	}
+	err := s.status.NotifyEvent(ev)
+	if ev.Turn {
+		s.act.touch() // the turn timer restarted
+	}
+	s.emitActivity(time.Now())
+	return err
+}
+
+// SetActivity records activity reported explicitly (hook source) without
+// touching the state.
+func (s *Session) SetActivity(text string) {
+	if text != "" && s.act.setHook(text, time.Now()) {
+		s.emitActivity(time.Now())
+	}
+}
+
+// Live returns the session's activity line and progress.
+func (s *Session) Live() Live { return s.act.snapshot() }
+
+// Timers returns the session's activity timers and stall flag.
+func (s *Session) Timers() status.Timers { return s.status.Timers() }
+
+// Tail returns the last n lines of output as plain text (see TailLines).
+func (s *Session) Tail(n int) []string { return TailLines(s.ring.Tail(tailBytes), n) }
 
 // Ack marks the session's attention as seen.
 func (s *Session) Ack() bool { return s.status.Ack() }

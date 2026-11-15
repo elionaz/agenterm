@@ -34,10 +34,11 @@ Usage:
   agenterm profiles                   list agent profiles (catalog + profiles.yaml)
   agenterm profiles scan              re-detect installed agents and list them
   agenterm spawn [--cols C --rows R] <projectId|name> <profileId>
-  agenterm ls                         list sessions
+  agenterm ls                         list sessions (with activity line and timers)
+  agenterm tail [-n N] <sessionId>    last N lines of output as plain text (default 8)
   agenterm attach <sessionId>         attach (detach with Ctrl-\)
   agenterm kill <sessionId>           kill a session (again to forget an exited one)
-  agenterm notify [--session ID] [--state S] [--kind K] [--message M]
+  agenterm notify [--session ID] [--state S] [--kind K] [--message M] [--activity A]
                                       report state/attention (from agent hooks)
   agenterm notify --from-hook claude|codex   read a hook payload (stdin / last arg)
   agenterm ack <sessionId>            mark a session's attention as seen
@@ -89,6 +90,23 @@ func run(args []string) error {
 		return cmdSpawn(ctx, c, rest)
 	case "ls":
 		return cmdLs(ctx, c)
+	case "tail":
+		fs := flag.NewFlagSet("tail", flag.ContinueOnError)
+		n := fs.Int("n", 8, "lines")
+		if err := parseInterspersed(fs, rest); err != nil {
+			return err
+		}
+		if fs.NArg() != 1 {
+			return errors.New("usage: agenterm tail [-n N] <sessionId>")
+		}
+		lines, err := c.Tail(ctx, fs.Arg(0), *n)
+		if err != nil {
+			return err
+		}
+		for _, l := range lines {
+			fmt.Println(l)
+		}
+		return nil
 	case "attach":
 		if len(rest) != 1 {
 			return errors.New("usage: agenterm attach <sessionId>")
@@ -274,12 +292,42 @@ func cmdLs(ctx context.Context, c *client.Client) error {
 		return err
 	}
 	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tPROJECT\tPROFILE\tSTATE\tATTENTION\tPID\tSIZE\tAGE\tCWD")
+	fmt.Fprintln(w, "ID\tPROJECT\tPROFILE\tSTATE\tATTENTION\tPID\tSIZE\tAGE\tTURN\tACTIVITY\tCWD")
 	for _, s := range ss {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s%s\t%s\t%d\t%dx%d\t%s\t%s\n", s.ID, s.ProjectID, s.ProfileID, s.State, exitSuffix(s),
-			attention(s), s.Pid, s.Cols, s.Rows, time.Since(s.CreatedAt).Round(time.Second), s.Cwd)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s%s\t%s\t%d\t%dx%d\t%s\t%s\t%s\t%s\n", s.ID, s.ProjectID, s.ProfileID, s.State, exitSuffix(s),
+			attention(s), s.Pid, s.Cols, s.Rows, time.Since(s.CreatedAt).Round(time.Second), turn(s), activity(s), s.Cwd)
 	}
 	return w.Flush()
+}
+
+// turn renders the turn timer: "4m12s" (running), "=6m0s" (finished).
+func turn(s protocol.SessionInfo) string {
+	if s.TurnStartedAt == nil {
+		return "-"
+	}
+	if s.TurnEndedAt != nil {
+		return "=" + s.TurnEndedAt.Sub(*s.TurnStartedAt).Round(time.Second).String()
+	}
+	return time.Since(*s.TurnStartedAt).Round(time.Second).String()
+}
+
+// activity renders "[hook] Leyendo main.go", flagging stalls and progress.
+func activity(s protocol.SessionInfo) string {
+	out := "-"
+	if s.Activity != "" {
+		a := []rune(s.Activity)
+		if len(a) > 50 {
+			a = append(a[:49], '…')
+		}
+		out = "[" + s.ActivitySource + "] " + string(a)
+	}
+	if s.Progress != nil {
+		out += fmt.Sprintf(" (%s %d%%)", s.Progress.State, s.Progress.Value)
+	}
+	if s.Stalled {
+		out = "STALLED " + out
+	}
+	return out
 }
 
 // attention renders "permission*" (unread) or "-".

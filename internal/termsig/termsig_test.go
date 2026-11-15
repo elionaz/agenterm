@@ -43,8 +43,20 @@ func TestOSC9(t *testing.T) {
 	everySplit(t, "x\x1b]9;Need approval\x1b\\y", []Signal{{Message: "Need approval"}})
 }
 
-func TestOSC9ProgressIgnored(t *testing.T) {
-	everySplit(t, "\x1b]9;4;1;50\x07\x1b]9;4;0\x1b\\\x1b]9;1;100\x07", nil)
+func TestOSC9Progress(t *testing.T) {
+	pr := func(st ProgressState, v int) Signal { return Signal{Progress: &Progress{State: st, Value: v}} }
+	everySplit(t, "a\x1b]9;4;1;50\x07b\x1b]9;4;0\x1b\\\x1b]9;1;100\x07", []Signal{pr(ProgressNormal, 50), pr(ProgressNone, 0)})
+	everySplit(t, "\x1b]9;4;3\x07\x1b]9;4;2;250\x1b\\\x1b]9;4;4;7\x07", []Signal{pr(ProgressIndeterminate, 0), pr(ProgressError, 100), pr(ProgressPaused, 7)})
+	// Unknown states and other ConEmu sub-commands are not progress (nor
+	// notifications).
+	everySplit(t, "\x1b]9;4;9;10\x07\x1b]9;42;1\x07", nil)
+}
+
+func TestProgressIsNotText(t *testing.T) {
+	_, text := parseChunks("ok\x1b]9;4;1;5", "0\x07done")
+	if text != "okdone" {
+		t.Fatalf("text %q", text)
+	}
 }
 
 func TestBellInsideOSCIgnored(t *testing.T) {

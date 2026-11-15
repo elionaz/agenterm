@@ -161,6 +161,20 @@ export namespace protocol {
 	        this.path = source["path"];
 	    }
 	}
+	export class Progress {
+	    state: string;
+	    value: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Progress(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.state = source["state"];
+	        this.value = source["value"];
+	    }
+	}
 	export class SessionInfo {
 	    id: string;
 	    projectId: string;
@@ -182,6 +196,23 @@ export namespace protocol {
 	    // Go type: time
 	    attentionAt?: any;
 	    unread?: boolean;
+	    activity?: string;
+	    // Go type: time
+	    activityAt?: any;
+	    activitySource?: string;
+	    // Go type: time
+	    turnStartedAt?: any;
+	    // Go type: time
+	    turnEndedAt?: any;
+	    // Go type: time
+	    lastOutputAt?: any;
+	    // Go type: time
+	    lastEventAt?: any;
+	    stalled?: boolean;
+	    // Go type: time
+	    stalledAt?: any;
+	    // Go type: Progress
+	    progress?: any;
 	
 	    static createFrom(source: any = {}) {
 	        return new SessionInfo(source);
@@ -207,6 +238,16 @@ export namespace protocol {
 	        this.attentionMessage = source["attentionMessage"];
 	        this.attentionAt = this.convertValues(source["attentionAt"], null);
 	        this.unread = source["unread"];
+	        this.activity = source["activity"];
+	        this.activityAt = this.convertValues(source["activityAt"], null);
+	        this.activitySource = source["activitySource"];
+	        this.turnStartedAt = this.convertValues(source["turnStartedAt"], null);
+	        this.turnEndedAt = this.convertValues(source["turnEndedAt"], null);
+	        this.lastOutputAt = this.convertValues(source["lastOutputAt"], null);
+	        this.lastEventAt = this.convertValues(source["lastEventAt"], null);
+	        this.stalled = source["stalled"];
+	        this.stalledAt = this.convertValues(source["stalledAt"], null);
+	        this.progress = this.convertValues(source["progress"], null);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -232,10 +273,23 @@ export namespace protocol {
 
 export namespace settings {
 	
+	export class Activity {
+	    stallSeconds: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Activity(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.stallSeconds = source["stallSeconds"];
+	    }
+	}
 	export class Notify {
 	    enabled: boolean;
 	    sound: boolean;
 	    notifyOnDone: boolean;
+	    notifyOnStall: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Notify(source);
@@ -246,10 +300,12 @@ export namespace settings {
 	        this.enabled = source["enabled"];
 	        this.sound = source["sound"];
 	        this.notifyOnDone = source["notifyOnDone"];
+	        this.notifyOnStall = source["notifyOnStall"];
 	    }
 	}
 	export class Settings {
 	    notify: Notify;
+	    activity: Activity;
 	
 	    static createFrom(source: any = {}) {
 	        return new Settings(source);
@@ -258,6 +314,7 @@ export namespace settings {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.notify = this.convertValues(source["notify"], Notify);
+	        this.activity = this.convertValues(source["activity"], Activity);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

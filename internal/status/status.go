@@ -16,6 +16,13 @@
 // events (waiting_input, and idle after a turn) and from terminal signals
 // (BEL / OSC notifications / profile patterns) via Signal. Heuristic idle
 // never raises attention: quiet output is not "done".
+//
+// A Machine also keeps activity timers (turn start/end, last output, last
+// explicit event) and a stall flag: a turn opened by an explicit "running"
+// event (an agent hook) that then sees neither output nor events for
+// StallAfter is marked stalled. Stalled is a flag, not a state; any output or
+// event clears it. Heuristic sessions have no notion of an open turn (quiet
+// output already means idle), so they never stall.
 package status
 
 import (
@@ -126,6 +133,23 @@ type Event struct {
 	State   State
 	Kind    Kind   // optional; derived from State when empty
 	Message string // optional, shown to the user
+	// Turn marks the start of a new turn (the user submitted a prompt): the
+	// turn timer restarts even if the session was already running.
+	Turn bool
+	// Activity is a short description of what the agent is doing ("Leyendo
+	// main.go"). The Machine ignores it; sessions keep it for display.
+	Activity string
+}
+
+// Timers are the activity timestamps of a session. Zero values mean
+// "never" (TurnEndedAt is zero while a turn is in progress).
+type Timers struct {
+	TurnStartedAt time.Time
+	TurnEndedAt   time.Time
+	LastOutputAt  time.Time
+	LastEventAt   time.Time
+	Stalled       bool
+	StalledAt     time.Time
 }
 
 // Change describes a transition. Attention-only changes (a message filled
@@ -139,6 +163,7 @@ type Change struct {
 	// Raised is true when a new attention was raised by this change: the
 	// signal UIs use to notify the user.
 	Raised bool
+	Timers Timers // timers after the change
 }
 
 // DoneGrace is how long a fresh explicit "idle/done" resists output in
@@ -157,31 +182,43 @@ type Options struct {
 	// transitions are delivered in order. It must not block or call back into
 	// the Machine.
 	OnChange func(Change)
+	// StallAfter is how long an open turn may go without output or events
+	// before it is flagged as stalled; 0 disables stall detection.
+	StallAfter time.Duration
+	// OnStall is called (like OnChange: lock held, must not block or call
+	// back) whenever the stalled flag flips.
+	OnStall func(stalled bool)
 }
 
 // Machine is a per-session state machine. It is safe for concurrent use.
 type Machine struct {
-	mode      Mode
-	idleAfter time.Duration
-	now       func() time.Time
-	onChange  func(Change)
+	mode       Mode
+	idleAfter  time.Duration
+	now        func() time.Time
+	onChange   func(Change)
+	stallAfter time.Duration
+	onStall    func(bool)
 
 	mu         sync.Mutex
 	state      State
-	lastOutput time.Time
-	hooked     bool // an explicit event has been received
+	lastOutput time.Time // heuristic clock (explicit "running" also resets it)
+	hooked     bool      // an explicit event has been received
 	exitCode   int
 	att        Attention
+	t          Timers
+	turnOpen   bool // running because of an explicit event (hook)
 }
 
 // New returns a Machine in the Running state.
 func New(o Options) *Machine {
 	m := &Machine{
-		mode:      o.Mode,
-		idleAfter: o.IdleAfter,
-		now:       o.Now,
-		onChange:  o.OnChange,
-		state:     Running,
+		mode:       o.Mode,
+		idleAfter:  o.IdleAfter,
+		now:        o.Now,
+		onChange:   o.OnChange,
+		state:      Running,
+		stallAfter: o.StallAfter,
+		onStall:    o.OnStall,
 	}
 	if m.mode == "" {
 		m.mode = ModeHeuristic
@@ -193,7 +230,37 @@ func New(o Options) *Machine {
 		m.now = time.Now
 	}
 	m.lastOutput = m.now()
+	m.t.TurnStartedAt = m.lastOutput
 	return m
+}
+
+// Timers returns the activity timers.
+func (m *Machine) Timers() Timers {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.t
+}
+
+// Stalled reports whether the open turn is flagged as stalled.
+func (m *Machine) Stalled() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.t.Stalled
+}
+
+func (m *Machine) setStalled(v bool, at time.Time) {
+	if m.t.Stalled == v {
+		return
+	}
+	m.t.Stalled = v
+	if v {
+		m.t.StalledAt = at
+	} else {
+		m.t.StalledAt = time.Time{}
+	}
+	if m.onStall != nil {
+		m.onStall(v)
+	}
 }
 
 // State returns the current state.
@@ -238,8 +305,25 @@ func (m *Machine) commit(to State, src Source, at time.Time, att Attention, rais
 	if m.state == to && m.att == att && !raised {
 		return
 	}
-	c := Change{From: m.state, To: to, Source: src, At: at, ExitCode: m.exitCode, Attention: att, Raised: raised}
+	from := m.state
+	if to == Running && from != Running {
+		// A new turn starts after an idle period, or when the user answers
+		// a wait detected from the terminal; an approved permission (an
+		// explicit wait → running) continues the same turn.
+		if from == Idle || src == SourceInput || m.t.TurnStartedAt.IsZero() {
+			m.t.TurnStartedAt, m.t.TurnEndedAt = at, time.Time{}
+		}
+	}
+	if from == Running && to != Running {
+		m.turnOpen = false
+		m.setStalled(false, at)
+		if to == Idle || to == Exited {
+			m.t.TurnEndedAt = at
+		}
+	}
+	c := Change{From: from, To: to, Source: src, At: at, ExitCode: m.exitCode, Attention: att, Raised: raised}
 	m.state, m.att = to, att
+	c.Timers = m.t
 	if m.onChange != nil {
 		m.onChange(c)
 	}
@@ -251,6 +335,8 @@ func (m *Machine) Output() {
 	defer m.mu.Unlock()
 	now := m.now()
 	m.lastOutput = now
+	m.t.LastOutputAt = now
+	m.setStalled(false, now)
 	if m.state == Exited || !m.heuristicActive() {
 		return
 	}
@@ -331,16 +417,30 @@ func (m *Machine) Signal(kind Kind, msg string) {
 	m.commit(WaitingInput, SourceSignal, now, Attention{Kind: kind, Message: msg, At: now, Unread: true, Source: SourceSignal}, true)
 }
 
-// Tick evaluates the idle timeout. Callers invoke it periodically.
+// Tick evaluates the idle and stall timeouts. Callers invoke it
+// periodically.
 func (m *Machine) Tick() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.state != Running || !m.heuristicActive() {
+	if m.state != Running {
 		return
 	}
 	now := m.now()
-	if now.Sub(m.lastOutput) >= m.idleAfter {
+	if m.heuristicActive() && now.Sub(m.lastOutput) >= m.idleAfter {
 		m.set(Idle, SourceHeuristic, now)
+		return
+	}
+	if m.turnOpen && m.stallAfter > 0 && !m.t.Stalled {
+		last := m.t.LastOutputAt
+		if m.t.LastEventAt.After(last) {
+			last = m.t.LastEventAt
+		}
+		if last.IsZero() {
+			last = m.t.TurnStartedAt
+		}
+		if now.Sub(last) >= m.stallAfter {
+			m.setStalled(true, now)
+		}
 	}
 }
 
@@ -367,12 +467,18 @@ func (m *Machine) NotifyEvent(ev Event) error {
 	}
 	m.hooked = true
 	now := m.now()
+	m.t.LastEventAt = now
+	m.setStalled(false, now)
 	switch ev.State {
 	case Running:
 		// Treat an explicit "running" as fresh activity so the heuristic (in
 		// heuristic mode) doesn't immediately flip it back to idle.
 		m.lastOutput = now
+		if ev.Turn && m.state == Running {
+			m.t.TurnStartedAt, m.t.TurnEndedAt = now, time.Time{}
+		}
 		m.set(Running, SourceEvent, now)
+		m.turnOpen = true
 	case WaitingInput:
 		kind := ev.Kind
 		if kind == "" || kind == KindDone {
