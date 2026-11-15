@@ -1,4 +1,4 @@
-package main
+package shellenv
 
 import "testing"
 
@@ -8,6 +8,12 @@ func TestExtractMarked(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 	if got := extractMarked([]byte("no markers")); got != "" {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestJoinPaths(t *testing.T) {
+	if got := JoinPaths("/a:/b", "", "/b::/c:/a"); got != "/a:/b:/c" {
 		t.Fatalf("got %q", got)
 	}
 }

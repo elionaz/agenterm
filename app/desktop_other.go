@@ -18,3 +18,5 @@ func (otherDesktop) SetBadge(int)        {}
 func (otherDesktop) RequestAttention()   {}
 func (otherDesktop) IsActive() bool      { return true }
 func (otherDesktop) Activate()           {}
+
+func installPreferencesMenu(func()) {}

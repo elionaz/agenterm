@@ -29,6 +29,9 @@ const testProfiles = `
   idle_seconds: 0.2
 `
 
+// hermeticPath keeps detection off the login shell (and the user's rc files).
+func hermeticPath() string { return "/usr/bin:/bin" }
+
 // startDaemon runs a daemon in-process on a short temp dir (unix socket paths
 // are limited to ~104 bytes on macOS, so t.TempDir() can be too long).
 func startDaemon(t *testing.T) (*client.Client, paths.Paths, func()) {
@@ -50,12 +53,13 @@ func startDaemonWith(t *testing.T, notifier func(daemon.Notification)) (*client.
 		t.Fatal(err)
 	}
 	srv, err := daemon.New(daemon.Config{
-		Paths:     p,
-		IdleAfter: time.Hour, // keep the heuristic out of the way unless a profile overrides it
-		KillGrace: time.Second,
-		Logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
-		Exe:       "/opt/agenterm test/agenterm",
-		Notifier:  notifier,
+		Paths:      p,
+		IdleAfter:  time.Hour, // keep the heuristic out of the way unless a profile overrides it
+		KillGrace:  time.Second,
+		Logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Exe:        "/opt/agenterm test/agenterm",
+		Notifier:   notifier,
+		SearchPath: hermeticPath,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -185,7 +189,7 @@ func TestDaemonEndToEnd(t *testing.T) {
 		t.Fatalf("project list: %+v %v", projs, err)
 	}
 	profs, err := c.Profiles(ctx)
-	if err != nil || len(profs) != 3 {
+	if err != nil || len(profs) < 3 || profs[0].ID != "hello" || profs[1].ID != "cat" || profs[2].ID != "shell" {
 		t.Fatalf("profiles: %+v %v", profs, err)
 	}
 
@@ -370,7 +374,7 @@ func TestDaemonEndToEnd(t *testing.T) {
 
 func TestDaemonRejectsSecondInstanceAndStaleSocket(t *testing.T) {
 	_, p, stop := startDaemon(t)
-	srv2, err := daemon.New(daemon.Config{Paths: p, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	srv2, err := daemon.New(daemon.Config{Paths: p, SearchPath: hermeticPath, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -383,7 +387,7 @@ func TestDaemonRejectsSecondInstanceAndStaleSocket(t *testing.T) {
 	if err := os.WriteFile(p.Socket(), nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	srv3, _ := daemon.New(daemon.Config{Paths: p, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	srv3, _ := daemon.New(daemon.Config{Paths: p, SearchPath: hermeticPath, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() { done <- srv3.Run(ctx) }()

@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os/exec"
 	"time"
 
 	"github.com/elionaz/agenterm/internal/hooks"
 	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/protocol"
 	"github.com/elionaz/agenterm/internal/session"
+	"github.com/elionaz/agenterm/internal/settings"
 	"github.com/elionaz/agenterm/internal/status"
 )
 
@@ -40,11 +42,54 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 		return map[string]any{"ok": true}, s.projects.Remove(p.ID)
 
 	case protocol.MethodProfileList:
-		ps, err := profile.Load(s.cfg.Paths.Profiles())
+		return profileList(s.profiles.List())
+	case protocol.MethodProfileRescan:
+		s.detector.Rescan()
+		return profileList(s.profiles.List())
+	case protocol.MethodProfileCatalog:
+		out := protocol.ProfileCatalog{Entries: []protocol.CatalogInfo{}}
+		defaults := profile.Resolve(nil, s.detector.Lookup)
+		for _, c := range profile.Catalog() {
+			info := protocol.CatalogInfo{CatalogEntry: c}
+			p, _ := profile.Find(defaults, c.ID)
+			info.Command, info.Installed, info.Path = p.Cmd, p.Installed, p.Path
+			out.Entries = append(out.Entries, info)
+		}
+		return out, nil
+	case protocol.MethodProfileSave:
+		p, err := decode[protocol.ProfileSaveParams](req.Params)
 		if err != nil {
 			return nil, err
 		}
-		return protocol.ProfileList{Profiles: ps}, nil
+		return profileList(s.profiles.Save(p.Entry))
+	case protocol.MethodProfileDelete:
+		p, err := decode[protocol.ProfileRef](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return profileList(s.profiles.Delete(p.ID))
+	case protocol.MethodProfileReorder:
+		p, err := decode[protocol.ProfileReorderParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return profileList(s.profiles.Reorder(p.IDs))
+
+	case protocol.MethodSettingsGet:
+		st, err := settings.Load(s.cfg.Paths.Settings())
+		if err != nil {
+			return nil, fmt.Errorf("settings.yaml: %w", err)
+		}
+		return st, nil
+	case protocol.MethodSettingsSave:
+		st, err := decode[settings.Settings](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		if err := settings.Save(s.cfg.Paths.Settings(), st); err != nil {
+			return nil, err
+		}
+		return st, nil
 
 	case protocol.MethodSessionSpawn:
 		p, err := decode[protocol.SpawnParams](req.Params)
@@ -109,18 +154,41 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 	return nil, fmt.Errorf("unknown method %q", req.Method)
 }
 
+func profileList(ps []profile.Profile, err error) (any, error) {
+	if err != nil {
+		return nil, err
+	}
+	return protocol.ProfileList{Profiles: ps}, nil
+}
+
 func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 	proj, err := s.projects.Get(p.ProjectID)
 	if err != nil {
 		return protocol.SessionInfo{}, err
 	}
-	profiles, err := profile.Load(s.cfg.Paths.Profiles())
+	profiles, err := s.profiles.List()
 	if err != nil {
 		return protocol.SessionInfo{}, err
 	}
 	prof, ok := profile.Find(profiles, p.ProfileID)
 	if !ok {
 		return protocol.SessionInfo{}, fmt.Errorf("profile not found: %s", p.ProfileID)
+	}
+	if prof.Error != "" {
+		return protocol.SessionInfo{}, fmt.Errorf("profile %s: %s", prof.ID, prof.Error)
+	}
+	if !prof.Installed {
+		msg := fmt.Sprintf("profile %s: command %q not found in PATH", prof.ID, prof.Command())
+		if prof.Install != "" {
+			msg += " (install: " + prof.Install + ")"
+		}
+		return protocol.SessionInfo{}, errors.New(msg)
+	}
+	// Detection also searches the login shell's PATH; if this process
+	// cannot find the command itself, launch the detected binary.
+	cmd := prof.Command()
+	if _, err := exec.LookPath(cmd); err != nil {
+		cmd = prof.Path
 	}
 	patterns, err := prof.Patterns()
 	if err != nil {
@@ -148,7 +216,7 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 		ProjectDir:  proj.Path,
 		ProjectName: proj.Name,
 		ProfileID:   prof.ID,
-		Cmd:         prof.Command(),
+		Cmd:         cmd,
 		Args:        append(inj.Args, prof.Args...),
 		Env:         append(prof.Environ(), inj.Env...),
 		SockPath:    s.sock,

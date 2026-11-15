@@ -1,12 +1,14 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte'
   import { EventsOn, WindowSetTitle } from '../wailsjs/runtime/runtime'
+  import Settings from './lib/Settings.svelte'
   import Sidebar from './lib/Sidebar.svelte'
   import { TerminalManager } from './lib/terminals'
   import {
     api,
     attentionLabel,
     errorMessage,
+    launchable,
     needsAttention,
     type DaemonEvent,
     type Profile,
@@ -22,6 +24,7 @@
   let error = $state<string | null>(null)
   let daemonDown = $state<string | null>(null)
   let loaded = $state(false)
+  let settingsOpen = $state(false)
 
   let termHost: HTMLDivElement
   let errorTimer: number | undefined
@@ -29,6 +32,8 @@
   const selected = $derived(sessions.find((s) => s.id === selectedId) ?? null)
   const currentProject = $derived(projects.find((p) => p.id === currentProjectId) ?? null)
   const attentionCount = $derived(sessions.filter(needsAttention).length)
+  /** What the spawn menus offer, in order (the first one is ⌘N's). */
+  const spawnable = $derived(launchable(profiles))
 
   $effect(() => {
     WindowSetTitle(attentionCount ? `agenterm (${attentionCount})` : 'agenterm')
@@ -44,6 +49,7 @@
   function isAppShortcut(e: KeyboardEvent): boolean {
     if (!e.metaKey || e.ctrlKey || e.altKey) return false
     if (/^Digit[1-9]$/.test(e.code)) return true
+    if (e.key === ',' && !e.shiftKey) return true
     return e.key.toLowerCase() === 'n' && !e.shiftKey
   }
 
@@ -102,6 +108,19 @@
     currentProjectId = id
     const first = sessions.find((s) => s.projectId === id)
     if (first && selected?.projectId !== id) select(first.id)
+  }
+
+  function openSettings() {
+    settingsOpen = true
+    // Keep keystrokes out of the (now covered) terminal.
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+    // Detection may be stale (an agent installed meanwhile): refresh.
+    void guard(api.listProfiles()).then((ps) => ps && (profiles = ps))
+  }
+
+  function closeSettings() {
+    settingsOpen = false
+    terms.focus()
   }
 
   async function spawn(projectId: string, profileId: string) {
@@ -171,6 +190,11 @@
   function onKeydown(e: KeyboardEvent) {
     if (!isAppShortcut(e)) return
     e.preventDefault()
+    if (e.key === ',') {
+      openSettings()
+      return
+    }
+    if (settingsOpen) return
     if (e.code.startsWith('Digit')) {
       const n = Number(e.code.slice(5)) - 1
       const list = sessions.filter((s) => s.projectId === currentProjectId)
@@ -179,7 +203,7 @@
     }
     // ⌘N: new session in the current project with the first profile.
     const pid = currentProjectId ?? projects[0]?.id
-    const prof = profiles[0]
+    const prof = spawnable[0]
     if (pid && prof) void spawn(pid, prof.id)
   }
 
@@ -193,6 +217,8 @@
         void refreshAll()
       }),
       EventsOn('daemon:down', (msg: string) => (daemonDown = msg)),
+      // App menu "Preferencias…" (⌘,).
+      EventsOn('app:open-settings', openSettings),
       // A notification was clicked.
       EventsOn('app:focus-session', (id: string) => {
         if (sessions.some((s) => s.id === id)) select(id)
@@ -219,7 +245,7 @@
   <Sidebar
     {projects}
     {sessions}
-    {profiles}
+    profiles={spawnable}
     {selectedId}
     {currentProjectId}
     onSelect={select}
@@ -228,6 +254,7 @@
     onKill={kill}
     onAddProject={addProject}
     onRemoveProject={removeProject}
+    onOpenSettings={openSettings}
   />
 
   <main class="main">
@@ -259,19 +286,24 @@
             <h2>Sin sesiones</h2>
             <p>
               Lanza un agente con <b>+</b> junto a un proyecto
-              {#if profiles[0]}o pulsa <kbd>⌘N</kbd> ({profiles[0].id}){/if}.
+              {#if spawnable[0]}o pulsa <kbd>⌘N</kbd> ({spawnable[0].name || spawnable[0].id}){/if}.
             </p>
-            {#if currentProjectId && profiles.length}
+            {#if currentProjectId && spawnable.length}
               <div class="quick">
-                {#each profiles as prof (prof.id)}
-                  <button onclick={() => spawn(currentProjectId!, prof.id)}>{prof.id}</button>
+                {#each spawnable as prof (prof.id)}
+                  <button onclick={() => spawn(currentProjectId!, prof.id)}>{prof.name || prof.id}</button>
                 {/each}
               </div>
             {/if}
+            <button class="linkish" onclick={openSettings}>Elegir agentes… <kbd>⌘,</kbd></button>
           {/if}
         </div>
       {/if}
     </div>
+
+    {#if settingsOpen}
+      <Settings {profiles} onProfiles={(ps) => (profiles = ps)} onClose={closeSettings} />
+    {/if}
 
     {#if daemonDown}
       <div class="banner">Reconectando con el daemon… <span>{daemonDown}</span></div>
@@ -396,6 +428,14 @@
   .primary:hover,
   .quick button:hover {
     background: var(--accent-bg);
+  }
+  .linkish {
+    margin-top: 14px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .linkish:hover {
+    color: var(--fg);
   }
   .quick {
     display: flex;

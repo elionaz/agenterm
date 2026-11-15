@@ -13,6 +13,7 @@
     onKill: (id: string) => void
     onAddProject: () => void
     onRemoveProject: (id: string) => void
+    onOpenSettings: () => void
   }
 
   let {
@@ -27,6 +28,7 @@
     onKill,
     onAddProject,
     onRemoveProject,
+    onOpenSettings,
   }: Props = $props()
 
   let collapsed = $state<Record<string, boolean>>({})
@@ -128,13 +130,21 @@
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div class="menu" onclick={(e) => e.stopPropagation()}>
               {#each profiles as prof (prof.id)}
-                <button class="menu-item" onclick={() => pick(p.id, prof.id)}>
-                  <span>{prof.id}</span>
-                  <span class="menu-cmd">{prof.cmd}</span>
+                <button class="menu-item" title={prof.path ?? prof.cmd} onclick={() => pick(p.id, prof.id)}>
+                  <span>{prof.name || prof.id}</span>
+                  <span class="menu-cmd">{prof.id}</span>
                 </button>
               {:else}
-                <div class="menu-empty">Sin perfiles</div>
+                <div class="menu-empty">Sin agentes disponibles</div>
               {/each}
+              <div class="menu-sep"></div>
+              <button
+                class="menu-item muted"
+                onclick={() => {
+                  menuFor = null
+                  onOpenSettings()
+                }}><span>Elegir agentes…</span><span class="menu-cmd">⌘,</span></button
+              >
             </div>
           {/if}
         </div>
@@ -177,6 +187,7 @@
 
   <div class="footer">
     <button class="add-project" onclick={onAddProject}>+ Proyecto</button>
+    <button class="gear" title="Ajustes (⌘,)" aria-label="Ajustes" onclick={onOpenSettings}>⚙</button>
   </div>
 </aside>
 
@@ -453,11 +464,33 @@
   }
   .footer {
     flex: none;
+    display: flex;
+    gap: 6px;
     padding: 8px;
     border-top: 1px solid var(--border);
   }
+  .gear {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: 15px;
+  }
+  .gear:hover {
+    color: var(--fg);
+    background: var(--hover);
+  }
+  .menu-sep {
+    height: 1px;
+    margin: 4px 2px;
+    background: var(--border-strong);
+  }
+  .menu-item.muted {
+    color: var(--fg-dim);
+  }
   .add-project {
-    width: 100%;
+    flex: 1;
     height: 28px;
     border-radius: 6px;
     color: var(--fg-dim);

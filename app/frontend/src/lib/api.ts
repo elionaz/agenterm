@@ -1,10 +1,14 @@
 // Thin typed layer over the generated Wails bindings.
 import * as App from '../../wailsjs/go/main/App'
-import type { profile, project, protocol } from '../../wailsjs/go/models'
+import type { profile, project, protocol, settings } from '../../wailsjs/go/models'
 
 // Plain data (the generated classes carry a convertValues helper we never use).
 export type Project = Omit<project.Project, 'convertValues'>
 export type Profile = profile.Profile
+/** A profiles.yaml entry as sent to profile.save (desired values). */
+export type ProfileEntry = profile.Entry
+export type CatalogInfo = Omit<protocol.CatalogInfo, 'convertValues'>
+export type Settings = Omit<settings.Settings, 'convertValues'>
 export type Session = Omit<protocol.SessionInfo, 'convertValues'>
 export type SessionState = 'running' | 'waiting_input' | 'idle' | 'exited'
 export type AttentionKind = 'permission' | 'question' | 'done' | 'error'
@@ -51,7 +55,15 @@ export const api = {
   /** Opens the native folder picker; resolves null if cancelled. */
   addProject: async (): Promise<Project | null> => (await App.AddProject()) ?? null,
   removeProject: (id: string) => App.RemoveProject(id),
+  /** Every effective profile (hidden ones too), in menu order. */
   listProfiles: (): Promise<Profile[]> => App.ListProfiles(),
+  profileCatalog: (): Promise<CatalogInfo[]> => App.ProfileCatalog(),
+  saveProfile: (e: ProfileEntry): Promise<Profile[]> => App.SaveProfile(e),
+  deleteProfile: (id: string): Promise<Profile[]> => App.DeleteProfile(id),
+  reorderProfiles: (ids: string[]): Promise<Profile[]> => App.ReorderProfiles(ids),
+  rescanProfiles: (): Promise<Profile[]> => App.RescanProfiles(),
+  getSettings: (): Promise<Settings> => App.GetSettings(),
+  saveSettings: (s: Settings): Promise<Settings> => App.SaveSettings(s as settings.Settings),
   listSessions: (): Promise<Session[]> => App.ListSessions(),
   spawn: (projectId: string, profileId: string, cols: number, rows: number) =>
     App.Spawn(projectId, profileId, cols, rows),
@@ -67,9 +79,54 @@ export const api = {
   setVisibleSession: (id: string) => App.SetVisibleSession(id),
 }
 
+/** Profiles that belong in a spawn menu (enabled, installed, valid). */
+export function launchable(ps: Profile[]): Profile[] {
+  // A daemon older than the catalog sends neither flag: offer everything.
+  return ps.filter((p) => p.enabled !== false && p.installed !== false && !p.error)
+}
+
+/** Splits a command line into arguments (quotes and backslashes like sh). */
+export function splitArgs(s: string): string[] {
+  const out: string[] = []
+  let cur = ''
+  let have = false
+  let quote: '"' | "'" | null = null
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i]
+    if (quote) {
+      if (c === quote) quote = null
+      else if (c === '\\' && quote === '"' && i + 1 < s.length) cur += s[++i]
+      else cur += c
+    } else if (c === '"' || c === "'") {
+      quote = c
+      have = true
+    } else if (c === '\\' && i + 1 < s.length) {
+      cur += s[++i]
+      have = true
+    } else if (/\s/.test(c)) {
+      if (have) out.push(cur)
+      cur = ''
+      have = false
+    } else {
+      cur += c
+      have = true
+    }
+  }
+  if (have) out.push(cur)
+  return out
+}
+
+/** Inverse of splitArgs. */
+export function joinArgs(args: string[] | undefined): string {
+  return (args ?? []).map((a) => (a === '' || /[\s'"\\]/.test(a) ? `'${a.replace(/'/g, `'\\''`)}'` : a)).join(' ')
+}
+
 export function errorMessage(e: unknown): string {
-  if (e instanceof Error) return e.message
-  return String(e)
+  const msg = e instanceof Error ? e.message : String(e)
+  if (/unknown method "(profile|settings)\./.test(msg)) {
+    return 'El daemon en marcha es de una versión anterior: reinícialo (agenterm stop; termina las sesiones) para usar los ajustes.'
+  }
+  return msg
 }
 
 /** Decodes a base64 PTY chunk into raw bytes (xterm decodes UTF-8 itself,

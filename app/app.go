@@ -18,6 +18,7 @@ import (
 	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/project"
 	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/agenterm/internal/settings"
 	"github.com/elionaz/agenterm/internal/transport"
 )
 
@@ -38,6 +39,8 @@ const (
 	evDaemon     = "daemon:event"    // protocol.Event
 	evResync     = "daemon:resync"   // (re)subscribed: reload lists
 	evDown       = "daemon:down"     // event stream lost (message)
+
+	evOpenSettings = "app:open-settings" // menu "Preferencias…" (⌘,)
 )
 
 // App is bound to the frontend. It is a thin proxy over the daemon client:
@@ -82,6 +85,7 @@ func (a *App) startup(ctx context.Context) {
 	a.emit = func(event string, data ...any) { runtime.EventsEmit(ctx, event, data...) }
 	a.wailsCtx = ctx
 	a.desk = newDesktop(ctx, a.focusSession)
+	installPreferencesMenu(func() { a.emit(evOpenSettings) })
 	a.start(ctx, p)
 }
 
@@ -220,6 +224,63 @@ func (a *App) ListProfiles() ([]profile.Profile, error) {
 		return err
 	})
 	return nonNil(out), err
+}
+
+// ProfileCatalog lists the built-in agents with detection.
+func (a *App) ProfileCatalog() ([]protocol.CatalogInfo, error) {
+	var out []protocol.CatalogInfo
+	err := a.call(func(ctx context.Context) (err error) {
+		out, err = a.client.ProfileCatalog(ctx)
+		return err
+	})
+	return nonNil(out), err
+}
+
+// SaveProfile upserts a profiles.yaml entry; it returns every profile.
+func (a *App) SaveProfile(e profile.Entry) ([]profile.Profile, error) {
+	return a.profiles(func(ctx context.Context) ([]profile.Profile, error) { return a.client.SaveProfile(ctx, e) })
+}
+
+// DeleteProfile removes a custom profile or resets a built-in one.
+func (a *App) DeleteProfile(id string) ([]profile.Profile, error) {
+	return a.profiles(func(ctx context.Context) ([]profile.Profile, error) { return a.client.DeleteProfile(ctx, id) })
+}
+
+// ReorderProfiles moves ids to the front (the first one is ⌘N's).
+func (a *App) ReorderProfiles(ids []string) ([]profile.Profile, error) {
+	return a.profiles(func(ctx context.Context) ([]profile.Profile, error) { return a.client.ReorderProfiles(ctx, ids) })
+}
+
+// RescanProfiles re-detects installed agents.
+func (a *App) RescanProfiles() ([]profile.Profile, error) {
+	return a.profiles(a.client.RescanProfiles)
+}
+
+func (a *App) profiles(fn func(ctx context.Context) ([]profile.Profile, error)) ([]profile.Profile, error) {
+	var out []profile.Profile
+	err := a.call(func(ctx context.Context) (err error) {
+		out, err = fn(ctx)
+		return err
+	})
+	return nonNil(out), err
+}
+
+func (a *App) GetSettings() (settings.Settings, error) {
+	var out settings.Settings
+	err := a.call(func(ctx context.Context) (err error) {
+		out, err = a.client.Settings(ctx)
+		return err
+	})
+	return out, err
+}
+
+func (a *App) SaveSettings(s settings.Settings) (settings.Settings, error) {
+	var out settings.Settings
+	err := a.call(func(ctx context.Context) (err error) {
+		out, err = a.client.SaveSettings(ctx, s)
+		return err
+	})
+	return out, err
 }
 
 // --- Sessions ---------------------------------------------------------------

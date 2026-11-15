@@ -38,6 +38,13 @@ const (
 	MethodSessionAck      = "session.ack"
 	MethodSessionAttach   = "session.attach"
 	MethodProfileList     = "profile.list"
+	MethodProfileCatalog  = "profile.catalog"
+	MethodProfileSave     = "profile.save"
+	MethodProfileDelete   = "profile.delete"
+	MethodProfileReorder  = "profile.reorder"
+	MethodProfileRescan   = "profile.rescan"
+	MethodSettingsGet     = "settings.get"
+	MethodSettingsSave    = "settings.save"
 	MethodEventsSubscribe = "events.subscribe"
 	MethodDaemonPing      = "daemon.ping"
 	MethodDaemonShutdown  = "daemon.shutdown"
@@ -73,8 +80,38 @@ type ProjectList struct {
 	Projects []project.Project `json:"projects"`
 }
 
+// ProfileList is the result of profile.list/save/delete/reorder/rescan:
+// every effective profile (hidden ones included), in menu order.
 type ProfileList struct {
 	Profiles []profile.Profile `json:"profiles"`
+}
+
+// CatalogInfo is a catalog entry plus detection.
+type CatalogInfo struct {
+	profile.CatalogEntry
+	// Command is the default command (the first binary found).
+	Command   string `json:"command"`
+	Installed bool   `json:"installed"`
+	Path      string `json:"path,omitempty"`
+}
+
+type ProfileCatalog struct {
+	Entries []CatalogInfo `json:"entries"`
+}
+
+// ProfileSaveParams upserts a profiles.yaml entry. Entry holds the desired
+// values; fields equal to the inherited ones are not written.
+type ProfileSaveParams struct {
+	Entry profile.Entry `json:"entry"`
+}
+
+type ProfileRef struct {
+	ID string `json:"id"`
+}
+
+// ProfileReorderParams moves IDs to the front, in order.
+type ProfileReorderParams struct {
+	IDs []string `json:"ids"`
 }
 
 type SpawnParams struct {

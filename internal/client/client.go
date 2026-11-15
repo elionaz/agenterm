@@ -17,6 +17,7 @@ import (
 	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/project"
 	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/agenterm/internal/settings"
 	"github.com/elionaz/agenterm/internal/transport"
 )
 
@@ -161,6 +162,51 @@ func (c *Client) Profiles(ctx context.Context) ([]profile.Profile, error) {
 	var r protocol.ProfileList
 	err := c.Call(ctx, protocol.MethodProfileList, nil, &r)
 	return r.Profiles, err
+}
+
+// ProfileCatalog lists the built-in agents with detection.
+func (c *Client) ProfileCatalog(ctx context.Context) ([]protocol.CatalogInfo, error) {
+	var r protocol.ProfileCatalog
+	err := c.Call(ctx, protocol.MethodProfileCatalog, nil, &r)
+	return r.Entries, err
+}
+
+// SaveProfile upserts a profiles.yaml entry and returns the new profiles.
+func (c *Client) SaveProfile(ctx context.Context, e profile.Entry) ([]profile.Profile, error) {
+	return c.profileCall(ctx, protocol.MethodProfileSave, protocol.ProfileSaveParams{Entry: e})
+}
+
+// DeleteProfile removes a custom profile or resets a built-in one.
+func (c *Client) DeleteProfile(ctx context.Context, id string) ([]profile.Profile, error) {
+	return c.profileCall(ctx, protocol.MethodProfileDelete, protocol.ProfileRef{ID: id})
+}
+
+// ReorderProfiles moves ids to the front, in order.
+func (c *Client) ReorderProfiles(ctx context.Context, ids []string) ([]profile.Profile, error) {
+	return c.profileCall(ctx, protocol.MethodProfileReorder, protocol.ProfileReorderParams{IDs: ids})
+}
+
+// RescanProfiles re-reads the search PATH and re-detects installed agents.
+func (c *Client) RescanProfiles(ctx context.Context) ([]profile.Profile, error) {
+	return c.profileCall(ctx, protocol.MethodProfileRescan, nil)
+}
+
+func (c *Client) profileCall(ctx context.Context, method string, params any) ([]profile.Profile, error) {
+	var r protocol.ProfileList
+	err := c.Call(ctx, method, params, &r)
+	return r.Profiles, err
+}
+
+func (c *Client) Settings(ctx context.Context) (settings.Settings, error) {
+	var s settings.Settings
+	err := c.Call(ctx, protocol.MethodSettingsGet, nil, &s)
+	return s, err
+}
+
+func (c *Client) SaveSettings(ctx context.Context, s settings.Settings) (settings.Settings, error) {
+	var out settings.Settings
+	err := c.Call(ctx, protocol.MethodSettingsSave, s, &out)
+	return out, err
 }
 
 func (c *Client) Spawn(ctx context.Context, p protocol.SpawnParams) (protocol.SessionInfo, error) {

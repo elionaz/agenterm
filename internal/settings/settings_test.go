@@ -50,3 +50,19 @@ func TestShouldNotify(t *testing.T) {
 		t.Fatal("disabled")
 	}
 }
+
+func TestSaveRoundTrip(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "settings.yaml")
+	os.WriteFile(p, []byte("notify:\n  sound: false\n"), 0o600)
+	want := Settings{Notify: Notify{Enabled: true, Sound: true, OnDone: false}}
+	if err := Save(p, want); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load(p)
+	if err != nil || got != want {
+		t.Fatalf("got %+v %v", got, err)
+	}
+	if bak, _ := os.ReadFile(p + ".bak"); string(bak) != "notify:\n  sound: false\n" {
+		t.Fatalf(".bak = %q", bak)
+	}
+}

@@ -14,8 +14,16 @@ export function Attach(arg1, arg2, arg3) {
   return window['go']['main']['App']['Attach'](arg1, arg2, arg3);
 }
 
+export function DeleteProfile(arg1) {
+  return window['go']['main']['App']['DeleteProfile'](arg1);
+}
+
 export function Detach(arg1) {
   return window['go']['main']['App']['Detach'](arg1);
+}
+
+export function GetSettings() {
+  return window['go']['main']['App']['GetSettings']();
 }
 
 export function Input(arg1, arg2) {
@@ -42,12 +50,32 @@ export function ListSessions() {
   return window['go']['main']['App']['ListSessions']();
 }
 
+export function ProfileCatalog() {
+  return window['go']['main']['App']['ProfileCatalog']();
+}
+
 export function RemoveProject(arg1) {
   return window['go']['main']['App']['RemoveProject'](arg1);
 }
 
+export function ReorderProfiles(arg1) {
+  return window['go']['main']['App']['ReorderProfiles'](arg1);
+}
+
+export function RescanProfiles() {
+  return window['go']['main']['App']['RescanProfiles']();
+}
+
 export function Resize(arg1, arg2, arg3) {
   return window['go']['main']['App']['Resize'](arg1, arg2, arg3);
+}
+
+export function SaveProfile(arg1) {
+  return window['go']['main']['App']['SaveProfile'](arg1);
+}
+
+export function SaveSettings(arg1) {
+  return window['go']['main']['App']['SaveSettings'](arg1);
 }
 
 export function SetVisibleSession(arg1) {

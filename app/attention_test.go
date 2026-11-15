@@ -66,7 +66,7 @@ func TestAppAttentionNotifications(t *testing.T) {
 	p := paths.In(dir)
 	os.WriteFile(p.Profiles(), []byte("- id: cat\n  cmd: /bin/cat\n  status: hooks\n"), 0o600)
 	var daemonNotes sync.Map
-	srv, err := daemon.New(daemon.Config{Paths: p, IdleAfter: time.Hour, KillGrace: time.Second,
+	srv, err := daemon.New(daemon.Config{Paths: p, SearchPath: func() string { return "/usr/bin:/bin" }, IdleAfter: time.Hour, KillGrace: time.Second,
 		Logger:   slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Notifier: func(n daemon.Notification) { daemonNotes.Store(n.SessionID, n) }})
 	if err != nil {

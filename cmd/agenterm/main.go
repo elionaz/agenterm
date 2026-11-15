@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"text/tabwriter"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/elionaz/agenterm/internal/daemoncmd"
 	"github.com/elionaz/agenterm/internal/notifycmd"
 	"github.com/elionaz/agenterm/internal/paths"
+	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/protocol"
 )
 
@@ -29,7 +31,8 @@ Usage:
   agenterm project add <dir> [--name N]
   agenterm project list
   agenterm project rm <id>
-  agenterm profiles                   list agent profiles
+  agenterm profiles                   list agent profiles (catalog + profiles.yaml)
+  agenterm profiles scan              re-detect installed agents and list them
   agenterm spawn [--cols C --rows R] <projectId|name> <profileId>
   agenterm ls                         list sessions
   agenterm attach <sessionId>         attach (detach with Ctrl-\)
@@ -81,7 +84,7 @@ func run(args []string) error {
 	case "project":
 		return cmdProject(ctx, c, rest)
 	case "profiles":
-		return cmdProfiles(ctx, c)
+		return cmdProfiles(ctx, c, rest)
 	case "spawn":
 		return cmdSpawn(ctx, c, rest)
 	case "ls":
@@ -204,17 +207,41 @@ func cmdProject(ctx context.Context, c *client.Client, args []string) error {
 	return fmt.Errorf("unknown project subcommand %q", args[0])
 }
 
-func cmdProfiles(ctx context.Context, c *client.Client) error {
-	ps, err := c.Profiles(ctx)
+func cmdProfiles(ctx context.Context, c *client.Client, args []string) error {
+	var ps []profile.Profile
+	var err error
+	switch {
+	case len(args) == 0 || args[0] == "list" || args[0] == "ls":
+		ps, err = c.Profiles(ctx)
+	case args[0] == "scan":
+		ps, err = c.RescanProfiles(ctx)
+	default:
+		return fmt.Errorf("unknown profiles subcommand %q (want list or scan)", args[0])
+	}
 	if err != nil {
 		return err
 	}
 	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tCMD\tSTATUS")
+	fmt.Fprintln(w, "ID\tNAME\tENABLED\tINSTALLED\tSOURCE\tSTATUS\tCMD")
 	for _, p := range ps {
-		fmt.Fprintf(w, "%s\t%s\t%s\n", p.ID, p.Cmd, p.Status)
+		installed := "-"
+		switch {
+		case p.Error != "":
+			installed = "error: " + p.Error
+		case p.Installed:
+			installed = p.Path
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", p.ID, p.Name, yesNo(p.Enabled), installed, p.Source, p.Status,
+			strings.TrimSpace(p.Cmd+" "+strings.Join(p.Args, " ")))
 	}
 	return w.Flush()
+}
+
+func yesNo(b bool) string {
+	if b {
+		return "yes"
+	}
+	return "no"
 }
 
 func cmdSpawn(ctx context.Context, c *client.Client, args []string) error {

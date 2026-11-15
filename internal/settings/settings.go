@@ -8,18 +8,20 @@ import (
 	"os"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/elionaz/agenterm/internal/atomicfile"
 )
 
 // Notify controls attention notifications.
 type Notify struct {
-	Enabled bool // native notifications at all
-	Sound   bool // sound for permission/question notifications
-	OnDone  bool // also notify when an agent finishes its turn
+	Enabled bool `json:"enabled"`      // native notifications at all
+	Sound   bool `json:"sound"`        // sound for permission/question notifications
+	OnDone  bool `json:"notifyOnDone"` // also notify when an agent finishes its turn
 }
 
 // Settings is the parsed file.
 type Settings struct {
-	Notify Notify
+	Notify Notify `json:"notify"`
 }
 
 type fileNotify struct {
@@ -30,6 +32,17 @@ type fileNotify struct {
 
 type file struct {
 	Notify fileNotify `yaml:"notify"`
+}
+
+// Save writes s to path atomically (keeping a .bak of the previous file).
+// Keys other than the known ones are not preserved.
+func Save(path string, s Settings) error {
+	f := file{Notify: fileNotify{Enabled: &s.Notify.Enabled, Sound: &s.Notify.Sound, OnDone: &s.Notify.OnDone}}
+	data, err := yaml.Marshal(f)
+	if err != nil {
+		return err
+	}
+	return atomicfile.Write(path, append([]byte("# agenterm: ajustes (ver README)\n"), data...), 0o600)
 }
 
 // Defaults returns the settings used when the file (or a key) is missing.

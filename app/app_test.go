@@ -79,7 +79,7 @@ func TestAppAgainstDaemon(t *testing.T) {
 	if err := os.WriteFile(p.Profiles(), []byte("- id: sh\n  cmd: /bin/sh\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	srv, err := daemon.New(daemon.Config{Paths: p, IdleAfter: time.Hour, KillGrace: time.Second,
+	srv, err := daemon.New(daemon.Config{Paths: p, SearchPath: func() string { return "/usr/bin:/bin" }, IdleAfter: time.Hour, KillGrace: time.Second,
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
 	if err != nil {
 		t.Fatal(err)

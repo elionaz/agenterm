@@ -20,9 +20,11 @@ import (
 	"time"
 
 	"github.com/elionaz/agenterm/internal/paths"
+	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/project"
 	"github.com/elionaz/agenterm/internal/protocol"
 	"github.com/elionaz/agenterm/internal/session"
+	"github.com/elionaz/agenterm/internal/shellenv"
 	"github.com/elionaz/agenterm/internal/status"
 	"github.com/elionaz/agenterm/internal/transport"
 )
@@ -45,6 +47,10 @@ type Config struct {
 	// Notifier shows a desktop notification when no UI client is
 	// subscribed. nil means osascript on macOS (no-op elsewhere).
 	Notifier func(n Notification)
+	// SearchPath returns the PATH list used to detect installed agents.
+	// nil means this process's PATH plus the login shell's (cached; see
+	// profile.rescan).
+	SearchPath func() string
 }
 
 // Notification is what the daemon's fallback notifier displays.
@@ -60,6 +66,8 @@ type Server struct {
 	cfg      Config
 	sock     string
 	projects *project.Registry
+	profiles *profile.Store
+	detector *profile.Detector
 	bus      *bus
 	log      *slog.Logger
 
@@ -104,10 +112,16 @@ func New(cfg Config) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	if cfg.SearchPath == nil {
+		cfg.SearchPath = func() string { return shellenv.JoinPaths(os.Getenv("PATH"), shellenv.LoginPath()) }
+	}
+	det := &profile.Detector{SearchPath: cfg.SearchPath}
 	return &Server{
 		cfg:      cfg,
 		sock:     cfg.Paths.Socket(),
 		projects: reg,
+		profiles: &profile.Store{Path: cfg.Paths.Profiles(), Look: det.Lookup},
+		detector: det,
 		bus:      newBus(),
 		log:      cfg.Logger,
 		sessions: make(map[string]*session.Session),
@@ -140,6 +154,7 @@ func (s *Server) Run(ctx context.Context) error {
 		return err
 	}
 	s.log.Info("daemon listening", "socket", s.sock, "pid", os.Getpid())
+	go s.detector.Path() // warm the (login shell) search PATH
 
 	acceptDone := make(chan struct{})
 	go func() {
@@ -158,11 +173,16 @@ func (s *Server) Run(ctx context.Context) error {
 		}
 	}()
 
+	reason := "daemon.shutdown RPC"
 	select {
 	case <-ctx.Done():
+		reason = "context cancelled"
+		if c := context.Cause(ctx); c != nil && c != context.Canceled {
+			reason = c.Error()
+		}
 	case <-s.stop:
 	}
-	s.log.Info("daemon shutting down")
+	s.log.Info("daemon shutting down", "reason", reason)
 	ln.Close()
 	<-acceptDone
 	s.killAll()

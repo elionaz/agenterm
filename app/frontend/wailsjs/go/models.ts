@@ -1,7 +1,42 @@
 export namespace profile {
 	
+	export class Entry {
+	    id: string;
+	    name?: string;
+	    extends?: string;
+	    enabled?: boolean;
+	    order?: number;
+	    cmd?: string;
+	    args?: string[];
+	    env?: Record<string, string>;
+	    status?: string;
+	    setupHooks?: string;
+	    idleSeconds?: number;
+	    attentionPatterns?: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Entry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.extends = source["extends"];
+	        this.enabled = source["enabled"];
+	        this.order = source["order"];
+	        this.cmd = source["cmd"];
+	        this.args = source["args"];
+	        this.env = source["env"];
+	        this.status = source["status"];
+	        this.setupHooks = source["setupHooks"];
+	        this.idleSeconds = source["idleSeconds"];
+	        this.attentionPatterns = source["attentionPatterns"];
+	    }
+	}
 	export class Profile {
 	    id: string;
+	    name: string;
 	    cmd: string;
 	    args?: string[];
 	    env?: Record<string, string>;
@@ -9,6 +44,14 @@ export namespace profile {
 	    setupHooks?: string;
 	    attentionPatterns?: string[];
 	    idleSeconds?: number;
+	    source: string;
+	    extends?: string;
+	    enabled: boolean;
+	    installed: boolean;
+	    path?: string;
+	    homepage?: string;
+	    install?: string;
+	    error?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Profile(source);
@@ -17,6 +60,7 @@ export namespace profile {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
+	        this.name = source["name"];
 	        this.cmd = source["cmd"];
 	        this.args = source["args"];
 	        this.env = source["env"];
@@ -24,6 +68,14 @@ export namespace profile {
 	        this.setupHooks = source["setupHooks"];
 	        this.attentionPatterns = source["attentionPatterns"];
 	        this.idleSeconds = source["idleSeconds"];
+	        this.source = source["source"];
+	        this.extends = source["extends"];
+	        this.enabled = source["enabled"];
+	        this.installed = source["installed"];
+	        this.path = source["path"];
+	        this.homepage = source["homepage"];
+	        this.install = source["install"];
+	        this.error = source["error"];
 	    }
 	}
 
@@ -73,6 +125,42 @@ export namespace project {
 
 export namespace protocol {
 	
+	export class CatalogInfo {
+	    id: string;
+	    name: string;
+	    binaries?: string[];
+	    cmd?: string;
+	    args?: string[];
+	    status: string;
+	    setupHooks?: string;
+	    attentionPatterns?: string[];
+	    homepage?: string;
+	    install?: string;
+	    command: string;
+	    installed: boolean;
+	    path?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new CatalogInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.binaries = source["binaries"];
+	        this.cmd = source["cmd"];
+	        this.args = source["args"];
+	        this.status = source["status"];
+	        this.setupHooks = source["setupHooks"];
+	        this.attentionPatterns = source["attentionPatterns"];
+	        this.homepage = source["homepage"];
+	        this.install = source["install"];
+	        this.command = source["command"];
+	        this.installed = source["installed"];
+	        this.path = source["path"];
+	    }
+	}
 	export class SessionInfo {
 	    id: string;
 	    projectId: string;
@@ -119,6 +207,57 @@ export namespace protocol {
 	        this.attentionMessage = source["attentionMessage"];
 	        this.attentionAt = this.convertValues(source["attentionAt"], null);
 	        this.unread = source["unread"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace settings {
+	
+	export class Notify {
+	    enabled: boolean;
+	    sound: boolean;
+	    notifyOnDone: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Notify(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.sound = source["sound"];
+	        this.notifyOnDone = source["notifyOnDone"];
+	    }
+	}
+	export class Settings {
+	    notify: Notify;
+	
+	    static createFrom(source: any = {}) {
+	        return new Settings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.notify = this.convertValues(source["notify"], Notify);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

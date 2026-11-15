@@ -3,6 +3,7 @@
 import {project} from '../models';
 import {protocol} from '../models';
 import {profile} from '../models';
+import {settings} from '../models';
 
 export function Ack(arg1:string):Promise<void>;
 
@@ -10,7 +11,11 @@ export function AddProject():Promise<project.Project>;
 
 export function Attach(arg1:string,arg2:number,arg3:number):Promise<protocol.SessionInfo>;
 
+export function DeleteProfile(arg1:string):Promise<Array<profile.Profile>>;
+
 export function Detach(arg1:string):Promise<void>;
+
+export function GetSettings():Promise<settings.Settings>;
 
 export function Input(arg1:string,arg2:string):Promise<void>;
 
@@ -24,9 +29,19 @@ export function ListProjects():Promise<Array<project.Project>>;
 
 export function ListSessions():Promise<Array<protocol.SessionInfo>>;
 
+export function ProfileCatalog():Promise<Array<protocol.CatalogInfo>>;
+
 export function RemoveProject(arg1:string):Promise<void>;
 
+export function ReorderProfiles(arg1:Array<string>):Promise<Array<profile.Profile>>;
+
+export function RescanProfiles():Promise<Array<profile.Profile>>;
+
 export function Resize(arg1:string,arg2:number,arg3:number):Promise<void>;
+
+export function SaveProfile(arg1:profile.Entry):Promise<Array<profile.Profile>>;
+
+export function SaveSettings(arg1:settings.Settings):Promise<settings.Settings>;
 
 export function SetVisibleSession(arg1:string):Promise<void>;
 

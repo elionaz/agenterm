@@ -52,8 +52,17 @@ func Run(args []string) error {
 		return nil
 	}
 
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
-	defer cancel()
+	// Record which signal stopped us so the log explains every shutdown.
+	ctx, cancel := context.WithCancelCause(context.Background())
+	defer cancel(nil)
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGTERM, syscall.SIGINT)
+	defer signal.Stop(sigs)
+	go func() {
+		if sig, ok := <-sigs; ok {
+			cancel(fmt.Errorf("received signal %s", sig))
+		}
+	}()
 	signal.Ignore(syscall.SIGHUP, syscall.SIGPIPE)
 	srv, err := daemon.New(daemon.Config{
 		Paths:     p,

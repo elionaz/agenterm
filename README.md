@@ -1,6 +1,7 @@
 # agenterm
 
-Workspace de escritorio para agentes de código (Claude Code, codex, opencode, shell…),
+Workspace de escritorio para agentes de código (Claude Code, codex, opencode, Gemini, Cursor,
+Copilot, aider, shell…),
 organizado por proyecto. **Fase 1**: daemon + PTYs + CLI. **Fase 2**: app de escritorio
 macOS (Wails v2 + Svelte + xterm.js) en `app/`, que es un cliente más del daemon
 (`internal/client`). **Fase 3**: detección de "necesita tu atención" (hooks de los agentes +
@@ -14,7 +15,8 @@ go build -o agenterm ./cmd/agenterm
 agenterm daemon --detach            # opcional: cualquier comando lo arranca si no corre
 agenterm project add ~/Dev/agenterm # -> <projectId>  name  path
 agenterm project list
-agenterm profiles
+agenterm profiles                   # catálogo + profiles.yaml, con instalado/activado
+agenterm profiles scan              # re-detecta los agentes instalados
 agenterm spawn <projectId|nombre> shell   # -> <sessionId>
 agenterm ls
 agenterm attach <sessionId>         # Ctrl-\ para desacoplar; la sesión sigue viva
@@ -40,27 +42,86 @@ no imprime nada y **siempre** sale con 0 (timeout 2 s): nunca bloquea ni rompe a
 
 Ojo: en macOS la ruta de un unix socket tiene un límite de ~104 bytes.
 
-### Perfiles
+### Agentes y perfiles
 
-Si no existe `profiles.yaml` se usan los integrados (`claude`, `codex`, `opencode`, `shell`).
-Formato:
+agenterm trae un **catálogo** de CLIs de agentes conocidos y detecta cuáles tienes instalados
+(`exec.LookPath` contra el `PATH` del daemon más el de tu shell de login, cacheado 5 min;
+`agenterm profiles scan` o "Re-escanear" en la app lo refrescan):
+
+| id | agente | binario | notas |
+|---|---|---|---|
+| `claude` | Claude Code | `claude` | `status: hooks`, `setup_hooks: claude` |
+| `codex` | Codex CLI | `codex` | `setup_hooks: codex` |
+| `opencode` | opencode | `opencode` | |
+| `gemini` | Gemini CLI | `gemini` | |
+| `cursor-agent` | Cursor CLI | `cursor-agent` | |
+| `copilot` | GitHub Copilot CLI | `copilot` | |
+| `aider` | Aider | `aider` | patrón de atención `(Y)es/(N)o` |
+| `amp` | Amp | `amp` | |
+| `goose` | goose | `goose session` | |
+| `qwen` | Qwen Code | `qwen` | |
+| `crush` | Crush | `crush` | |
+| `kiro` | Kiro CLI | `kiro-cli chat` | nombre sin verificar |
+| `shell` | Shell | `$SHELL` | siempre disponible |
+
+Los agentes no instalados no salen en el menú **+** (sí en Ajustes, con la pista de instalación).
+
+`profiles.yaml` es la fuente de verdad y se **superpone** al catálogo por `id`:
+
+- una entrada con el id de un agente del catálogo solo cambia los campos que pongas; el resto
+  (incluido `setup_hooks`) se hereda. Un `profiles.yaml` antiguo sigue valiendo tal cual y ahora
+  hereda la integración de hooks. `setup_hooks: none` la desactiva; `args: []` vacía los
+  argumentos heredados;
+- un id nuevo es un perfil propio (`cmd` obligatorio) o una **variante** (`extends: <id>`: hereda
+  todo del padre, ya con sus cambios; `args`/`env`/patrones **reemplazan** a los del padre);
+- `enabled: false` lo oculta del menú; `name:` es el nombre visible;
+- orden: el de la lista (o `order: N` explícito); los del catálogo que no aparecen van detrás. El
+  primero visible es el de ⌘N;
+- un error en una entrada (regex inválida, `extends` desconocido…) solo inutiliza esa entrada.
 
 ```yaml
+- id: claude-yolo           # variante
+  name: Claude (sin permisos)
+  extends: claude
+  args: ["--dangerously-skip-permissions"]
 - id: claude
-  cmd: claude          # se expanden $VARS (p. ej. $SHELL)
+  env: {CLAUDE_CODE_USE_BEDROCK: "1"}
+- id: gemini
+  enabled: false
+- id: mio                   # perfil propio
+  cmd: $HOME/bin/mi-agente  # se expanden $VARS
   args: []
   env: {}
-  status: hooks        # hooks | heuristic
-  setup_hooks: claude  # claude | codex | none: integra los hooks del agente (ver abajo)
-  idle_seconds: 3      # opcional, sobreescribe el timeout heurístico
-  attention_patterns:  # opcional: regex sobre la salida reciente (sin ANSI)
-    - 'Do you want to proceed\?'
+  status: heuristic         # hooks | heuristic
+  setup_hooks: none         # claude | codex | none
+  idle_seconds: 3           # opcional, sobreescribe el timeout heurístico
+  attention_patterns:       # opcional: regex sobre la salida reciente (sin ANSI)
     - '\(y/n\)'
 ```
 
-Los perfiles integrados son `claude` (`status: hooks`, `setup_hooks: claude`), `codex`
-(`status: heuristic`, `setup_hooks: codex`), `opencode` y `shell` (heurística). Si ya tienes un
-`profiles.yaml` propio, añade `setup_hooks` a mano.
+Al guardar desde la app (o con las RPC `profile.save|delete|reorder`) el fichero se reescribe en
+formato canónico: una entrada por perfil en el orden del menú, solo con los campos que difieren de
+lo heredado (los del catálogo sin cambios quedan como `- id: x`). La escritura es atómica y deja
+el fichero anterior en `profiles.yaml.bak`; los comentarios no se conservan. Se relee en cada
+`spawn`/`list`, así que también puedes editarlo a mano.
+
+```sh
+agenterm profiles        # ID NAME ENABLED INSTALLED(ruta) SOURCE(catalog|override|custom) STATUS CMD
+agenterm profiles scan   # vuelve a leer el PATH del shell de login y detecta de nuevo
+```
+
+### Ajustes en la app
+
+⚙ en la sidebar, **⌘,** o *agenterm → Preferencias…* abren **Ajustes**:
+
+- **Agentes**: lista con ✓ instalado / no encontrado (+ comando de instalación y enlace), interruptor
+  de activado, arrastrar o ▲▼ para reordenar (el primero es el de ⌘N), *Editar* (nombre, comando,
+  argumentos, entorno `CLAVE=valor`, modo de estado, integración de hooks, segundos de inactividad,
+  patrones de atención), *Duplicar como variante*, *+ Agente personalizado*, *Borrar* (propios) o
+  *Restablecer* (los del catálogo modificados), con confirmación en línea, y *Re-escanear*.
+- **Notificaciones**: los tres interruptores de `settings.yaml`, con *Guardar*.
+
+Los menús de **+** y ⌘N usan solo los perfiles activados e instalados, en ese orden.
 
 ## Atención y notificaciones (fase 3)
 
@@ -115,7 +176,8 @@ notify:
   notify_on_done: true  # avisar también cuando un agente termina
 ```
 
-Todo está activado por defecto; el fichero es opcional y se relee en cada aviso.
+Todo está activado por defecto; el fichero es opcional y se relee en cada aviso. La app lo
+edita desde *Ajustes → Notificaciones* (RPC `settings.save`, escritura atómica con `.bak`).
 
 ## App de escritorio (fase 2)
 
@@ -139,7 +201,7 @@ Solo frontend: `cd app/frontend && npm install && npm run check && npm run build
   `TERM=xterm-256color`, `COLORTERM=truecolor` y `LANG` si falta: las apps abiertas desde Finder
   heredan el entorno mínimo de launchd y no encontrarían `claude`/`codex`.
 - Atajos: ⌘1…⌘9 seleccionan la sesión n del proyecto actual, ⌘N lanza una sesión con el primer
-  perfil en el proyecto actual, ⌘C/⌘V copian/pegan en la terminal.
+  perfil activado e instalado en el proyecto actual, ⌘, abre Ajustes, ⌘C/⌘V copian/pegan en la terminal.
 - `AGENTERM_HOME` también vale para la app (útil para probar sin tocar `~/.agenterm`):
   `AGENTERM_HOME=/tmp/at wails dev`.
 
@@ -174,7 +236,9 @@ internal/hooks      config de hooks por sesión (claude, codex) y parseo de payl
 internal/notifycmd  subcomando `notify` compartido por la CLI y la app
 internal/desktopnotify  textos de notificación + fallback osascript
 internal/settings   settings.yaml
-internal/profile    perfiles YAML
+internal/profile    catálogo de agentes, detección, merge con profiles.yaml y escritura
+internal/shellenv   PATH del shell de login (app y daemon)
+internal/atomicfile escritura atómica con .bak
 internal/project    registro de proyectos en JSON
 internal/paths      resolución de directorios
 ```
@@ -183,7 +247,8 @@ internal/paths      resolución de directorios
 
 - **Control**: JSON delimitado por `\n`. Petición `{"id":1,"method":"session.list","params":{…}}`,
   respuesta `{"id":1,"result":{…}}` o `{"id":1,"error":"…"}`. Una conexión admite varias
-  peticiones seguidas. Métodos: `project.add|list|remove`, `profile.list`,
+  peticiones seguidas. Métodos: `project.add|list|remove`,
+  `profile.list|catalog|save|delete|reorder|rescan`, `settings.get|save`,
   `session.spawn|list|kill|resize|notify|ack|attach`, `events.subscribe`, `daemon.ping|shutdown`.
 - **`events.subscribe`** (`{"client":"ui"}` opcional): tras la respuesta, el daemon emite un evento
   JSON por línea (`session.spawned`, `session.state`, `session.attention`, `session.removed`).
