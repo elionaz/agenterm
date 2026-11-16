@@ -12,7 +12,7 @@ cask "agenterm" do
     strategy :github_latest
   end
 
-  depends_on macos: ">= :ventura"
+  depends_on macos: :ventura
 
   # No `auto_updates true`: the app detects that this cask installed it and
   # turns its Sparkle updater off, so `brew upgrade` stays the only updater
