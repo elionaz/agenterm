@@ -30,6 +30,12 @@ const Name = "daemon"
 // Run executes `daemon [--detach] [--idle D]`. In the foreground it blocks
 // until SIGTERM/SIGINT or a shutdown request; with --detach it starts the
 // current executable in daemon mode and returns once the socket is up.
+//
+// The CLI bundled in agenterm.app (Contents/Helpers/agenterm) runs the
+// daemon as the app's executable instead (client.DaemonExecutable): with
+// --detach it starts that one, in the foreground it execs it in place
+// (same pid, args and environment), so the daemon belongs to the bundle and
+// gets native notifications and their clicks.
 func Run(args []string) error {
 	fs := flag.NewFlagSet(Name, flag.ContinueOnError)
 	detach := fs.Bool("detach", false, "start in the background and return once it is ready")
@@ -50,11 +56,19 @@ func Run(args []string) error {
 		if err != nil {
 			return err
 		}
-		if err := client.StartDaemon(context.Background(), exe, p); err != nil {
+		if err := client.StartDaemon(context.Background(), client.DaemonExecutable(exe), p); err != nil {
 			return err
 		}
 		fmt.Println("daemon started on", p.Socket())
 		return nil
+	}
+	if exe, err := os.Executable(); err == nil {
+		if app := client.DaemonExecutable(exe); app != exe {
+			// Only returns on failure: then run here, without native
+			// notifications.
+			err := syscall.Exec(app, append([]string{app, Name}, args...), os.Environ())
+			fmt.Fprintf(os.Stderr, "agenterm daemon: exec %s: %v; running the CLI's daemon\n", app, err)
+		}
 	}
 
 	// Record which signal stopped us — and who sent it — so the log explains

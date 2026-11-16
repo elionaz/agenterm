@@ -334,6 +334,9 @@ export const en = {
   'settings.n.stall': 'Notify if it looks stalled',
   'settings.n.stallHelp':
     'A quiet heads-up (no sound, not counted as pending) when a turn has gone a while without output or events.',
+  'settings.n.fallback': 'Fallback via AppleScript (shows as Script Editor)',
+  'settings.n.fallbackHelp':
+    'When native notifications are not available or not allowed. Off: they are not shown. Clicking one opens Script Editor, not agenterm.',
   'settings.n.stallSeconds': 'Seconds without activity before “stalled?”',
   'settings.n.stallSecondsHelp':
     'Only for agents with hooks (Claude Code) while a turn is open. 0 disables detection. Applies to new sessions.',

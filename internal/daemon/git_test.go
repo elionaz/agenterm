@@ -27,6 +27,9 @@ func TestMain(m *testing.M) {
 	os.Setenv("HOME", home)
 	os.Setenv("GIT_CONFIG_NOSYSTEM", "1")
 	os.Setenv("GIT_CONFIG_GLOBAL", global)
+	// Test daemons never post real desktop notifications (they also get a
+	// no-op or recording Notifier).
+	os.Setenv("AGENTERM_NOTIFY", "off")
 	code := m.Run()
 	os.RemoveAll(home)
 	os.Exit(code)

@@ -25,7 +25,28 @@ type Notify struct {
 	Sound   bool `json:"sound"`         // sound for permission/question notifications
 	OnDone  bool `json:"notifyOnDone"`  // also notify when an agent finishes its turn
 	OnStall bool `json:"notifyOnStall"` // notify (quietly) when a turn looks stalled
+	// Fallback is what to do when native notifications are unavailable
+	// (no .app bundle) or not authorized: none (drop them) | osascript
+	// (AppleScript, which macOS shows as Script Editor). omitempty: a client
+	// that does not know the field keeps its saved value.
+	Fallback string `json:"fallback,omitempty"`
 }
+
+// Notify.Fallback values.
+const (
+	FallbackNone      = "none"
+	FallbackOsascript = "osascript"
+)
+
+func normFallback(v string) string {
+	if strings.ToLower(strings.TrimSpace(v)) == FallbackOsascript {
+		return FallbackOsascript
+	}
+	return FallbackNone
+}
+
+// UsesOsascript reports whether notifications may fall back to osascript.
+func (n Notify) UsesOsascript() bool { return normFallback(n.Fallback) == FallbackOsascript }
 
 // Activity controls activity tracking.
 type Activity struct {
@@ -184,10 +205,11 @@ type Settings struct {
 }
 
 type fileNotify struct {
-	Enabled *bool `yaml:"enabled"`
-	Sound   *bool `yaml:"sound"`
-	OnDone  *bool `yaml:"notify_on_done"`
-	OnStall *bool `yaml:"notify_on_stall"`
+	Enabled  *bool   `yaml:"enabled"`
+	Sound    *bool   `yaml:"sound"`
+	OnDone   *bool   `yaml:"notify_on_done"`
+	OnStall  *bool   `yaml:"notify_on_stall"`
+	Fallback *string `yaml:"fallback"`
 }
 
 type fileActivity struct {
@@ -250,6 +272,7 @@ func Save(path string, s Settings) error {
 	setKey(root, []string{"notify", "sound"}, b(s.Notify.Sound), "!!bool")
 	setKey(root, []string{"notify", "notify_on_done"}, b(s.Notify.OnDone), "!!bool")
 	setKey(root, []string{"notify", "notify_on_stall"}, b(s.Notify.OnStall), "!!bool")
+	setKey(root, []string{"notify", "fallback"}, normFallback(s.Notify.Fallback), "!!str")
 	setKey(root, []string{"activity", "stall_seconds"}, strconv.Itoa(max(s.Activity.StallSeconds, 0)), "!!int")
 	setKey(root, []string{"git", "editor"}, strings.TrimSpace(s.Git.Editor), "!!str")
 	setKey(root, []string{"git", "worktree_dir"}, strings.TrimSpace(s.Git.WorktreeDir), "!!str")
@@ -306,7 +329,7 @@ func setKey(m *yaml.Node, path []string, value, tag string) {
 // Defaults returns the settings used when the file (or a key) is missing.
 func Defaults() Settings {
 	return Settings{
-		Notify:   Notify{Enabled: true, Sound: true, OnDone: true, OnStall: true},
+		Notify:   Notify{Enabled: true, Sound: true, OnDone: true, OnStall: true, Fallback: FallbackNone},
 		Activity: Activity{StallSeconds: DefaultStallSeconds},
 		Git:      Git{DefaultMode: ModeSame},
 		UI:       UI{Language: i18n.Auto, Appearance: AppearanceSystem},
@@ -338,6 +361,9 @@ func Parse(data []byte) (Settings, error) {
 	set(&s.Notify.Sound, f.Notify.Sound)
 	set(&s.Notify.OnDone, f.Notify.OnDone)
 	set(&s.Notify.OnStall, f.Notify.OnStall)
+	if f.Notify.Fallback != nil {
+		s.Notify.Fallback = normFallback(*f.Notify.Fallback)
+	}
 	if f.Activity.StallSeconds != nil {
 		s.Activity.StallSeconds = max(*f.Activity.StallSeconds, 0)
 	}

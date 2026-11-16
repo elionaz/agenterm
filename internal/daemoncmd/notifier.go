@@ -17,17 +17,27 @@ import (
 // notifier is the daemon's fallback notifier (used while no UI client is
 // subscribed). Inside the .app bundle it posts native notifications, which
 // macOS attributes to agenterm (name and icon) and whose clicks open the app
-// on that session; otherwise, or when not authorized, osascript.
+// on that session. When that is not possible (no bundle, not authorized) it
+// drops them, or uses osascript if notify.fallback says so.
+// AGENTERM_NOTIFY=off turns it off entirely.
 type notifier struct {
 	log       *slog.Logger
+	off       bool   // AGENTERM_NOTIFY=off
 	bundle    string // the .app containing the daemon executable; "" if none
 	native    bool   // bundle with a bundle identifier
 	clicks    bool   // our delegate is installed (clicks reach onClick)
 	askedOnce sync.Once
+
+	mu         sync.Mutex
+	lastReason string // last reason logged for a dropped notification
 }
 
 func newNotifier(log *slog.Logger, exe string) *notifier {
-	n := &notifier{log: log, bundle: macnotify.BundlePath(exe)}
+	n := &notifier{log: log, bundle: macnotify.BundlePath(exe), off: desktopnotify.Disabled()}
+	if n.off {
+		log.Info("notifications disabled", "env", desktopnotify.EnvNotify+"="+os.Getenv(desktopnotify.EnvNotify))
+		return n
+	}
 	n.native = n.bundle != "" && macnotify.HasBundle()
 	if n.native {
 		n.clicks = macnotify.SetClickHandler(n.onClick)
@@ -44,11 +54,15 @@ func (n *notifier) Notify(note daemon.Notification) {
 			n.log.Error("notification panicked", "panic", r)
 		}
 	}()
+	if n.off {
+		return
+	}
+	reason := "no app bundle (daemon not running as agenterm.app)"
 	if n.native {
 		st := macnotify.AuthStatus(2 * time.Second)
 		if st == macnotify.StatusNotDetermined {
-			// First time ever: ask (the prompt may wait on the user), and use
-			// osascript meanwhile.
+			// First time ever: ask (the prompt may wait on the user); until
+			// then the notification goes to the fallback.
 			n.askedOnce.Do(func() {
 				go func() {
 					ok, err := macnotify.RequestAuth(5 * time.Minute)
@@ -68,13 +82,29 @@ func (n *notifier) Notify(note daemon.Notification) {
 				n.log.Info("notification posted", "notifier", "native", "session", note.SessionID, "kind", note.Kind)
 				return
 			}
-			n.log.Warn("native notification failed; using osascript", "err", err)
+			reason = "native notification failed: " + err.Error()
 		} else {
-			n.log.Info("native notifications not usable; using osascript", "auth", st.String())
+			reason = "native notifications not authorized (" + st.String() + ")"
 		}
 	}
+	if !note.Osascript {
+		n.dropped(reason)
+		return
+	}
 	err := desktopnotify.Osascript(note.Title, note.Body, note.Sound)
-	n.log.Info("notification posted", "notifier", "osascript", "session", note.SessionID, "kind", note.Kind, "err", err)
+	n.log.Info("notification posted", "notifier", "osascript", "reason", reason, "session", note.SessionID, "kind", note.Kind, "err", err)
+}
+
+// dropped logs, once per distinct reason, that notifications are not shown.
+func (n *notifier) dropped(reason string) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if reason == n.lastReason {
+		return
+	}
+	n.lastReason = reason
+	n.log.Warn("notifications not shown; set notify.fallback: osascript in settings.yaml to use AppleScript (shows as Script Editor)",
+		"reason", reason)
 }
 
 // onClick opens the app on the clicked session. The daemon gets the click

@@ -120,24 +120,36 @@ La app se suscribe al daemon como cliente `ui` y es ella quien notifica:
 
 Cuando ningún cliente `ui` está suscrito, avisa el daemon:
 
-- Si su ejecutable está dentro de un `.app` (lo arrancó la app) y el bundle tiene permiso, usa
+- Si su ejecutable está dentro de un `.app` y el bundle tiene permiso, usa
   `UNUserNotificationCenter`: la notificación sale como **agenterm**, con su icono y el mismo
   identificador que usa la app (`agenterm-<sessionId>`). La primera vez pide el permiso.
+- El daemon corre como el ejecutable de la app lo arranque quien lo arranque: la app, y también la
+  CLI incluida en el `.app` (`Contents/Helpers/agenterm`, que Homebrew enlaza en tu `PATH`) — su
+  arranque automático y `agenterm daemon [--detach]` ejecutan `agenterm.app/Contents/MacOS/agenterm
+  daemon` en vez de a sí mismos. Solo una CLI instalada fuera del bundle (`go install`, los
+  archivos de la CLI) corre el daemon como ella misma.
 - Al pulsarla, el daemon ejecuta `open -a <su .app> [--env AGENTERM_HOME=…]
   agenterm://session/<id>`: la app se abre (o se activa) y selecciona esa sesión.
-- Si el daemon no está en un bundle (lo arrancó la CLI), no hay permiso o falla el envío, cae a
-  `osascript` (`display notification`): macOS la atribuye a *Script Editor* y pulsarla no abre
-  agenterm.
+- Si no se pueden usar las notificaciones nativas (el daemon no está en un bundle, no hay permiso o
+  falla el envío), lo que pasa depende de `notify.fallback`:
+  - `none` (por defecto): la notificación no se muestra; `daemon.log` lo dice, con el motivo, una
+    vez.
+  - `osascript`: se envía con `osascript` (`display notification`). macOS la atribuye a *Editor de
+    Scripts* y pulsarla abre Editor de Scripts, no agenterm. La app aplica el mismo ajuste a sus
+    propias notificaciones (*Ajustes → Notificaciones → Alternativa con AppleScript*).
+- `AGENTERM_NOTIFY=off` en el entorno de la app o del daemon desactiva todas las notificaciones de
+  escritorio (nativas y alternativa), diga lo que diga `settings.yaml`: para instancias de prueba y
+  demos (ver [development.md](development.md#probar-sin-tocar-tu-instalación)).
 - Nada de esto bloquea el daemon: el envío nativo tiene un límite de ~3 s y `osascript` de 5 s.
-- `daemon.log` registra cada aviso (`notifier=native` u `osascript`, o el estado del permiso si no
-  se pudo usar el nativo) y los clics (`notification clicked`).
+- `daemon.log` registra cada aviso (`notifier=native` u `osascript`), los descartados
+  (`notifications not shown`, con el motivo) y los clics (`notification clicked`).
 
 ### Permiso de notificaciones
 
 La primera vez que abras el `.app` macOS pregunta si permites notificaciones. Si lo rechazaste:
 *Ajustes del Sistema → Notificaciones → agenterm* → "Permitir notificaciones" (y estilo "Alertas"
-si quieres que se queden en pantalla). Las de `osascript` se controlan en *Notificaciones → Script
-Editor*.
+si quieres que se queden en pantalla). Con `notify.fallback: osascript`, esas notificaciones se
+controlan en *Notificaciones → Editor de Scripts*.
 
 ### Esquema de URL
 

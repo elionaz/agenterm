@@ -97,7 +97,11 @@ cd .. && go build -o agenterm ./cmd/agenterm
 ```
 
 The first time you open the app, macOS asks whether to allow notifications. If you declined:
-*System Settings → Notifications → agenterm* → "Allow notifications".
+*System Settings → Notifications → agenterm* → "Allow notifications". Without that permission (or
+from a daemon outside the `.app`) notifications are not shown, unless you enable the AppleScript
+fallback (`notify.fallback: osascript`; they then show as *Script Editor*). The CLI bundled in the
+app (what Homebrew puts on your `PATH`) starts the daemon as the app, so it gets native
+notifications too.
 
 ## Quick start
 
@@ -181,6 +185,8 @@ notify:
   sound: true            # sound on approval/question
   notify_on_done: true   # also notify when an agent finishes
   notify_on_stall: true  # low-key notice when a turn looks stalled
+  fallback: none         # none | osascript: when native notifications can't be used
+                         # (osascript shows as Script Editor)
 activity:
   stall_seconds: 180     # seconds without output or events before "stalled?"; 0 disables it
 git:

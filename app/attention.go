@@ -21,6 +21,9 @@ const evFocusSession = "app:focus-session"
 type note struct {
 	SessionID, Kind, Title, Body string
 	Sound                        bool
+	// Osascript: notify.fallback allows osascript when native
+	// notifications cannot be used.
+	Osascript bool
 }
 
 // desktop is the OS integration: notifications, Dock badge and bounce.
@@ -143,6 +146,7 @@ func (a *App) notify(e protocol.Event) {
 		Title:     desktopnotify.Title(e.ProjectName, cmp.Or(e.SessionName, e.ProfileID)),
 		Body:      desktopnotify.Body(lang, e.AttentionKind, e.AttentionMessage),
 		Sound:     st.Notify.WantsSound(e.AttentionKind),
+		Osascript: st.Notify.UsesOsascript(),
 	}
 	go func() {
 		if err := a.desk.Notify(n); err != nil {

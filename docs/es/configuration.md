@@ -139,6 +139,7 @@ Todas las claves son opcionales; las que faltan toman el valor por defecto.
 | `notify.sound` | `true` | sonido, solo en aprobaciones y preguntas |
 | `notify.notify_on_done` | `true` | avisar también cuando un agente termina su turno (los errores avisan siempre) |
 | `notify.notify_on_stall` | `true` | aviso discreto cuando un turno parece trabado |
+| `notify.fallback` | `none` | cuando no se pueden usar las notificaciones nativas (sin bundle `.app`, sin permiso): `none` no las muestra (`daemon.log` dice por qué, una vez) y `osascript` las envía con AppleScript, que macOS muestra como *Editor de Scripts* (al pulsarlas se abre Editor de Scripts, no agenterm). `AGENTERM_NOTIFY=off` en el entorno las desactiva todas igualmente. Ver [attention-and-activity.md](attention-and-activity.md#con-la-app-cerrada) |
 | `activity.stall_seconds` | `180` | segundos sin salida ni eventos para marcar «¿trabado?»; `0` lo desactiva |
 | `git.editor` | `""` | para «Abrir en editor»: un comando en el `PATH` (`code`, `cursor -n`, `zed`), una ruta absoluta o el nombre de una app de macOS (`Visual Studio Code`, `Cursor.app`). Vacío: `code` si está en el `PATH`, si no Finder |
 | `git.worktree_dir` | `""` | dónde crear los worktrees (ruta absoluta o `~/…`). Vacío: `~/.agenterm/worktrees` (o `$AGENTERM_HOME/worktrees`) |
@@ -154,6 +155,7 @@ notify:
   sound: true
   notify_on_done: true
   notify_on_stall: true
+  fallback: none
 activity:
   stall_seconds: 180
 git:

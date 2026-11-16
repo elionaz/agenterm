@@ -7,6 +7,28 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-16
+
+### Changed
+
+- **No more Script Editor notifications by default.** When native notifications can't be used (the
+  daemon isn't running from the `.app`, or notifications aren't allowed), they are no longer sent
+  through AppleScript, which macOS attributes to Script Editor (and clicking one opened Script
+  Editor). They are dropped and `daemon.log` says why, once. The new `notify.fallback: osascript`
+  setting (**Settings → Notifications → Fallback via AppleScript**) brings the old behaviour back;
+  the default is `none`.
+- The CLI bundled in the app (`agenterm.app/Contents/Helpers/agenterm`, what the Homebrew cask puts
+  on your `PATH`) now starts the daemon as the app's executable — on auto-start, with
+  `agenterm daemon --detach` and in the foreground — so it gets native agenterm notifications and
+  their clicks open the app. A CLI installed outside the bundle behaves as before.
+
+### Fixed
+
+- Test and demo instances can no longer pop up real notifications: `AGENTERM_NOTIFY=off` disables
+  every desktop notification of the app and the daemon, whatever `settings.yaml` says, and
+  `go test` never posts one (a daemon configured without a notifier now posts nothing instead of
+  using osascript).
+
 ## [0.1.0] - 2026-11-16
 
 First public release: a macOS desktop app (universal: Apple Silicon and Intel, macOS 13+) plus the
@@ -39,5 +61,6 @@ First public release: a macOS desktop app (universal: Apple Silicon and Intel, m
   `.zip` downloads, CLI archives for macOS and Linux, and a Homebrew cask
   (`brew install --cask elionaz/tap/agenterm`).
 
-[Unreleased]: https://github.com/elionaz/agenterm/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/elionaz/agenterm/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/elionaz/agenterm/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/elionaz/agenterm/releases/tag/v0.1.0

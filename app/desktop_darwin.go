@@ -35,8 +35,10 @@ import "C"
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"unsafe"
 
@@ -48,21 +50,30 @@ import (
 
 // macDesktop implements desktop with UNUserNotificationCenter (posting via
 // internal/macnotify, shared with the daemon; clicks through the delegate
-// Wails installs) plus Dock badge/bounce, falling back to
-// osascript when the app has no bundle or notifications are not
-// authorized.
+// Wails installs) plus Dock badge/bounce. When the app has no bundle or
+// notifications are not authorized, notifications are dropped (logged once
+// per reason) or, with notify.fallback: osascript, sent through osascript.
+// AGENTERM_NOTIFY=off disables them entirely (the Dock badge stays).
 type macDesktop struct {
-	native atomic.Bool // UNUserNotificationCenter usable and authorized
+	off    bool         // AGENTERM_NOTIFY=off
+	native atomic.Bool  // UNUserNotificationCenter usable and authorized
+	reason atomic.Value // string: why native is not usable
+	logged sync.Map     // reasons already logged for dropped notifications
 }
 
 func newDesktop(ctx context.Context, onClick func(sessionID string)) desktop {
-	d := &macDesktop{}
+	d := &macDesktop{off: desktopnotify.Disabled()}
+	if d.off {
+		log.Printf("agenterm: notifications disabled (%s=off)", desktopnotify.EnvNotify)
+		return d
+	}
+	d.reason.Store("not authorized yet")
 	if !macnotify.HasBundle() {
-		log.Printf("agenterm: no bundle identifier; using osascript notifications")
+		d.reason.Store("no bundle identifier")
 		return d
 	}
 	if err := runtime.InitializeNotifications(ctx); err != nil {
-		log.Printf("agenterm: notifications: %v; using osascript", err)
+		d.reason.Store("notifications: " + err.Error())
 		return d
 	}
 	runtime.OnNotificationResponse(ctx, func(r runtime.NotificationResult) {
@@ -75,11 +86,11 @@ func newDesktop(ctx context.Context, onClick func(sessionID string)) desktop {
 	})
 	// First launch shows the system prompt (which may wait on the user);
 	// later launches return the stored decision immediately. Until then,
-	// and if denied, notifications go through osascript.
+	// and if denied, notifications go to the fallback (notify.fallback).
 	go func() {
 		ok, err := runtime.RequestNotificationAuthorization(ctx)
 		if err != nil || !ok {
-			log.Printf("agenterm: notifications not authorized (%v); using osascript", err)
+			d.reason.Store(fmt.Sprintf("not authorized (%v)", err))
 			return
 		}
 		d.native.Store(true)
@@ -88,6 +99,10 @@ func newDesktop(ctx context.Context, onClick func(sessionID string)) desktop {
 }
 
 func (d *macDesktop) Notify(n note) error {
+	if d.off {
+		return nil
+	}
+	reason, _ := d.reason.Load().(string)
 	if d.native.Load() {
 		// Unlike Wails' SendNotification this lets us choose the sound.
 		err := macnotify.Post(macnotify.Note{ID: macnotify.NotificationID(n.SessionID), Title: n.Title, Body: n.Body,
@@ -95,7 +110,13 @@ func (d *macDesktop) Notify(n note) error {
 		if err == nil {
 			return nil
 		}
-		log.Printf("agenterm: notification: %v; falling back to osascript", err)
+		reason = "native notification failed: " + err.Error()
+	}
+	if !n.Osascript {
+		if _, seen := d.logged.LoadOrStore(reason, true); !seen {
+			log.Printf("agenterm: notifications not shown (%s); set notify.fallback: osascript to use AppleScript (shows as Script Editor)", reason)
+		}
+		return nil
 	}
 	return desktopnotify.Osascript(n.Title, n.Body, n.Sound)
 }

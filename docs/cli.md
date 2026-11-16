@@ -192,6 +192,7 @@ it never blocks or breaks the agent. Outside an agenterm session (no `--session`
 | variable | |
 |---|---|
 | `AGENTERM_HOME` | a single directory that replaces both `~/.agenterm` and `~/.config/agenterm` (useful for testing) |
+| `AGENTERM_NOTIFY` | `off` disables every desktop notification of the app and the daemon (native and fallback), whatever `settings.yaml` says. Set it, with `AGENTERM_HOME`, for any test or demo instance |
 | `AGENTERM_SESSION` | session id; the daemon injects it into every session and `notify` uses it by default |
 | `AGENTERM_SOCK` | daemon socket; injected into every session. Ignored if `AGENTERM_HOME` is set |
 
