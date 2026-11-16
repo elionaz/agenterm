@@ -130,6 +130,22 @@ export namespace gitx {
 
 export namespace main {
 	
+	export class DaemonStatus {
+	    appVersion: string;
+	    daemonVersion: string;
+	    mismatch: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new DaemonStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.appVersion = source["appVersion"];
+	        this.daemonVersion = source["daemonVersion"];
+	        this.mismatch = source["mismatch"];
+	    }
+	}
 	export class SettingsPatch {
 	    notify?: settings.Notify;
 	    activity?: settings.Activity;
@@ -186,6 +202,30 @@ export namespace main {
 	        this.branch = source["branch"];
 	        this.base = source["base"];
 	        this.worktreeId = source["worktreeId"];
+	    }
+	}
+	export class UpdaterState {
+	    enabled: boolean;
+	    automaticChecks: boolean;
+	    automaticDownloads: boolean;
+	    lastCheck: string;
+	    canCheck: boolean;
+	    reason: string;
+	    version: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdaterState(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.automaticChecks = source["automaticChecks"];
+	        this.automaticDownloads = source["automaticDownloads"];
+	        this.lastCheck = source["lastCheck"];
+	        this.canCheck = source["canCheck"];
+	        this.reason = source["reason"];
+	        this.version = source["version"];
 	    }
 	}
 

@@ -48,6 +48,7 @@
     type SpawnMode,
     type SpawnOptions,
     type WorktreeInfo,
+    type DaemonStatus,
   } from './lib/api'
 
   let projects = $state<Project[]>([])
@@ -58,6 +59,9 @@
   let currentProjectId = $state<string | null>(null)
   let error = $state<string | null>(null)
   let daemonDown = $state<string | null>(null)
+  /** The daemon runs another version (left over from before an update). */
+  let daemonOld = $state<DaemonStatus | null>(null)
+  let restartingDaemon = $state(false)
   let loaded = $state(false)
   let settingsOpen = $state(false)
   let gridOpen = $state(false)
@@ -478,6 +482,22 @@
         setTermPrefs(st.terminal)
       })
       .catch(() => {})
+    void api
+      .daemonStatus()
+      .then((s) => (daemonOld = s.mismatch ? s : null))
+      .catch(() => {})
+  }
+
+  /** "Restart now": replace the old daemon; its sessions are resumed. */
+  async function restartDaemon() {
+    restartingDaemon = true
+    const b = await guard(api.restartDaemon())
+    restartingDaemon = false
+    if (b) {
+      daemonOld = null
+      if (b.failed?.length) showError(b.failed.map((f) => `${f.sessionId}: ${f.error}`).join('\n'))
+    }
+    void refreshAll()
   }
 
   /** A session of the current project not already shown in a pane. */
@@ -1009,6 +1029,15 @@
 
     {#if daemonDown}
       <div class="banner">{t('banner.reconnecting')} <span>{daemonDown}</span></div>
+    {:else if daemonOld}
+      <div class="banner action">
+        {daemonOld.daemonVersion
+          ? t('banner.daemonOld', { version: daemonOld.daemonVersion })
+          : t('banner.daemonOldUnknown')}
+        <button disabled={restartingDaemon} onclick={restartDaemon}>
+          {restartingDaemon ? t('banner.restarting') : t('banner.restartNow')}
+        </button>
+      </div>
     {/if}
     {#if error}
       <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -1392,6 +1421,26 @@
   .banner span {
     color: var(--muted);
     margin-left: 6px;
+  }
+  .banner.action {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 70%;
+  }
+  .banner.action button {
+    flex: none;
+    padding: 3px 10px;
+    border: 1px solid var(--amber);
+    border-radius: 5px;
+    background: transparent;
+    color: var(--amber);
+    font: inherit;
+    cursor: pointer;
+  }
+  .banner.action button:disabled {
+    opacity: 0.6;
+    cursor: default;
   }
   .toast {
     position: absolute;

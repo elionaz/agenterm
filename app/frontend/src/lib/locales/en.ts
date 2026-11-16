@@ -72,6 +72,12 @@ export const en = {
   'empty.launchHintKey': 'Launch an agent with <b>+</b> next to a project or press <kbd>⌘N</kbd> ({name}).',
   'empty.chooseAgents': 'Choose agents…',
   'banner.reconnecting': 'Reconnecting to the daemon…',
+  'banner.daemonOld':
+    'The background service is from an older version ({version}). Restart it to finish updating — sessions will be suspended and resumed.',
+  'banner.daemonOldUnknown':
+    'The background service is from an older version. Restart it to finish updating — sessions will be suspended and resumed.',
+  'banner.restartNow': 'Restart now',
+  'banner.restarting': 'Restarting…',
 
   // Terminal (terminals.ts).
   'term.exited': '[process exited · code {code}]',
@@ -258,6 +264,23 @@ export const en = {
   'settings.restore.ask': 'Ask (keep them suspended)',
   'settings.restore.always': 'Resume them automatically',
   'settings.restore.never': 'Discard them',
+  'settings.updates': 'Updates',
+  'settings.updates.version': 'agenterm {version}',
+  'settings.updates.lastCheck': 'Last checked {when}',
+  'settings.updates.neverChecked': 'Not checked yet',
+  'settings.updates.check': 'Check now',
+  'settings.updates.auto': 'Check for updates automatically',
+  'settings.updates.autoHelp': 'Once a day, in the background.',
+  'settings.updates.download': 'Download and install updates automatically',
+  'settings.updates.downloadHelp': 'Installed when you quit agenterm; otherwise you are asked first.',
+  /** (html) */
+  'settings.updates.homebrew':
+    'Installed with Homebrew — update with <code>brew upgrade --cask agenterm</code>. In-app updates are off so Homebrew stays in charge.',
+  /** (html) */
+  'settings.updates.unavailable':
+    'In-app updates are not available in this build (development builds and builds without an update key).',
+  /** (html) */
+  'settings.updates.error': 'The updater could not start; see the app log.',
 
   'settings.source.variant': 'variant of {id}',
   'settings.source.catalog': 'catalog',

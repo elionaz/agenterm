@@ -26,6 +26,10 @@ export type WorktreeInfo = Omit<protocol.WorktreeInfo, 'convertValues'>
 export type ProjectGit = protocol.ProjectGit
 export type LossInfo = Omit<gitx.LossError, 'convertValues'>
 export type MergeResult = gitx.MergeResult
+/** In-app updates (Sparkle). reason: '' (enabled) | homebrew | unsupported | nobundle | nokey | error | starting. */
+export type UpdaterState = main.UpdaterState
+/** daemonVersion '' = a daemon older than 0.2.0. */
+export type DaemonStatus = main.DaemonStatus
 
 /** Mirrors protocol.Progress (terminal OSC 9;4 progress). */
 export interface Progress {
@@ -166,6 +170,15 @@ export const api = {
   takePendingFocus: (): Promise<string> => App.TakePendingFocus(),
   /** What ui.language "auto" resolves to on the backend ("en" | "es"). */
   systemLanguage: (): Promise<string> => App.SystemLanguage(),
+  updaterState: (): Promise<UpdaterState> => App.UpdaterState(),
+  /** User-initiated check: Sparkle's own window shows the outcome. */
+  checkForUpdates: () => App.CheckForUpdates(),
+  setAutomaticChecks: (on: boolean): Promise<UpdaterState> => App.SetAutomaticChecks(on),
+  setAutomaticDownloads: (on: boolean): Promise<UpdaterState> => App.SetAutomaticDownloads(on),
+  /** Whether the daemon runs another version than the app (after an update). */
+  daemonStatus: (): Promise<DaemonStatus> => App.DaemonStatus(),
+  /** Replaces the daemon with this version's; suspended sessions are resumed. */
+  restartDaemon: (): Promise<SessionBatch> => App.RestartDaemon(),
 }
 
 /** "±3" for a session's changed files ('' when unknown). */
