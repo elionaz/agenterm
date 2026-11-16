@@ -11,9 +11,18 @@
 #   NOTARY_KEY_PATH   App Store Connect API key (.p8) } all three, plus
 #   NOTARY_KEY_ID     its key id                      } SIGN_IDENTITY, enable
 #   NOTARY_ISSUER_ID  its issuer id                   } notarization + stapling.
+#   SPARKLE_PUBLIC_ED_KEY   Sparkle EdDSA public key (base64) for SUPublicEDKey.
+#                           Empty: the app is built with its updater off.
+#   SPARKLE_PRIVATE_ED_KEY  the matching private key (base64, as exported by
+#                           Sparkle's `generate_keys -x`): signs the zip and
+#                           enables dist/appcast.xml. Empty: no appcast.
+#
+# Sparkle (scripts/fetch-sparkle.sh: pinned, SHA-256 verified, cached in
+# .cache/sparkle/) is embedded at Contents/Frameworks/Sparkle.framework.
 #
 # Output (dist/):
 #   agenterm-<v>-macos-universal.zip   agenterm.app (CLI at Contents/Helpers/agenterm)
+#   appcast.xml                        Sparkle feed for that zip (with SPARKLE_PRIVATE_ED_KEY)
 #   agenterm-<v>-macos-universal.dmg   the same app + /Applications link
 #   agenterm-<v>-darwin-universal.tar.gz, agenterm-<v>-linux-{amd64,arm64}.tar.gz   CLI
 #   checksums.txt                      sha256 of all of the above
@@ -54,12 +63,38 @@ export MACOSX_DEPLOYMENT_TARGET=$MIN_MACOS
 export CGO_CFLAGS="${CGO_CFLAGS:-} -mmacosx-version-min=$MIN_MACOS"
 export CGO_LDFLAGS="${CGO_LDFLAGS:-} -mmacosx-version-min=$MIN_MACOS"
 
+SPARKLE_PUBLIC_ED_KEY=${SPARKLE_PUBLIC_ED_KEY:-}
+SPARKLE_PRIVATE_ED_KEY=${SPARKLE_PRIVATE_ED_KEY:-}
+# An EdDSA (ed25519) key is 32 bytes; Sparkle's private-key export is the
+# 32-byte seed or, from older versions, 64 or 96 bytes. Checked up front so
+# a mangled secret fails the build instead of shipping an app that rejects
+# every update.
+b64len() { printf '%s' "$1" | base64 -D 2>/dev/null | wc -c | tr -d ' '; }
+if [[ -n $SPARKLE_PUBLIC_ED_KEY && $(b64len "$SPARKLE_PUBLIC_ED_KEY") != 32 ]]; then
+	die "SPARKLE_PUBLIC_ED_KEY is not a base64 ed25519 public key"
+fi
+if [[ -n $SPARKLE_PRIVATE_ED_KEY ]]; then
+	case $(b64len "$SPARKLE_PRIVATE_ED_KEY") in 32 | 64 | 96) ;; *) die "SPARKLE_PRIVATE_ED_KEY is not a base64 ed25519 private key" ;; esac
+fi
+
 rm -rf "$DIST"
 mkdir -p "$WORK"
 
+step "sparkle: fetch"
+SPARKLE_DIR=$(scripts/fetch-sparkle.sh)
+[[ $SPARKLE_DIR != *" "* ]] || die "Sparkle path must not contain spaces: $SPARKLE_DIR"
+
 step "app: wails build darwin/universal ($VERSION, $COMMIT)"
-(cd app && wails build -platform darwin/universal -clean -trimpath -m -skipbindings -ldflags "$LDFLAGS")
+# -tags sparkle builds app/updater_sparkle_darwin.go. Sparkle is weak-linked
+# (the app still starts if the framework is missing) and found through
+# @rpath = Contents/Frameworks. Only this build gets these flags (not the
+# CLI), and cgo does not allow them in #cgo lines.
+(cd app && CGO_CFLAGS="$CGO_CFLAGS -F$SPARKLE_DIR" \
+	CGO_LDFLAGS="$CGO_LDFLAGS -F$SPARKLE_DIR -Wl,-weak_framework,Sparkle -Wl,-rpath,@executable_path/../Frameworks" \
+	wails build -platform darwin/universal -clean -trimpath -m -skipbindings -tags sparkle -ldflags "$LDFLAGS")
 ditto app/build/bin/agenterm.app "$APP"
+mkdir -p "$APP/Contents/Frameworks"
+ditto "$SPARKLE_DIR/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
 
 step "cli: darwin arm64 + amd64 (cgo) -> universal"
 for arch in arm64 amd64; do
@@ -81,6 +116,12 @@ PLIST=$APP/Contents/Info.plist
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$PLIST"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" "$PLIST"
 /usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion $MIN_MACOS" "$PLIST"
+if [[ -n $SPARKLE_PUBLIC_ED_KEY ]]; then
+	/usr/libexec/PlistBuddy -c "Set :SUPublicEDKey $SPARKLE_PUBLIC_ED_KEY" "$PLIST"
+else
+	echo "release: warning: SPARKLE_PUBLIC_ED_KEY not set: in-app updates are disabled in this build" >&2
+	/usr/libexec/PlistBuddy -c "Delete :SUPublicEDKey" "$PLIST"
+fi
 mkdir -p "$APP/Contents/Helpers"
 
 # sign <path>: Developer ID with hardened runtime, or ad-hoc.
@@ -98,8 +139,30 @@ if [[ -n $SIGN_IDENTITY ]]; then
 else
 	step "sign: ad-hoc (no SIGN_IDENTITY)"
 fi
-# Inside-out: the CLI first (also what goes in the darwin tarball), then the
-# bundle, which signs the main executable (app + daemon) and seals the rest.
+# signsparkle [codesign options] <path>: Sparkle's nested code. Hardened
+# runtime but none of the app's entitlements; Developer ID or ad-hoc.
+signsparkle() {
+	if [[ -n $SIGN_IDENTITY ]]; then
+		codesign --force --options runtime --timestamp \
+			${SIGN_KEYCHAIN:+--keychain "$SIGN_KEYCHAIN"} --sign "$SIGN_IDENTITY" "$@"
+	else
+		codesign --force --sign - "$@"
+	fi
+}
+
+# Inside-out. Sparkle first, in the order of its documentation for
+# Developer ID apps (https://sparkle-project.org/documentation/sandboxing/#code-signing):
+# the XPC services (Downloader keeps its own entitlements), Autoupdate,
+# Updater.app, then the framework itself. No --deep: each piece is signed
+# explicitly.
+FW=$APP/Contents/Frameworks/Sparkle.framework
+signsparkle "$FW/Versions/B/XPCServices/Installer.xpc"
+signsparkle --preserve-metadata=entitlements "$FW/Versions/B/XPCServices/Downloader.xpc"
+signsparkle "$FW/Versions/B/Autoupdate"
+signsparkle "$FW/Versions/B/Updater.app"
+signsparkle "$FW"
+# Then the CLI (also what goes in the darwin tarball), then the bundle,
+# which signs the main executable (app + daemon) and seals the rest.
 sign "$WORK/agenterm"
 cp "$WORK/agenterm" "$APP/Contents/Helpers/agenterm"
 sign "$APP"
@@ -137,6 +200,54 @@ if $NOTARIZE; then
 	xcrun stapler validate "$APP"
 	rm "$ZIP"
 	zipapp
+fi
+
+# The final (stapled) zip is what Sparkle downloads: sign it with the EdDSA
+# key and describe it in appcast.xml.
+APPCAST=$DIST/appcast.xml
+if [[ -n $SPARKLE_PRIVATE_ED_KEY ]]; then
+	step "appcast: EdDSA-sign the zip"
+	KEYFILE=$(mktemp "${TMPDIR:-/tmp}/agenterm-ed.XXXXXX")
+	trap 'rm -f "$KEYFILE"' EXIT
+	chmod 600 "$KEYFILE"
+	printf '%s' "$SPARKLE_PRIVATE_ED_KEY" >"$KEYFILE" # builtin: never in argv or the log
+	ED_SIG=$("$SPARKLE_DIR/bin/sign_update" --ed-key-file "$KEYFILE" -p "$ZIP")
+	"$SPARKLE_DIR/bin/sign_update" --verify --ed-key-file "$KEYFILE" "$ZIP" "$ED_SIG"
+	rm -f "$KEYFILE"
+	# The app checks updates against SUPublicEDKey: make sure it is the
+	# private key's pair (a mismatch would make every update fail).
+	if [[ -n $SPARKLE_PUBLIC_ED_KEY ]]; then
+		OSSL=
+		for o in /opt/homebrew/opt/openssl@3/bin/openssl /usr/local/opt/openssl@3/bin/openssl openssl; do
+			if [[ $("$o" version 2>/dev/null) == "OpenSSL 3"* ]]; then
+				OSSL=$o
+				break
+			fi
+		done
+		if [[ -n $OSSL ]]; then
+			KDIR=$(mktemp -d)
+			{
+				echo "-----BEGIN PUBLIC KEY-----"
+				# SubjectPublicKeyInfo for ed25519 = fixed 12-byte prefix + the raw key.
+				{ printf '\x30\x2a\x30\x05\x06\x03\x2b\x65\x70\x03\x21\x00'; printf '%s' "$SPARKLE_PUBLIC_ED_KEY" | base64 -D; } | base64
+				echo "-----END PUBLIC KEY-----"
+			} >"$KDIR/pub.pem"
+			printf '%s' "$ED_SIG" | base64 -D >"$KDIR/sig"
+			"$OSSL" pkeyutl -verify -pubin -inkey "$KDIR/pub.pem" -rawin -in "$ZIP" -sigfile "$KDIR/sig" >/dev/null ||
+				die "SPARKLE_PUBLIC_ED_KEY does not match SPARKLE_PRIVATE_ED_KEY"
+			rm -rf "$KDIR"
+			echo "SUPublicEDKey matches the signing key"
+		else
+			echo "release: warning: no OpenSSL 3: SUPublicEDKey not checked against the signing key" >&2
+		fi
+	else
+		echo "release: warning: appcast signed, but this app has no SUPublicEDKey (in-app updates are off in it)" >&2
+	fi
+	step "appcast: $APPCAST"
+	scripts/render-appcast.sh "$VERSION" "$ZIP" "$ED_SIG" "$MIN_MACOS" >"$APPCAST"
+	xmllint --noout "$APPCAST"
+else
+	echo "release: warning: SPARKLE_PRIVATE_ED_KEY not set: no appcast.xml (existing installs will not be offered this update)" >&2
 fi
 
 step "package: dmg"
@@ -181,9 +292,11 @@ if [[ -n ${GITHUB_OUTPUT:-} ]]; then
 		echo "signed=$SIGNED"
 		echo "notarized=$NOTARIZE"
 		echo "zip_sha256=$ZIP_SHA"
+		echo "appcast=$([[ -f $APPCAST ]] && echo true || echo false)"
 	} >>"$GITHUB_OUTPUT"
 fi
 
 lipo -info "$APP/Contents/MacOS/agenterm" "$APP/Contents/Helpers/agenterm"
+otool -L "$APP/Contents/MacOS/agenterm" | grep -q '@rpath/Sparkle.framework' || die "app binary does not link Sparkle"
 "$APP/Contents/Helpers/agenterm" --version
 echo "release: $VERSION done (signed=$SIGNED notarized=$NOTARIZE) -> $DIST"

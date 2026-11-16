@@ -52,7 +52,15 @@ jobs:
           APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
           APPLE_API_KEY_P8_BASE64: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          SPARKLE_PRIVATE_ED_KEY: ${{ secrets.SPARKLE_PRIVATE_ED_KEY }}
+          SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY || secrets.SPARKLE_PUBLIC_ED_KEY }}
         run: |
+          if [ -z "$SPARKLE_PUBLIC_ED_KEY" ]; then
+            echo "::warning::SPARKLE_PUBLIC_ED_KEY (variable or secret) not set: the app is built with in-app updates off"
+          fi
+          if [ -z "$SPARKLE_PRIVATE_ED_KEY" ]; then
+            echo "::warning::SPARKLE_PRIVATE_ED_KEY not set: no appcast.xml, existing installs will not be offered this update"
+          fi
           sign=false; notarize=false; tap=false
           if [ -n "$MACOS_CERT_P12_BASE64" ] && [ -n "$MACOS_CERT_PASSWORD" ]; then sign=true; fi
           if $sign && [ -n "$APPLE_API_KEY_ID" ] && [ -n "$APPLE_API_ISSUER_ID" ] && [ -n "$APPLE_API_KEY_P8_BASE64" ]; then notarize=true; fi
@@ -79,6 +87,13 @@ jobs:
 
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.17.1
+
+      # The pinned Sparkle tarball (scripts/fetch-sparkle.sh re-checks its
+      # SHA-256 on every run).
+      - uses: actions/cache@v4
+        with:
+          path: .cache/sparkle/*.tar.xz
+          key: sparkle-${{ hashFiles('scripts/fetch-sparkle.sh') }}
 
       - name: Import signing certificate
         if: steps.secrets.outputs.sign == 'true'
@@ -125,6 +140,8 @@ jobs:
         id: build
         env:
           VERSION: ${{ steps.ver.outputs.version }}
+          SPARKLE_PRIVATE_ED_KEY: ${{ secrets.SPARKLE_PRIVATE_ED_KEY }}
+          SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY || secrets.SPARKLE_PUBLIC_ED_KEY }}
         run: scripts/release-local.sh "$VERSION"
 
       - uses: actions/upload-artifact@v4
@@ -135,6 +152,7 @@ jobs:
             dist/*.dmg
             dist/*.tar.gz
             dist/checksums.txt
+            dist/appcast.xml
           if-no-files-found: error
 
       - name: Release notes
@@ -173,12 +191,24 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.ver.outputs.version }}
+          APPCAST: ${{ steps.build.outputs.appcast }}
+          NOTARIZED: ${{ steps.build.outputs.notarized }}
         run: |
           gen=()
           if [ "$GENERATE_NOTES" = true ]; then gen=(--generate-notes); fi
+          # appcast.xml as a release asset is what SUFeedURL
+          # (releases/latest/download/appcast.xml) serves. Only notarized
+          # builds are offered to existing installs: Sparkle would install
+          # an unnotarized one that Gatekeeper then refuses to open.
+          feed=()
+          if [ "$APPCAST" = true ] && [ "$NOTARIZED" = true ]; then
+            feed=(dist/appcast.xml)
+          elif [ "$APPCAST" = true ]; then
+            echo "::warning::build not notarized: appcast.xml is not published (no in-app update for this release)"
+          fi
           gh release create "v$VERSION" --verify-tag --title "agenterm $VERSION" \
             --notes-file "$RUNNER_TEMP/notes.md" "${gen[@]}" \
-            dist/*.zip dist/*.dmg dist/*.tar.gz dist/checksums.txt
+            dist/*.zip dist/*.dmg dist/*.tar.gz dist/checksums.txt "${feed[@]}"
 
       - name: Update Homebrew cask
         if: env.PUBLISH == 'true' && steps.secrets.outputs.tap == 'true'
