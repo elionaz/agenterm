@@ -74,7 +74,7 @@ func main() {
 		OnStartup:        app.startup,
 		OnShutdown:       app.shutdown,
 		SingleInstanceLock: &options.SingleInstanceLock{
-			UniqueId: "com.elionaz.agenterm",
+			UniqueId: singleInstanceID(),
 			OnSecondInstanceLaunch: func(options.SecondInstanceData) {
 				runtime.WindowUnminimise(app.ctx)
 				runtime.Show(app.ctx)
