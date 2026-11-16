@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Hardened-runtime entitlements for agenterm.app and its bundled CLI
+  (scripts/release-local.sh signs with them; not used by `wails build`).
+
+  Intentionally empty:
+  - WKWebView runs JavaScript (and its JIT) in WebKit's own XPC processes,
+    so the host app needs no com.apple.security.cs.allow-jit (unlike
+    Electron, which runs V8 in-process).
+  - The Go runtime and the cgo/Objective-C code (UserNotifications,
+    NSUserDefaults, signals) need no exceptions.
+  - Shells and agents launched in PTYs are separate executables with their
+    own signatures: the hardened runtime of this process does not apply to
+    them.
+  - No App Sandbox: the daemon must read and write arbitrary project folders.
+-->
+<plist version="1.0">
+<dict>
+</dict>
+</plist>
