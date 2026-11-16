@@ -19,3 +19,6 @@ coverage.*
 
 # Claude Code agent worktrees
 .claude/
+
+# Downloaded build dependencies (scripts/fetch-sparkle.sh)
+/.cache/
