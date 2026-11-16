@@ -84,6 +84,10 @@ type Server struct {
 	susp     map[string]*suspInfo
 	resuming map[string]bool
 
+	// names are the sessions' display names (rename.go).
+	namesMu sync.Mutex
+	names   map[string]string
+
 	// Persistence: the session registry and when each scrollback was
 	// last saved (OutputTotal; guarded by persistMu).
 	store       *sessionstore.Store
@@ -161,6 +165,7 @@ func New(cfg Config) (*Server, error) {
 		sessions: make(map[string]*session.Session),
 		susp:     make(map[string]*suspInfo),
 		resuming: make(map[string]bool),
+		names:    make(map[string]string),
 		store:    store,
 		saved:    make(map[string]int64),
 		conns:    make(map[net.Conn]struct{}),
@@ -370,6 +375,7 @@ func (s *Server) lookup(id string) (*session.Session, error) {
 // sessionInfo describes sess, with its git context and cached GitInfo.
 func (s *Server) sessionInfo(sess *session.Session) protocol.SessionInfo {
 	info := sessionInfo(sess)
+	info.Name = s.sessionName(sess.ID)
 	if g := s.sessionGit(sess.ID); g != nil {
 		info.Mode, info.WorktreeID, info.Branch, info.Base = g.Mode, g.WorktreeID, g.Branch, g.Base
 		if g.Mode == protocol.ModeWorktree {
@@ -450,6 +456,7 @@ func (s *Server) publishActivity(sess *session.Session, stallRaised bool) {
 		At:          time.Now().UTC(),
 		ProjectName: sess.ProjectName,
 		ProfileID:   sess.ProfileID,
+		SessionName: s.sessionName(sess.ID),
 		StallRaised: stallRaised,
 		Live:        liveInfo(sess.Live(), sess.Timers()),
 	}
@@ -487,6 +494,7 @@ func (s *Server) publishState(id, projectName, profileID string, c status.Change
 		Raised:      c.Raised,
 		ProjectName: projectName,
 		ProfileID:   profileID,
+		SessionName: s.sessionName(id),
 	}
 	if c.From == c.To {
 		ev.Type = protocol.EventSessionAttention

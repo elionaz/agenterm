@@ -2,6 +2,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"flag"
@@ -47,6 +48,7 @@ Usage:
   agenterm tail [-n N] <sessionId>    last N lines of output as plain text (default 8)
   agenterm attach <sessionId>         attach (detach with Ctrl-\)
   agenterm kill <sessionId>           kill a session (again to forget an exited one)
+  agenterm rename <sessionId> <name>  name a session (--reset: back to the profile's name)
   agenterm resume <sessionId>|--all   respawn sessions suspended by a daemon restart
                                       (agents continue their conversation when they can)
   agenterm discard <sessionId>|--all  forget suspended sessions (and their scrollback)
@@ -142,6 +144,17 @@ func run(args []string) error {
 			return err
 		}
 		fmt.Printf("%s %s\n", info.ID, info.State)
+		return nil
+	case "rename":
+		id, name, err := parseRename(rest)
+		if err != nil {
+			return err
+		}
+		info, err := c.Rename(ctx, id, name)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%s %s\n", info.ID, displayName(info))
 		return nil
 	case "resume", "discard":
 		return cmdSuspended(ctx, c, cmd, rest)
@@ -342,12 +355,41 @@ func cmdLs(ctx context.Context, c *client.Client) error {
 		return err
 	}
 	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tPROJECT\tPROFILE\tSTATE\tATTENTION\tPID\tSIZE\tAGE\tTURN\tGIT\tACTIVITY\tCWD")
+	fmt.Fprintln(w, "ID\tNAME\tPROJECT\tPROFILE\tSTATE\tATTENTION\tPID\tSIZE\tAGE\tTURN\tGIT\tACTIVITY\tCWD")
 	for _, s := range ss {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s%s\t%s\t%d\t%dx%d\t%s\t%s\t%s\t%s\t%s\n", s.ID, s.ProjectID, s.ProfileID, s.State, exitSuffix(s),
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s%s\t%s\t%d\t%dx%d\t%s\t%s\t%s\t%s\t%s\n", s.ID, cmp.Or(s.Name, "-"), s.ProjectID, s.ProfileID, s.State, exitSuffix(s),
 			attention(s), s.Pid, s.Cols, s.Rows, time.Since(s.CreatedAt).Round(time.Second), turn(s), gitCol(s.Branch, s.Git), activity(s), s.Cwd)
 	}
 	return w.Flush()
+}
+
+// parseRename reads `rename <sessionId> [name...]`: the remaining words
+// are joined with spaces; no name (or --reset) clears it.
+func parseRename(args []string) (id, name string, err error) {
+	const use = "usage: agenterm rename <sessionId> <name>  (or --reset)"
+	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
+		return "", "", errors.New(use)
+	}
+	id, words := args[0], args[1:]
+	if len(words) == 1 && words[0] == "--reset" {
+		return id, "", nil
+	}
+	if len(words) > 0 && words[0] == "--" {
+		words = words[1:]
+	}
+	name = strings.TrimSpace(strings.Join(words, " "))
+	if name == "" {
+		return "", "", errors.New(use)
+	}
+	return id, name, nil
+}
+
+// displayName is the session's name, or its profile when it has none.
+func displayName(s protocol.SessionInfo) string {
+	if s.Name != "" {
+		return s.Name
+	}
+	return s.ProfileID
 }
 
 // cmdSuspended runs resume / discard on one suspended session or --all.

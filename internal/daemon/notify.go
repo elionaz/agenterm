@@ -1,6 +1,8 @@
 package daemon
 
 import (
+	"cmp"
+
 	"github.com/elionaz/agenterm/internal/desktopnotify"
 	"github.com/elionaz/agenterm/internal/protocol"
 	"github.com/elionaz/agenterm/internal/settings"
@@ -27,7 +29,7 @@ func (s *Server) notifyNow(ev protocol.Event) {
 		ev.AttentionMessage = desktopnotify.StallEventBody(lang, ev)
 	}
 	s.cfg.Notifier(Notification{
-		Title:     desktopnotify.Title(ev.ProjectName, ev.ProfileID),
+		Title:     desktopnotify.Title(ev.ProjectName, cmp.Or(ev.SessionName, ev.ProfileID)),
 		Body:      desktopnotify.Body(lang, ev.AttentionKind, ev.AttentionMessage),
 		Sound:     st.Notify.WantsSound(ev.AttentionKind),
 		SessionID: ev.SessionID,

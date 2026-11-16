@@ -91,6 +91,7 @@ func (s *Server) restoreSessions() {
 		s.susp[rec.ID] = info
 		s.git[rec.ID] = info.git()
 		s.mu.Unlock()
+		s.setName(rec.ID, normName(rec.Name))
 		keep[rec.ID] = true
 		restored = append(restored, rec.ID)
 	}
@@ -175,7 +176,8 @@ func (i *suspInfo) git() sessGit {
 func (s *Server) recordSession(sess *session.Session, g sessGit, resume *sessionstore.Resume) {
 	cols, rows := sess.Size()
 	rec := sessionstore.Record{
-		ID: sess.ID, ProjectID: sess.ProjectID, ProfileID: sess.ProfileID, Mode: g.Mode, WorktreeID: g.WorktreeID,
+		ID: sess.ID, ProjectID: sess.ProjectID, ProfileID: sess.ProfileID, Name: s.sessionName(sess.ID),
+		Mode: g.Mode, WorktreeID: g.WorktreeID,
 		Cwd: sess.Cwd, Cmd: sess.Cmd, Args: sess.Args, Pid: sess.Pid, Cols: cols, Rows: rows,
 		CreatedAt: sess.CreatedAt, State: string(sess.State()), Resume: resume,
 	}
@@ -385,7 +387,7 @@ func (s *Server) resume(id string) (protocol.SessionInfo, error) {
 		s.mu.Unlock()
 		s.log.Warn("resume failed", "id", id, "err", err)
 		s.bus.publish(protocol.Event{Type: protocol.EventSessionAttention, SessionID: id, State: string(old.State()), At: time.Now().UTC(),
-			ProjectName: old.ProjectName, ProfileID: old.ProfileID})
+			ProjectName: old.ProjectName, ProfileID: old.ProfileID, SessionName: s.sessionName(id)})
 		return protocol.SessionInfo{}, err
 	}
 	return res, nil
@@ -457,6 +459,7 @@ func (s *Server) discard(id string) (protocol.SessionInfo, error) {
 	s.order = slices.DeleteFunc(s.order, func(x string) bool { return x == id })
 	s.mu.Unlock()
 	s.forgetGit(id)
+	s.setName(id, "")
 	sess.Release()
 	s.dropPersisted(id)
 	s.log.Info("suspended session discarded", "id", id)
