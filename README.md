@@ -41,17 +41,46 @@ tells you when one of them needs you.
 - **English and Spanish**: the app follows your macOS preferred languages (falling back to English)
   or the language you pick in **Settings → General**.
 
-## Status and requirements
+## Install
 
-Early-stage project: there are no signed releases yet, so you have to build it from source.
+Early-stage project (0.x): expect rough edges. The app needs **macOS 13 (Ventura) or later**; it's a
+universal build (Apple Silicon and Intel) but is mostly tested on Apple Silicon.
 
-- **macOS** (tested on Apple Silicon). The app and notifications are macOS-only.
+### Homebrew
+
+```sh
+brew install --cask elionaz/tap/agenterm
+```
+
+This installs `agenterm.app` in `/Applications` and puts the `agenterm` CLI on your `PATH` (the CLI
+ships inside the app, at `agenterm.app/Contents/Helpers/agenterm`). `brew upgrade --cask agenterm`
+updates both; `brew uninstall --zap --cask agenterm` also deletes `~/.agenterm` and
+`~/.config/agenterm`.
+
+### Download
+
+Each [release](https://github.com/elionaz/agenterm/releases) has:
+
+- `agenterm-<version>-macos-universal.dmg` / `.zip`: the app (open the dmg and drag it to
+  Applications, or unzip it);
+- `agenterm-<version>-darwin-universal.tar.gz`: just the CLI for macOS;
+- `agenterm-<version>-linux-{amd64,arm64}.tar.gz`: the CLI and daemon for Linux (experimental,
+  without notifications or the app);
+- `checksums.txt`: SHA-256 of every file (`shasum -a 256 -c checksums.txt`).
+
+Releases are signed with a Developer ID and notarized by Apple. If a release's notes say it's an
+**unsigned build**, macOS will refuse to open it; after moving it to `/Applications`, run
+`xattr -dr com.apple.quarantine /Applications/agenterm.app`.
+
+### Build from source
+
+Requirements:
+
+- **macOS** (the app and notifications are macOS-only).
 - **Go 1.27.4+** (see `go.mod`).
 - **Node 24+** and npm (for the frontend; it's the version CI uses).
 - **Wails v2 CLI**: `go install github.com/wailsapp/wails/v2/cmd/wails@v2.17.1` (`wails doctor`
   must pass).
-
-## Building from source
 
 ```sh
 git clone https://github.com/elionaz/agenterm.git
@@ -189,7 +218,9 @@ diffs: [docs/worktrees.md](docs/worktrees.md).
 - [docs/worktrees.md](docs/worktrees.md): per-session worktrees, diff, merge and removal.
 - [docs/architecture.md](docs/architecture.md): daemon, app and CLI, protocol, events and
   persistence.
-- [docs/development.md](docs/development.md): development, tests, the icon and known limitations.
+- [docs/development.md](docs/development.md): development, tests, releasing, the icon and known
+  limitations.
+- [CHANGELOG.md](CHANGELOG.md): what changed in each release.
 
 If you change commands, flags, paths or `settings.yaml`, update the README and the matching document
 in `docs/`, in English (`README.md`, `docs/`) and Spanish (`README.es.md`, `docs/es/`).

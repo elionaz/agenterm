@@ -42,18 +42,48 @@ vivos aunque cierres la app y te avisa cuando alguno te necesita.
 - **En inglés y español**: la app sigue los idiomas preferidos de macOS (con inglés como respaldo)
   o el idioma que elijas en *Ajustes → General*.
 
-## Estado y requisitos
+## Instalación
 
-Proyecto en etapa temprana: todavía no hay releases firmadas, así que hay que compilarlo desde el
-código fuente.
+Proyecto en etapa temprana (0.x): espera asperezas. La app necesita **macOS 13 (Ventura) o
+posterior**; es un build universal (Apple Silicon e Intel), aunque se prueba sobre todo en Apple
+Silicon.
 
-- **macOS** (probado en Apple Silicon). La app y las notificaciones son exclusivas de macOS.
+### Homebrew
+
+```sh
+brew install --cask elionaz/tap/agenterm
+```
+
+Instala `agenterm.app` en `/Applications` y pone la CLI `agenterm` en tu `PATH` (la CLI viene dentro
+de la app, en `agenterm.app/Contents/Helpers/agenterm`). `brew upgrade --cask agenterm` actualiza
+ambas; `brew uninstall --zap --cask agenterm` borra además `~/.agenterm` y `~/.config/agenterm`.
+
+### Descarga
+
+Cada [release](https://github.com/elionaz/agenterm/releases) trae:
+
+- `agenterm-<versión>-macos-universal.dmg` / `.zip`: la app (abre el dmg y arrástrala a
+  Aplicaciones, o descomprime el zip);
+- `agenterm-<versión>-darwin-universal.tar.gz`: solo la CLI para macOS;
+- `agenterm-<versión>-linux-{amd64,arm64}.tar.gz`: la CLI y el daemon para Linux (experimental, sin
+  notificaciones ni app);
+- `checksums.txt`: el SHA-256 de cada archivo (`shasum -a 256 -c checksums.txt`).
+
+Las releases van firmadas con un Developer ID y notarizadas por Apple. Si las notas de una release
+dicen que es un **build sin firmar**, macOS se negará a abrirla; después de moverla a
+`/Applications`, ejecuta `xattr -dr com.apple.quarantine /Applications/agenterm.app`.
+
+Los cambios de cada versión están en [CHANGELOG.md](CHANGELOG.md) (solo en inglés).
+
+### Compilar desde el código fuente
+
+Requisitos:
+
+- **macOS** (la app y las notificaciones son exclusivas de macOS).
 - **Go 1.27.4+** (ver `go.mod`).
 - **Node 24+** y npm (para el frontend; es la versión que usa el CI).
 - **CLI de Wails v2**: `go install github.com/wailsapp/wails/v2/cmd/wails@v2.17.1` (`wails doctor`
   debe pasar).
-
-## Instalación desde el código fuente
 
 ```sh
 git clone https://github.com/elionaz/agenterm.git
@@ -190,7 +220,9 @@ y diff: [docs/es/worktrees.md](docs/es/worktrees.md).
 - [docs/es/worktrees.md](docs/es/worktrees.md): worktrees por sesión, diff, merge y borrado.
 - [docs/es/architecture.md](docs/es/architecture.md): daemon, app y CLI, protocolo, eventos y
   persistencia.
-- [docs/es/development.md](docs/es/development.md): desarrollo, tests, icono y limitaciones conocidas.
+- [docs/es/development.md](docs/es/development.md): desarrollo, tests, publicación de releases,
+  icono y limitaciones conocidas.
+- [CHANGELOG.md](CHANGELOG.md): los cambios de cada versión (en inglés).
 
 Si cambias comandos, flags, rutas o `settings.yaml`, actualiza el README y el documento
 correspondiente en `docs/`, en inglés (`README.md`, `docs/`) y en español (`README.es.md`,
