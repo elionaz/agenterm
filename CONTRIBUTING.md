@@ -9,10 +9,10 @@
 2. **Haz fork** del repo y crea una rama desde `main`: `feat/<algo>`, `fix/<algo>`, `docs/<algo>`.
 3. **Abre un pull request contra `main`.** Nadie puede hacer push directo a `main`.
 4. Todo PR necesita:
-   - la **aprobación del mantenedor** (@elionaz, vía `CODEOWNERS`);
+   - la **revisión del mantenedor** (@elionaz, que se pide automáticamente vía `CODEOWNERS`):
+     solo el mantenedor puede integrar PRs;
    - el **CI en verde** (`go vet`, `go test -race`, chequeo del frontend);
    - la rama **al día con `main`** y todas las conversaciones resueltas.
-   Un push nuevo invalida las aprobaciones previas.
 5. Los PRs se integran con **squash merge**, así que el título del PR será el mensaje del commit.
 
 ## Mensajes de commit / títulos de PR
