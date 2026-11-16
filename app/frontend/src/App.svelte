@@ -6,7 +6,8 @@
   import ProgressBar from './lib/ProgressBar.svelte'
   import Settings from './lib/Settings.svelte'
   import Sidebar from './lib/Sidebar.svelte'
-  import { mergeLive, progressOf, timerInfo } from './lib/activity'
+  import { activityText, mergeLive, progressOf, timerInfo } from './lib/activity'
+  import { setLangSetting, setSystemLang, t, th } from './lib/i18n.svelte'
   import { TerminalManager } from './lib/terminals'
   import {
     api,
@@ -148,7 +149,10 @@
     refreshAllWorktrees()
     void api
       .getSettings()
-      .then((st) => (defaultMode = st.git?.defaultMode === 'worktree' ? 'worktree' : 'same'))
+      .then((st) => {
+        defaultMode = st.git?.defaultMode === 'worktree' ? 'worktree' : 'same'
+        setLangSetting(st.ui?.language)
+      })
       .catch(() => {})
   }
 
@@ -326,11 +330,16 @@
         void refreshAll()
       }),
       EventsOn('daemon:down', (msg: string) => (daemonDown = msg)),
-      // App menu "Preferencias…" (⌘,).
+      // App menu "Preferences…" (⌘,).
       EventsOn('app:open-settings', openSettings),
       // A notification was clicked.
       EventsOn('app:focus-session', focusFromNotification),
     )
+    // What ui.language "auto" means on this Mac.
+    void api
+      .systemLanguage()
+      .then(setSystemLang)
+      .catch(() => {})
     // A click on a daemon notification may have launched the app.
     void refreshAll().then(() =>
       guard(api.takePendingFocus()).then((id) => id && focusFromNotification(id)),
@@ -385,7 +394,8 @@
           </span>
         {/if}
         {#if selected.state !== 'exited' && selected.activity}
-          <span class="activity" title={selected.activity}>{selected.activity}</span>
+          {@const act = activityText(selected)}
+          <span class="activity" title={act}>{act}</span>
         {/if}
         {#if selectedTimer?.text}
           <span class="timer" class:stalled={selectedTimer.stalled}>{selectedTimer.text}</span>
@@ -399,9 +409,9 @@
 
     {#if selected && hasChanges}
       <nav class="view-tabs">
-        <button class:on={view === 'terminal'} onclick={() => setView('terminal')}>Terminal</button>
+        <button class:on={view === 'terminal'} onclick={() => setView('terminal')}>{t('view.terminal')}</button>
         <button class:on={view === 'changes'} onclick={() => setView('changes')}
-          >Cambios{#if selected.git} ({selected.git.files}){/if}</button
+          >{t('view.changes')}{#if selected.git} ({selected.git.files}){/if}</button
         >
       </nav>
     {/if}
@@ -425,14 +435,15 @@
       {#if loaded && !selected}
         <div class="empty">
           {#if projects.length === 0}
-            <h2>Sin proyectos</h2>
-            <p>Añade una carpeta para empezar a lanzar agentes en ella.</p>
-            <button class="primary" onclick={addProject}>+ Añadir proyecto</button>
+            <h2>{t('empty.noProjects')}</h2>
+            <p>{t('empty.addFolder')}</p>
+            <button class="primary" onclick={addProject}>{t('empty.addProject')}</button>
           {:else}
-            <h2>Sin sesiones</h2>
+            <h2>{t('empty.noSessions')}</h2>
             <p>
-              Lanza un agente con <b>+</b> junto a un proyecto
-              {#if spawnable[0]}o pulsa <kbd>⌘N</kbd> ({spawnable[0].name || spawnable[0].id}){/if}.
+              {@html spawnable[0]
+                ? th('empty.launchHintKey', { name: spawnable[0].name || spawnable[0].id })
+                : th('empty.launchHint')}
             </p>
             {#if currentProjectId && spawnable.length}
               <div class="quick">
@@ -441,7 +452,7 @@
                 {/each}
               </div>
             {/if}
-            <button class="linkish" onclick={openSettings}>Elegir agentes… <kbd>⌘,</kbd></button>
+            <button class="linkish" onclick={openSettings}>{t('empty.chooseAgents')} <kbd>⌘,</kbd></button>
           {/if}
         </div>
       {/if}
@@ -478,11 +489,16 @@
     {/if}
 
     {#if settingsOpen}
-      <Settings {profiles} onProfiles={(ps) => (profiles = ps)} onClose={closeSettings} />
+      <Settings
+        {profiles}
+        onProfiles={(ps) => (profiles = ps)}
+        onSettings={(st) => (defaultMode = st.git?.defaultMode === 'worktree' ? 'worktree' : 'same')}
+        onClose={closeSettings}
+      />
     {/if}
 
     {#if daemonDown}
-      <div class="banner">Reconectando con el daemon… <span>{daemonDown}</span></div>
+      <div class="banner">{t('banner.reconnecting')} <span>{daemonDown}</span></div>
     {/if}
     {#if error}
       <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -643,7 +659,8 @@
     margin: 0 0 10px;
     max-width: 340px;
   }
-  kbd {
+  /* :global: also styles the markup of {@html th(...)} strings. */
+  .empty :global(kbd) {
     font-family: var(--mono);
     font-size: 11px;
     padding: 1px 5px;

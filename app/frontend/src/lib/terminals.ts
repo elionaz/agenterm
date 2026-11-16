@@ -7,6 +7,7 @@ import { Unicode11Addon } from '@xterm/addon-unicode11'
 import '@xterm/xterm/css/xterm.css'
 import { ClipboardSetText, EventsOn } from '../../wailsjs/runtime/runtime'
 import { api, b64ToBytes, errorMessage } from './api'
+import { t } from './i18n.svelte'
 
 export const theme: ITheme = {
   background: '#141518',
@@ -214,7 +215,7 @@ export class TerminalManager {
       EventsOn(`pty-exit:${id}`, (code: number) => {
         e.exited = true
         e.replaying = false
-        term.write(`\r\n\x1b[2m[proceso terminado · código ${code}]\x1b[0m\r\n`)
+        term.write(`\r\n\x1b[2m${t('term.exited', { code })}\x1b[0m\r\n`)
       }),
       EventsOn(`pty-error:${id}`, (msg: string) => this.recover(e, msg)),
     )
@@ -255,7 +256,7 @@ export class TerminalManager {
     if (e.disposed || e.exited) return
     e.failures++
     if (e.failures > MAX_REATTACH) {
-      e.term.write(`\r\n\x1b[31m[desconectado: ${msg}]\x1b[0m\r\n`)
+      e.term.write(`\r\n\x1b[31m${t('term.disconnected', { msg })}\x1b[0m\r\n`)
       return
     }
     setTimeout(() => {

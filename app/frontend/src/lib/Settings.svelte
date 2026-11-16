@@ -10,16 +10,19 @@
     type ProfileEntry,
     type Settings,
   } from './api'
+  import { langSetting, setLangSetting, systemLang, t, th, type LangSetting } from './i18n.svelte'
 
   interface Props {
     profiles: Profile[]
     onProfiles: (ps: Profile[]) => void
+    /** Settings were saved (the app keeps git.default_mode). */
+    onSettings?: (s: Settings) => void
     onClose: () => void
   }
 
-  let { profiles, onProfiles, onClose }: Props = $props()
+  let { profiles, onProfiles, onSettings, onClose }: Props = $props()
 
-  type Tab = 'agents' | 'notify' | 'git'
+  type Tab = 'general' | 'agents' | 'notify' | 'git'
   type Mode = 'edit' | 'new' | 'variant'
   interface Form {
     id: string
@@ -60,17 +63,38 @@
   const gitDirty = $derived(git != null && JSON.stringify(git) !== savedGit)
 
   const installedCount = $derived(profiles.filter((p) => p.installed).length)
+
+  /** ui.language as selected (applied right away, then saved). */
+  let language = $state<LangSetting>(langSetting())
+  let languageError = $state<string | null>(null)
+
+  async function saveLanguage(v: LangSetting) {
+    const prev = langSetting()
+    language = v
+    setLangSetting(v)
+    languageError = null
+    try {
+      const s = await api.saveSettings({ ui: { language: v } })
+      setLangSetting(s.ui?.language)
+      language = langSetting()
+      onSettings?.(s)
+    } catch (e) {
+      setLangSetting(prev)
+      language = prev
+      languageError = errorMessage(e)
+    }
+  }
   const notifyDirty = $derived(notify != null && JSON.stringify([notify, stallSeconds.trim()]) !== savedNotify)
 
   function sourceLabel(p: Profile): string {
-    if (p.extends) return `variante de ${p.extends}`
+    if (p.extends) return t('settings.source.variant', { id: p.extends })
     switch (p.source) {
       case 'catalog':
-        return 'catálogo'
+        return t('settings.source.catalog')
       case 'override':
-        return 'modificado'
+        return t('settings.source.override')
       default:
-        return 'personalizado'
+        return t('settings.source.custom')
     }
   }
 
@@ -103,13 +127,13 @@
     const env: Record<string, string> = {}
     for (const l of lines(f.env)) {
       const i = l.indexOf('=')
-      if (i <= 0) throw new Error(`Entorno: "${l}" no tiene la forma CLAVE=valor`)
+      if (i <= 0) throw new Error(t('settings.err.env', { line: l }))
       env[l.slice(0, i).trim()] = l.slice(i + 1)
     }
     let idle = 0
     if (f.idle.trim() !== '') {
       idle = Number(f.idle.replace(',', '.'))
-      if (!Number.isFinite(idle) || idle <= 0) throw new Error('Segundos de inactividad: escribe un número positivo')
+      if (!Number.isFinite(idle) || idle <= 0) throw new Error(t('settings.err.idle'))
     }
     return {
       id: f.id.trim(),
@@ -145,7 +169,7 @@
     formError = null
     editing = {
       mode: 'variant',
-      form: { ...fromProfile(p), id: uniqueId(p.id), name: `${p.name} (variante)`, extends: p.id, enabled: true },
+      form: { ...fromProfile(p), id: uniqueId(p.id), name: t('settings.variantName', { name: p.name }), extends: p.id, enabled: true },
     }
   }
 
@@ -194,7 +218,7 @@
       return
     }
     if (editing.mode !== 'edit' && profiles.some((p) => p.id === entry.id)) {
-      formError = `Ya existe un agente con id "${entry.id}"`
+      formError = t('settings.err.exists', { id: entry.id })
       return
     }
     formError = null
@@ -292,6 +316,8 @@
       defaultMode: s.git?.defaultMode === 'worktree' ? 'worktree' : 'same',
     }
     savedGit = JSON.stringify(git)
+    setLangSetting(s.ui?.language)
+    language = langSetting()
   }
 
   async function saveGit() {
@@ -299,12 +325,13 @@
     gitSaved = false
     const dir = git.worktreeDir.trim()
     if (dir && !dir.startsWith('/') && !dir.startsWith('~/')) {
-      gitError = 'Carpeta de worktrees: escribe una ruta absoluta (o que empiece por ~/), o déjala vacía'
+      gitError = t('settings.err.worktreeDir')
       return
     }
     try {
       const s = await api.saveSettings({ git: { editor: git.editor.trim(), worktreeDir: dir, defaultMode: git.defaultMode } })
       applySettings(s)
+      onSettings?.(s)
       gitError = null
       gitSaved = true
     } catch (e) {
@@ -317,7 +344,7 @@
     notifySaved = false
     const secs = Number(stallSeconds.trim())
     if (stallSeconds.trim() === '' || !Number.isInteger(secs) || secs < 0) {
-      notifyError = 'Segundos sin actividad: escribe un número entero (0 desactiva la detección)'
+      notifyError = t('settings.err.stall')
       return
     }
     try {
@@ -350,62 +377,62 @@
     <div class="grid">
       {#if mode !== 'edit'}
         <label>
-          <span>Id</span>
+          <span>{t('settings.f.id')}</span>
           <!-- svelte-ignore a11y_autofocus -->
-          <input class="mono" bind:value={f.id} placeholder="mi-agente" autofocus required spellcheck="false" />
+          <input class="mono" bind:value={f.id} placeholder={t('settings.f.idPlaceholder')} autofocus required spellcheck="false" />
         </label>
       {/if}
       <label>
-        <span>Nombre</span>
-        <input bind:value={f.name} placeholder={f.id || 'Mi agente'} />
+        <span>{t('settings.f.name')}</span>
+        <input bind:value={f.name} placeholder={f.id || t('settings.f.namePlaceholder')} />
       </label>
       {#if f.extends}
         <label>
-          <span>Variante de</span>
+          <span>{t('settings.f.variantOf')}</span>
           <input class="mono" value={f.extends} disabled />
         </label>
       {/if}
       <label>
-        <span>Comando</span>
-        <input class="mono" bind:value={f.cmd} placeholder="mi-cli" spellcheck="false" required={!f.extends} />
+        <span>{t('settings.f.cmd')}</span>
+        <input class="mono" bind:value={f.cmd} placeholder={t('settings.f.cmdPlaceholder')} spellcheck="false" required={!f.extends} />
       </label>
       <label class="wide">
-        <span>Argumentos</span>
-        <input class="mono" bind:value={f.args} placeholder="--modelo x 'con espacios'" spellcheck="false" />
+        <span>{t('settings.f.args')}</span>
+        <input class="mono" bind:value={f.args} placeholder={t('settings.f.argsPlaceholder')} spellcheck="false" />
       </label>
       <label class="wide">
-        <span>Entorno <em>(CLAVE=valor, uno por línea; se expanden $VARS)</em></span>
+        <span>{t('settings.f.env')} <em>{t('settings.f.envHelp')}</em></span>
         <textarea class="mono" rows="2" bind:value={f.env} spellcheck="false"></textarea>
       </label>
       <label>
-        <span>Estado</span>
+        <span>{t('settings.f.status')}</span>
         <select bind:value={f.status}>
-          <option value="heuristic">heurística (salida / inactividad)</option>
-          <option value="hooks">hooks del agente</option>
+          <option value="heuristic">{t('settings.f.statusHeuristic')}</option>
+          <option value="hooks">{t('settings.f.statusHooks')}</option>
         </select>
       </label>
       <label>
-        <span>Integración de hooks</span>
+        <span>{t('settings.f.hooks')}</span>
         <select bind:value={f.setupHooks}>
-          <option value="none">ninguna</option>
+          <option value="none">{t('settings.f.hooksNone')}</option>
           <option value="claude">claude</option>
           <option value="codex">codex</option>
         </select>
       </label>
       <label>
-        <span>Segundos de inactividad</span>
-        <input bind:value={f.idle} inputmode="decimal" placeholder="por defecto (3)" />
+        <span>{t('settings.f.idle')}</span>
+        <input bind:value={f.idle} inputmode="decimal" placeholder={t('settings.f.idlePlaceholder')} />
       </label>
       <label class="wide">
-        <span>Patrones de atención <em>(regex sobre la salida, uno por línea)</em></span>
+        <span>{t('settings.f.patterns')} <em>{t('settings.f.patternsHelp')}</em></span>
         <textarea class="mono" rows="2" bind:value={f.patterns} spellcheck="false" placeholder={'\\(y/n\\)'}></textarea>
       </label>
     </div>
     {#if formError}<div class="error">{formError}</div>{/if}
     <div class="editor-actions">
-      <button type="button" class="btn" onclick={() => (editing = null)}>Cancelar</button>
+      <button type="button" class="btn" onclick={() => (editing = null)}>{t('settings.cancel')}</button>
       <button type="submit" class="btn primary" disabled={busy}>
-        {mode === 'edit' ? 'Guardar' : 'Crear'}
+        {mode === 'edit' ? t('settings.save') : t('settings.create')}
       </button>
     </div>
   </form>
@@ -413,31 +440,51 @@
 
 <div class="settings">
   <header class="titlebar drag">
-    <span class="title">Ajustes</span>
+    <span class="title">{t('settings.title')}</span>
     <nav class="tabs">
-      <button class:active={tab === 'agents'} onclick={() => (tab = 'agents')}>Agentes</button>
-      <button class:active={tab === 'notify'} onclick={() => (tab = 'notify')}>Notificaciones</button>
-      <button class:active={tab === 'git'} onclick={() => (tab = 'git')}>Git</button>
+      <button class:active={tab === 'general'} onclick={() => (tab = 'general')}>{t('settings.tab.general')}</button>
+      <button class:active={tab === 'agents'} onclick={() => (tab = 'agents')}>{t('settings.tab.agents')}</button>
+      <button class:active={tab === 'notify'} onclick={() => (tab = 'notify')}>{t('settings.tab.notify')}</button>
+      <button class:active={tab === 'git'} onclick={() => (tab = 'git')}>{t('settings.tab.git')}</button>
     </nav>
-    <button class="close" title="Cerrar (Esc)" onclick={onClose}>×</button>
+    <button class="close" title={t('settings.close')} onclick={onClose}>×</button>
   </header>
 
   <div class="body">
-    {#if tab === 'agents'}
+    {#if tab === 'general'}
+      <section class="pane narrow">
+        <label class="field">
+          <span>
+            <b>{t('settings.language')}</b>
+            <em>{t('settings.languageHelp')}</em>
+          </span>
+          <select
+            class="lang"
+            value={language}
+            onchange={(e) => saveLanguage((e.currentTarget as HTMLSelectElement).value as LangSetting)}
+          >
+            <option value="auto">{t('settings.languageAuto', { lang: systemLang() === 'es' ? 'Español' : 'English' })}</option>
+            <option value="en">English</option>
+            <option value="es">Español</option>
+          </select>
+        </label>
+        {#if languageError}<div class="error">{languageError}</div>{/if}
+        <p class="hint">{@html th('settings.languageHint')}</p>
+      </section>
+    {:else if tab === 'agents'}
       <section class="pane">
         <div class="toolbar">
           <p class="hint">
-            {installedCount} de {profiles.length} encontrados. El primero de la lista es el de <kbd>⌘N</kbd>; los no
-            instalados o desactivados no salen en el menú <b>+</b>.
+            {@html th('settings.agentsHint', { installed: installedCount, total: profiles.length })}
           </p>
-          <button class="btn" onclick={rescan} disabled={scanning}>{scanning ? 'Buscando…' : 'Re-escanear'}</button>
-          <button class="btn" onclick={startNew}>+ Agente personalizado</button>
+          <button class="btn" onclick={rescan} disabled={scanning}>{scanning ? t('settings.scanning') : t('settings.rescan')}</button>
+          <button class="btn" onclick={startNew}>{t('settings.customAgent')}</button>
         </div>
         {#if listError}<div class="error">{listError}</div>{/if}
 
         {#if editing?.mode === 'new'}
           <div class="card editing">
-            <div class="card-title">Nuevo agente</div>
+            <div class="card-title">{t('settings.newAgent')}</div>
             {@render editor(editing.form, 'new')}
           </div>
         {/if}
@@ -456,7 +503,7 @@
               <div class="row-main">
                 <span
                   class="handle"
-                  title="Arrastra para reordenar"
+                  title={t('settings.drag')}
                   draggable="true"
                   role="button"
                   tabindex="-1"
@@ -464,8 +511,8 @@
                   ondragend={onDragEnd}>⋮⋮</span
                 >
                 <span class="order">
-                  <button class="mini" title="Subir" disabled={i === 0 || busy} onclick={() => move(i, -1)}>▲</button>
-                  <button class="mini" title="Bajar" disabled={i === profiles.length - 1 || busy} onclick={() => move(i, 1)}
+                  <button class="mini" title={t('settings.up')} disabled={i === 0 || busy} onclick={() => move(i, -1)}>▲</button>
+                  <button class="mini" title={t('settings.down')} disabled={i === profiles.length - 1 || busy} onclick={() => move(i, 1)}
                     >▼</button
                   >
                 </span>
@@ -480,38 +527,38 @@
                   </div>
                 </div>
                 {#if p.error}
-                  <span class="badge err" title={p.error}>error</span>
+                  <span class="badge err" title={p.error}>{t('settings.badgeError')}</span>
                 {:else if p.installed}
-                  <span class="badge ok" title={p.path ?? ''}>✓ instalado</span>
+                  <span class="badge ok" title={p.path ?? ''}>{t('settings.installed')}</span>
                 {:else}
-                  <span class="badge missing">no encontrado</span>
+                  <span class="badge missing">{t('settings.notFound')}</span>
                 {/if}
                 <button
                   class="switch"
                   class:on={p.enabled}
                   role="switch"
                   aria-checked={p.enabled}
-                  aria-label={p.enabled ? 'Desactivar' : 'Activar'}
-                  title={p.enabled ? 'Activado: sale en el menú si está instalado' : 'Desactivado: oculto en el menú'}
+                  aria-label={p.enabled ? t('settings.disable') : t('settings.enable')}
+                  title={p.enabled ? t('settings.enabledTitle') : t('settings.disabledTitle')}
                   disabled={busy}
                   onclick={() => toggle(p)}><span></span></button
                 >
                 <span class="actions">
                   {#if confirmFor === p.id}
                     <span class="confirm">
-                      {p.source === 'override' ? '¿Restablecer valores del catálogo?' : '¿Borrar este agente?'}
-                      <button class="btn danger" onclick={() => remove(p)}>Sí</button>
-                      <button class="btn" onclick={() => (confirmFor = null)}>No</button>
+                      {p.source === 'override' ? t('settings.confirmReset') : t('settings.confirmDelete')}
+                      <button class="btn danger" onclick={() => remove(p)}>{t('settings.yes')}</button>
+                      <button class="btn" onclick={() => (confirmFor = null)}>{t('settings.no')}</button>
                     </span>
                   {:else}
                     <button class="link" onclick={() => (editing?.form.id === p.id && editing.mode === 'edit' ? (editing = null) : startEdit(p))}
-                      >Editar</button
+                      >{t('settings.edit')}</button
                     >
-                    <button class="link" onclick={() => startVariant(p)}>Duplicar como variante</button>
+                    <button class="link" onclick={() => startVariant(p)}>{t('settings.duplicate')}</button>
                     {#if p.source === 'custom'}
-                      <button class="link danger" onclick={() => (confirmFor = p.id)}>Borrar</button>
+                      <button class="link danger" onclick={() => (confirmFor = p.id)}>{t('settings.delete')}</button>
                     {:else if p.source === 'override'}
-                      <button class="link" onclick={() => (confirmFor = p.id)}>Restablecer</button>
+                      <button class="link" onclick={() => (confirmFor = p.id)}>{t('settings.reset')}</button>
                     {/if}
                   {/if}
                 </span>
@@ -520,15 +567,15 @@
                 <div class="row-note err">{p.error}</div>
               {:else if !p.installed}
                 <div class="row-note">
-                  {#if p.install}Instalar: <code>{p.install}</code>{:else}No se encuentra <code>{p.cmd}</code> en el PATH.{/if}
+                  {#if p.install}{t('settings.install')} <code>{p.install}</code>{:else}{@html th('settings.notInPath', { cmd: p.cmd })}{/if}
                   {#if p.homepage}
-                    <button class="link" onclick={() => BrowserOpenURL(p.homepage!)}>web</button>
+                    <button class="link" onclick={() => BrowserOpenURL(p.homepage!)}>{t('settings.web')}</button>
                   {/if}
                 </div>
               {/if}
               {#if editing && editing.mode !== 'new' && (editing.mode === 'edit' ? editing.form.id === p.id : editing.form.extends === p.id)}
                 <div class="card editing">
-                  {#if editing.mode === 'variant'}<div class="card-title">Nueva variante de {p.name}</div>{/if}
+                  {#if editing.mode === 'variant'}<div class="card-title">{t('settings.newVariant', { name: p.name })}</div>{/if}
                   {@render editor(editing.form, editing.mode)}
                 </div>
               {/if}
@@ -536,8 +583,7 @@
           {/each}
         </ul>
         <p class="hint foot">
-          Se guarda en <code>profiles.yaml</code> (con copia <code>.bak</code>); los campos que no cambies se heredan del
-          catálogo.
+          {@html th('settings.agentsFoot')}
         </p>
       </section>
     {:else if tab === 'notify'}
@@ -546,47 +592,47 @@
           <label class="check">
             <input type="checkbox" bind:checked={notify.enabled} />
             <span>
-              <b>Notificaciones</b>
-              <em>Avisar cuando un agente necesita tu aprobación, te pregunta algo o falla.</em>
+              <b>{t('settings.n.enabled')}</b>
+              <em>{t('settings.n.enabledHelp')}</em>
             </span>
           </label>
           <label class="check" class:dim={!notify.enabled}>
             <input type="checkbox" bind:checked={notify.sound} disabled={!notify.enabled} />
             <span>
-              <b>Sonido</b>
-              <em>Solo en aprobaciones y preguntas.</em>
+              <b>{t('settings.n.sound')}</b>
+              <em>{t('settings.n.soundHelp')}</em>
             </span>
           </label>
           <label class="check" class:dim={!notify.enabled}>
             <input type="checkbox" bind:checked={notify.notifyOnDone} disabled={!notify.enabled} />
             <span>
-              <b>Avisar al terminar</b>
-              <em>También cuando un agente acaba su turno.</em>
+              <b>{t('settings.n.done')}</b>
+              <em>{t('settings.n.doneHelp')}</em>
             </span>
           </label>
           <label class="check" class:dim={!notify.enabled}>
             <input type="checkbox" bind:checked={notify.notifyOnStall} disabled={!notify.enabled} />
             <span>
-              <b>Avisar si parece trabado</b>
-              <em>Aviso discreto (sin sonido, no cuenta como pendiente) cuando un turno lleva un rato sin salida ni eventos.</em>
+              <b>{t('settings.n.stall')}</b>
+              <em>{t('settings.n.stallHelp')}</em>
             </span>
           </label>
           <label class="field">
             <span>
-              <b>Segundos sin actividad para «¿trabado?»</b>
-              <em>Solo en agentes con hooks (Claude Code) mientras hay un turno abierto. 0 desactiva la detección. Se aplica a las sesiones nuevas.</em>
+              <b>{t('settings.n.stallSeconds')}</b>
+              <em>{t('settings.n.stallSecondsHelp')}</em>
             </span>
             <input class="num" bind:value={stallSeconds} inputmode="numeric" placeholder="180" />
           </label>
           <div class="editor-actions left">
-            <button class="btn primary" disabled={!notifyDirty} onclick={saveNotify}>Guardar</button>
-            {#if notifySaved && !notifyDirty}<span class="saved">Guardado ✓</span>{/if}
+            <button class="btn primary" disabled={!notifyDirty} onclick={saveNotify}>{t('settings.save')}</button>
+            {#if notifySaved && !notifyDirty}<span class="saved">{t('settings.saved')}</span>{/if}
           </div>
-          <p class="hint">Se guarda en <code>settings.yaml</code>; la app y el daemon lo releen en cada aviso.</p>
+          <p class="hint">{@html th('settings.n.hint')}</p>
         {/if}
         {#if notifyError}
           <div class="error">{notifyError}</div>
-          <button class="btn" onclick={loadSettings}>Reintentar</button>
+          <button class="btn" onclick={loadSettings}>{t('settings.retry')}</button>
         {/if}
       </section>
     {:else}
@@ -594,40 +640,40 @@
         {#if git}
           <div class="check">
             <span>
-              <b>Modo por defecto al lanzar</b>
-              <em>Lo que el menú <b>+</b> propone si aún no elegiste nada en ese proyecto (se recuerda la última elección por proyecto).</em>
+              <b>{t('settings.g.mode')}</b>
+              <em>{@html th('settings.g.modeHelp')}</em>
               <span class="radios">
-                <label><input type="radio" bind:group={git.defaultMode} value="same" /> Misma carpeta</label>
-                <label><input type="radio" bind:group={git.defaultMode} value="worktree" /> Worktree nuevo</label>
+                <label><input type="radio" bind:group={git.defaultMode} value="same" /> {t('settings.g.same')}</label>
+                <label><input type="radio" bind:group={git.defaultMode} value="worktree" /> {t('settings.g.worktree')}</label>
               </span>
             </span>
           </div>
           <label class="field">
             <span>
-              <b>Editor</b>
-              <em>Para «Abrir en editor»: un comando (<code>code</code>, <code>cursor -n</code>, <code>zed</code>) o el nombre de una app de macOS (<code>Visual Studio Code</code>). Vacío: <code>code</code> si está instalado, si no Finder.</em>
+              <b>{t('settings.g.editor')}</b>
+              <em>{@html th('settings.g.editorHelp')}</em>
             </span>
             <input class="text" bind:value={git.editor} placeholder="code" spellcheck="false" />
           </label>
           <label class="field">
             <span>
-              <b>Carpeta de worktrees</b>
-              <em>Dónde se crean (nunca dentro del proyecto). Vacío: <code>~/.agenterm/worktrees</code>. Afecta a los worktrees nuevos.</em>
+              <b>{t('settings.g.dir')}</b>
+              <em>{@html th('settings.g.dirHelp')}</em>
             </span>
             <input class="text" bind:value={git.worktreeDir} placeholder="~/.agenterm/worktrees" spellcheck="false" />
           </label>
           <div class="editor-actions left">
-            <button class="btn primary" disabled={!gitDirty} onclick={saveGit}>Guardar</button>
-            {#if gitSaved && !gitDirty}<span class="saved">Guardado ✓</span>{/if}
+            <button class="btn primary" disabled={!gitDirty} onclick={saveGit}>{t('settings.save')}</button>
+            {#if gitSaved && !gitDirty}<span class="saved">{t('settings.saved')}</span>{/if}
           </div>
-          <p class="hint">Se guarda en <code>settings.yaml</code> (<code>git.editor</code>, <code>git.worktree_dir</code>, <code>git.default_mode</code>).</p>
+          <p class="hint">{@html th('settings.g.hint')}</p>
         {/if}
         {#if gitError}
           <div class="error">{gitError}</div>
         {/if}
         {#if notifyError && !git}
           <div class="error">{notifyError}</div>
-          <button class="btn" onclick={loadSettings}>Reintentar</button>
+          <button class="btn" onclick={loadSettings}>{t('settings.retry')}</button>
         {/if}
       </section>
     {/if}
@@ -712,17 +758,18 @@
   .hint.foot {
     margin-top: 12px;
   }
-  kbd,
-  code {
+  /* :global: also styles the markup of {@html th(...)} strings. */
+  .settings :global(kbd),
+  .settings :global(code) {
     font-family: var(--mono);
     font-size: 11px;
   }
-  kbd {
+  .settings :global(kbd) {
     padding: 0 4px;
     border: 1px solid var(--border-strong);
     border-radius: 4px;
   }
-  code {
+  .settings :global(code) {
     color: var(--fg-dim);
     user-select: text;
   }
@@ -1061,6 +1108,10 @@
     width: 80px;
     flex: none;
     text-align: right;
+  }
+  .field .lang {
+    flex: none;
+    min-width: 200px;
   }
   .field .text {
     width: 220px;

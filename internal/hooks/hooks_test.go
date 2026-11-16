@@ -176,6 +176,25 @@ func TestToolActivity(t *testing.T) {
 	}
 }
 
+func TestToolActivityParts(t *testing.T) {
+	cases := []struct{ tool, input, kind, target string }{
+		{"Edit", `{"file_path":"/p/main.go"}`, "edit", "main.go"},
+		{"Read", `{"file_path":"/p/go.mod"}`, "read", "go.mod"},
+		{"Bash", `{"command":"npm test"}`, "bash", "npm test"},
+		{"Grep", `{"pattern":"TODO"}`, "search", "TODO"},
+		{"WebFetch", `{"url":"https://example.com/x"}`, "web", "example.com"},
+		{"Task", `{"subagent_type":"Explore"}`, "subagent", "Explore"},
+		{"TodoWrite", `{}`, "todo", ""},
+		{"mcp__github__search", `{}`, "mcp", "github.search"},
+		{"ExitPlanMode", `{}`, "tool", "ExitPlanMode"},
+	}
+	for _, c := range cases {
+		if k, tg := ToolActivityParts(c.tool, json.RawMessage(c.input)); k != c.kind || tg != c.target {
+			t.Errorf("%s: got %q %q, want %q %q", c.tool, k, tg, c.kind, c.target)
+		}
+	}
+}
+
 func TestClaudeSettingsPreToolUse(t *testing.T) {
 	var cfg struct {
 		Hooks map[string][]struct {
