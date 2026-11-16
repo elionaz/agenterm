@@ -550,13 +550,17 @@
     background: var(--accent-bg);
     color: var(--fg);
   }
+  /* The name keeps its width; the branch chip shrinks first (longer state
+     words, e.g. "esperando", would otherwise squeeze the name to "s…"). */
   .session-name {
-    flex: 1;
+    flex: 0 0 auto;
+    max-width: 50%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .state {
+    margin-left: auto;
     font-size: 10.5px;
     color: var(--muted);
   }
@@ -786,7 +790,7 @@
     background: var(--hover-strong);
   }
   .chip {
-    flex: 0 1 auto;
+    flex: 0 100 auto;
     min-width: 0;
     max-width: 90px;
     overflow: hidden;
