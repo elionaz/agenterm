@@ -134,6 +134,9 @@
     sessions = list
     terms.retain(new Set(list.map((s) => s.id)))
     if (selectedId && !list.some((s) => s.id === selectedId)) select(fallbackSelection(), true)
+    // Nothing selected and a session appeared in the current project (e.g.
+    // spawned from the CLI): show it rather than "No sessions" next to it.
+    else if (loaded && !selectedId && list.some((s) => s.projectId === currentProjectId)) select(fallbackSelection(), true)
   }
 
   async function refreshAll() {
