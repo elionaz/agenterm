@@ -1,11 +1,13 @@
 ---
-name: Propuesta
-about: Sugiere una funcionalidad o mejora
+name: Feature request
+about: Suggest a feature or improvement
 labels: enhancement
 ---
 
-**Problema que resuelve**
+<!-- English or Spanish is fine. / Puedes escribir en inglés o en español. -->
 
-**Propuesta**
+**Problem it solves**
 
-**Alternativas consideradas**
+**Proposal**
+
+**Alternatives considered**

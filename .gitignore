@@ -16,3 +16,6 @@ coverage.*
 # local state
 .omc/
 .DS_Store
+
+# Claude Code agent worktrees
+.claude/

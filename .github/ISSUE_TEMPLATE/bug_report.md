@@ -1,21 +1,23 @@
 ---
 name: Bug
-about: Algo no funciona como debería
+about: Something doesn't work as it should
 labels: bug
 ---
 
-**Qué pasa**
+<!-- English or Spanish is fine. / Puedes escribir en inglés o en español. -->
 
-**Qué esperabas**
+**What happens**
 
-**Pasos para reproducirlo**
+**What you expected**
+
+**Steps to reproduce**
 1.
 2.
 
-**Entorno**
-- SO y versión:
-- Versión / commit de agenterm:
-- CLI o app de escritorio:
-- Agente (claude, codex, shell…):
+**Environment**
+- OS and version:
+- agenterm version / commit:
+- CLI or desktop app:
+- Agent (claude, codex, shell…):
 
-**Logs** (`~/.agenterm/…` o salida del daemon, si aplica)
+**Logs** (`~/.agenterm/…` or daemon output, if applicable)

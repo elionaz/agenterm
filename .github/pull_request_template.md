@@ -1,15 +1,17 @@
-## Qué cambia y por qué
+<!-- English or Spanish is fine. / Puedes escribir en inglés o en español. -->
 
-<!-- Describe el cambio. Enlaza el issue: "Closes #123". -->
+## What changes and why
 
-## Cómo se ha probado
+<!-- Describe the change. Link the issue: "Closes #123". -->
 
-<!-- Comandos ejecutados, escenarios manuales, capturas si toca UI. -->
+## How it was tested
+
+<!-- Commands run, manual scenarios, screenshots if it touches the UI. -->
 
 ## Checklist
 
-- [ ] `go vet ./... && go test -race ./...` pasan
-- [ ] Frontend: `npm run check && npm run build` pasan (si aplica)
-- [ ] Tests añadidos/actualizados
-- [ ] README actualizado (si cambian comandos, flags o configuración)
-- [ ] Título del PR en formato Conventional Commits
+- [ ] `go vet ./... && go test -race ./...` pass
+- [ ] Frontend: `npm run check && npm run build` pass (if applicable)
+- [ ] Tests added/updated
+- [ ] Docs updated in English and Spanish (if commands, flags or configuration change)
+- [ ] PR title follows Conventional Commits
