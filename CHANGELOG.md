@@ -7,6 +7,8 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-16
+
 ### Added
 
 - **In-app updates** with [Sparkle 2](https://sparkle-project.org): a daily background check,
@@ -24,6 +26,12 @@ releases may include breaking changes.
   variable). Pre-release tags (`vX.Y.Z-suffix`) become GitHub pre-releases, not offered in-app nor
   to Homebrew, and, once in-app updates are on, a release without `appcast.xml` is not marked
   *Latest*.
+
+### Fixed
+
+- A second copy of the app with another bundle id, or started with its own `AGENTERM_HOME`, no
+  longer hands off to the already open window and quits: the single-instance lock is now per
+  bundle id and home.
 
 ## [0.1.1] - 2026-11-16
 
@@ -79,6 +87,7 @@ First public release: a macOS desktop app (universal: Apple Silicon and Intel, m
   `.zip` downloads, CLI archives for macOS and Linux, and a Homebrew cask
   (`brew install --cask elionaz/tap/agenterm`).
 
-[Unreleased]: https://github.com/elionaz/agenterm/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/elionaz/agenterm/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/elionaz/agenterm/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/elionaz/agenterm/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/elionaz/agenterm/releases/tag/v0.1.0
