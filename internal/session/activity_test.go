@@ -152,7 +152,7 @@ func TestTrackerHookWins(t *testing.T) {
 	var tr tracker
 	t0 := time.Unix(1_700_000_000, 0)
 	tr.setOutput("some output", t0)
-	tr.setHook("Leyendo main.go", t0.Add(time.Second))
+	tr.setHook("Reading main.go", "read", "main.go", t0.Add(time.Second))
 	if tr.setOutput("more output", t0.Add(2*time.Second)) {
 		t.Fatal("output must not override hook activity")
 	}
@@ -160,7 +160,7 @@ func TestTrackerHookWins(t *testing.T) {
 		t.Fatal("no output evaluation once hooks report")
 	}
 	l := tr.snapshot()
-	if l.Activity != "Leyendo main.go" || l.ActivitySource != ActivityHook || !l.ActivityAt.Equal(t0.Add(time.Second)) {
+	if l.Activity != "Reading main.go" || l.ActivityKind != "read" || l.ActivityTarget != "main.go" || l.ActivitySource != ActivityHook || !l.ActivityAt.Equal(t0.Add(time.Second)) {
 		t.Fatalf("%+v", l)
 	}
 }

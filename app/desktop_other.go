@@ -19,4 +19,5 @@ func (otherDesktop) RequestAttention()   {}
 func (otherDesktop) IsActive() bool      { return true }
 func (otherDesktop) Activate()           {}
 
-func installPreferencesMenu(func()) {}
+func installPreferencesMenu(string, func()) {}
+func setPreferencesTitle(string)            {}

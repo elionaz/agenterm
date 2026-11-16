@@ -1,5 +1,5 @@
 <script lang="ts">
-  // "Cambios" view: a session's (or an orphaned worktree's) diff — file list,
+  // "Changes" view: a session's (or an orphaned worktree's) diff — file list,
   // commits ahead of the base, the selected file rendered with diff2html —
   // and the worktree actions (editor, Finder, copy branch, merge, remove).
   import { onMount } from 'svelte'
@@ -8,6 +8,7 @@
   import 'diff2html/bundles/css/diff2html.min.css'
   import { ClipboardSetText } from '../../wailsjs/runtime/runtime'
   import { api, errorMessage, type DiffFile, type DiffResult, type LossInfo } from './api'
+  import { locale, t, th } from './i18n.svelte'
 
   interface Props {
     /** What to diff: a session, or a worktree without one. */
@@ -141,7 +142,7 @@
   async function copyBranch() {
     if (!diff?.branch) return
     await ClipboardSetText(diff.branch)
-    flash(`Copiado: ${diff.branch}`)
+    flash(t('changes.copied', { branch: diff.branch }))
   }
 
   async function doMerge() {
@@ -150,8 +151,8 @@
     try {
       const r = await api.mergeWorktree(wtId)
       merging = false
-      let msg = `${r.branch} mergeada en ${r.base} (${r.commits} ${r.commits === 1 ? 'commit' : 'commits'})`
-      if (r.uncommitted) msg += ` · ojo: ${r.uncommitted} cambios sin commitear no se incluyeron`
+      let msg = t('changes.merged', { branch: r.branch, base: r.base, n: r.commits })
+      if (r.uncommitted) msg += t('changes.mergedUncommitted', { n: r.uncommitted })
       flash(msg)
       void load()
     } catch (e) {
@@ -208,33 +209,32 @@
     {/if}
     {#if diff}
       <span class="stats">
-        {diff.files.length}
-        {diff.files.length === 1 ? 'archivo' : 'archivos'}
+        {t('changes.files', { n: diff.files.length })}
         <span class="add">+{diff.additions}</span>
         <span class="del">−{diff.deletions}</span>
-        {#if diff.git.ahead}<span class="ahead">· {diff.git.ahead} {diff.git.ahead === 1 ? 'commit' : 'commits'} por delante</span>{/if}
+        {#if diff.git.ahead}<span class="ahead">{t('changes.ahead', { n: diff.git.ahead })}</span>{/if}
       </span>
     {/if}
-    <button class="icon" class:spin={loading} title="Actualizar" aria-label="Actualizar" onclick={load}>⟳</button>
+    <button class="icon" class:spin={loading} title={t('changes.refresh')} aria-label={t('changes.refresh')} onclick={load}>⟳</button>
     <span class="seg">
-      <button class:on={style === 'side-by-side'} onclick={() => setStyle('side-by-side')}>Lado a lado</button>
-      <button class:on={style === 'line-by-line'} onclick={() => setStyle('line-by-line')}>Unificado</button>
+      <button class:on={style === 'side-by-side'} onclick={() => setStyle('side-by-side')}>{t('changes.sideBySide')}</button>
+      <button class:on={style === 'line-by-line'} onclick={() => setStyle('line-by-line')}>{t('changes.unified')}</button>
     </span>
     <span class="spacer"></span>
     <span class="actions">
-      <button class="btn" onclick={() => open('editor')}>Abrir en editor</button>
-      <button class="btn" onclick={() => open('finder')}>Abrir en Finder</button>
-      {#if diff?.branch}<button class="btn" onclick={copyBranch}>Copiar rama</button>{/if}
+      <button class="btn" onclick={() => open('editor')}>{t('changes.openEditor')}</button>
+      <button class="btn" onclick={() => open('finder')}>{t('changes.openFinder')}</button>
+      {#if diff?.branch}<button class="btn" onclick={copyBranch}>{t('changes.copyBranch')}</button>{/if}
       {#if isWorktree && wtId}
-        <button class="btn" disabled={busy} onclick={() => ((merging = !merging), (removing = false))}>Merge a {diff?.base || 'base'}</button>
+        <button class="btn" disabled={busy} onclick={() => ((merging = !merging), (removing = false))}>{t('changes.mergeInto', { base: diff?.base || 'base' })}</button>
         <button
           class="btn danger"
           disabled={busy || live}
-          title={live ? 'Termina la sesión antes de borrar su worktree' : ''}
-          onclick={askRemove}>Eliminar worktree</button
+          title={live ? t('changes.stopFirst') : ''}
+          onclick={askRemove}>{t('changes.removeWorktree')}</button
         >
       {/if}
-      {#if onClose}<button class="icon close" title="Cerrar (Esc)" aria-label="Cerrar" onclick={onClose}>×</button>{/if}
+      {#if onClose}<button class="icon close" title={t('changes.close')} aria-label={t('changes.closeLabel')} onclick={onClose}>×</button>{/if}
     </span>
   </header>
 
@@ -243,48 +243,49 @@
   {#if merging && diff}
     <div class="confirm">
       <p>
-        Merge <code>--no-ff</code> de <b>{diff.branch}</b> en <b>{diff.base}</b>, en la carpeta principal del proyecto. Solo
-        se hace si está en <b>{diff.base}</b> y sin cambios sin commitear (no hay stash automático); si hay conflictos, se aborta.
-        {#if diff.git.uncommitted}<br /><span class="warn">Hay {diff.git.uncommitted} cambios sin commitear en el worktree: no se incluyen.</span>{/if}
+        {@html th('changes.mergeInfo', { branch: diff.branch ?? '', base: diff.base ?? '' })}
+        {#if diff.git.uncommitted}<br /><span class="warn">{t('changes.mergeUncommitted', { n: diff.git.uncommitted })}</span>{/if}
       </p>
       <div class="row">
         <button class="btn primary" disabled={busy || !diff.git.ahead} onclick={doMerge}>
-          {diff.git.ahead ? `Hacer merge (${diff.git.ahead} ${diff.git.ahead === 1 ? 'commit' : 'commits'})` : 'Nada que mergear'}
+          {diff.git.ahead ? t('changes.doMerge', { n: diff.git.ahead }) : t('changes.nothingToMerge')}
         </button>
-        <button class="btn" onclick={() => (merging = false)}>Cancelar</button>
+        <button class="btn" onclick={() => (merging = false)}>{t('changes.cancel')}</button>
       </div>
     </div>
   {/if}
 
   {#if removing}
     <div class="confirm danger-zone">
-      <p>Se borra la carpeta del worktree{diff?.dir ? ` (${diff.dir})` : ''}. Tu carpeta del proyecto no se toca.</p>
-      <label class="check"><input type="checkbox" bind:checked={deleteBranch} onchange={checkLoss} /> Borrar también la rama {diff?.branch ?? ''}</label>
+      <p>{diff?.dir ? t('changes.removeInfoDir', { dir: diff.dir }) : t('changes.removeInfo')}</p>
+      <label class="check"
+        ><input type="checkbox" bind:checked={deleteBranch} onchange={checkLoss} /> {t('changes.deleteBranch', { branch: diff?.branch ?? '' })}</label
+      >
       {#if lossLoading}
-        <p class="muted">Comprobando qué se perdería…</p>
+        <p class="muted">{t('changes.checkingLoss')}</p>
       {:else if loss}
         <div class="loss">
           {#if loss.uncommitted?.length}
-            <b>Se perderían {loss.uncommitted.length} {loss.uncommitted.length === 1 ? 'archivo' : 'archivos'} sin commitear:</b>
+            <b>{t('changes.lossFiles', { n: loss.uncommitted.length })}</b>
             <ul>
               {#each loss.uncommitted.slice(0, 12) as f (f)}<li><code>{f}</code></li>{/each}
-              {#if loss.uncommitted.length > 12}<li>… y {loss.uncommitted.length - 12} más</li>{/if}
+              {#if loss.uncommitted.length > 12}<li>{t('changes.andMore', { n: loss.uncommitted.length - 12 })}</li>{/if}
             </ul>
           {/if}
           {#if loss.unmerged?.length}
-            <b>Y {loss.unmerged.length} {loss.unmerged.length === 1 ? 'commit' : 'commits'} sin mergear en {loss.base}:</b>
+            <b>{t('changes.lossCommits', { n: loss.unmerged.length, base: loss.base })}</b>
             <ul>
               {#each loss.unmerged.slice(0, 8) as c (c.hash)}<li><code>{c.short}</code> {c.subject}</li>{/each}
             </ul>
           {/if}
-          <label class="check"><input type="checkbox" bind:checked={force} /> Borrar igualmente (no se puede deshacer)</label>
+          <label class="check"><input type="checkbox" bind:checked={force} /> {t('changes.removeAnyway')}</label>
         </div>
       {:else}
-        <p class="muted">No se pierde nada{deleteBranch ? '' : ': la rama y sus commits se conservan'}.</p>
+        <p class="muted">{deleteBranch ? t('changes.nothingLost') : t('changes.nothingLostKeep')}</p>
       {/if}
       <div class="row">
-        <button class="btn danger" disabled={busy || lossLoading || (!!loss && !force)} onclick={doRemove}>Eliminar</button>
-        <button class="btn" onclick={() => (removing = false)}>Cancelar</button>
+        <button class="btn danger" disabled={busy || lossLoading || (!!loss && !force)} onclick={doRemove}>{t('changes.remove')}</button>
+        <button class="btn" onclick={() => (removing = false)}>{t('changes.cancel')}</button>
       </div>
     </div>
   {/if}
@@ -292,25 +293,25 @@
   {#if loadError && !diff}
     <div class="empty">
       <p class="err">{loadError}</p>
-      <button class="btn" onclick={load}>Reintentar</button>
+      <button class="btn" onclick={load}>{t('changes.retry')}</button>
     </div>
   {:else if !diff}
-    <div class="empty"><p class="muted">Cargando cambios…</p></div>
+    <div class="empty"><p class="muted">{t('changes.loading')}</p></div>
   {:else}
     {#if diff.truncated}
-      <div class="notice">El diff es muy grande (más de 2 MB): algunos archivos se muestran sin contenido. Ábrelo en el editor para verlo entero.</div>
+      <div class="notice">{t('changes.truncated')}</div>
     {/if}
     <div class="body">
       <aside class="files">
         {#if diff.commits.length}
-          <div class="section">Commits ({diff.commits.length})</div>
+          <div class="section">{t('changes.commits', { n: diff.commits.length })}</div>
           <ul class="commits">
             {#each diff.commits as c (c.hash)}
-              <li title={`${c.hash}\n${c.author} · ${new Date(c.date).toLocaleString()}`}><code>{c.short}</code> {c.subject}</li>
+              <li title={`${c.hash}\n${c.author} · ${new Date(c.date).toLocaleString(locale())}`}><code>{c.short}</code> {c.subject}</li>
             {/each}
           </ul>
         {/if}
-        <div class="section">Archivos ({diff.files.length})</div>
+        <div class="section">{t('changes.fileList', { n: diff.files.length })}</div>
         {#each diff.files as f (f.path)}
           {@const n = fileName(f.path)}
           <button class="file" class:sel={selected?.path === f.path} title={f.oldPath ? `${f.oldPath} → ${f.path}` : f.path} onclick={() => (selectedPath = f.path)}>
@@ -320,16 +321,18 @@
             {:else}<span class="add">+{f.additions}</span><span class="del">−{f.deletions}</span>{/if}
           </button>
         {:else}
-          <p class="muted pad">Sin cambios{isWorktree ? ` respecto a ${diff.base}` : ''}.</p>
+          <p class="muted pad">{isWorktree ? t('changes.noChangesBase', { base: diff.base ?? '' }) : t('changes.noChanges')}</p>
         {/each}
       </aside>
       <section class="diff">
         {#if selected}
           {#if selected.binary}
-            <div class="empty"><p class="muted">{selected.path}: archivo binario (sin vista de contenido).</p></div>
+            <div class="empty"><p class="muted">{t('changes.binary', { path: selected.path })}</p></div>
           {:else if selected.truncated || !selected.patch}
             <div class="empty">
-              <p class="muted">{selected.path}: sin contenido {selected.truncated ? '(límite de tamaño del diff)' : '(solo cambio de modo o renombrado)'}.</p>
+              <p class="muted">
+                {selected.truncated ? t('changes.noContentLimit', { path: selected.path }) : t('changes.noContentMode', { path: selected.path })}
+              </p>
             </div>
           {:else}
             {@html rendered}
@@ -556,7 +559,8 @@
     white-space: nowrap;
     padding: 1px 0;
   }
-  code {
+  code,
+  .confirm :global(code) {
     font-family: var(--mono);
     font-size: 11px;
     color: var(--blue);

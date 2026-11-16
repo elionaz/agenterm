@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/elionaz/agenterm/internal/apierr"
 	"github.com/elionaz/agenterm/internal/gitx"
 	"github.com/elionaz/agenterm/internal/project"
 	"github.com/elionaz/agenterm/internal/protocol"
@@ -56,7 +57,7 @@ func (s *Server) worktreeRoot() (string, error) {
 			d = filepath.Join(home, rest)
 		}
 		if !filepath.IsAbs(d) {
-			return "", fmt.Errorf("git.worktree_dir debe ser una ruta absoluta: %q", d)
+			return "", fmt.Errorf("git.worktree_dir must be an absolute path: %q", d)
 		}
 		root = d
 	}
@@ -87,7 +88,8 @@ func (s *Server) createWorktree(proj project.Project, profileID, id, branch, bas
 	ctx, cancel := context.WithTimeout(s.bg, gitActionTO)
 	defer cancel()
 	if !gitx.IsRepo(ctx, proj.Path) {
-		return worktree.Record{}, "", fmt.Errorf("el proyecto %s no es un repositorio git: el modo worktree no está disponible", proj.Name)
+		return worktree.Record{}, "", apierr.New(apierr.NotARepo, map[string]any{"dir": proj.Path, "project": proj.Name},
+			"project %s is not a git repository: worktree mode is not available", proj.Name)
 	}
 	top, err := gitx.RepoRoot(ctx, proj.Path)
 	if err != nil {
@@ -358,11 +360,11 @@ func (s *Server) projectGit(p protocol.ProjectGitParams) (protocol.ProjectGit, e
 	defer cancel()
 	out := protocol.ProjectGit{Branches: []string{}}
 	if !gitx.Available() {
-		out.Error = "git no está instalado"
+		out.Error, out.ErrorCode = "git is not installed", apierr.GitMissing
 		return out, nil
 	}
 	if !gitx.IsRepo(ctx, proj.Path) {
-		out.Error = "el proyecto no es un repositorio git"
+		out.Error, out.ErrorCode = "the project is not a git repository", apierr.NotARepo
 		return out, nil
 	}
 	out.IsRepo = true
@@ -373,7 +375,7 @@ func (s *Server) projectGit(p protocol.ProjectGitParams) (protocol.ProjectGit, e
 		out.Branches = bs
 	}
 	if !gitx.HasCommits(ctx, proj.Path) {
-		out.Error = "el repositorio no tiene commits todavía"
+		out.Error, out.ErrorCode = "the repository has no commits yet", apierr.NoCommits
 	}
 	return out, nil
 }
@@ -388,7 +390,7 @@ func (s *Server) diff(p protocol.DiffParams) (protocol.DiffResult, error) {
 			if _, err := s.lookup(p.SessionID); err != nil {
 				return protocol.DiffResult{}, err
 			}
-			return protocol.DiffResult{}, errors.New("la sesión no tiene información de git")
+			return protocol.DiffResult{}, errors.New("the session has no git information")
 		}
 		g = *sg
 	case p.WorktreeID != "":
@@ -398,15 +400,15 @@ func (s *Server) diff(p protocol.DiffParams) (protocol.DiffResult, error) {
 		}
 		g = recGit(rec)
 	default:
-		return protocol.DiffResult{}, errors.New("falta sessionId o worktreeId")
+		return protocol.DiffResult{}, errors.New("missing sessionId or worktreeId")
 	}
 	if _, err := os.Stat(g.Dir); err != nil {
-		return protocol.DiffResult{}, fmt.Errorf("la carpeta ya no existe: %s", g.Dir)
+		return protocol.DiffResult{}, apierr.New(apierr.DirMissing, map[string]any{"dir": g.Dir}, "the folder no longer exists: %s", g.Dir)
 	}
 	ctx, cancel := context.WithTimeout(s.bg, gitActionTO)
 	defer cancel()
 	if !gitx.IsRepo(ctx, g.Dir) {
-		return protocol.DiffResult{}, fmt.Errorf("%s no es un repositorio git", g.Dir)
+		return protocol.DiffResult{}, apierr.New(apierr.NotARepo, map[string]any{"dir": g.Dir}, "%s is not a git repository", g.Dir)
 	}
 	res := protocol.DiffResult{Mode: g.Mode, Dir: g.Dir, WorktreeID: g.WorktreeID, Branch: g.Branch, Base: g.Base, Commits: []gitx.Commit{}}
 	opts := gitx.DiffOptions{StatOnly: p.Stat}
@@ -608,7 +610,8 @@ func (s *Server) worktreeRemove(p protocol.WorktreeRemoveParams) (protocol.Workt
 		return protocol.WorktreeRemoveResult{Loss: loss}, err
 	}
 	if sid := s.liveSessionIn(rec.ID); sid != "" {
-		return protocol.WorktreeRemoveResult{}, fmt.Errorf("la sesión %s sigue viva en este worktree: termínala antes de borrarlo", sid)
+		return protocol.WorktreeRemoveResult{}, apierr.New(apierr.WorktreeLive, map[string]any{"sessionId": sid},
+			"session %s is still running in this worktree: stop it before removing the worktree", sid)
 	}
 	if err := gitx.RemoveWorktree(ctx, rec.Repo, rec.Path, rec.Branch, opts); err != nil {
 		var le *gitx.LossError
@@ -667,10 +670,10 @@ func (s *Server) worktreeOpen(p protocol.WorktreeOpenParams) (map[string]any, er
 			dir = g.Dir
 		}
 	default:
-		return nil, errors.New("falta id o sessionId")
+		return nil, errors.New("missing id or sessionId")
 	}
 	if _, err := os.Stat(dir); err != nil {
-		return nil, fmt.Errorf("la carpeta ya no existe: %s", dir)
+		return nil, apierr.New(apierr.DirMissing, map[string]any{"dir": dir}, "the folder no longer exists: %s", dir)
 	}
 	st, _ := settings.Load(s.cfg.Paths.Settings())
 	path := s.detector.Path()

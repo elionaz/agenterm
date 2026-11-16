@@ -84,7 +84,7 @@ func (a *App) onDaemonEvent(e protocol.Event) {
 		// unread, no sound (WantsSound is false for "stall").
 		if e.StallRaised {
 			e.AttentionKind = "stall"
-			e.AttentionMessage = desktopnotify.StallBody(e.Activity, e.LastOutputAt, e.LastEventAt, e.StalledAt)
+			e.AttentionMessage = "" // rendered by notify, in the UI language
 			a.notify(e)
 		}
 		return
@@ -130,11 +130,17 @@ func (a *App) notify(e protocol.Event) {
 	if !st.Notify.ShouldNotify(e.AttentionKind) {
 		return
 	}
+	// settings.yaml is re-read per notification: a ui.language change
+	// applies right away. Agent-provided messages stay verbatim.
+	lang := st.UI.Lang()
+	if e.AttentionKind == "stall" && e.AttentionMessage == "" {
+		e.AttentionMessage = desktopnotify.StallEventBody(lang, e)
+	}
 	n := note{
 		SessionID: e.SessionID,
 		Kind:      e.AttentionKind,
 		Title:     desktopnotify.Title(e.ProjectName, e.ProfileID),
-		Body:      desktopnotify.Body(e.AttentionKind, e.AttentionMessage),
+		Body:      desktopnotify.Body(lang, e.AttentionKind, e.AttentionMessage),
 		Sound:     st.Notify.WantsSound(e.AttentionKind),
 	}
 	go func() {

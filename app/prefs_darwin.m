@@ -15,6 +15,8 @@
 
 static AgtPrefsTarget *agtPrefsTarget;
 static const NSInteger agtPrefsTag = 0x61677470;
+// The item's title; only touched on the main queue.
+static NSString *agtPrefsTitle = @"Preferences…";
 
 // The menu bar is built asynchronously by Wails: retry for a few seconds.
 static void agtInsertPreferences(int attempts) {
@@ -28,13 +30,15 @@ static void agtInsertPreferences(int attempts) {
 		}
 		return;
 	}
-	if ([appMenu indexOfItemWithTag:agtPrefsTag] >= 0) {
+	NSInteger existing = [appMenu indexOfItemWithTag:agtPrefsTag];
+	if (existing >= 0) {
+		[[appMenu itemAtIndex:existing] setTitle:agtPrefsTitle];
 		return;
 	}
 	if (agtPrefsTarget == nil) {
 		agtPrefsTarget = [AgtPrefsTarget new];
 	}
-	NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Preferencias…" action:@selector(openPreferences:) keyEquivalent:@","];
+	NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:agtPrefsTitle action:@selector(openPreferences:) keyEquivalent:@","];
 	item.keyEquivalentModifierMask = NSEventModifierFlagCommand;
 	item.target = agtPrefsTarget;
 	item.tag = agtPrefsTag;
@@ -44,8 +48,30 @@ static void agtInsertPreferences(int attempts) {
 	[appMenu insertItem:[NSMenuItem separatorItem] atIndex:at + 1];
 }
 
-void agtInstallPreferencesItem(void) {
+void agtInstallPreferencesItem(const char *title) {
+	NSString *t = [NSString stringWithUTF8String:title];
 	dispatch_async(dispatch_get_main_queue(), ^{
+		if (t.length > 0) {
+			agtPrefsTitle = t;
+		}
 		agtInsertPreferences(25);
+	});
+}
+
+// agtSetPreferencesTitle retitles the item (or sets the title it will get
+// once inserted).
+void agtSetPreferencesTitle(const char *title) {
+	NSString *t = [NSString stringWithUTF8String:title];
+	dispatch_async(dispatch_get_main_queue(), ^{
+		if (t.length == 0) {
+			return;
+		}
+		agtPrefsTitle = t;
+		NSMenu *bar = [NSApp mainMenu];
+		NSMenu *appMenu = bar.numberOfItems > 0 ? [[bar itemAtIndex:0] submenu] : nil;
+		NSInteger i = appMenu ? [appMenu indexOfItemWithTag:agtPrefsTag] : -1;
+		if (i >= 0) {
+			[[appMenu itemAtIndex:i] setTitle:t];
+		}
 	});
 }

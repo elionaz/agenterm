@@ -26,7 +26,7 @@ func OpenArgv(target, editor, dir string, look func(string) (string, error)) ([]
 		return []string{"open", dir}, nil
 	case OpenEditor, "":
 	default:
-		return nil, fmt.Errorf("destino desconocido %q (editor o finder)", target)
+		return nil, fmt.Errorf("unknown target %q (editor or finder)", target)
 	}
 	editor = strings.TrimSpace(editor)
 	if editor == "" {
@@ -43,7 +43,7 @@ func OpenArgv(target, editor, dir string, look func(string) (string, error)) ([]
 		return append(append([]string{p}, f[1:]...), dir), nil
 	}
 	if strings.HasPrefix(editor, "/") {
-		return nil, fmt.Errorf("no se encuentra el editor %q", editor)
+		return nil, fmt.Errorf("editor not found: %q", editor)
 	}
 	// Not a command: an application name ("Visual Studio Code").
 	return []string{"open", "-a", editor, dir}, nil

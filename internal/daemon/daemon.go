@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/desktopnotify"
+	"github.com/elionaz/agenterm/internal/apierr"
 	"github.com/elionaz/agenterm/internal/paths"
 	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/project"
@@ -292,6 +292,12 @@ func writeResponse(conn net.Conn, id uint64, result any, err error) error {
 	resp := protocol.Response{ID: id}
 	if err != nil {
 		resp.Error = err.Error()
+		if code, data, ok := apierr.Code(err); ok {
+			resp.ErrorCode = code
+			if data != nil {
+				resp.ErrorData, _ = json.Marshal(data)
+			}
+		}
 	} else if result != nil {
 		b, merr := json.Marshal(result)
 		if merr != nil {
@@ -383,6 +389,7 @@ func timePtr(t time.Time) *time.Time {
 func liveInfo(l session.Live, t status.Timers) protocol.Live {
 	out := timersInfo(t)
 	out.Activity, out.ActivitySource, out.ActivityAt = l.Activity, l.ActivitySource, timePtr(l.ActivityAt)
+	out.ActivityKind, out.ActivityTarget = l.ActivityKind, l.ActivityTarget
 	if l.Progress.State != termsig.ProgressNone {
 		out.Progress = &protocol.Progress{State: l.Progress.State.String(), Value: l.Progress.Value}
 	}
@@ -420,10 +427,10 @@ func (s *Server) publishActivity(sess *session.Session, stallRaised bool) {
 	}
 }
 
-// stallEvent shapes a stall for the notification path (kind "stall").
+// stallEvent shapes a stall for the notification path (kind "stall"; the
+// body is rendered at notify time, in the configured language).
 func stallEvent(ev protocol.Event) protocol.Event {
 	ev.AttentionKind = "stall"
-	ev.AttentionMessage = desktopnotify.StallBody(ev.Activity, ev.LastOutputAt, ev.LastEventAt, ev.StalledAt)
 	return ev
 }
 

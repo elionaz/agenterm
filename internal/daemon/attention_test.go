@@ -127,6 +127,10 @@ func TestTerminalSignalsRaiseAttention(t *testing.T) {
 	if info := findSession(t, c, sess.ID); info.State != "waiting_input" {
 		t.Fatalf("terminal reply ended the wait: %+v", info)
 	}
+	// settings.yaml is read per notification: no restart needed.
+	if err := os.WriteFile(p.Settings(), []byte("ui:\n  language: en\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	st.Input([]byte("x\n"))
 	waitEvent(t, evc, "running after input", func(e protocol.Event) bool { return isMine(e) && e.State == "running" })
 	e = waitEvent(t, evc, "BEL attention", func(e protocol.Event) bool { return isMine(e) && e.Raised })
@@ -135,7 +139,7 @@ func TestTerminalSignalsRaiseAttention(t *testing.T) {
 	}
 	select {
 	case n := <-notes:
-		if n.Body != "Está esperando tu respuesta" {
+		if n.Body != "Waiting for your answer" {
 			t.Fatalf("fallback body %q", n.Body)
 		}
 	case <-time.After(3 * time.Second):

@@ -114,6 +114,10 @@ export function SpawnIn(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['SpawnIn'](arg1, arg2, arg3, arg4, arg5);
 }
 
+export function SystemLanguage() {
+  return window['go']['main']['App']['SystemLanguage']();
+}
+
 export function Tail(arg1, arg2) {
   return window['go']['main']['App']['Tail'](arg1, arg2);
 }

@@ -3,8 +3,9 @@
   // and the last lines of output (plain text from session.tail — no xterm).
   import { onDestroy, onMount } from 'svelte'
   import { EventsOn } from '../../wailsjs/runtime/runtime'
-  import { api, attentionLabel, changesLabel, needsAttention, type DaemonEvent, type Project, type Session } from './api'
-  import { progressOf, timerInfo } from './activity'
+  import { api, changesLabel, needsAttention, type DaemonEvent, type Project, type Session } from './api'
+  import { activityText, progressOf, stateLabel, timerInfo } from './activity'
+  import { t } from './i18n.svelte'
   import ProgressBar from './ProgressBar.svelte'
 
   interface Props {
@@ -31,7 +32,7 @@
   const shown = $derived(
     allProjects || !projectId ? sessions : sessions.filter((s) => s.projectId === projectId),
   )
-  const title = $derived(allProjects || !projectId ? 'Todas las sesiones' : projectName(projectId))
+  const title = $derived(allProjects || !projectId ? t('grid.allSessions') : projectName(projectId))
 
   // Tail refresh: sessions with news are marked dirty and fetched at most
   // every TAIL_EVERY ms.
@@ -66,21 +67,6 @@
     if (ev.type === 'session.activity' || ev.type === 'session.state') dirty.add(ev.sessionId)
   }
 
-  function stateLabel(s: Session): string {
-    if (needsAttention(s)) return attentionLabel(s.attentionKind)
-    switch (s.state) {
-      case 'running':
-        return 'trabajando'
-      case 'waiting_input':
-        return 'esperando'
-      case 'idle':
-        return 'inactivo'
-      case 'exited':
-        return s.exitCode != null ? `exit ${s.exitCode}` : 'terminado'
-    }
-    return s.state
-  }
-
   function badgeClass(s: Session): string {
     if (s.state === 'exited') return s.exitCode ? 'exited fail' : 'exited'
     if (needsAttention(s)) return `attention ${s.attentionKind}`
@@ -113,16 +99,16 @@
 <div class="grid-view">
   <header class="head">
     <span class="title">{title}</span>
-    <span class="count">{shown.length} {shown.length === 1 ? 'sesión' : 'sesiones'}</span>
+    <span class="count">{t('grid.count', { n: shown.length })}</span>
     <label class="toggle">
       <input type="checkbox" bind:checked={allProjects} />
-      todos los proyectos
+      {t('grid.allProjects')}
     </label>
-    <button class="close" title="Cerrar (Esc / ⌘0)" onclick={onClose}>×</button>
+    <button class="close" title={t('grid.close')} onclick={onClose}>×</button>
   </header>
 
   {#if shown.length === 0}
-    <div class="empty">Sin sesiones{allProjects || !projectId ? '' : ' en este proyecto'}.</div>
+    <div class="empty">{allProjects || !projectId ? t('grid.empty') : t('grid.emptyProject')}</div>
   {:else}
     <div class="cards">
       {#each shown as s (s.id)}
@@ -131,7 +117,7 @@
         <button
           class="card {badgeClass(s)}"
           class:selected={s.id === selectedId}
-          title={s.activity ?? ''}
+          title={activityText(s)}
           onclick={() => onOpen(s.id)}
         >
           <div class="card-head">
@@ -150,7 +136,7 @@
           {#if s.attentionKind && s.state !== 'exited' && s.attentionMessage}
             <div class="attn {s.attentionKind}">{s.attentionMessage}</div>
           {/if}
-          <div class="activity">{s.state !== 'exited' ? (s.activity ?? '') : ''}&nbsp;</div>
+          <div class="activity">{s.state !== 'exited' ? activityText(s) : ''}&nbsp;</div>
           <div class="timer" class:stalled={timer.stalled}>{timer.text}&nbsp;</div>
           {#if prog}<ProgressBar progress={prog} />{/if}
           <pre class="tail">{(tails[s.id] ?? []).join('\n')}</pre>

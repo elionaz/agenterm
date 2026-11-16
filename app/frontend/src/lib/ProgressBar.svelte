@@ -1,11 +1,12 @@
 <script lang="ts">
   import { progressLabel } from './activity'
   import type { Progress } from './api'
+  import { t } from './i18n.svelte'
 
   let { progress, thick = false }: { progress: Progress; thick?: boolean } = $props()
 </script>
 
-<div class="bar {progress.state}" class:thick title={`Progreso: ${progressLabel(progress)}`}>
+<div class="bar {progress.state}" class:thick title={t('progress.title', { label: progressLabel(progress) })}>
   <div class="fill" style:width={progress.state === 'indeterminate' ? undefined : `${progress.value}%`}></div>
 </div>
 

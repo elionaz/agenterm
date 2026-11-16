@@ -31,6 +31,8 @@ const (
 // Live is a snapshot of what a session is doing.
 type Live struct {
 	Activity       string
+	ActivityKind   string // structured hook activity (protocol.Live)
+	ActivityTarget string
 	ActivityAt     time.Time
 	ActivitySource string
 	Progress       termsig.Progress
@@ -50,11 +52,11 @@ type tracker struct {
 }
 
 // setHook records activity reported by a hook. It reports a change.
-func (t *tracker) setHook(text string, now time.Time) bool {
+func (t *tracker) setHook(text, kind, target string, now time.Time) bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.hookSeen = true
-	return t.setLocked(text, ActivityHook, now)
+	return t.setLocked(text, kind, target, ActivityHook, now)
 }
 
 // setOutput records the output-derived line, unless hooks report activity.
@@ -64,14 +66,15 @@ func (t *tracker) setOutput(text string, now time.Time) bool {
 	if t.hookSeen || text == "" {
 		return false
 	}
-	return t.setLocked(text, ActivityOutput, now)
+	return t.setLocked(text, "", "", ActivityOutput, now)
 }
 
-func (t *tracker) setLocked(text, src string, now time.Time) bool {
-	if text == "" || (text == t.live.Activity && src == t.live.ActivitySource) {
+func (t *tracker) setLocked(text, kind, target, src string, now time.Time) bool {
+	if text == "" || (text == t.live.Activity && src == t.live.ActivitySource && kind == t.live.ActivityKind && target == t.live.ActivityTarget) {
 		return false
 	}
 	t.live.Activity, t.live.ActivitySource, t.live.ActivityAt = text, src, now
+	t.live.ActivityKind, t.live.ActivityTarget = kind, target
 	t.dirty = true
 	return true
 }

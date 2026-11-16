@@ -5,6 +5,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/elionaz/agenterm/internal/apierr"
 	"github.com/elionaz/agenterm/internal/peercred"
 	"github.com/elionaz/agenterm/internal/protocol"
 	"github.com/elionaz/agenterm/internal/session"
@@ -50,14 +51,17 @@ func (s *Server) liveSessions() []*session.Session {
 
 func liveSessionsError(live []*session.Session) error {
 	names := make([]string, len(live))
+	list := make([]map[string]string, len(live))
 	for i, sess := range live {
 		names[i] = sess.ID + " (" + sess.ProfileID + ")"
+		list[i] = map[string]string{"id": sess.ID, "profileId": sess.ProfileID}
 	}
-	what := fmt.Sprintf("hay %d sesiones activas", len(live))
+	what := fmt.Sprintf("%d live sessions", len(live))
 	if len(live) == 1 {
-		what = "hay 1 sesión activa"
+		what = "1 live session"
 	}
-	return fmt.Errorf("%s: %s; usa --force para cerrarlas", what, strings.Join(names, ", "))
+	return apierr.New(apierr.LiveSessions, map[string]any{"count": len(live), "sessions": list},
+		"%s: %s; use --force to stop them", what, strings.Join(names, ", "))
 }
 
 // peerAttrs identifies the process behind conn for the log: pid, parent

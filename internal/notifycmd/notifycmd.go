@@ -118,7 +118,7 @@ func runHook(agent, id, sock string, rest []string, stdin io.Reader) error {
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
 	_, err = send(ctx, sock, protocol.NotifyParams{SessionID: id, State: string(ev.State), Kind: string(ev.Kind), Message: ev.Message,
-		Activity: ev.Activity, Turn: ev.Turn})
+		Activity: ev.Activity, ActivityKind: ev.ActivityKind, ActivityTarget: ev.ActivityTarget, Turn: ev.Turn})
 	return err
 }
 

@@ -3,6 +3,7 @@ package daemon_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"log/slog"
 	"os"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/elionaz/agenterm/internal/apierr"
 	"github.com/elionaz/agenterm/internal/client"
 	"github.com/elionaz/agenterm/internal/daemon"
 	"github.com/elionaz/agenterm/internal/paths"
@@ -102,9 +104,15 @@ func TestShutdownRefusesLiveSessionsUnlessForced(t *testing.T) {
 	if err == nil || !client.IsRemote(err) {
 		t.Fatalf("shutdown without force: %v", err)
 	}
-	want := "hay 1 sesión activa: " + sess.ID + " (cat); usa --force para cerrarlas"
+	want := "1 live session: " + sess.ID + " (cat); use --force to stop them"
 	if err.Error() != want {
 		t.Fatalf("error %q, want %q", err, want)
+	}
+	code, data, _ := apierr.Code(err)
+	raw, _ := data.(json.RawMessage)
+	if code != apierr.LiveSessions || !strings.Contains(string(raw), `"count":1`) ||
+		!strings.Contains(string(raw), `"profileId":"cat"`) {
+		t.Fatalf("code %q data %s", code, raw)
 	}
 	if err := c.Ping(ctx); err != nil {
 		t.Fatalf("daemon went down after a refused shutdown: %v", err)

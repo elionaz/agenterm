@@ -16,6 +16,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/elionaz/agenterm/internal/apierr"
 )
 
 // DefaultTimeout bounds a single git invocation when ctx has no deadline.
@@ -26,7 +28,7 @@ const DefaultTimeout = 15 * time.Second
 const EmptyTree = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 
 // ErrNotRepo is returned when a directory is not inside a git work tree.
-var ErrNotRepo = errors.New("no es un repositorio git")
+var ErrNotRepo = errors.New("not a git repository")
 
 // Error is a failed git invocation.
 type Error struct {
@@ -174,7 +176,7 @@ func MainWorktree(ctx context.Context, dir string) (string, error) {
 		return "", err
 	}
 	if len(wts) == 0 || wts[0].Bare {
-		return "", errors.New("el repositorio no tiene una carpeta de trabajo principal (¿bare?)")
+		return "", errors.New("the repository has no main work tree (bare?)")
 	}
 	return wts[0].Path, nil
 }
@@ -219,14 +221,14 @@ func DefaultBase(ctx context.Context, dir string) (string, error) {
 			return b, nil
 		}
 	}
-	return "", errors.New("no se encuentra la rama base (HEAD separado y sin main/master): indica una base")
+	return "", apierr.New(apierr.BaseMissing, map[string]any{"base": ""}, "cannot find the base branch (detached HEAD and no main/master): pass a base")
 }
 
 // ResolveCommit returns the commit hash rev points to.
 func ResolveCommit(ctx context.Context, dir, rev string) (string, error) {
 	out, err := git(ctx, dir, "rev-parse", "--verify", "--quiet", "--end-of-options", rev+"^{commit}")
 	if err != nil || out == "" {
-		return "", fmt.Errorf("la base %q no existe en el repositorio", rev)
+		return "", apierr.New(apierr.BaseMissing, map[string]any{"base": rev}, "base %q does not exist in the repository", rev)
 	}
 	return out, nil
 }

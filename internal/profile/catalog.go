@@ -43,18 +43,18 @@ func (c CatalogEntry) command(look Lookup) string {
 var catalog = []CatalogEntry{
 	{ID: "claude", Name: "Claude Code", Binaries: []string{"claude"}, Status: status.ModeHooks, SetupHooks: "claude",
 		Homepage: "https://docs.claude.com/en/docs/claude-code",
-		Install:  "curl -fsSL https://claude.ai/install.sh | bash   (o npm i -g @anthropic-ai/claude-code)"},
+		Install:  "curl -fsSL https://claude.ai/install.sh | bash   (or npm i -g @anthropic-ai/claude-code)"},
 	// codex reports turn ends via `notify` but has no per-invocation hook
 	// for "working again", so the heuristic stays in charge of running.
 	{ID: "codex", Name: "Codex CLI", Binaries: []string{"codex"}, Status: status.ModeHeuristic, SetupHooks: "codex",
 		Homepage: "https://github.com/openai/codex",
-		Install:  "npm i -g @openai/codex   (o brew install --cask codex)"},
+		Install:  "npm i -g @openai/codex   (or brew install --cask codex)"},
 	{ID: "opencode", Name: "opencode", Binaries: []string{"opencode"}, Status: status.ModeHeuristic,
 		Homepage: "https://opencode.ai",
-		Install:  "curl -fsSL https://opencode.ai/install | bash   (o brew install sst/tap/opencode)"},
+		Install:  "curl -fsSL https://opencode.ai/install | bash   (or brew install sst/tap/opencode)"},
 	{ID: "gemini", Name: "Gemini CLI", Binaries: []string{"gemini"}, Status: status.ModeHeuristic,
 		Homepage: "https://github.com/google-gemini/gemini-cli",
-		Install:  "npm i -g @google/gemini-cli   (o brew install gemini-cli)"},
+		Install:  "npm i -g @google/gemini-cli   (or brew install gemini-cli)"},
 	{ID: "cursor-agent", Name: "Cursor CLI", Binaries: []string{"cursor-agent"}, Status: status.ModeHeuristic,
 		Homepage: "https://cursor.com/cli",
 		Install:  "curl https://cursor.com/install -fsS | bash"},

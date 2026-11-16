@@ -14,7 +14,8 @@
     type SpawnOptions,
     type WorktreeInfo,
   } from './api'
-  import { progressOf, shortTimer } from './activity'
+  import { activityText, progressOf, shortTimer, stateLabel } from './activity'
+  import { hasKey, t } from './i18n.svelte'
   import ProgressBar from './ProgressBar.svelte'
 
   interface Props {
@@ -79,22 +80,6 @@
     return m
   })
 
-  function stateLabel(s: Session): string {
-    if (needsAttention(s)) return attentionLabel(s.attentionKind)
-    switch (s.state) {
-      case 'running':
-        return 'trabajando'
-      case 'waiting_input':
-        return 'esperando'
-      case 'idle':
-        return 'inactivo'
-      case 'exited':
-        return s.exitCode != null ? `exit ${s.exitCode}` : 'terminado'
-      default:
-        return s.state
-    }
-  }
-
   function badgeClass(s: Session): string {
     if (s.state === 'exited') return s.exitCode ? 'exited fail' : 'exited'
     if (needsAttention(s)) return `${s.state} attention ${s.attentionKind}`
@@ -103,7 +88,7 @@
 
   function tooltip(s: Session): string {
     let base = `${s.cmd} · ${s.cwd} · ${s.id}`
-    if (s.activity) base = `${s.activity}\n${base}`
+    if (s.activity) base = `${activityText(s)}\n${base}`
     if (!s.attentionKind || s.state === 'exited') return base
     const what = attentionLabel(s.attentionKind)
     return `${what}${s.attentionMessage ? `: ${s.attentionMessage}` : ''}\n${base}`
@@ -122,7 +107,7 @@
     void api
       .projectGit(projectId)
       .then((g) => menuFor === projectId && (projGit = g))
-      .catch(() => menuFor === projectId && (projGit = { isRepo: false, branches: [], error: 'git no disponible' }))
+      .catch(() => menuFor === projectId && (projGit = { isRepo: false, branches: [], error: t('git.unavailable') }))
     void api
       .getSettings()
       .then((st) => (defaultMode = st.git?.defaultMode === 'worktree' ? 'worktree' : 'same'))
@@ -168,10 +153,19 @@
   }
 
   function branchTitle(s: Session): string {
-    let t = `Worktree en la rama ${s.branch}`
-    if (s.base) t += ` (desde ${s.base})`
-    if (s.git) t += `\n${s.git.files} archivos cambiados · ${s.git.uncommitted} sin commitear · ${s.git.ahead} commits por delante`
-    return t
+    let out = t('sidebar.worktreeOn', { branch: s.branch ?? '' })
+    if (s.base) out += t('sidebar.worktreeFrom', { base: s.base })
+    if (s.git) {
+      out += `\n${t('sidebar.filesChanged', { n: s.git.files })} · ${t('git.uncommitted', { n: s.git.uncommitted })} · ${t('git.commitsAhead', { n: s.git.ahead })}`
+    }
+    return out
+  }
+
+  /** Why worktrees are unavailable, in the UI language when known. */
+  function gitReason(g: ProjectGit | null): string {
+    const key = `git.${g?.errorCode ?? ''}`
+    if (g?.errorCode && hasKey(key)) return t(key)
+    return g?.error || t('git.not_a_repo')
   }
 </script>
 
@@ -179,7 +173,7 @@
 
 <aside class="sidebar">
   <div class="titlebar drag">
-    <button class="icon grid-btn" title="Vista general (⌘0)" aria-label="Vista general" onclick={() => onOpenGrid()}>▦</button>
+    <button class="icon grid-btn" title={t('sidebar.overview')} aria-label={t('sidebar.overviewLabel')} onclick={() => onOpenGrid()}>▦</button>
     <span class="brand">agenterm</span>
   </div>
 
@@ -194,7 +188,7 @@
           <button
             class="chevron"
             class:closed={collapsed[p.id]}
-            aria-label={collapsed[p.id] ? 'Expandir' : 'Contraer'}
+            aria-label={collapsed[p.id] ? t('sidebar.expand') : t('sidebar.collapse')}
             onclick={(e) => {
               e.stopPropagation()
               collapsed[p.id] = !collapsed[p.id]
@@ -202,20 +196,20 @@
           >
           <span class="project-name">{p.name}</span>
           {#if pending}
-            <span class="attn-count" title={`${pending} ${pending === 1 ? 'sesión necesita' : 'sesiones necesitan'} tu atención`}
+            <span class="attn-count" title={t('sidebar.needAttention', { n: pending })}
               >{pending}</span
             >
           {:else if list.length}<span class="count">{list.length}</span>{/if}
           <span class="row-actions">
-            <button class="icon" title="Vista general del proyecto (⌘0)" onclick={(e) => {
+            <button class="icon" title={t('sidebar.projectOverview')} onclick={(e) => {
               e.stopPropagation()
               onOpenGrid(p.id)
             }}>▦</button>
-            <button class="icon" title="Quitar proyecto (no borra archivos)" onclick={(e) => {
+            <button class="icon" title={t('sidebar.removeProject')} onclick={(e) => {
               e.stopPropagation()
               onRemoveProject(p.id)
             }}>−</button>
-            <button class="icon" title="Nueva sesión" onclick={(e) => toggleMenu(p.id, e)}>+</button>
+            <button class="icon" title={t('sidebar.newSession')} onclick={(e) => toggleMenu(p.id, e)}>+</button>
           </span>
           {#if menuFor === p.id}
             <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -228,7 +222,7 @@
                     <span class="menu-cmd">{prof.id}</span>
                   </button>
                 {:else}
-                  <div class="menu-empty">Sin agentes disponibles</div>
+                  <div class="menu-empty">{t('sidebar.noAgents')}</div>
                 {/each}
                 <div class="menu-sep"></div>
                 <button
@@ -236,7 +230,7 @@
                   onclick={() => {
                     closeMenu()
                     onOpenSettings()
-                  }}><span>Elegir agentes…</span><span class="menu-cmd">⌘,</span></button
+                  }}><span>{t('sidebar.chooseAgents')}</span><span class="menu-cmd">⌘,</span></button
                 >
               {:else}
                 <form
@@ -247,41 +241,41 @@
                   }}
                 >
                   <div class="spawn-head">
-                    <button type="button" class="icon back" title="Volver" onclick={() => (picked = null)}>‹</button>
+                    <button type="button" class="icon back" title={t('sidebar.back')} onclick={() => (picked = null)}>‹</button>
                     <b>{picked.name || picked.id}</b>
                   </div>
                   <label class="opt">
                     <input type="radio" bind:group={mode} value="same" />
-                    <span><b>Misma carpeta</b><em>{p.path}</em></span>
+                    <span><b>{t('sidebar.sameFolder')}</b><em>{p.path}</em></span>
                   </label>
                   <label
                     class="opt"
                     class:disabled={!canWorktree}
-                    title={!projGit ? 'Comprobando el repositorio…' : canWorktree ? '' : `No disponible: ${projGit.error ?? 'no es un repositorio git'}`}
+                    title={!projGit ? t('sidebar.checkingRepo') : canWorktree ? '' : t('sidebar.unavailable', { reason: gitReason(projGit) })}
                   >
                     <input type="radio" bind:group={mode} value="worktree" disabled={!canWorktree} />
                     <span
-                      ><b>Worktree nuevo</b><em
-                        >{!projGit ? 'comprobando git…' : canWorktree ? 'rama propia, carpeta aparte' : (projGit.error ?? 'no es un repositorio git')}</em
+                      ><b>{t('sidebar.newWorktree')}</b><em
+                        >{!projGit ? t('sidebar.checkingGit') : canWorktree ? t('sidebar.ownBranch') : gitReason(projGit)}</em
                       ></span
                     >
                   </label>
                   {#if mode === 'worktree' && canWorktree}
                     <label class="fld">
-                      <span>Rama</span>
+                      <span>{t('sidebar.branch')}</span>
                       <input bind:value={branch} spellcheck="false" placeholder="agent/…" />
                     </label>
                     <label class="fld">
-                      <span>Base</span>
+                      <span>{t('sidebar.base')}</span>
                       <select bind:value={base}>
                         {#each projGit?.branches ?? [] as b (b)}
-                          <option value={b}>{b}{b === projGit?.currentBranch ? ' (actual)' : ''}</option>
+                          <option value={b}>{b}{b === projGit?.currentBranch ? t('sidebar.current') : ''}</option>
                         {/each}
                       </select>
                     </label>
                   {/if}
                   <div class="spawn-actions">
-                    <button type="submit" class="launch">Lanzar ↵</button>
+                    <button type="submit" class="launch">{t('sidebar.launch')}</button>
                   </div>
                 </form>
               {/if}
@@ -311,13 +305,13 @@
                       <span class="chip" title={branchTitle(s)}>⎇ {s.branch.replace(/^agent\//, '')}</span>
                     {/if}
                     {#if s.git && s.git.files > 0}
-                      <span class="changes" title={`${s.git.files} archivos cambiados`}>{changesLabel(s.git)}</span>
+                      <span class="changes" title={t('sidebar.filesChanged', { n: s.git.files })}>{changesLabel(s.git)}</span>
                     {/if}
                     <span class="state {badgeClass(s)}">{stateLabel(s)}</span>
                     {#if i < 9 && p.id === currentProjectId}<span class="kbd">⌘{i + 1}</span>{/if}
                     <button
                       class="icon kill"
-                      title={s.state === 'exited' ? 'Quitar de la lista' : 'Terminar sesión'}
+                      title={s.state === 'exited' ? t('sidebar.removeFromList') : t('sidebar.stopSession')}
                       onclick={(e) => {
                         e.stopPropagation()
                         onKill(s.id)
@@ -326,7 +320,7 @@
                   </div>
                   {#if (s.activity && s.state !== 'exited') || timer.text}
                     <div class="sub">
-                      <span class="activity">{s.state !== 'exited' ? (s.activity ?? '') : ''}</span>
+                      <span class="activity">{s.state !== 'exited' ? activityText(s) : ''}</span>
                       {#if timer.text}<span class="timer" class:stalled={timer.stalled}>{timer.text}</span>{/if}
                     </div>
                   {/if}
@@ -334,25 +328,25 @@
                 </div>
               </li>
             {:else}
-              <li class="no-sessions">Sin sesiones</li>
+              <li class="no-sessions">{t('sidebar.noSessions')}</li>
             {/each}
           </ul>
           {@const orphans = orphansOf(p.id)}
           {#if orphans.length}
             <div class="orphans">
-              <div class="orphans-title" title="Worktrees de agenterm sin sesión: su carpeta y su rama siguen ahí">
-                Worktrees huérfanos
+              <div class="orphans-title" title={t('sidebar.orphansTitle')}>
+                {t('sidebar.orphans')}
               </div>
               {#each orphans as w (w.id)}
-                <div class="orphan" title={`${w.path}\nrama ${w.branch} (desde ${w.base})`}>
+                <div class="orphan" title={t('sidebar.orphanTitle', { path: w.path, branch: w.branch, base: w.base })}>
                   <div class="line">
                     <span class="chip">⎇ {w.branch.replace(/^agent\//, '')}</span>
                     {#if w.git}<span class="changes">{changesLabel(w.git)}{#if w.git.ahead} ↑{w.git.ahead}{/if}</span>{/if}
                   </div>
                   <div class="orphan-actions">
-                    <button onclick={() => onOpenWorktree(w.id)}>Ver cambios</button>
-                    <button onclick={() => reopen(p.id, w)}>Abrir shell aquí</button>
-                    <button class="danger" onclick={() => onOpenWorktree(w.id, true)}>Eliminar</button>
+                    <button onclick={() => onOpenWorktree(w.id)}>{t('sidebar.viewChanges')}</button>
+                    <button onclick={() => reopen(p.id, w)}>{t('sidebar.openShell')}</button>
+                    <button class="danger" onclick={() => onOpenWorktree(w.id, true)}>{t('sidebar.remove')}</button>
                   </div>
                 </div>
               {/each}
@@ -364,8 +358,8 @@
   </div>
 
   <div class="footer">
-    <button class="add-project" onclick={onAddProject}>+ Proyecto</button>
-    <button class="gear" title="Ajustes (⌘,)" aria-label="Ajustes" onclick={onOpenSettings}>⚙</button>
+    <button class="add-project" onclick={onAddProject}>{t('sidebar.addProject')}</button>
+    <button class="gear" title={t('sidebar.settings')} aria-label={t('sidebar.settingsLabel')} onclick={onOpenSettings}>⚙</button>
   </div>
 </aside>
 

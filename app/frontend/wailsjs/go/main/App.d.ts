@@ -63,6 +63,8 @@ export function Spawn(arg1:string,arg2:string,arg3:number,arg4:number):Promise<p
 
 export function SpawnIn(arg1:string,arg2:string,arg3:number,arg4:number,arg5:main.SpawnOptions):Promise<protocol.SessionInfo>;
 
+export function SystemLanguage():Promise<string>;
+
 export function Tail(arg1:string,arg2:number):Promise<Array<string>>;
 
 export function TakePendingFocus():Promise<string>;

@@ -3,9 +3,13 @@
 package main
 
 /*
-void agtInstallPreferencesItem(void);
+#include <stdlib.h>
+void agtInstallPreferencesItem(const char *title);
+void agtSetPreferencesTitle(const char *title);
 */
 import "C"
+
+import "unsafe"
 
 var onPreferences func()
 
@@ -16,9 +20,19 @@ func agtPreferencesClicked() {
 	}
 }
 
-// installPreferencesMenu adds "Preferencias… ⌘," to the app menu that Wails
-// builds from menu.AppMenu() (whose items cannot be extended from Go).
-func installPreferencesMenu(f func()) {
+// installPreferencesMenu adds "Preferences… ⌘," (title) to the app menu
+// that Wails builds from menu.AppMenu() (whose items cannot be extended
+// from Go).
+func installPreferencesMenu(title string, f func()) {
 	onPreferences = f
-	C.agtInstallPreferencesItem()
+	cs := C.CString(title)
+	defer C.free(unsafe.Pointer(cs))
+	C.agtInstallPreferencesItem(cs)
+}
+
+// setPreferencesTitle retitles that item (UI language changed).
+func setPreferencesTitle(title string) {
+	cs := C.CString(title)
+	defer C.free(unsafe.Pointer(cs))
+	C.agtSetPreferencesTitle(cs)
 }

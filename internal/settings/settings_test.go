@@ -57,7 +57,7 @@ func TestSaveRoundTrip(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "settings.yaml")
 	os.WriteFile(p, []byte("notify:\n  sound: false\n"), 0o600)
 	want := Settings{Notify: Notify{Enabled: true, Sound: true, OnDone: false}, Activity: Activity{StallSeconds: 60},
-		Git: Git{Editor: "cursor -n", WorktreeDir: "~/wt", DefaultMode: ModeWorktree}}
+		Git: Git{Editor: "cursor -n", WorktreeDir: "~/wt", DefaultMode: ModeWorktree}, UI: UI{Language: "es"}}
 	if err := Save(p, want); err != nil {
 		t.Fatal(err)
 	}
@@ -151,5 +151,40 @@ func TestGitSettings(t *testing.T) {
 	}
 	if got, _ := Load(p); got.Git.DefaultMode != ModeSame {
 		t.Fatalf("saved mode = %q", got.Git.DefaultMode)
+	}
+}
+
+func TestUILanguage(t *testing.T) {
+	if d := Defaults(); d.UI.Language != "auto" {
+		t.Fatalf("default %q", d.UI.Language)
+	}
+	for in, want := range map[string]string{"en": "en", " ES ": "es", "auto": "auto", "fr": "auto", "": "auto"} {
+		s, err := Parse([]byte("ui:\n  language: \"" + in + "\"\n"))
+		if err != nil || s.UI.Language != want {
+			t.Errorf("parse %q: got %q %v", in, s.UI.Language, err)
+		}
+	}
+	// Saving edits ui.language in place, next to unknown ui keys.
+	p := filepath.Join(t.TempDir(), "settings.yaml")
+	os.WriteFile(p, []byte("ui:\n  theme: dark # mine\n  language: en\n"), 0o600)
+	want := Defaults()
+	want.UI.Language = "es"
+	if err := Save(p, want); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := Load(p); err != nil || got != want {
+		t.Fatalf("round trip: %+v %v", got, err)
+	}
+	data, _ := os.ReadFile(p)
+	if !strings.Contains(string(data), "theme: dark # mine") || !strings.Contains(string(data), "language: es") {
+		t.Fatalf("file:\n%s", data)
+	}
+	// Unknown values are written as auto.
+	want.UI.Language = "klingon"
+	if err := Save(p, want); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := Load(p); got.UI.Language != "auto" {
+		t.Fatalf("saved %q", got.UI.Language)
 	}
 }

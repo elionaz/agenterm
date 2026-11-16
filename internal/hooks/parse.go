@@ -11,6 +11,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/elionaz/agenterm/internal/i18n"
 	"github.com/elionaz/agenterm/internal/status"
 )
 
@@ -53,9 +54,10 @@ func parseClaude(data []byte) (status.Event, bool, error) {
 	}
 	switch p.HookEventName {
 	case "UserPromptSubmit":
-		return status.Event{State: status.Running, Turn: true, Activity: "Pensando…"}, true, nil
+		return withActivity(status.Event{State: status.Running, Turn: true}, i18n.ActThinking, ""), true, nil
 	case "PreToolUse":
-		return status.Event{State: status.Running, Activity: ToolActivity(p.ToolName, p.ToolInput)}, true, nil
+		kind, target := ToolActivityParts(p.ToolName, p.ToolInput)
+		return withActivity(status.Event{State: status.Running}, kind, target), true, nil
 	case "PostToolUse", "PostToolUseFailure":
 		return status.Event{State: status.Running}, true, nil
 	case "PermissionRequest":
@@ -87,13 +89,22 @@ func parseClaude(data []byte) (status.Event, bool, error) {
 const (
 	maxActivity = 120
 	maxCommand  = 60
+	maxTarget   = maxActivity - 16 // room for the verb
 )
 
-// ToolActivity describes a Claude Code tool call in Spanish for the
-// activity line: "Editando main.go", "Bash: go test ./...". Field names follow
-// the tool_input shapes of the hooks reference
-// (https://code.claude.com/docs/en/hooks#pretooluse-input).
+// ToolActivity describes a Claude Code tool call for the activity line,
+// in English (the canonical text): "Editing main.go", "Bash: go test ./...".
 func ToolActivity(tool string, input json.RawMessage) string {
+	kind, target := ToolActivityParts(tool, input)
+	return i18n.ActivityText(i18n.EN, kind, target)
+}
+
+// ToolActivityParts is the structured form of ToolActivity: an activity
+// kind (i18n.Act*) and its target (file name, command, pattern...), which
+// UIs render in their own language. Field names follow the tool_input
+// shapes of the hooks reference
+// (https://code.claude.com/docs/en/hooks#pretooluse-input).
+func ToolActivityParts(tool string, input json.RawMessage) (kind, target string) {
 	var in map[string]any
 	_ = json.Unmarshal(input, &in)
 	str := func(keys ...string) string {
@@ -104,47 +115,46 @@ func ToolActivity(tool string, input json.RawMessage) string {
 		}
 		return ""
 	}
-	with := func(verb, arg string) string {
-		if arg == "" {
-			return verb
-		}
-		return clipTo(verb+" "+arg, maxActivity)
-	}
+	arg := func(s string) string { return clipTo(s, maxTarget) }
 	switch tool {
 	case "Edit", "Write", "MultiEdit":
-		return with("Editando", base(str("file_path", "path")))
+		return i18n.ActEdit, arg(base(str("file_path", "path")))
 	case "NotebookEdit":
-		return with("Editando", base(str("notebook_path", "file_path")))
+		return i18n.ActEdit, arg(base(str("notebook_path", "file_path")))
 	case "Read":
-		return with("Leyendo", base(str("file_path", "path")))
+		return i18n.ActRead, arg(base(str("file_path", "path")))
 	case "Bash":
-		if c := str("command"); c != "" {
-			return "Bash: " + clipTo(c, maxCommand)
-		}
-		return "Bash"
+		return i18n.ActBash, clipTo(str("command"), maxCommand)
 	case "Grep", "Glob":
-		return with("Buscando", str("pattern"))
+		return i18n.ActSearch, arg(str("pattern"))
 	case "WebFetch":
 		u := str("url")
 		if pu, err := url.Parse(u); err == nil && pu.Host != "" {
 			u = pu.Host
 		}
-		return with("Web:", u)
+		return i18n.ActWeb, arg(u)
 	case "WebSearch":
-		return with("Web:", str("query"))
+		return i18n.ActWeb, arg(str("query"))
 	case "Task", "Agent":
-		return with("Subagente:", str("description", "subagent_type"))
+		return i18n.ActSubagent, arg(str("description", "subagent_type"))
 	case "TodoWrite":
-		return "Actualizando tareas"
+		return i18n.ActTodo, ""
 	}
 	if rest, ok := strings.CutPrefix(tool, "mcp__"); ok {
 		server, name, _ := strings.Cut(rest, "__")
 		if name != "" {
-			return clipTo("MCP: "+server+"."+name, maxActivity)
+			return i18n.ActMCP, arg(server + "." + name)
 		}
-		return clipTo("MCP: "+server, maxActivity)
+		return i18n.ActMCP, arg(server)
 	}
-	return clipTo(tool, maxActivity)
+	return i18n.ActTool, clipTo(tool, maxActivity)
+}
+
+// withActivity sets ev's activity from its structured form.
+func withActivity(ev status.Event, kind, target string) status.Event {
+	ev.Activity = i18n.ActivityText(i18n.EN, kind, target)
+	ev.ActivityKind, ev.ActivityTarget = kind, target
+	return ev
 }
 
 func base(p string) string {
@@ -169,7 +179,7 @@ func permissionMessage(tool string, input json.RawMessage) string {
 		}
 	}
 	if tool != "" {
-		return clip("Permiso para " + tool)
+		return clip(i18n.T(i18n.EN, i18n.PermissionFor, tool))
 	}
 	return ""
 }

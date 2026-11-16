@@ -136,9 +136,13 @@ type Event struct {
 	// Turn marks the start of a new turn (the user submitted a prompt): the
 	// turn timer restarts even if the session was already running.
 	Turn bool
-	// Activity is a short description of what the agent is doing ("Leyendo
-	// main.go"). The Machine ignores it; sessions keep it for display.
-	Activity string
+	// Activity is a short description of what the agent is doing ("Reading
+	// main.go", English). The Machine ignores it; sessions keep it for
+	// display. ActivityKind/ActivityTarget are its structured form (see
+	// i18n.ActivityText), empty for free text.
+	Activity       string
+	ActivityKind   string
+	ActivityTarget string
 }
 
 // Timers are the activity timestamps of a session. Zero values mean

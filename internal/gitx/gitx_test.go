@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/elionaz/agenterm/internal/apierr"
 )
 
 // TestMain isolates git from the user's configuration: no system config,
@@ -171,7 +173,7 @@ func TestWorktreeDiff(t *testing.T) {
 	write(t, repo, "a.txt", "dirty in main\n")
 	wt := filepath.Join(canon(t.TempDir()), "proj", "s1")
 
-	if err := AddWorktree(c, repo, wt, "agent/x", "nope"); err == nil || !strings.Contains(err.Error(), "no existe") {
+	if err := AddWorktree(c, repo, wt, "agent/x", "nope"); err == nil || !strings.Contains(err.Error(), "does not exist") || code(err) != apierr.BaseMissing {
 		t.Fatalf("missing base: %v", err)
 	}
 	if err := AddWorktree(c, repo, wt, "agent/x", "main"); err != nil {
@@ -333,7 +335,7 @@ func TestRemoveWorktree(t *testing.T) {
 	if !errors.As(err, &le) || len(le.Uncommitted) != 2 || len(le.Unmerged) != 0 {
 		t.Fatalf("dirty remove = %v (%+v)", err, le)
 	}
-	if !strings.Contains(err.Error(), "sin commitear") || !strings.Contains(err.Error(), "force") {
+	if !strings.Contains(err.Error(), "uncommitted") || !strings.Contains(err.Error(), "force") || code(err) != apierr.WorktreeDirty {
 		t.Errorf("message = %q", err)
 	}
 	if _, err := os.Stat(wt); err != nil {
@@ -343,7 +345,7 @@ func TestRemoveWorktree(t *testing.T) {
 	sh(t, wt, "add", "-A")
 	sh(t, wt, "commit", "-q", "-m", "work")
 	err = RemoveWorktree(c, repo, wt, "agent/rm", opts)
-	if !errors.As(err, &le) || len(le.Unmerged) != 1 || len(le.Uncommitted) != 0 || !strings.Contains(err.Error(), "sin mergear en main") {
+	if !errors.As(err, &le) || len(le.Unmerged) != 1 || len(le.Uncommitted) != 0 || !strings.Contains(err.Error(), "not merged into main") || code(err) != apierr.WorktreeUnmerged {
 		t.Fatalf("unmerged remove = %v", err)
 	}
 	// Keeping the branch loses nothing.
@@ -391,7 +393,7 @@ func TestMerge(t *testing.T) {
 	if err := AddWorktree(c, repo, wt, "agent/m", "main"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Merge(c, repo, "agent/m", "main", wt); err == nil || !strings.Contains(err.Error(), "nada que mergear") {
+	if _, err := Merge(c, repo, "agent/m", "main", wt); err == nil || !strings.Contains(err.Error(), "nothing to merge") || code(err) != apierr.MergeNothing {
 		t.Fatalf("empty merge: %v", err)
 	}
 	write(t, wt, "feature.txt", "f\n")
@@ -401,13 +403,13 @@ func TestMerge(t *testing.T) {
 
 	// Refused while the main tree is dirty…
 	write(t, repo, "a.txt", "dirty main\n")
-	if _, err := Merge(c, repo, "agent/m", "main", wt); err == nil || !strings.Contains(err.Error(), "sin commitear") {
+	if _, err := Merge(c, repo, "agent/m", "main", wt); err == nil || !strings.Contains(err.Error(), "uncommitted") || code(err) != apierr.MergeMainDirty {
 		t.Fatalf("dirty main merge: %v", err)
 	}
 	sh(t, repo, "checkout", "-q", "--", "a.txt")
 	// …or on another branch.
 	sh(t, repo, "checkout", "-q", "-b", "other")
-	if _, err := Merge(c, repo, "agent/m", "main", wt); err == nil || !strings.Contains(err.Error(), "en la rama other") {
+	if _, err := Merge(c, repo, "agent/m", "main", wt); err == nil || !strings.Contains(err.Error(), "is on branch other") || code(err) != apierr.MergeWrongBranch {
 		t.Fatalf("wrong-branch merge: %v", err)
 	}
 	sh(t, repo, "checkout", "-q", "main")
@@ -433,7 +435,7 @@ func TestMerge(t *testing.T) {
 	sh(t, wt, "commit", "-q", "-am", "wt change")
 	write(t, repo, "a.txt", "from main\n")
 	sh(t, repo, "commit", "-q", "-am", "main change")
-	if _, err := Merge(c, repo, "agent/m", "main", ""); err == nil || !strings.Contains(err.Error(), "conflictos") {
+	if _, err := Merge(c, repo, "agent/m", "main", ""); err == nil || !strings.Contains(err.Error(), "conflicts (a.txt)") || code(err) != apierr.MergeConflict {
 		t.Fatalf("conflicting merge: %v", err)
 	}
 	if st, _ := GetStatus(c, repo); st.Staged+st.Unstaged+st.Conflicts != 0 {
@@ -470,4 +472,9 @@ func TestOpenArgv(t *testing.T) {
 	if _, err := OpenArgv("browser", "", "/p", look); err == nil {
 		t.Error("unknown target accepted")
 	}
+}
+
+func code(err error) string {
+	c, _, _ := apierr.Code(err)
+	return c
 }

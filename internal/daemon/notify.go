@@ -21,9 +21,14 @@ func (s *Server) notifyNow(ev protocol.Event) {
 	if !st.Notify.ShouldNotify(ev.AttentionKind) {
 		return
 	}
+	// Read at notify time: a ui.language change applies without restart.
+	lang := st.UI.Lang()
+	if ev.AttentionKind == "stall" && ev.AttentionMessage == "" {
+		ev.AttentionMessage = desktopnotify.StallEventBody(lang, ev)
+	}
 	s.cfg.Notifier(Notification{
 		Title:     desktopnotify.Title(ev.ProjectName, ev.ProfileID),
-		Body:      desktopnotify.Body(ev.AttentionKind, ev.AttentionMessage),
+		Body:      desktopnotify.Body(lang, ev.AttentionKind, ev.AttentionMessage),
 		Sound:     st.Notify.WantsSound(ev.AttentionKind),
 		SessionID: ev.SessionID,
 		Kind:      ev.AttentionKind,

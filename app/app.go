@@ -15,6 +15,7 @@ import (
 
 	"github.com/elionaz/agenterm/internal/client"
 	"github.com/elionaz/agenterm/internal/gitx"
+	"github.com/elionaz/agenterm/internal/i18n"
 	"github.com/elionaz/agenterm/internal/paths"
 	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/project"
@@ -42,7 +43,7 @@ const (
 	evResync     = "daemon:resync"   // (re)subscribed: reload lists
 	evDown       = "daemon:down"     // event stream lost (message)
 
-	evOpenSettings = "app:open-settings" // menu "Preferencias…" (⌘,)
+	evOpenSettings = "app:open-settings" // menu "Preferences…" (⌘,)
 )
 
 // App is bound to the frontend. It is a thin proxy over the daemon client:
@@ -93,7 +94,7 @@ func (a *App) startup(ctx context.Context) {
 	a.emit = func(event string, data ...any) { runtime.EventsEmit(ctx, event, data...) }
 	a.wailsCtx = ctx
 	a.desk = newDesktop(ctx, a.focusSession)
-	installPreferencesMenu(func() { a.emit(evOpenSettings) })
+	installPreferencesMenu(i18n.T(uiLang(p), i18n.MenuPreferences), func() { a.emit(evOpenSettings) })
 	a.start(ctx, p)
 	a.focusMu.Lock()
 	a.started = true
@@ -208,7 +209,7 @@ func (a *App) ListProjects() ([]project.Project, error) {
 // AddProject opens the native folder picker. It returns nil if cancelled.
 func (a *App) AddProject() (*project.Project, error) {
 	dir, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
-		Title:                "Añadir proyecto",
+		Title:                i18n.T(uiLang(a.paths), i18n.DialogAddProject),
 		CanCreateDirectories: true,
 	})
 	if err != nil || dir == "" {
@@ -286,6 +287,9 @@ func (a *App) GetSettings() (settings.Settings, error) {
 		out, err = a.client.Settings(ctx)
 		return err
 	})
+	if err == nil {
+		a.applyLanguage(out.UI)
+	}
 	return out, err
 }
 
@@ -295,7 +299,33 @@ func (a *App) SaveSettings(s settings.Settings) (settings.Settings, error) {
 		out, err = a.client.SaveSettings(ctx, s)
 		return err
 	})
+	if err == nil {
+		a.applyLanguage(out.UI)
+	}
 	return out, err
+}
+
+// SystemLanguage is the language ui.language "auto" resolves to (macOS
+// preferred languages, then LANG): "en" or "es".
+func (a *App) SystemLanguage() string {
+	return string(i18n.System.Detect())
+}
+
+// applyLanguage retitles the native menu item after a language change
+// (notifications re-read settings.yaml by themselves).
+func (a *App) applyLanguage(ui settings.UI) {
+	if a.wailsCtx != nil {
+		setPreferencesTitle(i18n.T(ui.Lang(), i18n.MenuPreferences))
+	}
+}
+
+// uiLang is settings.yaml's ui.language in p, resolved.
+func uiLang(p paths.Paths) i18n.Lang {
+	if p.ConfigDir == "" {
+		return i18n.Resolve(i18n.Auto)
+	}
+	st, _ := settings.Load(p.Settings())
+	return st.UI.Lang()
 }
 
 // --- Sessions ---------------------------------------------------------------

@@ -38,7 +38,7 @@ var claudeSamples = map[string]struct {
 	},
 	"user prompt": {
 		`{"session_id":"abc123","transcript_path":"/Users/x/t.jsonl","cwd":"/Users/x","permission_mode":"default","hook_event_name":"UserPromptSubmit","prompt":"Write a function to calculate the factorial of a number"}`,
-		true, status.Event{State: status.Running, Turn: true, Activity: "Pensando…"},
+		true, status.Event{State: status.Running, Turn: true, Activity: "Thinking…", ActivityKind: "thinking"},
 	},
 	"permission request": {
 		`{"session_id":"abc123","transcript_path":"/Users/x/t.jsonl","cwd":"/Users/x","permission_mode":"default","hook_event_name":"PermissionRequest","tool_name":"Bash","tool_input":{"command":"rm -rf node_modules","description":"Remove node_modules directory"},"permission_suggestions":[{"type":"addRules","rules":[{"toolName":"Bash","ruleContent":"rm -rf node_modules"}],"behavior":"allow","destination":"localSettings"}]}`,
@@ -50,7 +50,7 @@ var claudeSamples = map[string]struct {
 	},
 	"pre tool use (doc sample)": {
 		`{"session_id":"abc123","prompt_id":"550e8400-e29b-41d4-a716-446655440000","transcript_path":"/home/user/.claude/projects/.../transcript.jsonl","cwd":"/home/user/my-project","scratchpad_dir":"/tmp/claude-1000/-home-user-my-project/abc123/scratchpad","permission_mode":"default","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"npm test","description":"Run test suite","timeout":120000,"run_in_background":false},"tool_use_id":"toolu_01ABC123..."}`,
-		true, status.Event{State: status.Running, Activity: "Bash: npm test"},
+		true, status.Event{State: status.Running, Activity: "Bash: npm test", ActivityKind: "bash", ActivityTarget: "npm test"},
 	},
 	"unrelated event": {
 		`{"session_id":"abc123","cwd":"/x","hook_event_name":"SessionStart","source":"startup"}`,
@@ -148,30 +148,49 @@ func TestSetupCodexArgs(t *testing.T) {
 func TestToolActivity(t *testing.T) {
 	long := strings.Repeat("x", 100)
 	cases := []struct{ tool, input, want string }{
-		{"Edit", `{"file_path":"/home/user/proj/internal/main.go","old_string":"a","new_string":"b","replace_all":false}`, "Editando main.go"},
-		{"Write", `{"file_path":"/home/user/proj/README.md","content":"# hi"}`, "Editando README.md"},
-		{"MultiEdit", `{"file_path":"/p/a.ts","edits":[]}`, "Editando a.ts"},
-		{"NotebookEdit", `{"notebook_path":"/p/n.ipynb","new_source":"x"}`, "Editando n.ipynb"},
-		{"Read", `{"file_path":"/home/user/proj/go.mod","offset":1,"limit":20}`, "Leyendo go.mod"},
+		{"Edit", `{"file_path":"/home/user/proj/internal/main.go","old_string":"a","new_string":"b","replace_all":false}`, "Editing main.go"},
+		{"Write", `{"file_path":"/home/user/proj/README.md","content":"# hi"}`, "Editing README.md"},
+		{"MultiEdit", `{"file_path":"/p/a.ts","edits":[]}`, "Editing a.ts"},
+		{"NotebookEdit", `{"notebook_path":"/p/n.ipynb","new_source":"x"}`, "Editing n.ipynb"},
+		{"Read", `{"file_path":"/home/user/proj/go.mod","offset":1,"limit":20}`, "Reading go.mod"},
 		{"Bash", `{"command":"npm test","description":"Run test suite","timeout":120000,"run_in_background":false}`, "Bash: npm test"},
 		{"Bash", `{"command":"echo  a\n  b"}`, "Bash: echo a b"},
 		{"Bash", `{"command":"` + long + `"}`, "Bash: " + strings.Repeat("x", 59) + "…"},
-		{"Grep", `{"pattern":"TODO.*","path":"/p","glob":"*.go","output_mode":"content"}`, "Buscando TODO.*"},
-		{"Glob", `{"pattern":"**/*.ts","path":"/p"}`, "Buscando **/*.ts"},
+		{"Grep", `{"pattern":"TODO.*","path":"/p","glob":"*.go","output_mode":"content"}`, "Searching TODO.*"},
+		{"Glob", `{"pattern":"**/*.ts","path":"/p"}`, "Searching **/*.ts"},
 		{"WebFetch", `{"url":"https://example.com/api/docs?x=1","prompt":"Extract the endpoints"}`, "Web: example.com"},
 		{"WebSearch", `{"query":"react hooks best practices","allowed_domains":["docs.example.com"]}`, "Web: react hooks best practices"},
-		{"Agent", `{"prompt":"Find all API endpoints","description":"Find API endpoints","subagent_type":"Explore","model":"sonnet"}`, "Subagente: Find API endpoints"},
-		{"Task", `{"prompt":"x","subagent_type":"general-purpose"}`, "Subagente: general-purpose"},
-		{"TodoWrite", `{"todos":[{"content":"a","status":"pending"}]}`, "Actualizando tareas"},
+		{"Agent", `{"prompt":"Find all API endpoints","description":"Find API endpoints","subagent_type":"Explore","model":"sonnet"}`, "Subagent: Find API endpoints"},
+		{"Task", `{"prompt":"x","subagent_type":"general-purpose"}`, "Subagent: general-purpose"},
+		{"TodoWrite", `{"todos":[{"content":"a","status":"pending"}]}`, "Updating tasks"},
 		{"mcp__memory__create_entities", `{"entities":[]}`, "MCP: memory.create_entities"},
 		{"mcp__github__search_repositories", `{}`, "MCP: github.search_repositories"},
 		{"ExitPlanMode", `{}`, "ExitPlanMode"},
-		{"Read", `null`, "Leyendo"},
-		{"Edit", ``, "Editando"},
+		{"Read", `null`, "Reading"},
+		{"Edit", ``, "Editing"},
 	}
 	for _, c := range cases {
 		if got := ToolActivity(c.tool, json.RawMessage(c.input)); got != c.want {
 			t.Errorf("%s %s: got %q want %q", c.tool, c.input, got, c.want)
+		}
+	}
+}
+
+func TestToolActivityParts(t *testing.T) {
+	cases := []struct{ tool, input, kind, target string }{
+		{"Edit", `{"file_path":"/p/main.go"}`, "edit", "main.go"},
+		{"Read", `{"file_path":"/p/go.mod"}`, "read", "go.mod"},
+		{"Bash", `{"command":"npm test"}`, "bash", "npm test"},
+		{"Grep", `{"pattern":"TODO"}`, "search", "TODO"},
+		{"WebFetch", `{"url":"https://example.com/x"}`, "web", "example.com"},
+		{"Task", `{"subagent_type":"Explore"}`, "subagent", "Explore"},
+		{"TodoWrite", `{}`, "todo", ""},
+		{"mcp__github__search", `{}`, "mcp", "github.search"},
+		{"ExitPlanMode", `{}`, "tool", "ExitPlanMode"},
+	}
+	for _, c := range cases {
+		if k, tg := ToolActivityParts(c.tool, json.RawMessage(c.input)); k != c.kind || tg != c.target {
+			t.Errorf("%s: got %q %q, want %q %q", c.tool, k, tg, c.kind, c.target)
 		}
 	}
 }
