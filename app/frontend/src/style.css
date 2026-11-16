@@ -1,22 +1,38 @@
+/* Chrome colors: light-dark(<light>, <dark>), picked by color-scheme, which
+   follows settings ui.appearance (data-appearance on <html>; "system"
+   follows macOS). */
 :root {
-  --bg: #141518;
-  --sidebar-bg: #1a1b1f;
-  --menu-bg: #22242a;
-  --fg: #e6e7eb;
-  --fg-dim: #b4b6bd;
-  --muted: #6e717b;
-  --border: #25272d;
-  --border-strong: #343741;
-  --hover: #23252b;
-  --hover-strong: #2e3038;
-  --accent-bg: #2a3346;
-  --blue: #61afef;
-  --amber: #e5b04b;
-  --green: #7fbf6a;
-  --red: #e06c75;
-  --grey: #5c6070;
+  --bg: light-dark(#f7f7f8, #141518);
+  --sidebar-bg: light-dark(#eeeef1, #1a1b1f);
+  --menu-bg: light-dark(#ffffff, #22242a);
+  --fg: light-dark(#1f2126, #e6e7eb);
+  --fg-dim: light-dark(#474a53, #b4b6bd);
+  --muted: light-dark(#7a7d86, #6e717b);
+  --border: light-dark(#dfe0e4, #25272d);
+  --border-strong: light-dark(#c9cbd1, #343741);
+  --hover: light-dark(#e6e7eb, #23252b);
+  --hover-strong: light-dark(#dadbe0, #2e3038);
+  --accent-bg: light-dark(#d9e4f7, #2a3346);
+  --blue: light-dark(#2f6fd0, #61afef);
+  --amber: light-dark(#a86e00, #e5b04b);
+  --green: light-dark(#3d8a2e, #7fbf6a);
+  --red: light-dark(#c8424e, #e06c75);
+  --orange: light-dark(#c4661c, #e08a3c);
+  --grey: light-dark(#9a9daa, #5c6070);
+  --scrollbar: light-dark(#c8cad0, #2c2f36);
+  --shadow: light-dark(rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.45));
+  --warn-bg: light-dark(#fbefd2, #3a2f14);
+  --danger-bg: light-dark(#fbe3e5, #3b1d22);
+  --danger-fg: light-dark(#8e2430, #f2b8be);
+  --danger-border: light-dark(#efb9bf, #5a2a31);
   --mono: 'SF Mono', Menlo, Monaco, monospace;
   color-scheme: dark;
+}
+:root[data-appearance='light'] {
+  color-scheme: light;
+}
+:root[data-appearance='system'] {
+  color-scheme: light dark;
 }
 
 * {
@@ -59,6 +75,6 @@ button {
   width: 8px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2c2f36;
+  background: var(--scrollbar);
   border-radius: 4px;
 }

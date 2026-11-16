@@ -61,8 +61,11 @@ export interface DaemonEvent extends Live {
     | 'session.attention'
     | 'session.activity'
     | 'session.git'
+    | 'session.renamed'
     | 'worktree.changed'
   sessionId: string
+  /** The session's display name (session.renamed: the new one; absent: reset). */
+  sessionName?: string
   state?: SessionState
   prevState?: string
   source?: string
@@ -80,6 +83,11 @@ export interface DaemonEvent extends Live {
   git?: GitInfo
   /** worktree.changed: whose worktree list changed. */
   projectId?: string
+}
+
+/** What a session is called: its given name, else its profile. */
+export function sessionTitle(s: Pick<Session, 'name' | 'profileId'>): string {
+  return s.name || s.profileId
 }
 
 /** A session needs the user and they have not looked at it yet. */

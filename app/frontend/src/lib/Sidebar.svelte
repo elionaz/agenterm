@@ -6,6 +6,7 @@
     needsAttention,
     rememberMode,
     rememberedMode,
+    sessionTitle,
     type Profile,
     type Project,
     type ProjectGit,
@@ -23,8 +24,12 @@
     sessions: Session[]
     profiles: Profile[]
     selectedId: string | null
+    /** Sessions shown in a split pane (the selected one included). */
+    visibleIds: string[]
     currentProjectId: string | null
     onSelect: (id: string) => void
+    /** Renames a session ('' resets it to the profile's name). */
+    onRename: (id: string, name: string) => void
     onSelectProject: (id: string) => void
     onSpawn: (projectId: string, profileId: string, opts?: Partial<SpawnOptions>) => void
     /** agenterm worktrees per project (orphans are listed under it). */
@@ -51,8 +56,10 @@
     sessions,
     profiles,
     selectedId,
+    visibleIds,
     currentProjectId,
     onSelect,
+    onRename,
     onSelectProject,
     onSpawn,
     onKill,
@@ -70,6 +77,40 @@
   }: Props = $props()
 
   let collapsed = $state<Record<string, boolean>>({})
+  /** The session whose name is being edited, and the text typed. */
+  let renaming = $state<string | null>(null)
+  let renameText = $state('')
+
+  function startRename(s: Session) {
+    renaming = s.id
+    renameText = s.name ?? ''
+  }
+
+  function finishRename(save: boolean) {
+    const id = renaming
+    if (!id) return
+    renaming = null
+    const s = sessions.find((x) => x.id === id)
+    const name = renameText.trim()
+    if (save && s && name !== (s.name ?? '')) onRename(id, name)
+  }
+
+  function onRenameKey(e: KeyboardEvent) {
+    e.stopPropagation() // keep Escape/Enter away from the window handlers
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      finishRename(true)
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      finishRename(false)
+    }
+  }
+
+  /** Focuses and selects the rename field once it is shown. */
+  function autofocus(node: HTMLInputElement) {
+    node.focus()
+    node.select()
+  }
   let menuFor = $state<string | null>(null)
   /** Second step of the spawn menu: the profile picked, where to run it. */
   let picked = $state<Profile | null>(null)
@@ -321,13 +362,42 @@
                 <div
                   class="session"
                   class:selected={s.id === selectedId}
+                  class:shown={s.id !== selectedId && visibleIds.includes(s.id)}
                   class:needs={needsAttention(s)}
                   title={tooltip(s)}
-                  onclick={() => onSelect(s.id)}
+                  onclick={() => renaming !== s.id && onSelect(s.id)}
+                  oncontextmenu={(e) => {
+                    e.preventDefault()
+                    startRename(s)
+                  }}
                 >
                   <div class="line">
                     <span class="dot {badgeClass(s)}"></span>
-                    <span class="session-name">{s.profileId}</span>
+                    {#if renaming === s.id}
+                      <input
+                        class="rename"
+                        bind:value={renameText}
+                        placeholder={s.profileId}
+                        maxlength="80"
+                        spellcheck="false"
+                        aria-label={t('sidebar.renameLabel')}
+                        {@attach autofocus}
+                        onkeydown={onRenameKey}
+                        onblur={() => finishRename(true)}
+                        onclick={(e) => e.stopPropagation()}
+                        ondblclick={(e) => e.stopPropagation()}
+                      />
+                    {:else}
+                      <!-- svelte-ignore a11y_no_static_element_interactions -->
+                      <span
+                        class="session-name"
+                        title={t('sidebar.renameHint')}
+                        ondblclick={(e) => {
+                          e.stopPropagation()
+                          startRename(s)
+                        }}>{sessionTitle(s)}</span
+                      >
+                    {/if}
                     {#if s.mode === 'worktree' && s.branch}
                       <span class="chip" title={branchTitle(s)}>⎇ {s.branch.replace(/^agent\//, '')}</span>
                     {/if}
@@ -512,7 +582,7 @@
     background: var(--menu-bg);
     border: 1px solid var(--border-strong);
     border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 8px 24px var(--shadow);
     font-weight: 400;
   }
   .menu-item {
@@ -595,6 +665,22 @@
   .session.selected {
     background: var(--accent-bg);
     color: var(--fg);
+  }
+  /* Shown in another split pane. */
+  .session.shown {
+    box-shadow: inset 2px 0 0 color-mix(in srgb, var(--blue) 60%, transparent);
+    color: var(--fg);
+  }
+  .rename {
+    flex: 0 1 60%;
+    min-width: 0;
+    padding: 0 4px;
+    font: inherit;
+    color: var(--fg);
+    background: var(--bg);
+    border: 1px solid var(--blue);
+    border-radius: 4px;
+    outline: none;
   }
   /* The name keeps its width; the branch chip shrinks first (longer state
      words, e.g. "esperando", would otherwise squeeze the name to "s…"). */

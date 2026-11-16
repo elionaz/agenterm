@@ -12,6 +12,8 @@
     type Settings,
   } from './api'
   import { langSetting, setLangSetting, systemLang, t, th, type LangSetting } from './i18n.svelte'
+  import { appearance, setAppearance, setTermPrefs, termPrefs, type Appearance } from './prefs.svelte'
+  import { MAX_FONT_SIZE, MIN_FONT_SIZE, defaultPrefs, themeLabels, themeNames, themeOf, type TermPrefs } from './themes'
 
   interface Props {
     profiles: Profile[]
@@ -23,7 +25,7 @@
 
   let { profiles, onProfiles, onSettings, onClose }: Props = $props()
 
-  type Tab = 'general' | 'agents' | 'notify' | 'git'
+  type Tab = 'general' | 'appearance' | 'agents' | 'notify' | 'git'
   type Mode = 'edit' | 'new' | 'variant'
   interface Form {
     id: string
@@ -101,6 +103,48 @@
     } catch (e) {
       restore = prev
       restoreError = errorMessage(e)
+    }
+  }
+
+  /** Appearance tab: everything applies at once and is saved shortly after. */
+  let appearanceError = $state<string | null>(null)
+  let termError = $state<string | null>(null)
+  let termSaved = $state(false)
+  let termTimer: number | undefined
+  /** terminal.font_family as typed (applied on change). */
+  let fontFamily = $state(termPrefs().fontFamily)
+  const term = $derived(termPrefs())
+  const previewTheme = $derived(themeOf(term.theme).colors)
+
+  async function saveAppearance(v: Appearance) {
+    const prev = appearance()
+    setAppearance(v)
+    appearanceError = null
+    try {
+      const s = await api.saveSettings({ ui: { appearance: v } })
+      setAppearance(s.ui?.appearance)
+    } catch (e) {
+      setAppearance(prev)
+      appearanceError = errorMessage(e)
+    }
+  }
+
+  function updateTerm(patch: Partial<TermPrefs>) {
+    setTermPrefs({ ...termPrefs(), ...patch })
+    fontFamily = termPrefs().fontFamily
+    termSaved = false
+    clearTimeout(termTimer)
+    termTimer = window.setTimeout(saveTerm, 400)
+  }
+
+  async function saveTerm() {
+    try {
+      const s = await api.saveSettings({ terminal: termPrefs() })
+      setTermPrefs(s.terminal)
+      termError = null
+      termSaved = true
+    } catch (e) {
+      termError = errorMessage(e)
     }
   }
 
@@ -340,6 +384,9 @@
     language = langSetting()
     const r = s.sessions?.restore
     restore = r === 'always' || r === 'never' ? r : 'ask'
+    setAppearance(s.ui?.appearance)
+    setTermPrefs(s.terminal)
+    fontFamily = termPrefs().fontFamily
   }
 
   async function saveGit() {
@@ -465,6 +512,7 @@
     <span class="title">{t('settings.title')}</span>
     <nav class="tabs">
       <button class:active={tab === 'general'} onclick={() => (tab = 'general')}>{t('settings.tab.general')}</button>
+      <button class:active={tab === 'appearance'} onclick={() => (tab = 'appearance')}>{t('settings.tab.appearance')}</button>
       <button class:active={tab === 'agents'} onclick={() => (tab = 'agents')}>{t('settings.tab.agents')}</button>
       <button class:active={tab === 'notify'} onclick={() => (tab = 'notify')}>{t('settings.tab.notify')}</button>
       <button class:active={tab === 'git'} onclick={() => (tab = 'git')}>{t('settings.tab.git')}</button>
@@ -508,6 +556,131 @@
           </select>
         </label>
         {#if restoreError}<div class="error">{restoreError}</div>{/if}
+      </section>
+    {:else if tab === 'appearance'}
+      <section class="pane narrow">
+        <label class="field">
+          <span>
+            <b>{t('settings.a.appearance')}</b>
+            <em>{t('settings.a.appearanceHelp')}</em>
+          </span>
+          <select
+            class="lang"
+            value={appearance()}
+            onchange={(e) => saveAppearance((e.currentTarget as HTMLSelectElement).value as Appearance)}
+          >
+            <option value="system">{t('settings.a.system')}</option>
+            <option value="dark">{t('settings.a.dark')}</option>
+            <option value="light">{t('settings.a.light')}</option>
+          </select>
+        </label>
+        {#if appearanceError}<div class="error">{appearanceError}</div>{/if}
+
+        <div class="field col">
+          <span><b>{t('settings.a.theme')}</b></span>
+          <div class="themes" role="radiogroup" aria-label={t('settings.a.theme')}>
+            {#each themeNames as name (name)}
+              {@const c = themeOf(name).colors}
+              <button
+                class="theme"
+                class:on={term.theme === name}
+                role="radio"
+                aria-checked={term.theme === name}
+                style:background={c.background}
+                style:color={c.foreground}
+                onclick={() => updateTerm({ theme: name })}
+              >
+                <span class="theme-name">{themeLabels[name] ?? name}</span>
+                <span class="swatches">
+                  {#each [c.red, c.green, c.yellow, c.blue, c.magenta, c.cyan] as sw, i (i)}
+                    <i style:background={sw}></i>
+                  {/each}
+                </span>
+              </button>
+            {/each}
+          </div>
+        </div>
+
+        <label class="field">
+          <span>
+            <b>{t('settings.a.font')}</b>
+            <em>{t('settings.a.fontHelp')}</em>
+          </span>
+          <input
+            class="text mono"
+            bind:value={fontFamily}
+            placeholder={defaultPrefs.fontFamily}
+            spellcheck="false"
+            onchange={() => updateTerm({ fontFamily })}
+          />
+        </label>
+        <div class="field">
+          <span>
+            <b>{t('settings.a.fontSize')}</b>
+            <em>{@html th('settings.a.fontSizeHelp')}</em>
+          </span>
+          <span class="stepper">
+            <button class="btn" disabled={term.fontSize <= MIN_FONT_SIZE} aria-label="−" onclick={() => updateTerm({ fontSize: term.fontSize - 1 })}>−</button>
+            <span class="num-value">{term.fontSize}</span>
+            <button class="btn" disabled={term.fontSize >= MAX_FONT_SIZE} aria-label="+" onclick={() => updateTerm({ fontSize: term.fontSize + 1 })}>+</button>
+          </span>
+        </div>
+        <label class="field">
+          <span>
+            <b>{t('settings.a.lineHeight')}</b>
+          </span>
+          <span class="range">
+            <input
+              type="range"
+              min="1"
+              max="2"
+              step="0.05"
+              value={term.lineHeight}
+              oninput={(e) => updateTerm({ lineHeight: Number((e.currentTarget as HTMLInputElement).value) })}
+            />
+            <span class="num-value">{term.lineHeight.toFixed(2)}</span>
+          </span>
+        </label>
+        <div class="field">
+          <span><b>{t('settings.a.cursor')}</b></span>
+          <span class="radios inline">
+            {#each ['block', 'bar', 'underline'] as const as c (c)}
+              <label><input type="radio" name="cursor" checked={term.cursorStyle === c} onchange={() => updateTerm({ cursorStyle: c })} /> {t(`settings.a.cursor.${c}`)}</label>
+            {/each}
+          </span>
+        </div>
+
+        <div class="field col">
+          <span><b>{t('settings.a.preview')}</b></span>
+          <div
+            class="preview"
+            style:background={previewTheme.background}
+            style:color={previewTheme.foreground}
+            style:font-family={term.fontFamily}
+            style:font-size="{term.fontSize}px"
+            style:line-height={term.lineHeight}
+          >
+            <div><span style:color={previewTheme.green}>~/web</span> <span style:color={previewTheme.blue}>main</span> <span style:color={previewTheme.magenta}>❯</span> git status --short</div>
+            <div><span style:color={previewTheme.yellow}>&nbsp;M</span> src/app.ts</div>
+            <div><span style:color={previewTheme.red}>??</span> notes.md</div>
+            <div><span style:color={previewTheme.cyan}>info</span> build finished in <span style:color={previewTheme.brightWhite}>1.2s</span> <span style:color={previewTheme.brightBlack}># ok</span></div>
+            <div>
+              <span style:color={previewTheme.magenta}>❯</span>
+              <span
+                class="cursor {term.cursorStyle}"
+                style:--cursor={previewTheme.cursor}
+                style:color={term.cursorStyle === 'block' ? previewTheme.cursorAccent : undefined}>&nbsp;</span
+              >
+            </div>
+          </div>
+        </div>
+
+        <div class="editor-actions left">
+          <button class="btn" onclick={() => updateTerm({ ...defaultPrefs })}>{t('settings.a.reset')}</button>
+          {#if termSaved}<span class="saved">{t('settings.saved')}</span>{/if}
+        </div>
+        {#if termError}<div class="error">{termError}</div>{/if}
+        <p class="hint">{@html th('settings.a.hint')}</p>
       </section>
     {:else if tab === 'agents'}
       <section class="pane">
@@ -851,9 +1024,9 @@
     margin: 8px 0;
     padding: 6px 10px;
     border-radius: 6px;
-    background: #3b1d22;
-    color: #f2b8be;
-    border: 1px solid #5a2a31;
+    background: var(--danger-bg);
+    color: var(--danger-fg);
+    border: 1px solid var(--danger-border);
     font-size: 12px;
     user-select: text;
   }
@@ -1174,5 +1347,93 @@
   }
   .radios input {
     accent-color: var(--blue);
+  }
+  .radios.inline {
+    margin-top: 0;
+  }
+
+  /* Appearance tab. */
+  .field.col {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .themes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 8px;
+  }
+  .theme {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border-strong);
+    text-align: left;
+    font: 12px var(--mono);
+  }
+  .theme.on {
+    outline: 2px solid var(--blue);
+    outline-offset: 1px;
+  }
+  .field .theme-name {
+    display: block;
+  }
+  .field .swatches {
+    display: flex;
+    flex-direction: row;
+    gap: 3px;
+  }
+  .swatches i {
+    width: 14px;
+    height: 8px;
+    border-radius: 2px;
+  }
+  .field .stepper {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+  .field .range {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+  .range input {
+    width: 150px;
+    accent-color: var(--blue);
+  }
+  .num-value {
+    min-width: 32px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  .preview {
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border-strong);
+    overflow: hidden;
+  }
+  .preview > div {
+    white-space: pre;
+  }
+  .field .preview span {
+    display: inline;
+  }
+  .preview .cursor {
+    display: inline-block;
+    width: 0.6em;
+  }
+  .preview .cursor.block {
+    background: var(--cursor);
+  }
+  .preview .cursor.bar {
+    box-shadow: inset 2px 0 0 var(--cursor);
+  }
+  .preview .cursor.underline {
+    box-shadow: inset 0 -2px 0 var(--cursor);
   }
 </style>
