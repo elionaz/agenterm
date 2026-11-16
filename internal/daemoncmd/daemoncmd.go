@@ -5,6 +5,7 @@ package daemoncmd
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -18,6 +19,8 @@ import (
 	"github.com/elionaz/agenterm/internal/daemon"
 	"github.com/elionaz/agenterm/internal/macnotify"
 	"github.com/elionaz/agenterm/internal/paths"
+	"github.com/elionaz/agenterm/internal/peercred"
+	"github.com/elionaz/agenterm/internal/sigsender"
 	"github.com/elionaz/agenterm/internal/transport"
 )
 
@@ -54,19 +57,13 @@ func Run(args []string) error {
 		return nil
 	}
 
-	// Record which signal stopped us so the log explains every shutdown.
+	// Record which signal stopped us — and who sent it — so the log explains
+	// every shutdown.
 	ctx, cancel := context.WithCancelCause(context.Background())
 	defer cancel(nil)
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGTERM, syscall.SIGINT)
-	defer signal.Stop(sigs)
-	go func() {
-		if sig, ok := <-sigs; ok {
-			cancel(fmt.Errorf("received signal %s", sig))
-		}
-	}()
 	signal.Ignore(syscall.SIGHUP, syscall.SIGPIPE)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	watchTermination(logger, cancel)
 	exe, _ := os.Executable()
 	if real, err := filepath.EvalSymlinks(exe); err == nil {
 		exe = real
@@ -90,4 +87,46 @@ func Run(args []string) error {
 	// thread serves the Cocoa run loop while the daemon runs elsewhere.
 	macnotify.RunMainLoop(func() { err = srv.Run(ctx) })
 	return err
+}
+
+// watchTermination cancels ctx on SIGTERM/SIGINT. Where supported it also
+// logs the sending process (pid, command line, parent), so an unexpected
+// shutdown can be traced back to whoever sent the signal.
+func watchTermination(logger *slog.Logger, cancel context.CancelCauseFunc) {
+	if evs, ok, err := sigsender.Notify(syscall.SIGTERM, syscall.SIGINT); ok {
+		go func() {
+			ev := <-evs
+			attrs := []any{"signal", ev.Signal.String(), "sender_pid", ev.PID, "sender_uid", ev.UID}
+			reason := fmt.Sprintf("received signal %s from pid %d", ev.Signal, ev.PID)
+			if p, err := peercred.Lookup(ev.PID); err == nil {
+				attrs = append(attrs, "sender_cmd", clip(p.Command), "sender_ppid", p.PPID)
+				reason += " (" + clip(p.Command) + ")"
+				if pp, err := peercred.Lookup(p.PPID); err == nil {
+					attrs = append(attrs, "sender_parent_cmd", clip(pp.Command))
+				}
+			} else {
+				attrs = append(attrs, "sender_cmd", "(exited before lookup)")
+			}
+			logger.Warn("termination signal received", attrs...)
+			cancel(errors.New(reason))
+		}()
+		return
+	} else if err != nil {
+		logger.Warn("signal sender tracking unavailable", "err", err)
+	}
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGTERM, syscall.SIGINT)
+	go func() {
+		if sig, ok := <-sigs; ok {
+			cancel(fmt.Errorf("received signal %s", sig))
+		}
+	}()
+}
+
+func clip(s string) string {
+	const max = 300
+	if len(s) > max {
+		return s[:max] + "…"
+	}
+	return s
 }

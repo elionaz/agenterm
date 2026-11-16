@@ -203,6 +203,10 @@ the app, the new daemon starts with no sessions; the worktrees are still there t
   `peer_pid`, `peer_cmd`, `peer_ppid` and `peer_parent_cmd` (the PID on the other end of the socket
   via `LOCAL_PEERPID` on macOS / `SO_PEERCRED` on Linux, and its command line via `ps`), plus
   `force` and `live`. The shutdown reason (signal or RPC) is logged too.
+- SIGTERM/SIGINT are caught with a `SA_SIGINFO` handler (`internal/sigsender`, cgo on macOS and
+  Linux), so a `termination signal received` line records the **sender** as well: `sender_pid`,
+  `sender_uid`, `sender_cmd`, `sender_ppid` and `sender_parent_cmd` (looked up right away; a sender
+  that already exited shows only its PID). Without cgo the daemon falls back to `os/signal`.
 - `AGENTERM_HOME` takes precedence over `AGENTERM_SOCK`: `AGENTERM_HOME=/tmp/x agenterm stop` run
   from inside a session goes to `/tmp/x`, not to the real daemon.
 - On shutdown, the daemon kills every session and removes the socket and the pid file. A stale
