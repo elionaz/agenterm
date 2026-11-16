@@ -52,6 +52,12 @@ type Options struct {
 	Home       string
 	Cols, Rows uint16
 	RingSize   int
+	// Scrollback seeds the ring buffer (a restored session's saved output,
+	// replayed before anything the new process prints).
+	Scrollback []byte
+	// CreatedAt overrides the creation time (a restored session keeps its
+	// original one). Zero means now.
+	CreatedAt time.Time
 
 	StatusMode status.Mode
 	IdleAfter  time.Duration
@@ -123,6 +129,11 @@ type Session struct {
 	done     chan struct{}
 	readDone chan struct{}
 	killOnce sync.Once
+
+	// suspended: restored without a process (see Restore). released is
+	// set (under outMu) once its subscribers were let go.
+	suspended bool
+	released  bool
 }
 
 // Spawn starts the process on a new PTY.
@@ -136,36 +147,14 @@ func Spawn(o Options) (*Session, error) {
 	if o.Rows == 0 {
 		o.Rows = 24
 	}
-	if o.Cwd == "" {
-		o.Cwd = o.ProjectDir
-	}
-	s := &Session{
-		ID:          o.ID,
-		ProjectID:   o.ProjectID,
-		ProjectDir:  o.ProjectDir,
-		ProjectName: o.ProjectName,
-		ProfileID:   o.ProfileID,
-		Cmd:         o.Cmd,
-		Args:        append([]string(nil), o.Args...),
-		Env:         append([]string(nil), o.Env...),
-		Cwd:         o.Cwd,
-		CreatedAt:   time.Now().UTC(),
-		ring:        NewRing(o.RingSize),
-		subs:        make(map[*Subscriber]struct{}),
-		cols:        o.Cols,
-		rows:        o.Rows,
-		done:        make(chan struct{}),
-		readDone:    make(chan struct{}),
-		patterns:    o.AttentionPatterns,
-		onActivity:  o.OnActivity,
-	}
+	s := newSession(o)
 	s.status = status.New(status.Options{Mode: o.StatusMode, IdleAfter: o.IdleAfter, OnChange: o.OnState,
 		StallAfter: o.StallAfter, OnStall: func(bool) { s.stallFlip.Store(true) }})
 
 	cmd := exec.Command(o.Cmd, o.Args...)
-	cmd.Dir = o.Cwd
+	cmd.Dir = s.Cwd
 	cmd.Env = buildEnv(o)
-	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Cols: o.Cols, Rows: o.Rows})
+	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Cols: s.cols, Rows: s.rows})
 	if err != nil {
 		return nil, fmt.Errorf("spawn %s: %w", o.Cmd, err)
 	}
@@ -175,6 +164,61 @@ func Spawn(o Options) (*Session, error) {
 	go s.waitLoop()
 	go s.tickLoop()
 	return s, nil
+}
+
+// Restore returns a suspended session: the identity and scrollback
+// (o.Scrollback) of a session from a previous daemon run, without a
+// process. Its state is status.Suspended; attaching replays the scrollback
+// and then waits (no live output) until Release. Input is refused and Kill
+// is a no-op. The daemon replaces it with a Spawn'ed session of the same
+// ID to resume it.
+func Restore(o Options) *Session {
+	s := newSession(o)
+	s.suspended = true
+	s.status = status.New(status.Options{Mode: o.StatusMode, Suspended: true})
+	close(s.readDone)
+	close(s.done)
+	return s
+}
+
+func newSession(o Options) *Session {
+	if o.Cols == 0 {
+		o.Cols = 80
+	}
+	if o.Rows == 0 {
+		o.Rows = 24
+	}
+	if o.Cwd == "" {
+		o.Cwd = o.ProjectDir
+	}
+	created := o.CreatedAt.UTC()
+	if o.CreatedAt.IsZero() {
+		created = time.Now().UTC()
+	}
+	ring := NewRing(o.RingSize)
+	if len(o.Scrollback) > 0 {
+		ring.Write(o.Scrollback)
+	}
+	return &Session{
+		ID:          o.ID,
+		ProjectID:   o.ProjectID,
+		ProjectDir:  o.ProjectDir,
+		ProjectName: o.ProjectName,
+		ProfileID:   o.ProfileID,
+		Cmd:         o.Cmd,
+		Args:        append([]string(nil), o.Args...),
+		Env:         append([]string(nil), o.Env...),
+		Cwd:         o.Cwd,
+		CreatedAt:   created,
+		ring:        ring,
+		subs:        make(map[*Subscriber]struct{}),
+		cols:        o.Cols,
+		rows:        o.Rows,
+		done:        make(chan struct{}),
+		readDone:    make(chan struct{}),
+		patterns:    o.AttentionPatterns,
+		onActivity:  o.OnActivity,
+	}
 }
 
 func buildEnv(o Options) []string {
@@ -433,6 +477,16 @@ func (s *Session) Attach() (snapshot []byte, sub *Subscriber) {
 	s.outMu.Lock()
 	defer s.outMu.Unlock()
 	snapshot = s.ring.Snapshot()
+	if s.suspended {
+		// Nothing will be written, but the stream stays open until the
+		// session is resumed or discarded (Release).
+		if s.released {
+			close(ch)
+		} else {
+			s.subs[sub] = struct{}{}
+		}
+		return snapshot, sub
+	}
 	select {
 	case <-s.done:
 		close(ch)
@@ -442,12 +496,52 @@ func (s *Session) Attach() (snapshot []byte, sub *Subscriber) {
 	return snapshot, sub
 }
 
+// Alive reports whether the session has a running process (it is neither
+// exited nor suspended).
+func (s *Session) Alive() bool {
+	if s.suspended {
+		return false
+	}
+	_, exited := s.ExitCode()
+	return !exited
+}
+
+// Suspended reports whether this is a restored session without a process
+// (see Restore).
+func (s *Session) Suspended() bool { return s.suspended }
+
+// Release disconnects the subscribers of a suspended session (it was
+// resumed or discarded); later Attach calls get a closed channel. It is a
+// no-op for spawned sessions.
+func (s *Session) Release() {
+	if !s.suspended {
+		return
+	}
+	s.outMu.Lock()
+	defer s.outMu.Unlock()
+	s.released = true
+	for sub := range s.subs {
+		delete(s.subs, sub)
+		close(sub.ch)
+	}
+}
+
 // Scrollback returns a copy of the ring buffer.
 func (s *Session) Scrollback() []byte { return s.ring.Snapshot() }
+
+// OutputTotal is how many bytes were ever written to the scrollback (a
+// cheap "changed since" check for persisting it).
+func (s *Session) OutputTotal() int64 { return s.ring.Total() }
+
+// RingCap is the scrollback capacity.
+func (s *Session) RingCap() int { return s.ring.Cap() }
 
 // Write sends input to the PTY. Input that is not just an automatic
 // terminal reply counts as the user answering: it acknowledges attention.
 func (s *Session) Write(p []byte) (int, error) {
+	if s.suspended {
+		return 0, errors.New("session suspended")
+	}
 	select {
 	case <-s.done:
 		return 0, errors.New("session exited")
@@ -516,6 +610,13 @@ func isTerminalReply(p []byte) bool {
 func (s *Session) Resize(cols, rows uint16) error {
 	if cols == 0 || rows == 0 {
 		return fmt.Errorf("invalid size %dx%d", cols, rows)
+	}
+	if s.suspended {
+		// Remembered for the resumed process.
+		s.sizeMu.Lock()
+		s.cols, s.rows = cols, rows
+		s.sizeMu.Unlock()
+		return nil
 	}
 	select {
 	case <-s.done:
@@ -590,6 +691,9 @@ func (s *Session) Done() <-chan struct{} { return s.done }
 // Kill terminates the process group: SIGHUP+SIGTERM, then SIGKILL after
 // grace. It returns once the process has exited.
 func (s *Session) Kill(grace time.Duration) {
+	if s.cmd == nil {
+		return // suspended: no process (and pid 0 would mean our own group)
+	}
 	s.killOnce.Do(func() {
 		pgid := s.Pid // pty.Start makes the child a session (and group) leader
 		_ = syscall.Kill(-pgid, syscall.SIGHUP)

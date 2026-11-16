@@ -28,17 +28,20 @@ const (
 
 // Method names.
 const (
-	MethodProjectAdd      = "project.add"
-	MethodProjectList     = "project.list"
-	MethodProjectRemove   = "project.remove"
-	MethodSessionSpawn    = "session.spawn"
-	MethodSessionList     = "session.list"
-	MethodSessionKill     = "session.kill"
-	MethodSessionResize   = "session.resize"
-	MethodSessionNotify   = "session.notify"
-	MethodSessionAck      = "session.ack"
-	MethodSessionAttach   = "session.attach"
-	MethodSessionTail     = "session.tail"
+	MethodProjectAdd    = "project.add"
+	MethodProjectList   = "project.list"
+	MethodProjectRemove = "project.remove"
+	MethodSessionSpawn  = "session.spawn"
+	MethodSessionList   = "session.list"
+	MethodSessionKill   = "session.kill"
+	MethodSessionResize = "session.resize"
+	MethodSessionNotify = "session.notify"
+	MethodSessionAck    = "session.ack"
+	MethodSessionAttach = "session.attach"
+	MethodSessionTail   = "session.tail"
+	// Sessions restored from a previous daemon run (state suspended).
+	MethodSessionResume   = "session.resume"
+	MethodSessionDiscard  = "session.discard"
 	MethodProfileList     = "profile.list"
 	MethodProfileCatalog  = "profile.catalog"
 	MethodProfileSave     = "profile.save"
@@ -284,6 +287,29 @@ type SessionRef struct {
 	SessionID string `json:"sessionId"`
 }
 
+// SuspendedRef selects suspended sessions for session.resume / discard:
+// one (SessionID) or All of them.
+type SuspendedRef struct {
+	SessionID string `json:"sessionId,omitempty"`
+	All       bool   `json:"all,omitempty"`
+}
+
+// SessionBatch is session.resume / discard's result: the sessions handled
+// (resumed: their new info; discarded: their last one) and, with All, the
+// ones that failed. A single-session request fails with the error instead.
+type SessionBatch struct {
+	Sessions []SessionInfo `json:"sessions"`
+	Failed   []BatchError  `json:"failed,omitempty"`
+}
+
+// BatchError is one failure of a batch (ErrorCode as in Response).
+type BatchError struct {
+	SessionID string          `json:"sessionId"`
+	Error     string          `json:"error"`
+	ErrorCode string          `json:"errorCode,omitempty"`
+	ErrorData json.RawMessage `json:"errorData,omitempty"`
+}
+
 type ResizeParams struct {
 	SessionID string `json:"sessionId"`
 	Cols      uint16 `json:"cols"`
@@ -303,6 +329,13 @@ type NotifyParams struct {
 	ActivityTarget string `json:"activityTarget,omitempty"`
 	// Turn marks a new turn (prompt submitted): restarts the turn timer.
 	Turn bool `json:"turn,omitempty"`
+	// AgentSessionID is the agent's own session id from a hook payload
+	// (claude session_id, codex thread-id), for resuming the conversation
+	// after a daemon restart; Agent names the hook integration (claude |
+	// codex). With an empty State and Activity only this is recorded.
+	Agent          string `json:"agent,omitempty"`
+	AgentSessionID string `json:"agentSessionId,omitempty"`
+	TranscriptPath string `json:"transcriptPath,omitempty"`
 }
 
 // TailParams asks for the last Lines lines of a session's output.
@@ -399,8 +432,24 @@ type SessionInfo struct {
 	Branch       string   `json:"branch,omitempty"`
 	Base         string   `json:"base,omitempty"`
 	Git          *GitInfo `json:"git,omitempty"`
+	// Suspended sessions (state suspended) come from a previous daemon run:
+	// SuspendedAt is when that daemon stopped; ResumeMode is how resuming
+	// would restart the agent: agent (its own session id: same
+	// conversation), args (the profile's resume_args) or fresh (the plain
+	// command). ResumeError(Code) is the last failed resume attempt.
+	SuspendedAt     *time.Time `json:"suspendedAt,omitempty"`
+	ResumeMode      string     `json:"resumeMode,omitempty"`
+	ResumeError     string     `json:"resumeError,omitempty"`
+	ResumeErrorCode string     `json:"resumeErrorCode,omitempty"`
 	Live
 }
+
+// Resume modes (SessionInfo.ResumeMode).
+const (
+	ResumeAgent = "agent"
+	ResumeArgs  = "args"
+	ResumeFresh = "fresh"
+)
 
 type SessionList struct {
 	Sessions []SessionInfo `json:"sessions"`

@@ -19,6 +19,7 @@ export const en = {
   'state.idle': 'idle',
   'state.exited': 'exited',
   'state.exitCode': 'exit {code}',
+  'state.suspended': 'suspended',
   'attention.permission': 'approval',
   'attention.question': 'question',
   'attention.done': 'done',
@@ -105,6 +106,16 @@ export const en = {
   'sidebar.filesChanged': { one: '{n} file changed', other: '{n} files changed' },
   'sidebar.removeFromList': 'Remove from list',
   'sidebar.stopSession': 'Stop session',
+  'sidebar.resume': 'Resume',
+  'sidebar.resumeTitle.agent': 'Resume: the agent continues the same conversation',
+  'sidebar.resumeTitle.args': "Resume: restart with the profile's resume_args",
+  'sidebar.resumeTitle.fresh': 'Resume: restart the command in the same folder (new process)',
+  'sidebar.discard': 'Discard (forget the session and its scrollback)',
+  'sidebar.suspendedSince': 'Suspended since {at} (the daemon restarted)',
+  'sidebar.resumeFailed': 'Last resume failed: {msg}',
+  'sidebar.restoredBanner': { one: '{n} session from the previous run', other: '{n} sessions from the previous run' },
+  'sidebar.resumeAll': 'Resume all',
+  'sidebar.discardAll': 'Discard all',
   'sidebar.noSessions': 'No sessions',
   'sidebar.orphansTitle': 'agenterm worktrees without a session: their folder and branch are still there',
   'sidebar.orphans': 'Orphaned worktrees',
@@ -203,6 +214,11 @@ export const en = {
   'settings.languageAuto': 'Automatic (system: {lang})',
   /** (html) */
   'settings.languageHint': 'Saved to <code>settings.yaml</code> (<code>ui.language</code>).',
+  'settings.restore': 'Sessions after a restart',
+  'settings.restoreHelp': 'What to do with the sessions that were live when the daemon stopped (sessions.restore).',
+  'settings.restore.ask': 'Ask (keep them suspended)',
+  'settings.restore.always': 'Resume them automatically',
+  'settings.restore.never': 'Discard them',
 
   'settings.source.variant': 'variant of {id}',
   'settings.source.catalog': 'catalog',
@@ -342,6 +358,10 @@ export const en = {
   'err.base_missing': 'Base "{base}" does not exist in the repository.',
   'err.base_missing_none': 'Cannot find the base branch (detached HEAD and no main/master): choose a base.',
   'err.dir_missing': 'The folder no longer exists: {dir}',
+  'err.resume_failed.still_running': 'Session {sessionId}: its previous process (pid {pid}) is still running. Stop it or discard the session.',
+  'err.resume_failed.project_missing': 'Session {sessionId}: its project is no longer in agenterm.',
+  'err.resume_failed.not_suspended': 'Session {sessionId} is not suspended.',
+  'err.resume_failed.busy': 'Session {sessionId} is already being resumed.',
 } satisfies Record<string, Msg>
 
 export type MsgKey = keyof typeof en

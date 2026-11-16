@@ -135,6 +135,7 @@ export namespace main {
 	    activity?: settings.Activity;
 	    git?: settings.Git;
 	    ui?: settings.UI;
+	    sessions?: settings.Sessions;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsPatch(source);
@@ -146,6 +147,7 @@ export namespace main {
 	        this.activity = this.convertValues(source["activity"], settings.Activity);
 	        this.git = this.convertValues(source["git"], settings.Git);
 	        this.ui = this.convertValues(source["ui"], settings.UI);
+	        this.sessions = this.convertValues(source["sessions"], settings.Sessions);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -202,6 +204,7 @@ export namespace profile {
 	    setupHooks?: string;
 	    idleSeconds?: number;
 	    attentionPatterns?: string[];
+	    resumeArgs?: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Entry(source);
@@ -221,6 +224,7 @@ export namespace profile {
 	        this.setupHooks = source["setupHooks"];
 	        this.idleSeconds = source["idleSeconds"];
 	        this.attentionPatterns = source["attentionPatterns"];
+	        this.resumeArgs = source["resumeArgs"];
 	    }
 	}
 	export class Profile {
@@ -233,6 +237,7 @@ export namespace profile {
 	    setupHooks?: string;
 	    attentionPatterns?: string[];
 	    idleSeconds?: number;
+	    resumeArgs?: string[];
 	    source: string;
 	    extends?: string;
 	    enabled: boolean;
@@ -257,6 +262,7 @@ export namespace profile {
 	        this.setupHooks = source["setupHooks"];
 	        this.attentionPatterns = source["attentionPatterns"];
 	        this.idleSeconds = source["idleSeconds"];
+	        this.resumeArgs = source["resumeArgs"];
 	        this.source = source["source"];
 	        this.extends = source["extends"];
 	        this.enabled = source["enabled"];
@@ -314,6 +320,24 @@ export namespace project {
 
 export namespace protocol {
 	
+	export class BatchError {
+	    sessionId: string;
+	    error: string;
+	    errorCode?: string;
+	    errorData?: number[];
+	
+	    static createFrom(source: any = {}) {
+	        return new BatchError(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sessionId = source["sessionId"];
+	        this.error = source["error"];
+	        this.errorCode = source["errorCode"];
+	        this.errorData = source["errorData"];
+	    }
+	}
 	export class CatalogInfo {
 	    id: string;
 	    name: string;
@@ -323,6 +347,7 @@ export namespace protocol {
 	    status: string;
 	    setupHooks?: string;
 	    attentionPatterns?: string[];
+	    resumeArgs?: string[];
 	    homepage?: string;
 	    install?: string;
 	    command: string;
@@ -343,6 +368,7 @@ export namespace protocol {
 	        this.status = source["status"];
 	        this.setupHooks = source["setupHooks"];
 	        this.attentionPatterns = source["attentionPatterns"];
+	        this.resumeArgs = source["resumeArgs"];
 	        this.homepage = source["homepage"];
 	        this.install = source["install"];
 	        this.command = source["command"];
@@ -507,6 +533,11 @@ export namespace protocol {
 	    branch?: string;
 	    base?: string;
 	    git?: GitInfo;
+	    // Go type: time
+	    suspendedAt?: any;
+	    resumeMode?: string;
+	    resumeError?: string;
+	    resumeErrorCode?: string;
 	    activity?: string;
 	    activityKind?: string;
 	    activityTarget?: string;
@@ -557,6 +588,10 @@ export namespace protocol {
 	        this.branch = source["branch"];
 	        this.base = source["base"];
 	        this.git = this.convertValues(source["git"], GitInfo);
+	        this.suspendedAt = this.convertValues(source["suspendedAt"], null);
+	        this.resumeMode = source["resumeMode"];
+	        this.resumeError = source["resumeError"];
+	        this.resumeErrorCode = source["resumeErrorCode"];
 	        this.activity = source["activity"];
 	        this.activityKind = source["activityKind"];
 	        this.activityTarget = source["activityTarget"];
@@ -589,6 +624,39 @@ export namespace protocol {
 		    return a;
 		}
 	}
+	export class SessionBatch {
+	    sessions: SessionInfo[];
+	    failed?: BatchError[];
+	
+	    static createFrom(source: any = {}) {
+	        return new SessionBatch(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sessions = this.convertValues(source["sessions"], SessionInfo);
+	        this.failed = this.convertValues(source["failed"], BatchError);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class WorktreeInfo {
 	    id: string;
 	    projectId: string;
@@ -723,6 +791,18 @@ export namespace settings {
 	        this.notifyOnStall = source["notifyOnStall"];
 	    }
 	}
+	export class Sessions {
+	    restore: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Sessions(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.restore = source["restore"];
+	    }
+	}
 	export class UI {
 	    language: string;
 	
@@ -740,6 +820,7 @@ export namespace settings {
 	    activity: Activity;
 	    git: Git;
 	    ui: UI;
+	    sessions: Sessions;
 	
 	    static createFrom(source: any = {}) {
 	        return new Settings(source);
@@ -751,6 +832,7 @@ export namespace settings {
 	        this.activity = this.convertValues(source["activity"], Activity);
 	        this.git = this.convertValues(source["git"], Git);
 	        this.ui = this.convertValues(source["ui"], UI);
+	        this.sessions = this.convertValues(source["sessions"], Sessions);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

@@ -32,6 +32,11 @@
     /** Opens an orphaned worktree's changes (optionally with removal asked). */
     onOpenWorktree: (worktreeId: string, remove?: boolean) => void
     onKill: (id: string) => void
+    /** Suspended sessions (restored after a daemon restart). */
+    onResume: (id: string) => void
+    onDiscard: (id: string) => void
+    onResumeAll: () => void
+    onDiscardAll: () => void
     onAddProject: () => void
     onRemoveProject: (id: string) => void
     onOpenSettings: () => void
@@ -51,6 +56,10 @@
     onSelectProject,
     onSpawn,
     onKill,
+    onResume,
+    onDiscard,
+    onResumeAll,
+    onDiscardAll,
     onAddProject,
     onRemoveProject,
     onOpenSettings,
@@ -86,8 +95,16 @@
     return s.state
   }
 
+  const suspendedCount = $derived(sessions.filter((s) => s.state === 'suspended').length)
+
   function tooltip(s: Session): string {
     let base = `${s.cmd} · ${s.cwd} · ${s.id}`
+    if (s.state === 'suspended') {
+      const at = s.suspendedAt ? new Date(s.suspendedAt).toLocaleString() : ''
+      base = `${t('sidebar.suspendedSince', { at })}\n${base}`
+      if (s.resumeError) base = `${t('sidebar.resumeFailed', { msg: s.resumeError })}\n${base}`
+      return base
+    }
     if (s.activity) base = `${activityText(s)}\n${base}`
     if (!s.attentionKind || s.state === 'exited') return base
     const what = attentionLabel(s.attentionKind)
@@ -176,6 +193,16 @@
     <button class="icon grid-btn" title={t('sidebar.overview')} aria-label={t('sidebar.overviewLabel')} onclick={() => onOpenGrid()}>▦</button>
     <span class="brand">agenterm</span>
   </div>
+
+  {#if suspendedCount}
+    <div class="restored" role="status">
+      <span>{t('sidebar.restoredBanner', { n: suspendedCount })}</span>
+      <span class="restored-actions">
+        <button onclick={onResumeAll}>{t('sidebar.resumeAll')}</button>
+        <button class="danger" onclick={onDiscardAll}>{t('sidebar.discardAll')}</button>
+      </span>
+    </div>
+  {/if}
 
   <div class="projects">
     {#each projects as p (p.id)}
@@ -308,15 +335,34 @@
                       <span class="changes" title={t('sidebar.filesChanged', { n: s.git.files })}>{changesLabel(s.git)}</span>
                     {/if}
                     <span class="state {badgeClass(s)}">{stateLabel(s)}</span>
-                    {#if i < 9 && p.id === currentProjectId}<span class="kbd">⌘{i + 1}</span>{/if}
-                    <button
-                      class="icon kill"
-                      title={s.state === 'exited' ? t('sidebar.removeFromList') : t('sidebar.stopSession')}
-                      onclick={(e) => {
-                        e.stopPropagation()
-                        onKill(s.id)
-                      }}>×</button
-                    >
+                    {#if s.state === 'suspended'}
+                      <button
+                        class="resume"
+                        title={t(`sidebar.resumeTitle.${s.resumeMode === 'agent' || s.resumeMode === 'args' ? s.resumeMode : 'fresh'}`)}
+                        onclick={(e) => {
+                          e.stopPropagation()
+                          onResume(s.id)
+                        }}>▶ {t('sidebar.resume')}</button
+                      >
+                      <button
+                        class="icon kill"
+                        title={t('sidebar.discard')}
+                        onclick={(e) => {
+                          e.stopPropagation()
+                          onDiscard(s.id)
+                        }}>×</button
+                      >
+                    {:else}
+                      {#if i < 9 && p.id === currentProjectId}<span class="kbd">⌘{i + 1}</span>{/if}
+                      <button
+                        class="icon kill"
+                        title={s.state === 'exited' ? t('sidebar.removeFromList') : t('sidebar.stopSession')}
+                        onclick={(e) => {
+                          e.stopPropagation()
+                          onKill(s.id)
+                        }}>×</button
+                      >
+                    {/if}
                   </div>
                   {#if (s.activity && s.state !== 'exited') || timer.text}
                     <div class="sub">
@@ -597,6 +643,33 @@
   }
   .state.exited.fail {
     color: var(--red);
+  }
+  .restored {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin: 6px 8px 2px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--amber) 12%, transparent);
+    font-size: 11.5px;
+  }
+  .restored-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .restored button,
+  .session .resume {
+    font-size: 10.5px;
+    padding: 1px 6px;
+  }
+  .restored .danger {
+    color: var(--red);
+  }
+  .dot.suspended {
+    background: transparent;
+    box-shadow: inset 0 0 0 1.5px var(--grey);
   }
   .kbd {
     font-size: 10px;

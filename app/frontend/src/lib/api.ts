@@ -11,7 +11,10 @@ export type ProfileEntry = profile.Entry
 export type CatalogInfo = Omit<protocol.CatalogInfo, 'convertValues'>
 export type Settings = Omit<settings.Settings, 'convertValues'>
 export type Session = Omit<protocol.SessionInfo, 'convertValues'>
-export type SessionState = 'running' | 'waiting_input' | 'idle' | 'exited'
+/** suspended: restored from a previous daemon run, no process (resume or discard it). */
+export type SessionState = 'running' | 'waiting_input' | 'idle' | 'exited' | 'suspended'
+/** Mirrors protocol.SessionBatch (session.resume / discard). */
+export type SessionBatch = Omit<protocol.SessionBatch, 'convertValues'>
 export type AttentionKind = 'permission' | 'question' | 'done' | 'error'
 export type SpawnMode = 'same' | 'worktree'
 export type SpawnOptions = main.SpawnOptions
@@ -132,6 +135,12 @@ export const api = {
   openFolder: (target: 'editor' | 'finder', ref: { worktreeId?: string; sessionId?: string }) =>
     App.OpenWorktree(ref.worktreeId ?? '', ref.sessionId ?? '', target),
   kill: (id: string) => App.Kill(id),
+  /** Respawns a suspended session (agents continue their conversation when they can). */
+  resume: (id: string): Promise<Session> => App.Resume(id),
+  /** Forgets a suspended session and its saved scrollback. */
+  discard: (id: string): Promise<Session> => App.Discard(id),
+  resumeAll: (): Promise<SessionBatch> => App.ResumeAll(),
+  discardAll: (): Promise<SessionBatch> => App.DiscardAll(),
   attach: (id: string, cols: number, rows: number) => App.Attach(id, cols, rows),
   detach: (id: string) => App.Detach(id),
   /** Raw bytes to the PTY (keystrokes are UTF-8 encoded by the caller). */
@@ -270,6 +279,9 @@ export function codedMessage(ce: CodedError): string | null {
       break
     case 'base_missing':
       if (!d.base) key = 'err.base_missing_none'
+      break
+    case 'resume_failed':
+      key = `err.resume_failed.${String(d.reason ?? '')}`
       break
   }
   return hasKey(key) ? t(key, p) : null

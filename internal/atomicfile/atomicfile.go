@@ -25,6 +25,15 @@ func Write(path string, data []byte, perm os.FileMode) error {
 	return writeTemp(path, data, perm)
 }
 
+// Replace is Write without the .bak copy, for frequently rewritten state
+// (scrollback snapshots).
+func Replace(path string, data []byte, perm os.FileMode) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
+	}
+	return writeTemp(path, data, perm)
+}
+
 func writeTemp(path string, data []byte, perm os.FileMode) error {
 	f, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp*")
 	if err != nil {

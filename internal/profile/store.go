@@ -70,6 +70,12 @@ func (s *Store) Save(e Entry) ([]Profile, error) {
 			return nil, fmt.Errorf("profile %q: missing cmd", e.ID)
 		}
 	}
+	// Fields an editor may not know about keep their current value.
+	if e.ResumeArgs == nil {
+		if i := slices.IndexFunc(es, func(x Entry) bool { return x.ID == e.ID }); i >= 0 {
+			e.ResumeArgs = es[i].ResumeArgs
+		}
+	}
 	e = minimize(e, base, inCatalog || e.Extends != "")
 	e.Order = nil
 
@@ -228,6 +234,9 @@ func minimize(e Entry, base Profile, inherits bool) Entry {
 	}
 	if e.AttentionPatterns != nil && slices.Equal(*e.AttentionPatterns, base.AttentionPatterns) {
 		e.AttentionPatterns = nil
+	}
+	if e.ResumeArgs != nil && slices.Equal(*e.ResumeArgs, base.ResumeArgs) {
+		e.ResumeArgs = nil
 	}
 	if e.Status == base.Status || (e.Status == "heuristic" && base.Status == "") {
 		e.Status = ""

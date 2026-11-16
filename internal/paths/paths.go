@@ -69,3 +69,9 @@ func (p Paths) WorktreesDir() string { return filepath.Join(p.RuntimeDir, "workt
 
 // Worktrees is the registry of agenterm-managed worktrees.
 func (p Paths) Worktrees() string { return filepath.Join(p.RuntimeDir, "worktrees.json") }
+
+// Sessions is the registry of sessions to restore after a daemon restart.
+func (p Paths) Sessions() string { return filepath.Join(p.RuntimeDir, "sessions.json") }
+
+// ScrollbackDir holds each persisted session's scrollback (<id>.log).
+func (p Paths) ScrollbackDir() string { return filepath.Join(p.RuntimeDir, "scrollback") }

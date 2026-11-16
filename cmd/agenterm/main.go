@@ -47,6 +47,9 @@ Usage:
   agenterm tail [-n N] <sessionId>    last N lines of output as plain text (default 8)
   agenterm attach <sessionId>         attach (detach with Ctrl-\)
   agenterm kill <sessionId>           kill a session (again to forget an exited one)
+  agenterm resume <sessionId>|--all   respawn sessions suspended by a daemon restart
+                                      (agents continue their conversation when they can)
+  agenterm discard <sessionId>|--all  forget suspended sessions (and their scrollback)
   agenterm notify [--session ID] [--state S] [--kind K] [--message M] [--activity A]
                                       report state/attention (from agent hooks)
   agenterm notify --from-hook claude|codex   read a hook payload (stdin / last arg)
@@ -140,6 +143,8 @@ func run(args []string) error {
 		}
 		fmt.Printf("%s %s\n", info.ID, info.State)
 		return nil
+	case "resume", "discard":
+		return cmdSuspended(ctx, c, cmd, rest)
 	case "kill":
 		if len(rest) != 1 {
 			return errors.New("usage: agenterm kill <sessionId>")
@@ -345,6 +350,43 @@ func cmdLs(ctx context.Context, c *client.Client) error {
 	return w.Flush()
 }
 
+// cmdSuspended runs resume / discard on one suspended session or --all.
+func cmdSuspended(ctx context.Context, c *client.Client, cmd string, args []string) error {
+	fs := flag.NewFlagSet(cmd, flag.ContinueOnError)
+	all := fs.Bool("all", false, "every suspended session")
+	if err := parseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if *all == (fs.NArg() == 1) || fs.NArg() > 1 {
+		return fmt.Errorf("usage: agenterm %s <sessionId>|--all", cmd)
+	}
+	call := c.Resume
+	if cmd == "discard" {
+		call = c.Discard
+	}
+	res, err := call(ctx, fs.Arg(0), *all)
+	if err != nil {
+		return err
+	}
+	for _, s := range res.Sessions {
+		if cmd == "discard" {
+			fmt.Printf("%s discarded\n", s.ID)
+		} else {
+			fmt.Printf("%s %s pid %d\n", s.ID, s.State, s.Pid)
+		}
+	}
+	for _, f := range res.Failed {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", f.SessionID, f.Error)
+	}
+	if *all && len(res.Sessions) == 0 && len(res.Failed) == 0 {
+		fmt.Println("no suspended sessions")
+	}
+	if len(res.Failed) > 0 {
+		return fmt.Errorf("%d sessions could not be %sd", len(res.Failed), cmd)
+	}
+	return nil
+}
+
 // turn renders the turn timer: "4m12s" (running), "=6m0s" (finished).
 func turn(s protocol.SessionInfo) string {
 	if s.TurnStartedAt == nil {
@@ -389,6 +431,13 @@ func attention(s protocol.SessionInfo) string {
 func exitSuffix(s protocol.SessionInfo) string {
 	if s.ExitCode != nil {
 		return fmt.Sprintf("(%d)", *s.ExitCode)
+	}
+	if s.ResumeMode != "" { // suspended: how resume would restart it
+		out := "[" + s.ResumeMode + "]"
+		if s.ResumeErrorCode != "" {
+			out += "!" + s.ResumeErrorCode
+		}
+		return out
 	}
 	return ""
 }

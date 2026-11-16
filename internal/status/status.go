@@ -10,6 +10,11 @@
 // explicit event arrives, output activity and idle timeouts no longer change
 // the state. Exited is terminal in every mode.
 //
+// Suspended is the state of a session restored from a previous daemon run
+// with no process behind it (see Options.Suspended): it is just as inert as
+// Exited — nothing changes it — until the daemon replaces the session with
+// a respawned one (resume) or forgets it (discard).
+//
 // On top of the state, a Machine tracks an Attention: why the session needs
 // the user (permission, question, done, error), with an optional message and
 // an unread flag cleared by Ack or user input. Attention comes from explicit
@@ -40,6 +45,8 @@ const (
 	WaitingInput State = "waiting_input"
 	Idle         State = "idle"
 	Exited       State = "exited"
+	// Suspended: restored from a previous daemon run, no process yet.
+	Suspended State = "suspended"
 )
 
 // ParseState accepts canonical names plus the aliases used by agent hooks
@@ -192,6 +199,9 @@ type Options struct {
 	// OnStall is called (like OnChange: lock held, must not block or call
 	// back) whenever the stalled flag flips.
 	OnStall func(stalled bool)
+	// Suspended starts the machine in the Suspended state (a restored
+	// session without a process), where it stays.
+	Suspended bool
 }
 
 // Machine is a per-session state machine. It is safe for concurrent use.
@@ -234,6 +244,10 @@ func New(o Options) *Machine {
 		m.now = time.Now
 	}
 	m.lastOutput = m.now()
+	if o.Suspended {
+		m.state = Suspended
+		return m
+	}
 	m.t.TurnStartedAt = m.lastOutput
 	return m
 }
@@ -283,6 +297,10 @@ func (m *Machine) ExitCode() (int, bool) {
 
 // IdleAfter returns the configured quiet period.
 func (m *Machine) IdleAfter() time.Duration { return m.idleAfter }
+
+// inert reports whether nothing may change the state any more (exited,
+// or suspended without a process).
+func (m *Machine) inert() bool { return m.state == Exited || m.state == Suspended }
 
 func (m *Machine) heuristicActive() bool {
 	return !(m.mode == ModeHooks && m.hooked)
@@ -341,7 +359,7 @@ func (m *Machine) Output() {
 	m.lastOutput = now
 	m.t.LastOutputAt = now
 	m.setStalled(false, now)
-	if m.state == Exited || !m.heuristicActive() {
+	if m.inert() || !m.heuristicActive() {
 		return
 	}
 	// Agents keep redrawing while they wait (spinners, cursor blink), so
@@ -363,7 +381,7 @@ func (m *Machine) Output() {
 func (m *Machine) Input() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.state == Exited {
+	if m.inert() {
 		return
 	}
 	now := m.now()
@@ -400,7 +418,7 @@ func (m *Machine) Ack() bool {
 func (m *Machine) Signal(kind Kind, msg string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.state == Exited {
+	if m.inert() {
 		return
 	}
 	now := m.now()
@@ -469,6 +487,9 @@ func (m *Machine) NotifyEvent(ev Event) error {
 	if m.state == Exited {
 		return fmt.Errorf("session already exited")
 	}
+	if m.state == Suspended {
+		return fmt.Errorf("session is suspended")
+	}
 	m.hooked = true
 	now := m.now()
 	m.t.LastEventAt = now
@@ -514,7 +535,7 @@ func (m *Machine) NotifyEvent(ev Event) error {
 func (m *Machine) Exit(code int) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.state == Exited {
+	if m.inert() {
 		return
 	}
 	m.exitCode = code

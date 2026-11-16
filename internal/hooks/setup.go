@@ -22,8 +22,10 @@ const (
 )
 
 // claudeEvents are the Claude Code hook events agenterm listens to; see
-// parseClaude for what each one means.
-var claudeEvents = []string{"UserPromptSubmit", "PreToolUse", "PermissionRequest", "Notification", "PostToolUse", "Stop", "StopFailure"}
+// parseClaude for what each one means. SessionStart carries no state: it
+// reports the (new) session_id early, so a daemon restart can resume the
+// conversation even before the first prompt (SessionRef).
+var claudeEvents = []string{"SessionStart", "UserPromptSubmit", "PreToolUse", "PermissionRequest", "Notification", "PostToolUse", "Stop", "StopFailure"}
 
 // Hook timeouts (seconds). PreToolUse runs before every tool call, so it
 // gets the tightest bound; `notify --from-hook` gives up after 2 s anyway and

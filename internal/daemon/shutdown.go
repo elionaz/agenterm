@@ -9,7 +9,6 @@ import (
 	"github.com/elionaz/agenterm/internal/peercred"
 	"github.com/elionaz/agenterm/internal/protocol"
 	"github.com/elionaz/agenterm/internal/session"
-	"github.com/elionaz/agenterm/internal/status"
 )
 
 // handleShutdown serves daemon.shutdown. Without force it refuses while any
@@ -36,13 +35,14 @@ func (s *Server) handleShutdown(conn net.Conn, req protocol.Request) (any, error
 	return map[string]any{"ok": true}, nil
 }
 
-// liveSessions lists the sessions that have not exited, in spawn order.
+// liveSessions lists the sessions with a running process (not exited nor
+// suspended), in spawn order.
 func (s *Server) liveSessions() []*session.Session {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var out []*session.Session
 	for _, id := range s.order {
-		if sess := s.sessions[id]; sess != nil && sess.State() != status.Exited {
+		if sess := s.sessions[id]; sess != nil && sess.Alive() {
 			out = append(out, sess)
 		}
 	}

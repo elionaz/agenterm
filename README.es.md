@@ -22,7 +22,9 @@ vivos aunque cierres la app y te avisa cuando alguno te necesita.
   Copilot, aider, Amp, goose, Qwen, Crush, Kiro, shell) con detección automática de los instalados,
   más perfiles propios y variantes en `profiles.yaml`.
 - **Las sesiones sobreviven a la app**: un daemon es dueño de las PTYs; cierras la ventana, la
-  reabres y todo sigue ahí con su scrollback. La CLI y la app comparten el mismo daemon.
+  reabres y todo sigue ahí con su scrollback. La CLI y la app comparten el mismo daemon. Si el
+  propio daemon se reinicia, las sesiones vuelven suspendidas con su scrollback y se reanudan con
+  un clic (Claude Code y codex continúan la misma conversación).
 - **Detección de atención**: aprobaciones, preguntas, turnos terminados y errores (hooks del agente
   o señales de terminal), con notificaciones nativas de macOS, badge del Dock y marcas en la sidebar.
 - **Actividad en vivo**: qué está haciendo cada agente ("Editando main.go"), cronómetro del turno,

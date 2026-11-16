@@ -57,7 +57,8 @@ func TestSaveRoundTrip(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "settings.yaml")
 	os.WriteFile(p, []byte("notify:\n  sound: false\n"), 0o600)
 	want := Settings{Notify: Notify{Enabled: true, Sound: true, OnDone: false}, Activity: Activity{StallSeconds: 60},
-		Git: Git{Editor: "cursor -n", WorktreeDir: "~/wt", DefaultMode: ModeWorktree}, UI: UI{Language: "es"}}
+		Git: Git{Editor: "cursor -n", WorktreeDir: "~/wt", DefaultMode: ModeWorktree}, UI: UI{Language: "es"},
+		Sessions: Sessions{Restore: RestoreAlways}}
 	if err := Save(p, want); err != nil {
 		t.Fatal(err)
 	}
@@ -186,5 +187,29 @@ func TestUILanguage(t *testing.T) {
 	}
 	if got, _ := Load(p); got.UI.Language != "auto" {
 		t.Fatalf("saved %q", got.UI.Language)
+	}
+}
+
+func TestSessionsRestore(t *testing.T) {
+	if d := Defaults().Sessions.Restore; d != RestoreAsk {
+		t.Fatalf("default restore = %q", d)
+	}
+	for in, want := range map[string]string{"always": RestoreAlways, " Never ": RestoreNever, "ask": RestoreAsk, "bogus": RestoreAsk} {
+		s, err := Parse([]byte("sessions:\n  restore: " + in + "\n"))
+		if err != nil || s.Sessions.Restore != want {
+			t.Errorf("restore %q: got %q %v, want %q", in, s.Sessions.Restore, err, want)
+		}
+	}
+	// Saving keeps the file's other keys and comments (in-place edit).
+	p := filepath.Join(t.TempDir(), "settings.yaml")
+	os.WriteFile(p, []byte("# mine\ncustom: 1\n"), 0o600)
+	st := Defaults()
+	st.Sessions.Restore = RestoreNever
+	if err := Save(p, st); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(p)
+	if !strings.Contains(string(b), "# mine") || !strings.Contains(string(b), "custom: 1") || !strings.Contains(string(b), "restore: never") {
+		t.Fatalf("file:\n%s", b)
 	}
 }

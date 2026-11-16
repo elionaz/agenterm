@@ -213,3 +213,46 @@ func TestClaudeSettingsPreToolUse(t *testing.T) {
 		t.Fatalf("PreToolUse hook %+v", g)
 	}
 }
+
+func TestSessionRef(t *testing.T) {
+	// Every Claude Code hook payload carries session_id (+ transcript_path).
+	for name, c := range claudeSamples {
+		id, _ := SessionRef(AgentClaude, []byte(c.payload))
+		if id != "abc123" {
+			t.Errorf("%s: session id %q", name, id)
+		}
+	}
+	id, tr := SessionRef(AgentClaude, []byte(`{"session_id":"0b5e7f2a-1111-2222-3333-444455556666","transcript_path":"/u/.claude/projects/p/t.jsonl","hook_event_name":"SessionStart","source":"resume"}`))
+	if id != "0b5e7f2a-1111-2222-3333-444455556666" || tr != "/u/.claude/projects/p/t.jsonl" {
+		t.Fatalf("claude: %q %q", id, tr)
+	}
+	// codex notify (legacy_notify) payload: thread-id.
+	id, _ = SessionRef(AgentCodex, []byte(`{"type":"agent-turn-complete","thread-id":"019a-thread","turn-id":"t1","cwd":"/x","input-messages":["hi"],"last-assistant-message":"done"}`))
+	if id != "019a-thread" {
+		t.Fatalf("codex: %q", id)
+	}
+	for _, bad := range []string{`{}`, `not json`, `{"session_id":"--dangerous"}`, `{"session_id":"a b"}`, `{"session_id":"x;rm"}`} {
+		if id, _ := SessionRef(AgentClaude, []byte(bad)); id != "" {
+			t.Errorf("%s: accepted %q", bad, id)
+		}
+	}
+	if id, _ := SessionRef("other", []byte(`{"session_id":"abc"}`)); id != "" {
+		t.Fatal("unknown agent")
+	}
+}
+
+func TestClaudeSettingsListenToSessionStart(t *testing.T) {
+	var cfg struct {
+		Hooks map[string]json.RawMessage `json:"hooks"`
+	}
+	if err := json.Unmarshal(ClaudeSettings("/x/agenterm", "/s.sock"), &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := cfg.Hooks["SessionStart"]; !ok {
+		t.Fatalf("no SessionStart hook: %v", cfg.Hooks)
+	}
+	// SessionStart only reports the session id: no state change.
+	if _, ok, err := Parse(AgentClaude, []byte(`{"session_id":"abc","hook_event_name":"SessionStart","source":"startup"}`)); ok || err != nil {
+		t.Fatalf("SessionStart parsed as an event: %v %v", ok, err)
+	}
+}

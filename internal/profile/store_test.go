@@ -197,3 +197,29 @@ func TestStoreValidation(t *testing.T) {
 		t.Fatal("save over a broken file should fail")
 	}
 }
+
+func TestResumeArgs(t *testing.T) {
+	ps := Resolve(nil, nil)
+	if p, _ := Find(ps, "opencode"); !slices.Equal(p.ResumeArgs, []string{"--continue"}) {
+		t.Fatalf("opencode default resume_args %q", p.ResumeArgs)
+	}
+	if p, _ := Find(ps, "claude"); len(p.ResumeArgs) != 0 {
+		t.Fatalf("claude resume_args %q (resumes by session id)", p.ResumeArgs)
+	}
+	s, path := newStore(t, "- id: mine\n  cmd: /bin/cat\n  resume_args: [\"--continue\"]\n- id: v\n  extends: mine\n")
+	ps, err := s.List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p, _ := Find(ps, "v"); !slices.Equal(p.ResumeArgs, []string{"--continue"}) {
+		t.Fatalf("variant inherits resume_args: %q", p.ResumeArgs)
+	}
+	// An editor that does not know resume_args keeps it when saving.
+	if _, err := s.Save(Entry{ID: "mine", Cmd: "/bin/cat", Args: ptr([]string{"-u"})}); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(path)
+	if !strings.Contains(string(b), "resume_args:") {
+		t.Fatalf("resume_args lost:\n%s", b)
+	}
+}

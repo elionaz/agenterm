@@ -41,9 +41,10 @@ folder the first time.
   restarts.
 - Worktree states (`agenterm worktrees <project>`):
   - `live`: a live session is using it;
-  - `exited`: only used by sessions that have exited but are still in the list;
-  - `orphan`: no session in the daemon uses it (you removed them from the list or the daemon
-    restarted).
+  - `exited`: only used by sessions that have exited but are still in the list, or that are
+    `suspended` after a daemon restart (resuming one reopens it in this worktree);
+  - `orphan`: no session in the daemon uses it (you removed or discarded them, or they had
+    already exited before the daemon restarted).
 - When listing a project's worktrees, the daemon forgets the ones that no longer exist on disk (and
   runs `git worktree prune`) and **adopts** worktrees git knows about inside that project's
   worktrees folder that the registry doesn't have (for example, if `worktrees.json` was lost).

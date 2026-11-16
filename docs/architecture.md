@@ -71,7 +71,7 @@ internal/paths          directory resolution (AGENTERM_HOME)
 | projects | `project.add`, `project.list`, `project.remove`, `project.git` |
 | profiles | `profile.list`, `profile.catalog`, `profile.save`, `profile.delete`, `profile.reorder`, `profile.rescan` |
 | settings | `settings.get`, `settings.save` |
-| sessions | `session.spawn`, `session.list`, `session.kill`, `session.resize`, `session.notify`, `session.ack`, `session.attach`, `session.tail`, `session.diff` |
+| sessions | `session.spawn`, `session.list`, `session.kill`, `session.resize`, `session.notify`, `session.ack`, `session.attach`, `session.tail`, `session.diff`, `session.resume`, `session.discard` |
 | worktrees | `worktree.list`, `worktree.diff`, `worktree.remove`, `worktree.merge`, `worktree.open` |
 | daemon | `events.subscribe`, `daemon.ping`, `daemon.shutdown` |
 
@@ -87,6 +87,14 @@ Some parameters:
 - `session.diff` / `worktree.diff`: `{sessionId | worktreeId, stat}`.
 - `worktree.remove`: `{id, force, deleteBranch, dryRun}` → `{removed, loss}`.
 - `worktree.open`: `{id | sessionId, target: "editor" | "finder"}`.
+- `session.resume` / `session.discard`: `{sessionId}` or `{all: true}` → `{sessions, failed}`
+  (`failed`: `[{sessionId, error, errorCode, errorData}]`, only with `all`; a single session fails
+  with the error itself). Only for `suspended` sessions.
+- `session.notify` also takes `agent`, `agentSessionId` and `transcriptPath` (sent by
+  `notify --from-hook`): the agent's own session id, recorded for resuming. Without `state` and
+  `activity` only that is recorded.
+- Suspended sessions add `suspendedAt`, `resumeMode` (`agent` | `args` | `fresh`) and, after a
+  failed attempt, `resumeError` / `resumeErrorCode`.
 - `daemon.shutdown`: `{"force": false}` (no params = no force); fails with an error listing the
   live sessions if there are any and `force: true` isn't passed.
 
@@ -110,6 +118,7 @@ show them in its language (see [configuration.md](configuration.md#language)):
 | `no_commits` | `{dir}` |
 | `base_missing` | `{base}` (empty = no base could be guessed) |
 | `dir_missing` | `{dir}` |
+| `resume_failed` | `{sessionId, reason, pid?}`; `reason`: `still_running`, `project_missing`, `not_suspended`, `busy` |
 
 Unknown codes fall back to the English `error` text. The list lives in `internal/apierr/apierr.go`.
 
@@ -143,6 +152,11 @@ binary frames `type (1 byte) | length (4 bytes BE) | payload` (1 MiB max):
 
 The daemon first sends the ring buffer snapshot and then the live output. Snapshot and subscription
 are taken under the same lock, so there are no gaps or duplicates.
+
+Attaching a `suspended` session replays its saved scrollback plus a dim "suspended since …" line,
+then keeps the stream open without output (input is ignored). When the session is resumed, the
+stream ends with an error frame `session resumed; reattach` (the app reattaches by itself and gets
+the new process); when it is discarded, with `session discarded`.
 
 ### Go → frontend events (app)
 
@@ -180,17 +194,64 @@ Clients give `AGENTERM_HOME` priority over `AGENTERM_SOCK` (see
 also pass `--sock <the daemon's socket>`, so they reach their daemon even if you change
 `AGENTERM_HOME` inside the session.
 
-## Persistence and its limits
+## Persistence and resume
 
 | survives… | closing the app | restarting the daemon / the computer |
 |---|---|---|
-| session processes and their scrollback | yes | **no** |
+| session processes | yes | **no** (they are respawned on resume) |
+| session list and scrollback | yes | yes (as `suspended` sessions) |
+| the agent's conversation | yes | claude and codex: yes (resumed by id); others: with `resume_args` |
 | projects (`projects.json`), profiles, settings | yes | yes |
-| worktrees and their registry (`worktrees.json`) | yes | yes (as orphans) |
+| worktrees and their registry (`worktrees.json`) | yes | yes |
 
-Sessions live in the daemon's memory: if the daemon stops (`agenterm stop --force`, SIGTERM, a
-crash, restarting the computer), their processes die and their scrollback is lost. When you reopen
-the app, the new daemon starts with no sessions; the worktrees are still there to reopen.
+Processes live in the daemon: if it stops (`agenterm stop --force`, SIGTERM, a crash, restarting the
+computer) they die. What the next daemon needs to bring them back is kept on disk, in the runtime
+dir:
+
+- **`sessions.json`**: one record per session — `id`, `projectId`, `profileId`, `mode`,
+  `worktreeId`, `cwd`, `cmd`/`args` as launched (shown while suspended), `pid`, size, `createdAt`,
+  the last `state`, `suspendedAt` and `resume` (`{agent, sessionId, transcriptPath, at}`). The
+  resolved environment is **never** stored (profiles may put secrets in `env`): a resume
+  re-resolves the profile from `profiles.yaml`. Written on spawn, exit, removal and when the agent
+  reports its session id; atomic, `0600`. A file that doesn't parse is moved aside
+  (`sessions.json.corrupt-<time>`, logged) and the daemon starts without sessions to restore.
+- **`scrollback/<id>.log`**: the session's ring buffer (8 MiB max, the ring's capacity), rewritten
+  atomically (`0600`) at most every 2 s while there is new output, and once more when the daemon
+  stops (before killing the sessions).
+
+A session that exits, or that you kill, loses both (it's not restored). On startup, the sessions
+that were live when the previous daemon stopped come back as **`suspended`**: listed, with their
+scrollback, but without a process. Then `sessions.restore` ([configuration.md](configuration.md#settingsyaml))
+decides: `ask` (default) leaves them suspended until you choose **Resume** or **Discard** (sidebar
+row, or the "N sessions from the previous run · Resume all / Discard all" banner; CLI
+`agenterm resume|discard <id>|--all`), `always` resumes them right away and `never` discards them.
+
+**Resuming** respawns the profile in the same folder — the same worktree for worktree sessions —
+with the same id, size and creation time. The new terminal starts with the saved scrollback, the
+modes a full-screen program left on reset (alternate screen, mouse, hidden cursor…) and a dim
+`── session restored · <time> ──` line, written by the daemon into the scrollback in the
+`ui.language` language (a plain ANSI line rather than a protocol marker: every client — app, CLI
+`attach`, `tail` — shows it without changes). How the agent is restarted (`resumeMode`):
+
+| profile | restarted as | `resumeMode` |
+|---|---|---|
+| `setup_hooks: claude` with a known session id | `claude --settings <hooks> --resume <session_id> <args>` | `agent` |
+| `setup_hooks: codex` with a known thread id | `codex resume -c notify=… <args> <thread-id>` | `agent` |
+| with `resume_args` (opencode: `--continue`) | `<cmd> <hooks> <args> <resume_args>` | `args` |
+| anything else (shell, agents without a session id yet) | `<cmd> <hooks> <args>`: a fresh process | `fresh` |
+
+Claude's `session_id` comes with every hook payload (agenterm also listens to `SessionStart`, so it
+is known from the start and follows `/clear`); codex reports its `thread-id` in the `notify`
+payload, i.e. after its first turn. Both flags were checked with `claude --help` (`--resume <id>`)
+and `codex resume --help` (`codex resume [OPTIONS] [SESSION_ID]`).
+
+What is **not** restored: the process itself. A shell comes back in the session's starting folder
+with nothing running; whatever was running in it (servers, `vim`…) is gone. An agent without a
+resumable id starts a new conversation. Resume fails — and the session stays suspended, with the
+error in its tooltip / `ls` — when the folder or worktree no longer exists (`dir_missing`), the
+agent is no longer installed (`profile_not_installed`), the project was removed or the previous
+process is somehow still running (`resume_failed`; a pid is only considered alive if it leads its
+own process group and still runs the same command, so a recycled pid doesn't block it).
 
 ## Security and shutdown
 

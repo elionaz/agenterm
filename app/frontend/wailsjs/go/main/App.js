@@ -22,6 +22,14 @@ export function Detach(arg1) {
   return window['go']['main']['App']['Detach'](arg1);
 }
 
+export function Discard(arg1) {
+  return window['go']['main']['App']['Discard'](arg1);
+}
+
+export function DiscardAll() {
+  return window['go']['main']['App']['DiscardAll']();
+}
+
 export function GetSettings() {
   return window['go']['main']['App']['GetSettings']();
 }
@@ -88,6 +96,14 @@ export function RescanProfiles() {
 
 export function Resize(arg1, arg2, arg3) {
   return window['go']['main']['App']['Resize'](arg1, arg2, arg3);
+}
+
+export function Resume(arg1) {
+  return window['go']['main']['App']['Resume'](arg1);
+}
+
+export function ResumeAll() {
+  return window['go']['main']['App']['ResumeAll']();
 }
 
 export function SaveProfile(arg1) {

@@ -44,7 +44,9 @@ Pide al daemon que se apague y espera (hasta 10 s) a que el socket desaparezca; 
 
 - Sin `--force` **se niega** (sale con 1) si hay sesiones que no han terminado: el error lista
   esas sesiones (`<id> (<perfil>)`) y sugiere `--force`. Las sesiones `exited` no cuentan.
-- `--force` mata las sesiones vivas y apaga el daemon.
+- `--force` mata las sesiones vivas y apaga el daemon. No se pierden: el daemon siguiente las
+  restaura como `suspended` (ver [`resume`](#agenterm-resume-sessionid--all)). Las sesiones
+  `suspended` tampoco cuentan como vivas.
 
 La comprobación la hace el propio daemon, así que también protege de scripts o clientes antiguos.
 Cada petición (aceptada o rechazada) queda en `daemon.log` con el proceso que la hizo (ver
@@ -92,7 +94,9 @@ comando no está instalado (el mensaje incluye la pista de instalación del cat�
 
 Tabla con `ID PROJECT PROFILE STATE ATTENTION PID SIZE AGE TURN GIT ACTIVITY CWD`:
 
-- `STATE`: `running`, `waiting_input`, `idle` o `exited(<código>)`.
+- `STATE`: `running`, `waiting_input`, `idle`, `exited(<código>)` o `suspended[<modo>]`
+  (restaurada tras un reinicio del daemon; `<modo>` es cómo la relanzaría `resume`: `agent`, `args`
+  o `fresh`, seguido de `!<errorCode>` si el último intento falló).
 - `ATTENTION`: `permission`, `question`, `done`, `error` o `-`; con `*` si no se ha visto.
 - `TURN`: cronómetro del turno en curso (`4m12s`) o duración del último (`=6m0s`).
 - `GIT`: rama, `±N` archivos cambiados y `↑N` commits por delante de la base.
@@ -106,12 +110,30 @@ Tabla con `ID PROJECT PROFILE STATE ATTENTION PID SIZE AGE TURN GIT ACTIVITY CWD
 ### `agenterm attach <sessionId>`
 
 Conecta tu terminal a la sesión: primero repinta el scrollback y después sigue en vivo. Reenvía los
-cambios de tamaño de la ventana. **Ctrl-\\** se desacopla; la sesión sigue viva.
+cambios de tamaño de la ventana. **Ctrl-\\** se desacopla; la sesión sigue viva. Sobre una sesión
+`suspended` muestra el scrollback guardado y espera; si mientras tanto se reanuda, termina con
+`[daemon: session resumed; reattach]` (vuelve a ejecutar `attach`).
 
 ### `agenterm kill <sessionId>`
 
 Termina la sesión (SIGHUP + SIGTERM al grupo de procesos, SIGKILL a los 2 s) e imprime
-`<id> <estado>`. Sobre una sesión que ya terminó, la **quita de la lista**. Nunca borra su worktree.
+`<id> <estado>`. Sobre una sesión que ya terminó, la **quita de la lista**; sobre una `suspended`,
+la descarta. Nunca borra su worktree. Una sesión matada no se restaura tras reiniciar el daemon.
+
+### `agenterm resume <sessionId>|--all`
+
+Relanza sesiones `suspended` (restauradas tras un reinicio del daemon) en la misma carpeta o
+worktree, con su scrollback guardado seguido de una línea `── sesión restaurada · <hora> ──`.
+Claude Code y codex continúan la misma conversación (`--resume <session_id>` /
+`codex resume <thread-id>`), los demás perfiles usan sus `resume_args` si los tienen y una shell
+vuelve sin nada en marcha. Imprime `<id> <estado> pid <pid>`; con `--all`, los fallos van a stderr
+(`<id>: <error>`) y el código de salida es 1. Ver
+[architecture.md](architecture.md#persistencia-y-reanudación).
+
+### `agenterm discard <sessionId>|--all`
+
+Olvida sesiones `suspended`: salen de la lista y se borran su registro y su scrollback guardado
+(su worktree, si lo hay, queda como huérfano).
 
 ### `agenterm ack <sessionId>`
 
