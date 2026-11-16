@@ -135,6 +135,7 @@ export namespace main {
 	    activity?: settings.Activity;
 	    git?: settings.Git;
 	    ui?: settings.UI;
+	    sessions?: settings.Sessions;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsPatch(source);
@@ -146,6 +147,7 @@ export namespace main {
 	        this.activity = this.convertValues(source["activity"], settings.Activity);
 	        this.git = this.convertValues(source["git"], settings.Git);
 	        this.ui = this.convertValues(source["ui"], settings.UI);
+	        this.sessions = this.convertValues(source["sessions"], settings.Sessions);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

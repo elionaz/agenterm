@@ -160,11 +160,15 @@ func TestAppAgainstDaemon(t *testing.T) {
 	if _, err := a.SaveSettings(SettingsPatch{Git: &settings.Git{Editor: "zed", DefaultMode: "worktree"}}); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := a.SaveSettings(SettingsPatch{Sessions: &settings.Sessions{Restore: settings.RestoreNever}}); err != nil {
+		t.Fatal(err)
+	}
 	st, err := a.SaveSettings(SettingsPatch{UI: &settings.UI{Language: "es"}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if st.UI.Language != "es" || st.Git.Editor != "zed" || st.Git.DefaultMode != "worktree" ||
+		st.Sessions.Restore != settings.RestoreNever ||
 		st.Activity.StallSeconds != 7 || !st.Notify.Sound || !st.Notify.OnDone || !st.Notify.OnStall {
 		t.Fatalf("partial saves clobbered other sections: %+v", st)
 	}

@@ -301,6 +301,7 @@ type SettingsPatch struct {
 	Activity *settings.Activity `json:"activity,omitempty"`
 	Git      *settings.Git      `json:"git,omitempty"`
 	UI       *settings.UI       `json:"ui,omitempty"`
+	Sessions *settings.Sessions `json:"sessions,omitempty"`
 }
 
 func (a *App) SaveSettings(s SettingsPatch) (settings.Settings, error) {
