@@ -699,6 +699,7 @@
     left: 50%;
     transform: translateX(-50%);
     padding: 6px 12px;
+    z-index: 30; /* above Changes, the grid, the orphan view and Settings */
     border-radius: 6px;
     background: #3a2f14;
     color: var(--amber);
@@ -712,6 +713,7 @@
     position: absolute;
     right: 14px;
     bottom: 14px;
+    z-index: 30;
     max-width: 420px;
     padding: 8px 12px;
     border-radius: 6px;
