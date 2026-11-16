@@ -22,13 +22,14 @@ import (
 	"github.com/elionaz/agenterm/internal/sessionstore"
 	"github.com/elionaz/agenterm/internal/settings"
 	"github.com/elionaz/agenterm/internal/status"
+	"github.com/elionaz/agenterm/internal/version"
 	"github.com/elionaz/agenterm/internal/worktree"
 )
 
 func (s *Server) dispatch(req protocol.Request) (any, error) {
 	switch req.Method {
 	case protocol.MethodDaemonPing:
-		return map[string]any{"ok": true}, nil
+		return protocol.PingResult{OK: true, Version: version.Version, Commit: version.Short()}, nil
 	case protocol.MethodProjectAdd:
 		p, err := decode[protocol.ProjectAddParams](req.Params)
 		if err != nil {

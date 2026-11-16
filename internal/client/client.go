@@ -159,6 +159,14 @@ func (c *Client) Ping(ctx context.Context) error {
 	return c.Call(ctx, protocol.MethodDaemonPing, nil, nil)
 }
 
+// PingInfo is Ping plus the daemon's build (an empty Version means a daemon
+// older than 0.2.0).
+func (c *Client) PingInfo(ctx context.Context) (protocol.PingResult, error) {
+	var r protocol.PingResult
+	err := c.Call(ctx, protocol.MethodDaemonPing, nil, &r)
+	return r, err
+}
+
 // Shutdown asks the daemon to kill all sessions and exit. Without force the
 // daemon refuses (RemoteError) while any session is still alive.
 func (c *Client) Shutdown(ctx context.Context, force bool) error {
