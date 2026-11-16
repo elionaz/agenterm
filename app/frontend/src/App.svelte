@@ -315,7 +315,18 @@
     // ⌘N: new session in the current project with the first profile.
     const pid = currentProjectId ?? projects[0]?.id
     const prof = spawnable[0]
-    if (pid && prof) void spawn(pid, prof.id, { mode: rememberedMode(pid, defaultMode) })
+    if (pid && prof) void spawnDefault(pid, prof.id)
+  }
+
+  /** ⌘N: the remembered (or default) mode, but like the + menu, the same
+   * folder when the project cannot use worktrees (not a git repo…). */
+  async function spawnDefault(projectId: string, profileId: string) {
+    let mode = rememberedMode(projectId, defaultMode)
+    if (mode === 'worktree') {
+      const g = await api.projectGit(projectId).catch(() => null)
+      if (!g?.isRepo || g.error) mode = 'same'
+    }
+    await spawn(projectId, profileId, { mode })
   }
 
   function focusFromNotification(id: string) {
