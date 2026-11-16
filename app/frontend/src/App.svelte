@@ -488,8 +488,18 @@
       .catch(() => {})
   }
 
-  /** "Restart now": replace the old daemon; its sessions are resumed. */
-  async function restartDaemon() {
+  /** Agents in the middle of a turn, which a daemon restart interrupts. */
+  const busyCount = $derived(sessions.filter((s) => s.state === 'running').length)
+  let confirmRestart = $state(false)
+
+  /** "Restart now": replace the old daemon; its sessions are resumed.
+   * Asks first when agents are working. */
+  async function restartDaemon(force = false) {
+    if (!force && busyCount > 0) {
+      confirmRestart = true
+      return
+    }
+    confirmRestart = false
     restartingDaemon = true
     const b = await guard(api.restartDaemon())
     restartingDaemon = false
@@ -1031,12 +1041,18 @@
       <div class="banner">{t('banner.reconnecting')} <span>{daemonDown}</span></div>
     {:else if daemonOld}
       <div class="banner action">
-        {daemonOld.daemonVersion
-          ? t('banner.daemonOld', { version: daemonOld.daemonVersion })
-          : t('banner.daemonOldUnknown')}
-        <button disabled={restartingDaemon} onclick={restartDaemon}>
-          {restartingDaemon ? t('banner.restarting') : t('banner.restartNow')}
-        </button>
+        {#if confirmRestart && busyCount > 0}
+          {t('banner.restartBusy', { n: busyCount })}
+          <button onclick={() => restartDaemon(true)}>{t('banner.restartAnyway')}</button>
+          <button onclick={() => (confirmRestart = false)}>{t('banner.cancel')}</button>
+        {:else}
+          {daemonOld.daemonVersion
+            ? t('banner.daemonOld', { version: daemonOld.daemonVersion })
+            : t('banner.daemonOldUnknown')}
+          <button disabled={restartingDaemon} onclick={() => restartDaemon()}>
+            {restartingDaemon ? t('banner.restarting') : t('banner.restartNow')}
+          </button>
+        {/if}
       </div>
     {/if}
     {#if error}

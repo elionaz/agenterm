@@ -73,11 +73,14 @@ func (s *Server) restoreSessions() {
 		s.log.Warn("settings", "err", err)
 	}
 	policy := st.Sessions.Restore
+	// Sessions the app's "Restart now" suspended are kept whatever the
+	// policy says and are not resumed here: the app resumes them itself.
+	restart := s.takeRestartMarker()
 	recs := s.store.List()
 	keep := map[string]bool{}
-	var restored []string
+	var restored, auto []string
 	for _, rec := range recs {
-		if policy == settings.RestoreNever {
+		if policy == settings.RestoreNever && !restart[rec.ID] {
 			continue
 		}
 		sess, info := s.restoreOne(rec)
@@ -94,6 +97,9 @@ func (s *Server) restoreSessions() {
 		s.setName(rec.ID, normName(rec.Name))
 		keep[rec.ID] = true
 		restored = append(restored, rec.ID)
+		if !restart[rec.ID] {
+			auto = append(auto, rec.ID)
+		}
 	}
 	var drop []string
 	for _, rec := range recs {
@@ -112,15 +118,37 @@ func (s *Server) restoreSessions() {
 		return
 	}
 	s.log.Info("sessions from the previous run restored as suspended", "count", len(restored), "policy", policy)
-	if policy == settings.RestoreAlways {
+	if policy == settings.RestoreAlways && len(auto) > 0 {
 		go func() {
-			for _, id := range restored {
+			for _, id := range auto {
 				if _, err := s.resume(id); err != nil {
 					s.log.Warn("automatic resume failed", "id", id, "err", err)
 				}
 			}
 		}()
 	}
+}
+
+// takeRestartMarker reads and removes paths.RestartFile (see
+// RestartMarker). A missing or unreadable marker means no restart.
+func (s *Server) takeRestartMarker() map[string]bool {
+	f := s.cfg.Paths.RestartFile()
+	b, err := os.ReadFile(f)
+	if err != nil {
+		return nil
+	}
+	_ = os.Remove(f)
+	var m protocol.RestartMarker
+	if err := json.Unmarshal(b, &m); err != nil {
+		s.log.Warn("restart marker", "err", err)
+		return nil
+	}
+	out := make(map[string]bool, len(m.Resume))
+	for _, id := range m.Resume {
+		out[id] = true
+	}
+	s.log.Info("daemon restarted by the app", "sessions", len(out))
+	return out
 }
 
 func (s *Server) restoreOne(rec sessionstore.Record) (*session.Session, *suspInfo) {

@@ -119,7 +119,10 @@ builds sin ldflags dicen `dev`.
    - si existe `SPARKLE_PRIVATE_ED_KEY`, firma con EdDSA el zip (ya grapado) y genera
      `appcast.xml`;
    - crea la release `vX.Y.Z` en GitHub con la sección del CHANGELOG como notas (o notas generadas
-     si no hay) y todos los artefactos adjuntos, `appcast.xml` incluido si el build está notarizado;
+     si no hay) y todos los artefactos adjuntos, `appcast.xml` incluido si el build está notarizado.
+     Una release sin `appcast.xml` no se marca como *Latest* (la URL del feed apunta a la última
+     release). Una pre-release (`X.Y.Z-sufijo`) se publica como pre-release de GitHub: nunca es
+     *Latest*, nunca se ofrece desde la app y no actualiza el cask de Homebrew;
    - si existe `HOMEBREW_TAP_TOKEN`, rellena `packaging/homebrew/agenterm.rb.tmpl` con la versión y
      el sha256 del zip (`scripts/render-cask.sh`) y lo sube a `Casks/agenterm.rb` en
      [elionaz/homebrew-tap](https://github.com/elionaz/homebrew-tap) como "agenterm X.Y.Z".
@@ -279,10 +282,20 @@ de que la siguiente versión hay que instalarla a mano.
 **El daemon tras una actualización.** Sparkle sustituye y relanza la app, pero el daemon (arrancado
 desde el ejecutable antiguo) sigue corriendo, a propósito, con las sesiones. En cada (re)conexión
 la app compara la `version` de `daemon.ping` (ausente en daemons anteriores a 0.2.0) con la suya y,
-si no coinciden, muestra un aviso con **Reiniciar ahora**: `RestartDaemon` detiene el daemon con
-force (las sesiones vivas quedan registradas como suspendidas), arranca el nuevo y, con
-`sessions.restore: ask`, las reanuda todas (con `always` lo hace el propio daemon). Los builds de
-desarrollo (`dev`) nunca lo muestran.
+si el daemon es más antiguo, muestra un aviso con **Reiniciar ahora** (con confirmación si hay
+agentes trabajando). `RestartDaemon`:
+
+1. escribe los ids de las sesiones vivas en `restart.json` del directorio de runtime;
+2. detiene el daemon con force (las sesiones vivas quedan registradas como suspendidas) y espera a
+   que su **proceso** termine —su archivo pid es lo último que borra—, no solo a que el socket deje
+   de responder: el daemon viejo aún está matando a sus agentes, y los daemons anteriores a 0.2.0
+   borran la ruta del socket como último paso, lo que dejaría huérfano a un daemon nuevo que ya
+   escucha ahí;
+3. arranca el nuevo daemon, que restaura las sesiones de `restart.json` como suspendidas diga lo
+   que diga `sessions.restore` (y no las reanuda solo con `always`), y borra el archivo;
+4. reanuda exactamente esas sesiones. Las que ya estaban suspendidas siguen así.
+
+Los builds de desarrollo (`dev`) nunca muestran el aviso, ni tampoco un daemon más nuevo que la app.
 
 ## Icono
 

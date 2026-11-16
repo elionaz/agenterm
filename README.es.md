@@ -117,14 +117,15 @@ app, así que también tiene notificaciones nativas.
 - **App descargada** (dmg/zip): agenterm busca una release nueva una vez al día y ofrece instalarla;
   **agenterm → Buscar actualizaciones…** lo comprueba al momento. En *Ajustes → General →
   Actualizaciones* puedes desactivar la comprobación diaria o dejar que las actualizaciones se
-  descarguen e instalen solas (al salir). Antes de instalarse se verifican con una firma EdDSA y la
-  notarización de Apple.
+  descarguen e instalen solas (al salir). Antes de instalarse se verifican con una firma EdDSA y la firma
+  de código Developer ID de la app (las releases que se ofrecen desde la app siempre van
+  notarizadas).
 - Los builds desde el código fuente (`wails build`) no incluyen el actualizador.
 
 Las sesiones corren en un daemon en segundo plano que sobrevive a la app, así que justo después de
 actualizar el daemon sigue siendo la versión anterior: la ventana muestra un aviso con **Reiniciar
-ahora**, que reinicia el daemon (las sesiones en marcha se suspenden y se reanudan, como tras
-cualquier reinicio del daemon). También puedes hacerlo más tarde, o desde una terminal con
+ahora**, que reinicia el daemon (las sesiones en marcha se suspenden y se reanudan, diga lo que
+diga `sessions.restore`; las que habías dejado suspendidas siguen así). También puedes hacerlo más tarde, o desde una terminal con
 `agenterm stop --force`.
 
 ## Inicio rápido

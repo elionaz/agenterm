@@ -1,13 +1,21 @@
 package main
 
 import (
+	"cmp"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
+	"syscall"
 	"time"
 
+	"github.com/elionaz/agenterm/internal/atomicfile"
+
 	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/settings"
+	"github.com/elionaz/agenterm/internal/status"
 	"github.com/elionaz/agenterm/internal/version"
 )
 
@@ -23,10 +31,61 @@ type DaemonStatus struct {
 	Mismatch      bool   `json:"mismatch"`
 }
 
-// daemonMismatch: development builds ("dev") never ask for a restart, and
-// commits are not compared (a rebuild of the same version is compatible).
+// daemonMismatch: the daemon is older than the app (an update installed a
+// new app while the old daemon kept running). Development builds ("dev")
+// never ask for a restart; commits are not compared (a rebuild of the same
+// version is compatible) and a newer daemon is left alone (restarting it
+// from this executable would downgrade it).
 func daemonMismatch(app, daemon string) bool {
-	return app != "dev" && daemon != app
+	if app == "dev" || daemon == app {
+		return false
+	}
+	if daemon == "" { // daemons before 0.2.0 do not report a version
+		return true
+	}
+	c, ok := compareVersions(daemon, app)
+	return !ok || c < 0
+}
+
+// compareVersions compares two "X.Y.Z[-pre]" versions (a pre-release sorts
+// before its release); ok is false when either does not parse.
+func compareVersions(a, b string) (c int, ok bool) {
+	pa, prea, oka := parseVersion(a)
+	pb, preb, okb := parseVersion(b)
+	if !oka || !okb {
+		return 0, false
+	}
+	for i := range pa {
+		if pa[i] != pb[i] {
+			return cmp.Compare(pa[i], pb[i]), true
+		}
+	}
+	switch {
+	case prea == preb:
+		return 0, true
+	case prea == "":
+		return 1, true
+	case preb == "":
+		return -1, true
+	}
+	return strings.Compare(prea, preb), true
+}
+
+func parseVersion(v string) (n [3]int, pre string, ok bool) {
+	v = strings.TrimPrefix(v, "v")
+	v, pre, _ = strings.Cut(v, "-")
+	parts := strings.Split(v, ".")
+	if len(parts) != 3 {
+		return n, "", false
+	}
+	for i, p := range parts {
+		x, err := strconv.Atoi(p)
+		if err != nil || x < 0 {
+			return n, "", false
+		}
+		n[i] = x
+	}
+	return n, pre, true
 }
 
 func (a *App) DaemonStatus() (DaemonStatus, error) {
@@ -42,42 +101,79 @@ func (a *App) DaemonStatus() (DaemonStatus, error) {
 		Mismatch: daemonMismatch(version.Version, r.Version)}, nil
 }
 
-// RestartDaemon replaces the running daemon with one from this executable:
-// it stops it with force (live sessions are recorded as suspended first),
-// starts the new one and, when sessions.restore is "ask", resumes every
-// suspended session (with "always" the new daemon does it by itself; with
-// "never" there is nothing to resume).
+// RestartDaemon replaces the running daemon with one from this executable.
+// The sessions that are live now are recorded in paths.RestartFile, so the
+// new daemon restores them as suspended whatever sessions.restore says, and
+// then exactly those are resumed (sessions the user had left suspended
+// stay so).
 func (a *App) RestartDaemon() (protocol.SessionBatch, error) {
 	out := protocol.SessionBatch{Sessions: []protocol.SessionInfo{}}
 	ctx, cancel := context.WithTimeout(a.ctx, gitTO)
 	defer cancel()
-	policy := settings.RestoreAsk
-	if st, err := a.client.Settings(ctx); err == nil {
-		policy = st.Sessions.Restore
+	var live []string
+	if ss, err := a.client.Sessions(ctx); err == nil {
+		for _, s := range ss {
+			if s.State != string(status.Exited) && s.State != string(status.Suspended) {
+				live = append(live, s.ID)
+			}
+		}
+	}
+	marker := a.paths.RestartFile()
+	if len(live) > 0 {
+		b, _ := json.Marshal(protocol.RestartMarker{Resume: live})
+		if err := atomicfile.Replace(marker, b, 0o600); err != nil {
+			return out, fmt.Errorf("restart marker: %w", err)
+		}
 	}
 	if err := a.replaceDaemon(ctx); err != nil {
+		if a.client.Ping(ctx) == nil { // the old daemon is still there
+			_ = os.Remove(marker)
+		}
 		return out, err
 	}
-	if policy != settings.RestoreAsk && policy != "" {
-		return out, nil
+	for _, id := range live {
+		b, err := a.client.Resume(ctx, id, false)
+		if err != nil {
+			out.Failed = append(out.Failed, protocol.BatchError{SessionID: id, Error: err.Error()})
+			continue
+		}
+		out.Sessions = append(out.Sessions, b.Sessions...)
+		out.Failed = append(out.Failed, b.Failed...)
 	}
-	b, err := a.client.Resume(ctx, "", true)
-	b.Sessions = nonNil(b.Sessions)
-	return b, err
+	return out, nil
 }
 
-// replaceDaemon shuts the daemon down (force), waits for its socket to go
-// away and starts a new one. startMu keeps the event loop, which notices
-// the old daemon going away, from starting one of its own meanwhile.
+// restartWaitTO bounds the wait for the old daemon to exit (it gives each
+// agent KillGrace to stop; startMu is held meanwhile).
+const restartWaitTO = 20 * time.Second
+
+// replaceDaemon shuts the daemon down (force), waits for its process to
+// finish and starts a new one. Waiting for the process, not for the socket
+// to stop answering, matters: a daemon stops answering long before it is
+// done (it still kills its agents, and daemons before 0.2.0 remove the
+// socket path as their very last step, which would orphan a new daemon
+// already listening there). startMu keeps the event loop, which notices the
+// old daemon going away, from starting one of its own meanwhile.
 func (a *App) replaceDaemon(ctx context.Context) error {
 	a.startMu.Lock()
 	defer a.startMu.Unlock()
+	pid := readPid(a.paths.PidFile())
 	if err := a.client.Shutdown(ctx, true); err != nil && a.client.Ping(ctx) == nil {
 		return err
 	}
-	for a.client.Ping(ctx) == nil {
+	wctx, cancel := context.WithTimeout(ctx, restartWaitTO)
+	defer cancel()
+	gone := func() bool {
+		if pid > 0 {
+			// The daemon removes its pid file last thing; a crashed one
+			// leaves it, but its process is gone.
+			return readPid(a.paths.PidFile()) != pid || !processAlive(pid)
+		}
+		return a.client.Ping(wctx) != nil
+	}
+	for !gone() {
 		select {
-		case <-ctx.Done():
+		case <-wctx.Done():
 			return errors.New("daemon still running after shutdown request")
 		case <-time.After(50 * time.Millisecond):
 		}
@@ -86,4 +182,20 @@ func (a *App) replaceDaemon(ctx context.Context) error {
 		return fmt.Errorf("start daemon: %w", err)
 	}
 	return nil
+}
+
+func readPid(file string) int {
+	b, err := os.ReadFile(file)
+	if err != nil {
+		return 0
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
+	if err != nil || pid <= 0 {
+		return 0
+	}
+	return pid
+}
+
+func processAlive(pid int) bool {
+	return !errors.Is(syscall.Kill(pid, 0), syscall.ESRCH)
 }

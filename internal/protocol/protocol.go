@@ -535,3 +535,9 @@ type Event struct {
 	// Live is filled in session.activity and session.state events.
 	Live
 }
+
+// RestartMarker is the content of paths.RestartFile: the sessions that
+// were live when the app replaced the daemon ("Restart now").
+type RestartMarker struct {
+	Resume []string `json:"resume"`
+}

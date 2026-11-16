@@ -116,7 +116,10 @@ report `dev`.
      `agenterm-<v>-linux-{amd64,arm64}.tar.gz` and `checksums.txt`, and uploads them to the run;
    - if `SPARKLE_PRIVATE_ED_KEY` exists, EdDSA-signs the (stapled) zip and writes `appcast.xml`;
    - creates the GitHub release `vX.Y.Z` with the CHANGELOG section as notes (or generated notes if
-     there's none) and every artifact attached, `appcast.xml` included when the build is notarized;
+     there's none) and every artifact attached, `appcast.xml` included when the build is notarized.
+     A release without `appcast.xml` isn't marked *Latest* (the feed URL points at the latest
+     release). A pre-release (`X.Y.Z-suffix`) is published as a GitHub pre-release: never *Latest*,
+     never offered in-app, and the Homebrew cask isn't updated;
    - if `HOMEBREW_TAP_TOKEN` exists, renders `packaging/homebrew/agenterm.rb.tmpl` with the version
      and the zip's sha256 (`scripts/render-cask.sh`) and pushes it to `Casks/agenterm.rb` in
      [elionaz/homebrew-tap](https://github.com/elionaz/homebrew-tap) as "agenterm X.Y.Z".
@@ -275,10 +278,20 @@ next version has to be installed by hand.
 
 **The daemon after an update.** Sparkle replaces and relaunches the app, but the daemon (started
 from the old executable) keeps running, by design, with the sessions. On every (re)connection the
-app compares `daemon.ping`'s `version` (absent in daemons before 0.2.0) with its own and, if they
-differ, shows a banner with **Restart now**: `RestartDaemon` stops the daemon with force (live
-sessions are recorded as suspended), starts the new one and, with `sessions.restore: ask`, resumes
-them all (with `always` the daemon does it itself). Development builds (`dev`) never show it.
+app compares `daemon.ping`'s `version` (absent in daemons before 0.2.0) with its own and, if the
+daemon is older, shows a banner with **Restart now** (with a confirmation when agents are working).
+`RestartDaemon`:
+
+1. writes the ids of the live sessions to `restart.json` in the runtime dir;
+2. stops the daemon with force (live sessions are recorded as suspended) and waits for its
+   **process** to exit — its pid file goes away last thing — not just for the socket to stop
+   answering: the old daemon is still killing its agents then, and daemons before 0.2.0 remove the
+   socket path as their very last step, which would orphan a new daemon already listening there;
+3. starts the new daemon, which restores the sessions in `restart.json` as suspended whatever
+   `sessions.restore` says (and doesn't auto-resume them under `always`), and deletes the file;
+4. resumes exactly those sessions. Sessions that were already suspended stay so.
+
+Development builds (`dev`) never show the banner, nor does a daemon newer than the app.
 
 ## Icon
 

@@ -77,6 +77,12 @@ export const en = {
   'banner.daemonOldUnknown':
     'The background service is from an older version. Restart it to finish updating — sessions will be suspended and resumed.',
   'banner.restartNow': 'Restart now',
+  'banner.restartBusy': {
+    one: 'An agent is working: restarting interrupts it (it is resumed afterwards). Restart anyway?',
+    other: '{n} agents are working: restarting interrupts them (they are resumed afterwards). Restart anyway?',
+  },
+  'banner.restartAnyway': 'Restart',
+  'banner.cancel': 'Not now',
   'banner.restarting': 'Restarting…',
 
   // Terminal (terminals.ts).

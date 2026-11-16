@@ -58,6 +58,12 @@ export const es: Dict = {
   'banner.daemonOldUnknown':
     'El servicio en segundo plano es de una versión anterior. Reinícialo para terminar de actualizar — las sesiones se suspenderán y se reanudarán.',
   'banner.restartNow': 'Reiniciar ahora',
+  'banner.restartBusy': {
+    one: 'Hay un agente trabajando: reiniciar lo interrumpe (se reanuda después). ¿Reiniciar igualmente?',
+    other: 'Hay {n} agentes trabajando: reiniciar los interrumpe (se reanudan después). ¿Reiniciar igualmente?',
+  },
+  'banner.restartAnyway': 'Reiniciar',
+  'banner.cancel': 'Ahora no',
   'banner.restarting': 'Reiniciando…',
   'banner.reconnecting': 'Reconectando con el daemon…',
 

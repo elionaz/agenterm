@@ -113,12 +113,14 @@ notifications too.
 - **Downloaded app** (dmg/zip): agenterm checks for a new release once a day and offers to install
   it; **agenterm → Check for Updates…** checks right away. In **Settings → General → Updates** you
   can turn the daily check off or let updates download and install by themselves (on quit). Updates
-  are verified with an EdDSA signature and Apple's notarization before they're installed.
+  are checked against an EdDSA signature and the app's Developer ID code signature before they're
+  installed (releases offered in-app are always notarized).
 - Builds from source (`wails build`) don't include the updater.
 
 Sessions run in a background daemon that survives the app, so right after an update the daemon is
 still the old version: the window shows a banner with **Restart now**, which restarts the daemon
-(running sessions are suspended and resumed, as after any daemon restart). You can also do it later,
+(the sessions running then are suspended and resumed, whatever `sessions.restore` says; sessions
+you had left suspended stay so). You can also do it later,
 or from a terminal with `agenterm stop --force`.
 
 ## Quick start

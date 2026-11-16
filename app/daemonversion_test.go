@@ -12,6 +12,7 @@ import (
 
 	"github.com/elionaz/agenterm/internal/daemon"
 	"github.com/elionaz/agenterm/internal/paths"
+	"github.com/elionaz/agenterm/internal/protocol"
 	"github.com/elionaz/agenterm/internal/version"
 )
 
@@ -24,7 +25,12 @@ func TestDaemonMismatch(t *testing.T) {
 		{"0.2.0", "", true}, // 0.1.x daemons do not report a version
 		{"0.2.0", "0.1.1", true},
 		{"0.2.1", "0.2.0", true},
-		{"dev", "0.1.0", false}, // development builds never ask
+		{"0.10.0", "0.9.0", true},
+		{"0.2.0", "0.2.0-rc.1", true},
+		{"0.2.0", "0.3.0", false},      // newer daemon: never downgrade it
+		{"0.2.0-rc.1", "0.2.0", false}, // ditto
+		{"0.2.0", "garbage", true},     // unknown: offer the restart
+		{"dev", "0.1.0", false},        // development builds never ask
 		{"dev", "dev", false},
 	} {
 		if got := daemonMismatch(c.app, c.daemon); got != c.want {
@@ -33,9 +39,16 @@ func TestDaemonMismatch(t *testing.T) {
 	}
 }
 
-// TestRestartDaemon: the "Restart now" flow stops the daemon (sessions are
-// suspended), starts a new one and resumes them under sessions.restore ask.
-func TestRestartDaemon(t *testing.T) {
+// restartHarness is an App whose "daemon" runs in-process (the test
+// binary cannot be one), with sessions.restore set to policy.
+type restartHarness struct {
+	a    *App
+	dir  string
+	mu   sync.Mutex
+	runs []chan error
+}
+
+func newRestartHarness(t *testing.T, policy string) *restartHarness {
 	oldV := version.Version
 	t.Cleanup(func() { version.Version = oldV })
 	version.Version = "9.9.9-test"
@@ -49,32 +62,32 @@ func TestRestartDaemon(t *testing.T) {
 	if err := os.WriteFile(p.Profiles(), []byte("- id: sh\n  cmd: /bin/sh\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(p.Settings(), []byte("sessions:\n  restore: "+policy+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 
-	// In-process daemons stand in for `agenterm daemon` (the test binary
-	// cannot be one).
-	var mu sync.Mutex
-	var runs []chan error
+	h := &restartHarness{dir: dir}
 	var cancels []context.CancelFunc
-	launch := func(context.Context) error {
+	launch := func() (chan error, error) {
 		srv, err := daemon.New(daemon.Config{Paths: p, SearchPath: func() string { return "/usr/bin:/bin" },
 			IdleAfter: time.Hour, KillGrace: time.Second, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
 		if err != nil {
-			return err
+			return nil, err
 		}
 		ctx, cancel := context.WithCancel(context.Background())
 		done := make(chan error, 1)
 		go func() { done <- srv.Run(ctx) }()
-		mu.Lock()
-		runs, cancels = append(runs, done), append(cancels, cancel)
-		mu.Unlock()
-		return nil
+		h.mu.Lock()
+		h.runs, cancels = append(h.runs, done), append(cancels, cancel)
+		h.mu.Unlock()
+		return done, nil
 	}
 	t.Cleanup(func() {
-		mu.Lock()
-		defer mu.Unlock()
+		h.mu.Lock()
+		defer h.mu.Unlock()
 		for i, c := range cancels {
 			c()
-			<-runs[i]
+			<-h.runs[i]
 		}
 	})
 
@@ -82,13 +95,11 @@ func TestRestartDaemon(t *testing.T) {
 	a := NewApp()
 	a.emit = rec.emit
 	a.launch = func(ctx context.Context) error {
-		if err := launch(ctx); err != nil {
+		done, err := launch()
+		if err != nil {
 			return err
 		}
 		// Also called from the event loop's goroutine: no t.Fatal here.
-		mu.Lock()
-		done := runs[len(runs)-1]
-		mu.Unlock()
 		for a.client.Ping(ctx) != nil {
 			select {
 			case <-ctx.Done():
@@ -104,46 +115,127 @@ func TestRestartDaemon(t *testing.T) {
 	a.start(context.Background(), p)
 	t.Cleanup(func() { a.shutdown(context.Background()) })
 	waitFor(t, "resync", func() bool { return rec.has(evResync) })
+	h.a = a
+	return h
+}
 
-	st, err := a.DaemonStatus()
-	if err != nil || st.Mismatch || st.DaemonVersion != "9.9.9-test" || st.AppVersion != "9.9.9-test" {
-		t.Fatalf("DaemonStatus = %+v, %v", st, err)
-	}
+// daemons returns how many daemons were started and the first one's exit.
+func (h *restartHarness) daemons() (int, chan error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return len(h.runs), h.runs[0]
+}
 
-	proj, err := a.client.ProjectAdd(context.Background(), dir, "t")
+func (h *restartHarness) spawn(t *testing.T) protocol.SessionInfo {
+	t.Helper()
+	ps, err := h.a.client.ProjectList(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	info, err := a.Spawn(proj.ID, "sh", 80, 24)
+	var pid string
+	if len(ps) > 0 {
+		pid = ps[0].ID
+	} else {
+		proj, err := h.a.client.ProjectAdd(context.Background(), h.dir, "t")
+		if err != nil {
+			t.Fatal(err)
+		}
+		pid = proj.ID
+	}
+	info, err := h.a.Spawn(pid, "sh", 80, 24)
 	if err != nil {
 		t.Fatal(err)
 	}
+	return info
+}
 
+func states(t *testing.T, a *App) map[string]string {
+	t.Helper()
+	ss, err := a.ListSessions()
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := map[string]string{}
+	for _, s := range ss {
+		out[s.ID] = s.State
+	}
+	return out
+}
+
+// TestRestartDaemon: "Restart now" stops the daemon (live sessions are
+// suspended), waits for it to exit, starts a new one and resumes exactly
+// the sessions that were live — whatever sessions.restore says.
+func TestRestartDaemon(t *testing.T) {
+	for _, policy := range []string{"ask", "always", "never"} {
+		t.Run(policy, func(t *testing.T) {
+			h := newRestartHarness(t, policy)
+			a := h.a
+			st, err := a.DaemonStatus()
+			if err != nil || st.Mismatch || st.DaemonVersion != "9.9.9-test" || st.AppVersion != "9.9.9-test" {
+				t.Fatalf("DaemonStatus = %+v, %v", st, err)
+			}
+			info := h.spawn(t)
+
+			b, err := a.RestartDaemon()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(b.Sessions) != 1 || b.Sessions[0].ID != info.ID || b.Sessions[0].State == "suspended" || len(b.Failed) != 0 {
+				t.Fatalf("RestartDaemon = %+v", b)
+			}
+			n, first := h.daemons()
+			if n != 2 {
+				t.Fatalf("%d daemons started, want 2", n)
+			}
+			select { // replaceDaemon waited for it: it has already returned
+			case err := <-first:
+				if err != nil {
+					t.Fatalf("old daemon: %v", err)
+				}
+				first <- nil // for the cleanup
+			case <-time.After(5 * time.Second):
+				t.Fatal("the old daemon is still running")
+			}
+			if s := states(t, a); len(s) != 1 || s[info.ID] == "suspended" || s[info.ID] == "" {
+				t.Fatalf("after restart: %v", s)
+			}
+			if _, err := os.Stat(paths.In(h.dir).RestartFile()); !os.IsNotExist(err) {
+				t.Fatalf("restart marker left behind: %v", err)
+			}
+		})
+	}
+}
+
+// TestRestartDaemonKeepsSuspended: sessions the user had left suspended
+// are not resumed by a restart.
+func TestRestartDaemonKeepsSuspended(t *testing.T) {
+	h := newRestartHarness(t, "ask")
+	a := h.a
+	old := h.spawn(t)
+	// The daemon goes away on its own (not "Restart now"): old is
+	// suspended and the user does not resume it.
+	h.mu.Lock()
+	first := h.runs[0]
+	h.mu.Unlock()
+	if err := a.client.Shutdown(context.Background(), true); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-first; err != nil {
+		t.Fatal(err)
+	}
+	first <- nil // for the cleanup
+	waitFor(t, "suspended", func() bool { return states(t, a)[old.ID] == "suspended" })
+
+	live := h.spawn(t)
 	b, err := a.RestartDaemon()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(b.Sessions) != 1 || b.Sessions[0].ID != info.ID || b.Sessions[0].State == "suspended" || len(b.Failed) != 0 {
+	if len(b.Sessions) != 1 || b.Sessions[0].ID != live.ID || len(b.Failed) != 0 {
 		t.Fatalf("RestartDaemon = %+v", b)
 	}
-	mu.Lock()
-	n := len(runs)
-	first := runs[0]
-	mu.Unlock()
-	if n != 2 {
-		t.Fatalf("%d daemons started, want 2", n)
-	}
-	select {
-	case err := <-first:
-		if err != nil {
-			t.Fatalf("old daemon: %v", err)
-		}
-		first <- nil // for the cleanup
-	default:
-		t.Fatal("the old daemon is still running")
-	}
-	ss, err := a.ListSessions()
-	if err != nil || len(ss) != 1 || ss[0].ID != info.ID || ss[0].State == "suspended" {
-		t.Fatalf("after restart: %+v, %v", ss, err)
+	s := states(t, a)
+	if s[old.ID] != "suspended" || s[live.ID] == "suspended" || s[live.ID] == "" {
+		t.Fatalf("after restart: %v", s)
 	}
 }

@@ -15,11 +15,14 @@ releases may include breaking changes.
   Homebrew installs keep updating with `brew upgrade --cask agenterm` (the app detects them and
   turns its updater off).
 - After an update, a banner offers to **restart the background daemon** when it's still the
-  previous version; its sessions are suspended and resumed. `daemon.ping` now reports the daemon's
-  version.
+  previous version. The sessions running then are suspended and resumed whatever
+  `sessions.restore` says (sessions already suspended stay so), the new daemon starts only once the
+  old one has fully exited, and it asks first when agents are working. `daemon.ping` now reports
+  the daemon's version.
 - Release tooling: Sparkle is embedded and signed inside-out, and releases publish a signed
   `appcast.xml` (new optional `SPARKLE_PRIVATE_ED_KEY` secret and `SPARKLE_PUBLIC_ED_KEY`
-  variable).
+  variable). Pre-release tags (`vX.Y.Z-suffix`) become GitHub pre-releases, not offered in-app nor
+  to Homebrew, and a release without `appcast.xml` is not marked *Latest*.
 
 ## [0.1.1] - 2026-11-16
 
