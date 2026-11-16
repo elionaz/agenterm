@@ -273,6 +273,20 @@ func (c *Client) Tail(ctx context.Context, id string, lines int) ([]string, erro
 	return r.Lines, err
 }
 
+// Resume respawns suspended sessions (one, or all with all=true).
+func (c *Client) Resume(ctx context.Context, id string, all bool) (protocol.SessionBatch, error) {
+	var r protocol.SessionBatch
+	err := c.Call(ctx, protocol.MethodSessionResume, protocol.SuspendedRef{SessionID: id, All: all}, &r)
+	return r, err
+}
+
+// Discard forgets suspended sessions (one, or all with all=true).
+func (c *Client) Discard(ctx context.Context, id string, all bool) (protocol.SessionBatch, error) {
+	var r protocol.SessionBatch
+	err := c.Call(ctx, protocol.MethodSessionDiscard, protocol.SuspendedRef{SessionID: id, All: all}, &r)
+	return r, err
+}
+
 // Ack marks a session's attention as seen.
 func (c *Client) Ack(ctx context.Context, id string) (protocol.SessionInfo, error) {
 	var info protocol.SessionInfo

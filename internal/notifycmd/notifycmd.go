@@ -112,13 +112,26 @@ func runHook(agent, id, sock string, rest []string, stdin io.Reader) error {
 		}
 	}
 	ev, ok, err := hooks.Parse(agent, payload)
-	if err != nil || !ok {
+	if err != nil {
 		return err
+	}
+	// The agent's own session id lets a restarted daemon resume the
+	// conversation; events without a state (SessionStart) carry only that.
+	ref, transcript := hooks.SessionRef(agent, payload)
+	if !ok && ref == "" {
+		return nil
+	}
+	p := protocol.NotifyParams{SessionID: id}
+	if ok {
+		p = protocol.NotifyParams{SessionID: id, State: string(ev.State), Kind: string(ev.Kind), Message: ev.Message,
+			Activity: ev.Activity, ActivityKind: ev.ActivityKind, ActivityTarget: ev.ActivityTarget, Turn: ev.Turn}
+	}
+	if ref != "" {
+		p.Agent, p.AgentSessionID, p.TranscriptPath = agent, ref, transcript
 	}
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
-	_, err = send(ctx, sock, protocol.NotifyParams{SessionID: id, State: string(ev.State), Kind: string(ev.Kind), Message: ev.Message,
-		Activity: ev.Activity, ActivityKind: ev.ActivityKind, ActivityTarget: ev.ActivityTarget, Turn: ev.Turn})
+	_, err = send(ctx, sock, p)
 	return err
 }
 

@@ -168,3 +168,54 @@ func TestIsTerminalReply(t *testing.T) {
 		}
 	}
 }
+
+func TestRestoreSuspended(t *testing.T) {
+	s := Restore(Options{ID: "r1", Cmd: "/bin/sh", Cwd: "/somewhere", RingSize: 16,
+		Scrollback: []byte("0123456789abcdefXYZ"), CreatedAt: time.Unix(1_700_000_000, 0)})
+	if !s.Suspended() || s.Alive() || s.State() != status.Suspended || s.Pid != 0 {
+		t.Fatalf("restored: suspended=%v alive=%v state=%s pid=%d", s.Suspended(), s.Alive(), s.State(), s.Pid)
+	}
+	if got := string(s.Scrollback()); got != "3456789abcdefXYZ" { // capped to the ring
+		t.Fatalf("scrollback %q", got)
+	}
+	if !s.CreatedAt.Equal(time.Unix(1_700_000_000, 0)) {
+		t.Fatalf("created %v", s.CreatedAt)
+	}
+	if _, err := s.Write([]byte("x")); err == nil {
+		t.Fatal("write accepted")
+	}
+	if err := s.Resize(120, 40); err != nil {
+		t.Fatal(err)
+	}
+	if c, r := s.Size(); c != 120 || r != 40 {
+		t.Fatalf("size %dx%d", c, r)
+	}
+	s.Kill(time.Millisecond) // no process: returns at once, signals nobody
+
+	snap, sub := s.Attach()
+	if string(snap) != "3456789abcdefXYZ" {
+		t.Fatalf("snapshot %q", snap)
+	}
+	select {
+	case <-sub.C:
+		t.Fatal("stream closed before Release")
+	case <-time.After(50 * time.Millisecond):
+	}
+	s.Release()
+	if _, ok := <-sub.C; ok {
+		t.Fatal("chunk after Release")
+	}
+	if _, sub2 := s.Attach(); sub2 != nil {
+		if _, ok := <-sub2.C; ok {
+			t.Fatal("attach after Release stays open")
+		}
+	}
+}
+
+func TestSpawnSeededScrollback(t *testing.T) {
+	s := spawn(t, Options{Cmd: "/bin/sh", Args: []string{"-c", "echo new"}, Scrollback: []byte("old|")})
+	waitDone(t, s)
+	if out := string(s.Scrollback()); !strings.HasPrefix(out, "old|") || !strings.Contains(out, "new") {
+		t.Fatalf("scrollback %q", out)
+	}
+}

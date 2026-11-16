@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/elionaz/agenterm/internal/apierr"
@@ -25,6 +26,7 @@ import (
 	"github.com/elionaz/agenterm/internal/project"
 	"github.com/elionaz/agenterm/internal/protocol"
 	"github.com/elionaz/agenterm/internal/session"
+	"github.com/elionaz/agenterm/internal/sessionstore"
 	"github.com/elionaz/agenterm/internal/shellenv"
 	"github.com/elionaz/agenterm/internal/status"
 	"github.com/elionaz/agenterm/internal/termsig"
@@ -77,6 +79,19 @@ type Server struct {
 	mu       sync.Mutex
 	sessions map[string]*session.Session
 	order    []string
+	// susp holds the suspended sessions' records (see persist.go);
+	// resuming marks those being resumed.
+	susp     map[string]*suspInfo
+	resuming map[string]bool
+
+	// Persistence: the session registry and when each scrollback was
+	// last saved (OutputTotal; guarded by persistMu).
+	store       *sessionstore.Store
+	persistMu   sync.Mutex
+	saved       map[string]int64
+	stopping    atomic.Bool
+	persistStop chan struct{}
+	persistDone chan struct{}
 
 	gitState
 
@@ -128,6 +143,10 @@ func New(cfg Config) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	store, err := openStore(cfg.Paths.Sessions(), cfg.Logger)
+	if err != nil {
+		return nil, err
+	}
 	bg, bgCancel := context.WithCancel(context.Background())
 	return &Server{
 		gitState: gitState{wts: wts, git: make(map[string]sessGit), gitCache: make(map[string]*gitEntry),
@@ -140,6 +159,10 @@ func New(cfg Config) (*Server, error) {
 		bus:      newBus(),
 		log:      cfg.Logger,
 		sessions: make(map[string]*session.Session),
+		susp:     make(map[string]*suspInfo),
+		resuming: make(map[string]bool),
+		store:    store,
+		saved:    make(map[string]int64),
 		conns:    make(map[net.Conn]struct{}),
 		stop:     make(chan struct{}),
 	}, nil
@@ -180,6 +203,9 @@ func (s *Server) Run(ctx context.Context) error {
 	}
 	s.log.Info("daemon listening", "socket", s.sock, "pid", os.Getpid())
 	go s.detector.Path() // warm the (login shell) search PATH
+	s.restoreSessions()
+	s.persistStop, s.persistDone = make(chan struct{}), make(chan struct{})
+	go s.persistLoop(s.persistStop, s.persistDone)
 
 	acceptDone := make(chan struct{})
 	go func() {
@@ -212,6 +238,7 @@ func (s *Server) Run(ctx context.Context) error {
 	s.log.Info("daemon shutting down", attrs...)
 	ln.Close()
 	<-acceptDone
+	s.suspendAll()
 	s.killAll()
 	s.stopGit()
 	s.bus.closeAll()
@@ -347,6 +374,9 @@ func (s *Server) sessionInfo(sess *session.Session) protocol.SessionInfo {
 			info.WorktreePath = g.Dir
 		}
 		info.Git = s.cachedGit(sess.ID)
+	}
+	if sess.Suspended() {
+		s.suspendedFields(&info)
 	}
 	return info
 }

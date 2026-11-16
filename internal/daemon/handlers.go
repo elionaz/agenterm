@@ -9,13 +9,17 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"regexp"
+	"slices"
 	"time"
 
 	"github.com/elionaz/agenterm/internal/apierr"
 	"github.com/elionaz/agenterm/internal/hooks"
 	"github.com/elionaz/agenterm/internal/profile"
+	"github.com/elionaz/agenterm/internal/project"
 	"github.com/elionaz/agenterm/internal/protocol"
 	"github.com/elionaz/agenterm/internal/session"
+	"github.com/elionaz/agenterm/internal/sessionstore"
 	"github.com/elionaz/agenterm/internal/settings"
 	"github.com/elionaz/agenterm/internal/status"
 	"github.com/elionaz/agenterm/internal/worktree"
@@ -112,6 +116,15 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 			return nil, err
 		}
 		return s.kill(p.SessionID)
+	case protocol.MethodSessionResume, protocol.MethodSessionDiscard:
+		p, err := decode[protocol.SuspendedRef](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		if req.Method == protocol.MethodSessionResume {
+			return s.batch(p, s.resume)
+		}
+		return s.batch(p, s.discard)
 	case protocol.MethodSessionResize:
 		p, err := decode[protocol.ResizeParams](req.Params)
 		if err != nil {
@@ -129,6 +142,16 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 		p, err := decode[protocol.NotifyParams](req.Params)
 		if err != nil {
 			return nil, err
+		}
+		if p.AgentSessionID != "" {
+			sess, err := s.lookup(p.SessionID)
+			if err != nil {
+				return nil, err
+			}
+			s.learnResume(sess, p.Agent, p.AgentSessionID, p.TranscriptPath)
+			if p.State == "" && p.Activity == "" {
+				return s.sessionInfo(sess), nil
+			}
 		}
 		if p.State == "" && p.Activity != "" {
 			sess, err := s.lookup(p.SessionID)
@@ -233,28 +256,34 @@ func profileList(ps []profile.Profile, err error) (any, error) {
 	return protocol.ProfileList{Profiles: ps}, nil
 }
 
-func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
-	proj, err := s.projects.Get(p.ProjectID)
-	if err != nil {
-		return protocol.SessionInfo{}, err
-	}
+// launchProfile resolves profile id for launching: the command to run,
+// its compiled patterns, the hook injection and the idle timeout.
+type launchProfile struct {
+	prof     profile.Profile
+	cmd      string
+	patterns []*regexp.Regexp
+	inj      hooks.Injection
+	idle     time.Duration
+}
+
+func (s *Server) resolveLaunch(profileID string) (launchProfile, error) {
 	profiles, err := s.profiles.List()
 	if err != nil {
-		return protocol.SessionInfo{}, err
+		return launchProfile{}, err
 	}
-	prof, ok := profile.Find(profiles, p.ProfileID)
+	prof, ok := profile.Find(profiles, profileID)
 	if !ok {
-		return protocol.SessionInfo{}, fmt.Errorf("profile not found: %s", p.ProfileID)
+		return launchProfile{}, fmt.Errorf("profile not found: %s", profileID)
 	}
 	if prof.Error != "" {
-		return protocol.SessionInfo{}, fmt.Errorf("profile %s: %s", prof.ID, prof.Error)
+		return launchProfile{}, fmt.Errorf("profile %s: %s", prof.ID, prof.Error)
 	}
 	if !prof.Installed {
 		msg := fmt.Sprintf("profile %s: command %q not found in PATH", prof.ID, prof.Command())
 		if prof.Install != "" {
 			msg += " (install: " + prof.Install + ")"
 		}
-		return protocol.SessionInfo{}, &apierr.Error{Code: apierr.ProfileNotInstalled, Msg: msg,
+		return launchProfile{}, &apierr.Error{Code: apierr.ProfileNotInstalled, Msg: msg,
 			Data: map[string]any{"profileId": prof.ID, "cmd": prof.Command(), "install": prof.Install}}
 	}
 	// Detection also searches the login shell's PATH; if this process
@@ -265,20 +294,29 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 	}
 	patterns, err := prof.Patterns()
 	if err != nil {
-		return protocol.SessionInfo{}, err
+		return launchProfile{}, err
 	}
 	inj, err := hooks.Setup(prof.SetupHooks, s.cfg.Paths.HooksDir(), s.cfg.Exe, s.sock)
 	if err != nil {
-		return protocol.SessionInfo{}, fmt.Errorf("profile %s: %w", prof.ID, err)
+		return launchProfile{}, fmt.Errorf("profile %s: %w", prof.ID, err)
 	}
 	idle := s.cfg.IdleAfter
 	if prof.IdleSeconds > 0 {
 		idle = time.Duration(prof.IdleSeconds * float64(time.Second))
 	}
-	st, err := settings.Load(s.cfg.Paths.Settings())
+	return launchProfile{prof: prof, cmd: cmd, patterns: patterns, inj: inj, idle: idle}, nil
+}
+
+func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
+	proj, err := s.projects.Get(p.ProjectID)
 	if err != nil {
-		s.log.Warn("settings", "err", err)
+		return protocol.SessionInfo{}, err
 	}
+	lp, err := s.resolveLaunch(p.ProfileID)
+	if err != nil {
+		return protocol.SessionInfo{}, err
+	}
+	prof := lp.prof
 
 	s.mu.Lock()
 	id := newID()
@@ -323,28 +361,9 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 	s.git[id] = g
 	s.mu.Unlock()
 
-	sess, err := session.Spawn(session.Options{
-		ID:          id,
-		ProjectID:   proj.ID,
-		ProjectDir:  proj.Path,
-		ProjectName: proj.Name,
-		ProfileID:   prof.ID,
-		Cwd:         cwd,
-		Cmd:         cmd,
-		Args:        append(inj.Args, prof.Args...),
-		Env:         append(prof.Environ(), inj.Env...),
-		SockPath:    s.sock,
-		Home:        s.homeEnv(),
-		Cols:        p.Cols,
-		Rows:        p.Rows,
-		RingSize:    s.cfg.RingSize,
-		StatusMode:  prof.Status,
-		IdleAfter:   idle,
-		OnState:     func(c status.Change) { s.publishState(id, proj.Name, prof.ID, c) },
-		OnActivity:  s.publishActivity,
-		StallAfter:  st.Activity.StallAfter(),
-
-		AttentionPatterns: patterns,
+	info, err := s.startSession(startSpec{
+		id: id, proj: proj, lp: lp, cwd: cwd, g: g, cols: p.Cols, rows: p.Rows,
+		args: append(slices.Clone(lp.inj.Args), prof.Args...),
 	})
 	if err != nil {
 		s.mu.Lock()
@@ -355,11 +374,76 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 		}
 		return protocol.SessionInfo{}, err
 	}
+	return info, nil
+}
+
+// startSpec is what startSession launches. A resumed session reuses its
+// id (replacing the suspended one), creation time and scrollback.
+type startSpec struct {
+	id         string
+	proj       project.Project
+	lp         launchProfile
+	args       []string
+	cwd        string
+	g          sessGit
+	cols, rows uint16
+	scrollback []byte
+	createdAt  time.Time
+	resume     *sessionstore.Resume
+}
+
+// startSession spawns the process, registers the session (replacing a
+// suspended one with the same id), records it for restarts and announces
+// it. s.git[id] must already be set.
+func (s *Server) startSession(sp startSpec) (protocol.SessionInfo, error) {
+	id, proj, prof := sp.id, sp.proj, sp.lp.prof
+	st, err := settings.Load(s.cfg.Paths.Settings())
+	if err != nil {
+		s.log.Warn("settings", "err", err)
+	}
+	sess, err := session.Spawn(session.Options{
+		ID:          id,
+		ProjectID:   proj.ID,
+		ProjectDir:  proj.Path,
+		ProjectName: proj.Name,
+		ProfileID:   prof.ID,
+		Cwd:         sp.cwd,
+		Cmd:         sp.lp.cmd,
+		Args:        sp.args,
+		Env:         append(prof.Environ(), sp.lp.inj.Env...),
+		SockPath:    s.sock,
+		Home:        s.homeEnv(),
+		Cols:        sp.cols,
+		Rows:        sp.rows,
+		RingSize:    s.cfg.RingSize,
+		Scrollback:  sp.scrollback,
+		CreatedAt:   sp.createdAt,
+		StatusMode:  prof.Status,
+		IdleAfter:   sp.lp.idle,
+		OnState:     func(c status.Change) { s.publishState(id, proj.Name, prof.ID, c) },
+		OnActivity:  s.publishActivity,
+		StallAfter:  st.Activity.StallAfter(),
+
+		AttentionPatterns: sp.lp.patterns,
+	})
+	if err != nil {
+		return protocol.SessionInfo{}, err
+	}
+	g := sp.g
 	s.mu.Lock()
+	old := s.sessions[id]
 	s.sessions[id] = sess
-	s.order = append(s.order, id)
+	if old == nil {
+		s.order = append(s.order, id)
+	}
+	delete(s.susp, id)
 	s.mu.Unlock()
-	s.log.Info("session spawned", "id", id, "project", proj.Name, "profile", prof.ID, "pid", sess.Pid, "mode", g.Mode, "cwd", cwd)
+	if old != nil {
+		old.Release() // attached viewers of the suspended session reattach
+	}
+	s.recordSession(sess, g, sp.resume)
+	s.log.Info("session spawned", "id", id, "project", proj.Name, "profile", prof.ID, "pid", sess.Pid, "mode", g.Mode, "cwd", sp.cwd,
+		"resumed", old != nil)
 	s.requestGit(id)
 
 	info := s.sessionInfo(sess)
@@ -372,6 +456,7 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 		<-sess.Done()
 		code, _ := sess.ExitCode()
 		s.log.Info("session exited", "id", id, "code", code)
+		s.forgetRecord(sess)
 		if g.WorktreeID != "" {
 			s.publishWorktrees(proj.ID) // no longer live (the worktree stays)
 		}
@@ -399,6 +484,10 @@ func (s *Server) kill(id string) (protocol.SessionInfo, error) {
 	sess, err := s.lookup(id)
 	if err != nil {
 		return protocol.SessionInfo{}, err
+	}
+	if sess.Suspended() {
+		// Nothing to kill: forget it (as discard).
+		return s.discard(id)
 	}
 	if _, exited := sess.ExitCode(); exited {
 		s.mu.Lock()
@@ -436,6 +525,9 @@ func (s *Server) handleAttach(conn net.Conn, br *bufio.Reader, req protocol.Requ
 	}
 	snapshot, sub := sess.Attach()
 	defer sub.Close()
+	if sess.Suspended() {
+		snapshot = append(snapshot, s.suspendedBanner(sess.ID)...)
+	}
 	if err := writeResponse(conn, req.ID, s.sessionInfo(sess), nil); err != nil {
 		return
 	}
@@ -454,7 +546,7 @@ func (s *Server) handleAttach(conn net.Conn, br *bufio.Reader, req protocol.Requ
 			}
 			switch f.Type {
 			case protocol.FrameInput:
-				if _, err := sess.Write(f.Payload); err != nil {
+				if _, err := sess.Write(f.Payload); err != nil && !sess.Suspended() {
 					return
 				}
 			case protocol.FrameResize:
@@ -474,7 +566,14 @@ func (s *Server) handleAttach(conn net.Conn, br *bufio.Reader, req protocol.Requ
 		}
 	}
 	if ok {
-		if code, exited := sess.ExitCode(); exited {
+		if sess.Suspended() {
+			// Released: resumed (a new session has this id) or discarded.
+			msg := "session discarded"
+			if cur, err := s.lookup(sess.ID); err == nil && cur != sess {
+				msg = "session resumed; reattach"
+			}
+			protocol.WriteFrame(conn, protocol.FrameError, []byte(msg))
+		} else if code, exited := sess.ExitCode(); exited {
 			protocol.WriteFrame(conn, protocol.FrameExit, protocol.ExitPayload(code))
 		} else if sub.Dropped() {
 			protocol.WriteFrame(conn, protocol.FrameError, []byte("client too slow; reattach to resync"))

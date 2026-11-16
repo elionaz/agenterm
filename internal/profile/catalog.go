@@ -16,7 +16,11 @@ type CatalogEntry struct {
 	Status            status.Mode `json:"status"`
 	SetupHooks        string      `json:"setupHooks,omitempty"`
 	AttentionPatterns []string    `json:"attentionPatterns,omitempty"`
-	Homepage          string      `json:"homepage,omitempty"`
+	// ResumeArgs are appended to Args when a session is respawned after
+	// a daemon restart and the agent has no built-in resume (see
+	// profile.Profile.ResumeArgs).
+	ResumeArgs []string `json:"resumeArgs,omitempty"`
+	Homepage   string   `json:"homepage,omitempty"`
 	// Install is a one-line install hint shown when the binary is missing.
 	Install string `json:"install,omitempty"`
 }
@@ -49,9 +53,11 @@ var catalog = []CatalogEntry{
 	{ID: "codex", Name: "Codex CLI", Binaries: []string{"codex"}, Status: status.ModeHeuristic, SetupHooks: "codex",
 		Homepage: "https://github.com/openai/codex",
 		Install:  "npm i -g @openai/codex   (or brew install --cask codex)"},
+	// `opencode --continue` reopens the project's last session.
 	{ID: "opencode", Name: "opencode", Binaries: []string{"opencode"}, Status: status.ModeHeuristic,
-		Homepage: "https://opencode.ai",
-		Install:  "curl -fsSL https://opencode.ai/install | bash   (or brew install sst/tap/opencode)"},
+		ResumeArgs: []string{"--continue"},
+		Homepage:   "https://opencode.ai",
+		Install:    "curl -fsSL https://opencode.ai/install | bash   (or brew install sst/tap/opencode)"},
 	{ID: "gemini", Name: "Gemini CLI", Binaries: []string{"gemini"}, Status: status.ModeHeuristic,
 		Homepage: "https://github.com/google-gemini/gemini-cli",
 		Install:  "npm i -g @google/gemini-cli   (or brew install gemini-cli)"},
@@ -96,6 +102,7 @@ func Catalog() []CatalogEntry {
 		c.Binaries = append([]string(nil), c.Binaries...)
 		c.Args = append([]string(nil), c.Args...)
 		c.AttentionPatterns = append([]string(nil), c.AttentionPatterns...)
+		c.ResumeArgs = append([]string(nil), c.ResumeArgs...)
 		out[i] = c
 	}
 	return out

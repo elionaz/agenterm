@@ -162,3 +162,22 @@ func TestParseState(t *testing.T) {
 		t.Error("expected error")
 	}
 }
+
+func TestSuspendedIsInert(t *testing.T) {
+	var changes []Change
+	m := New(Options{Suspended: true, OnChange: func(c Change) { changes = append(changes, c) }})
+	if m.State() != Suspended {
+		t.Fatalf("state %s", m.State())
+	}
+	m.Output()
+	m.Input()
+	m.Signal(KindQuestion, "?")
+	m.Tick()
+	m.Exit(1)
+	if err := m.Notify(Running); err == nil {
+		t.Fatal("notify accepted")
+	}
+	if _, exited := m.ExitCode(); exited || m.State() != Suspended || len(changes) != 0 {
+		t.Fatalf("state %s exited %v changes %+v", m.State(), exited, changes)
+	}
+}

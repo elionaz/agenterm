@@ -70,12 +70,37 @@ type UI struct {
 // Lang resolves Language to the language to render in.
 func (u UI) Lang() i18n.Lang { return i18n.Resolve(u.Language) }
 
+// Sessions configures what happens to sessions across daemon restarts.
+type Sessions struct {
+	// Restore decides what the daemon does at startup with the sessions
+	// that were live when the previous one stopped: ask (keep them
+	// suspended until the user resumes or discards them), always (resume
+	// them right away) or never (discard them).
+	Restore string `json:"restore"`
+}
+
+// Sessions.Restore values.
+const (
+	RestoreAsk    = "ask"
+	RestoreAlways = "always"
+	RestoreNever  = "never"
+)
+
+func normRestore(v string) string {
+	switch v = strings.ToLower(strings.TrimSpace(v)); v {
+	case RestoreAlways, RestoreNever:
+		return v
+	}
+	return RestoreAsk
+}
+
 // Settings is the parsed file.
 type Settings struct {
 	Notify   Notify   `json:"notify"`
 	Activity Activity `json:"activity"`
 	Git      Git      `json:"git"`
 	UI       UI       `json:"ui"`
+	Sessions Sessions `json:"sessions"`
 }
 
 type fileNotify struct {
@@ -99,11 +124,16 @@ type fileUI struct {
 	Language *string `yaml:"language"`
 }
 
+type fileSessions struct {
+	Restore *string `yaml:"restore"`
+}
+
 type file struct {
 	Notify   fileNotify   `yaml:"notify"`
 	Activity fileActivity `yaml:"activity"`
 	Git      fileGit      `yaml:"git"`
 	UI       fileUI       `yaml:"ui"`
+	Sessions fileSessions `yaml:"sessions"`
 }
 
 const header = "# agenterm settings (see README)\n"
@@ -135,6 +165,7 @@ func Save(path string, s Settings) error {
 	setKey(root, []string{"git", "worktree_dir"}, strings.TrimSpace(s.Git.WorktreeDir), "!!str")
 	setKey(root, []string{"git", "default_mode"}, normMode(s.Git.DefaultMode), "!!str")
 	setKey(root, []string{"ui", "language"}, i18n.NormalizeSetting(s.UI.Language), "!!str")
+	setKey(root, []string{"sessions", "restore"}, normRestore(s.Sessions.Restore), "!!str")
 	var buf bytes.Buffer
 	enc := yaml.NewEncoder(&buf)
 	enc.SetIndent(2)
@@ -182,6 +213,7 @@ func Defaults() Settings {
 		Activity: Activity{StallSeconds: DefaultStallSeconds},
 		Git:      Git{DefaultMode: ModeSame},
 		UI:       UI{Language: i18n.Auto},
+		Sessions: Sessions{Restore: RestoreAsk},
 	}
 }
 
@@ -222,6 +254,9 @@ func Parse(data []byte) (Settings, error) {
 	}
 	if f.UI.Language != nil {
 		s.UI.Language = i18n.NormalizeSetting(*f.UI.Language)
+	}
+	if f.Sessions.Restore != nil {
+		s.Sessions.Restore = normRestore(*f.Sessions.Restore)
 	}
 	return s, nil
 }

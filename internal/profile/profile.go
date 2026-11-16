@@ -44,6 +44,11 @@ type Profile struct {
 	AttentionPatterns []string `json:"attentionPatterns,omitempty"`
 	// IdleSeconds overrides the daemon's heuristic idle timeout (optional).
 	IdleSeconds float64 `json:"idleSeconds,omitempty"`
+	// ResumeArgs are appended to Args when a session is respawned after a
+	// daemon restart and there is no agent session id to resume (claude
+	// and codex resume theirs by id). E.g. ["--continue"]. Empty: the
+	// plain command.
+	ResumeArgs []string `json:"resumeArgs,omitempty"`
 
 	Source  string `json:"source"`
 	Extends string `json:"extends,omitempty"`
@@ -83,6 +88,7 @@ type Entry struct {
 	SetupHooks        string             `yaml:"setup_hooks,omitempty" json:"setupHooks,omitempty"`
 	IdleSeconds       float64            `yaml:"idle_seconds,omitempty" json:"idleSeconds,omitempty"`
 	AttentionPatterns *[]string          `yaml:"attention_patterns,omitempty" json:"attentionPatterns,omitempty"`
+	ResumeArgs        *[]string          `yaml:"resume_args,omitempty" json:"resumeArgs,omitempty"`
 }
 
 // isStub reports whether the entry only pins the position of an id.
@@ -212,7 +218,7 @@ func (r *resolver) build(id string) Profile {
 		c := catalog[ci]
 		p = Profile{
 			ID: c.ID, Name: c.Name, Cmd: c.command(r.look), Args: c.Args, Status: c.Status,
-			SetupHooks: c.SetupHooks, AttentionPatterns: c.AttentionPatterns,
+			SetupHooks: c.SetupHooks, AttentionPatterns: c.AttentionPatterns, ResumeArgs: c.ResumeArgs,
 			Homepage: c.Homepage, Install: c.Install, Source: SourceCatalog,
 		}
 		if hasUser && !e.isStub() {
@@ -239,6 +245,7 @@ func (r *resolver) build(id string) Profile {
 		// Copy what the overlay may share with the parent.
 		p.Args = slices.Clone(p.Args)
 		p.AttentionPatterns = slices.Clone(p.AttentionPatterns)
+		p.ResumeArgs = slices.Clone(p.ResumeArgs)
 		if p.Env != nil {
 			env := make(map[string]string, len(p.Env))
 			for k, v := range p.Env {
@@ -303,6 +310,9 @@ func overlay(p Profile, e Entry) Profile {
 	}
 	if e.AttentionPatterns != nil {
 		p.AttentionPatterns = slices.Clone(*e.AttentionPatterns)
+	}
+	if e.ResumeArgs != nil {
+		p.ResumeArgs = slices.Clone(*e.ResumeArgs)
 	}
 	return p
 }

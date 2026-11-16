@@ -184,6 +184,46 @@ func permissionMessage(tool string, input json.RawMessage) string {
 	return ""
 }
 
+// SessionRef extracts the agent's own session id from a hook payload:
+// what `claude --resume <id>` / `codex resume <id>` need to continue
+// that conversation after a daemon restart. Claude Code sends session_id
+// (and transcript_path) with every hook event; codex's notify payload has
+// thread-id. Empty when the payload has none (or does not parse).
+func SessionRef(agent string, payload []byte) (id, transcript string) {
+	switch agent {
+	case AgentClaude:
+		var p struct {
+			SessionID      string `json:"session_id"`
+			TranscriptPath string `json:"transcript_path"`
+		}
+		if json.Unmarshal(payload, &p) == nil && validRef(p.SessionID) {
+			return p.SessionID, p.TranscriptPath
+		}
+	case AgentCodex:
+		var p struct {
+			ThreadID string `json:"thread-id"`
+		}
+		if json.Unmarshal(payload, &p) == nil && validRef(p.ThreadID) {
+			return p.ThreadID, ""
+		}
+	}
+	return "", ""
+}
+
+// validRef accepts what agents use as session ids (UUIDs, slugs): it ends
+// up as a command-line argument, so nothing that could pass for a flag.
+func validRef(s string) bool {
+	if s == "" || len(s) > 128 || s[0] == '-' {
+		return false
+	}
+	for _, c := range s {
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-' || c == '_' || c == '.') {
+			return false
+		}
+	}
+	return true
+}
+
 // codexPayload is the JSON codex passes as the last argument of its
 // `notify` program.
 type codexPayload struct {

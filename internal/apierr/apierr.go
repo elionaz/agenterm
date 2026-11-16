@@ -55,6 +55,11 @@ const (
 	BaseMissing = "base_missing"
 	// DirMissing: a session's or worktree's folder is gone. Data: {dir}.
 	DirMissing = "dir_missing"
+	// ResumeFailed: a suspended session cannot be resumed (reason:
+	// project_missing | still_running | not_suspended | busy). Missing
+	// folders and agents use DirMissing / ProfileNotInstalled.
+	// Data: {sessionId, reason, pid?}.
+	ResumeFailed = "resume_failed"
 )
 
 // Coded is implemented by errors that carry a code.

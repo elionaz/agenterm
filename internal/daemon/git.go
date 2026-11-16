@@ -505,7 +505,7 @@ func (s *Server) worktreeList(p protocol.WorktreeListParams) (protocol.WorktreeL
 			uses[g.WorktreeID] = u
 		}
 		u.ids = append(u.ids, id)
-		if _, exited := s.sessions[id].ExitCode(); !exited {
+		if s.sessions[id].Alive() {
 			u.live = true
 		}
 	}
@@ -588,10 +588,8 @@ func (s *Server) liveSessionIn(id string) string {
 		if g.WorktreeID != id {
 			continue
 		}
-		if sess := s.sessions[sid]; sess != nil {
-			if _, exited := sess.ExitCode(); !exited {
-				return sid
-			}
+		if sess := s.sessions[sid]; sess != nil && sess.Alive() {
+			return sid
 		}
 	}
 	return ""

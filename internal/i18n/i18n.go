@@ -115,6 +115,10 @@ const (
 	AboutMessage     = "about.message"
 
 	PermissionFor = "permission.for" // %s: tool
+
+	// Lines the daemon writes into a restored session's terminal.
+	TermRestored  = "term.restored"  // %s: time
+	TermSuspended = "term.suspended" // %s: time
 )
 
 var messages = map[string]map[Lang]string{
@@ -131,6 +135,8 @@ var messages = map[string]map[Lang]string{
 	AboutMessage:     {EN: "Desktop workspace for coding agents", ES: "Workspace de escritorio para agentes de código"},
 
 	PermissionFor: {EN: "Permission for %s", ES: "Permiso para %s"},
+	TermRestored:  {EN: "session restored · %s", ES: "sesión restaurada · %s"},
+	TermSuspended: {EN: "suspended since %s (daemon restarted) · resume to continue", ES: "suspendida desde %s (el daemon se reinició) · reanúdala para continuar"},
 
 	// Activity lines: "activity.<kind>" takes the target, ".bare" is used
 	// without one. Keep in sync with the frontend dictionaries.
