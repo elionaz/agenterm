@@ -64,6 +64,10 @@ export const es: Dict = {
   'sidebar.needAttention': { one: '{n} sesión necesita tu atención', other: '{n} sesiones necesitan tu atención' },
   'sidebar.projectOverview': 'Vista general del proyecto (⌘0)',
   'sidebar.removeProject': 'Quitar proyecto (no borra archivos)',
+  'sidebar.removeProjectLive': {
+    one: 'Termina antes su sesión: {n} sesión sigue activa en este proyecto.',
+    other: 'Termina antes sus sesiones: {n} sesiones siguen activas en este proyecto.',
+  },
   'sidebar.newSession': 'Nueva sesión',
   'sidebar.noAgents': 'Sin agentes disponibles',
   'sidebar.chooseAgents': 'Elegir agentes…',

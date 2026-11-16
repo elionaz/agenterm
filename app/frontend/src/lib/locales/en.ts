@@ -84,6 +84,10 @@ export const en = {
   'sidebar.needAttention': { one: '{n} session needs your attention', other: '{n} sessions need your attention' },
   'sidebar.projectOverview': 'Project overview (⌘0)',
   'sidebar.removeProject': 'Remove project (does not delete files)',
+  'sidebar.removeProjectLive': {
+    one: 'Stop its session first: {n} session is still running in this project.',
+    other: 'Stop its sessions first: {n} sessions are still running in this project.',
+  },
   'sidebar.newSession': 'New session',
   'sidebar.noAgents': 'No agents available',
   'sidebar.chooseAgents': 'Choose agents…',

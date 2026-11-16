@@ -235,6 +235,12 @@
   }
 
   async function removeProject(id: string) {
+    // Its live sessions would keep running with no row left to reach them.
+    const live = sessions.filter((s) => s.projectId === id && s.state !== 'exited').length
+    if (live) {
+      showError(t('sidebar.removeProjectLive', { n: live }))
+      return
+    }
     try {
       await api.removeProject(id)
     } catch (e) {
