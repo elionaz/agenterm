@@ -7,6 +7,20 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- **In-app updates** with [Sparkle 2](https://sparkle-project.org): a daily background check,
+  **Check for Updates…** in the app menu and an *Updates* section in **Settings → General**
+  (version, automatic checks and downloads, "Check now"). Updates are EdDSA-signed and notarized.
+  Homebrew installs keep updating with `brew upgrade --cask agenterm` (the app detects them and
+  turns its updater off).
+- After an update, a banner offers to **restart the background daemon** when it's still the
+  previous version; its sessions are suspended and resumed. `daemon.ping` now reports the daemon's
+  version.
+- Release tooling: Sparkle is embedded and signed inside-out, and releases publish a signed
+  `appcast.xml` (new optional `SPARKLE_PRIVATE_ED_KEY` secret and `SPARKLE_PUBLIC_ED_KEY`
+  variable).
+
 ## [0.1.1] - 2026-11-16
 
 ### Changed

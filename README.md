@@ -40,6 +40,8 @@ tells you when one of them needs you.
   tab shows the diff and lets you merge into the base or safely remove the worktree.
 - **In-app settings**: enable, reorder and edit agents, and configure the language, appearance,
   notifications and git.
+- **In-app updates** (Sparkle): a daily background check, **Check for Updates…** in the app menu
+  and an *Updates* section in **Settings → General**; Homebrew installs are left to `brew`.
 - **English and Spanish**: the app follows your macOS preferred languages (falling back to English)
   or the language you pick in **Settings → General**.
 
@@ -102,6 +104,22 @@ from a daemon outside the `.app`) notifications are not shown, unless you enable
 fallback (`notify.fallback: osascript`; they then show as *Script Editor*). The CLI bundled in the
 app (what Homebrew puts on your `PATH`) starts the daemon as the app, so it gets native
 notifications too.
+
+## Updating
+
+- **Homebrew**: `brew upgrade --cask agenterm`. The app notices it was installed by Homebrew and
+  turns its own updater off (Settings and **Check for Updates…** say so), so brew stays in charge
+  and `brew outdated` keeps working.
+- **Downloaded app** (dmg/zip): agenterm checks for a new release once a day and offers to install
+  it; **agenterm → Check for Updates…** checks right away. In **Settings → General → Updates** you
+  can turn the daily check off or let updates download and install by themselves (on quit). Updates
+  are verified with an EdDSA signature and Apple's notarization before they're installed.
+- Builds from source (`wails build`) don't include the updater.
+
+Sessions run in a background daemon that survives the app, so right after an update the daemon is
+still the old version: the window shows a banner with **Restart now**, which restarts the daemon
+(running sessions are suspended and resumed, as after any daemon restart). You can also do it later,
+or from a terminal with `agenterm stop --force`.
 
 ## Quick start
 

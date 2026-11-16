@@ -41,6 +41,9 @@ vivos aunque cierres la app y te avisa cuando alguno te necesita.
   segura.
 - **Ajustes en la app**: activar, ordenar y editar agentes, y configurar el idioma, la apariencia,
   las notificaciones y git.
+- **Actualizaciones integradas** (Sparkle): una comprobación diaria en segundo plano, **Buscar
+  actualizaciones…** en el menú de la app y una sección *Actualizaciones* en *Ajustes → General*;
+  las instalaciones con Homebrew se dejan a `brew`.
 - **En inglés y español**: la app sigue los idiomas preferidos de macOS (con inglés como respaldo)
   o el idioma que elijas en *Ajustes → General*.
 
@@ -105,6 +108,24 @@ desde un daemon fuera del `.app`) las notificaciones no se muestran, salvo que a
 alternativa con AppleScript (`notify.fallback: osascript`; entonces aparecen como *Editor de
 Scripts*). La CLI incluida en la app (la que Homebrew pone en tu `PATH`) arranca el daemon como la
 app, así que también tiene notificaciones nativas.
+
+## Actualizar
+
+- **Homebrew**: `brew upgrade --cask agenterm`. La app detecta que la instaló Homebrew y desactiva
+  su propio actualizador (lo indican los Ajustes y **Buscar actualizaciones…**), así brew sigue a
+  cargo y `brew outdated` sigue funcionando.
+- **App descargada** (dmg/zip): agenterm busca una release nueva una vez al día y ofrece instalarla;
+  **agenterm → Buscar actualizaciones…** lo comprueba al momento. En *Ajustes → General →
+  Actualizaciones* puedes desactivar la comprobación diaria o dejar que las actualizaciones se
+  descarguen e instalen solas (al salir). Antes de instalarse se verifican con una firma EdDSA y la
+  notarización de Apple.
+- Los builds desde el código fuente (`wails build`) no incluyen el actualizador.
+
+Las sesiones corren en un daemon en segundo plano que sobrevive a la app, así que justo después de
+actualizar el daemon sigue siendo la versión anterior: la ventana muestra un aviso con **Reiniciar
+ahora**, que reinicia el daemon (las sesiones en marcha se suspenden y se reanudan, como tras
+cualquier reinicio del daemon). También puedes hacerlo más tarde, o desde una terminal con
+`agenterm stop --force`.
 
 ## Inicio rápido
 
