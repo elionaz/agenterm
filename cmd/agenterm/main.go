@@ -22,6 +22,7 @@ import (
 	"github.com/elionaz/agenterm/internal/paths"
 	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/agenterm/internal/version"
 )
 
 const usage = `agenterm - workspace daemon for coding agents
@@ -56,6 +57,7 @@ Usage:
                                       report state/attention (from agent hooks)
   agenterm notify --from-hook claude|codex   read a hook payload (stdin / last arg)
   agenterm ack <sessionId>            mark a session's attention as seen
+  agenterm version                    print the version and commit (also --version)
 
 Environment:
   AGENTERM_HOME     single dir overriding ~/.agenterm and ~/.config/agenterm
@@ -83,6 +85,9 @@ func run(args []string) error {
 		return notifycmd.Run(rest, os.Stdin, os.Stdout, os.Stderr)
 	case "help", "-h", "--help":
 		fmt.Print(usage)
+		return nil
+	case "version", "--version":
+		fmt.Println("agenterm", version.String())
 		return nil
 	}
 
