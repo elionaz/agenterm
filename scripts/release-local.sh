@@ -16,6 +16,8 @@
 #   SPARKLE_PRIVATE_ED_KEY  the matching private key (base64, as exported by
 #                           Sparkle's `generate_keys -x`): signs the zip and
 #                           enables dist/appcast.xml. Empty: no appcast.
+#   SPARKLE_KEY_ROTATION    non-empty: allow a SPARKLE_PUBLIC_ED_KEY that is not
+#                           the private key's pair (docs/development.md#in-app-updates-sparkle).
 #
 # Sparkle (scripts/fetch-sparkle.sh: pinned, SHA-256 verified, cached in
 # .cache/sparkle/) is embedded at Contents/Frameworks/Sparkle.framework.
@@ -215,8 +217,12 @@ if [[ -n $SPARKLE_PRIVATE_ED_KEY ]]; then
 	"$SPARKLE_DIR/bin/sign_update" --verify --ed-key-file "$KEYFILE" "$ZIP" "$ED_SIG"
 	rm -f "$KEYFILE"
 	# The app checks updates against SUPublicEDKey: make sure it is the
-	# private key's pair (a mismatch would make every update fail).
-	if [[ -n $SPARKLE_PUBLIC_ED_KEY ]]; then
+	# private key's pair (a mismatch would make every update fail). Except
+	# in a key rotation release, which is signed with the old key (what the
+	# installed apps trust) and ships the new public key.
+	if [[ -n ${SPARKLE_KEY_ROTATION:-} ]]; then
+		echo "release: warning: SPARKLE_KEY_ROTATION set: SUPublicEDKey is not checked against the signing key" >&2
+	elif [[ -n $SPARKLE_PUBLIC_ED_KEY ]]; then
 		OSSL=
 		for o in /opt/homebrew/opt/openssl@3/bin/openssl /usr/local/opt/openssl@3/bin/openssl openssl; do
 			if [[ $("$o" version 2>/dev/null) == "OpenSSL 3"* ]]; then
