@@ -157,6 +157,8 @@ func (l *lineTracker) feed(b []byte) {
 		switch c {
 		case '\r', '\n':
 			l.commit()
+		case '\b':
+			l.cur = eraseLast(l.cur)
 		default:
 			if len(l.cur) < maxLineBytes {
 				l.cur = append(l.cur, c)
@@ -164,6 +166,16 @@ func (l *lineTracker) feed(b []byte) {
 		}
 	}
 	l.dirty = true
+}
+
+// eraseLast applies a backspace to plain text: it drops the last rune of b
+// (none after a line break).
+func eraseLast(b []byte) []byte {
+	if len(b) == 0 || b[len(b)-1] == '\n' {
+		return b
+	}
+	_, size := utf8.DecodeLastRune(b)
+	return b[:len(b)-size]
 }
 
 func (l *lineTracker) commit() {
@@ -230,8 +242,12 @@ func meaningfulLine(s string) string {
 }
 
 // maxPromptRunes bounds what may be taken for a shell prompt: longer lines
-// are output even if they end like one.
-const maxPromptRunes = 80
+// are output even if they end like one. A user@host prompt shows the whole
+// directory, and worktree folders are long, so it gets a larger bound.
+const (
+	maxPromptRunes         = 80
+	maxUserHostPromptRunes = 240
+)
 
 // userHost matches the user@host (or user@host:dir) start of common prompts
 // (optionally after a "(venv)" marker); shellName bash's default "bash-5.2".
@@ -252,8 +268,15 @@ var (
 func looksLikePrompt(s string) bool {
 	t := strings.TrimRightFunc(s, unicode.IsSpace)
 	r := []rune(strings.TrimLeftFunc(t, unicode.IsSpace))
-	if len(r) == 0 || len(r) > maxPromptRunes {
+	if len(r) == 0 || len(r) > maxUserHostPromptRunes {
 		return false
+	}
+	if len(r) > maxPromptRunes {
+		// Only an unmistakable user@host:dir$ (no spaces in the directory).
+		last := r[len(r)-1]
+		body := string(r[:len(r)-1])
+		return strings.ContainsRune("$%#", last) && !strings.ContainsFunc(body, unicode.IsSpace) &&
+			userHost.MatchString(body+" ")
 	}
 	if r[0] == '➜' {
 		return true
@@ -324,6 +347,8 @@ func TailLines(data []byte, n int) []string {
 			push()
 		case '\r':
 			col = 0
+		case '\b':
+			col = max(col-1, 0)
 		case '\t':
 			for range 4 - col%4 {
 				cur, col = put(cur, col, ' ')

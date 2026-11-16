@@ -134,6 +134,9 @@
     sessions = list
     terms.retain(new Set(list.map((s) => s.id)))
     if (selectedId && !list.some((s) => s.id === selectedId)) select(fallbackSelection(), true)
+    // Nothing selected and a session appeared in the current project (e.g.
+    // spawned from the CLI): show it rather than "No sessions" next to it.
+    else if (loaded && !selectedId && list.some((s) => s.projectId === currentProjectId)) select(fallbackSelection(), true)
   }
 
   async function refreshAll() {
@@ -232,6 +235,12 @@
   }
 
   async function removeProject(id: string) {
+    // Its live sessions would keep running with no row left to reach them.
+    const live = sessions.filter((s) => s.projectId === id && s.state !== 'exited').length
+    if (live) {
+      showError(t('sidebar.removeProjectLive', { n: live }))
+      return
+    }
     try {
       await api.removeProject(id)
     } catch (e) {
@@ -312,7 +321,18 @@
     // ⌘N: new session in the current project with the first profile.
     const pid = currentProjectId ?? projects[0]?.id
     const prof = spawnable[0]
-    if (pid && prof) void spawn(pid, prof.id, { mode: rememberedMode(pid, defaultMode) })
+    if (pid && prof) void spawnDefault(pid, prof.id)
+  }
+
+  /** ⌘N: the remembered (or default) mode, but like the + menu, the same
+   * folder when the project cannot use worktrees (not a git repo…). */
+  async function spawnDefault(projectId: string, profileId: string) {
+    let mode = rememberedMode(projectId, defaultMode)
+    if (mode === 'worktree') {
+      const g = await api.projectGit(projectId).catch(() => null)
+      if (!g?.isRepo || g.error) mode = 'same'
+    }
+    await spawn(projectId, profileId, { mode })
   }
 
   function focusFromNotification(id: string) {
@@ -411,7 +431,7 @@
       <nav class="view-tabs">
         <button class:on={view === 'terminal'} onclick={() => setView('terminal')}>{t('view.terminal')}</button>
         <button class:on={view === 'changes'} onclick={() => setView('changes')}
-          >{t('view.changes')}{#if selected.git} ({selected.git.files}){/if}</button
+          >{t('view.changes')}{selected.git ? ` (${selected.git.files})` : ''}</button
         >
       </nav>
     {/if}
@@ -699,6 +719,7 @@
     left: 50%;
     transform: translateX(-50%);
     padding: 6px 12px;
+    z-index: 30; /* above Changes, the grid, the orphan view and Settings */
     border-radius: 6px;
     background: #3a2f14;
     color: var(--amber);
@@ -712,6 +733,7 @@
     position: absolute;
     right: 14px;
     bottom: 14px;
+    z-index: 30;
     max-width: 420px;
     padding: 8px 12px;
     border-radius: 6px;

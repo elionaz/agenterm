@@ -104,3 +104,11 @@ func TestSignalText(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+func TestBackspaceIsText(t *testing.T) {
+	// Line editors redraw with BS (zsh echoes "f\bfor"); other C0 controls go.
+	_, text := parseChunks("f\bfor\x0e x")
+	if text != "f\bfor x" {
+		t.Fatalf("text %q", text)
+	}
+}

@@ -205,7 +205,7 @@
 <div class="changes">
   <header class="bar">
     {#if diff?.branch}
-      <span class="branch" title={diff.dir}>⎇ {diff.branch}{#if isWorktree && diff.base}<span class="base"> ← {diff.base}</span>{/if}</span>
+      <span class="branch" title={diff.dir}>⎇ {diff.branch}{#if isWorktree && diff.base}<span class="base">{` ← ${diff.base}`}</span>{/if}</span>
     {/if}
     {#if diff}
       <span class="stats">

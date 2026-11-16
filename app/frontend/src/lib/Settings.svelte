@@ -5,6 +5,7 @@
     api,
     errorMessage,
     joinArgs,
+    launchable,
     splitArgs,
     type Profile,
     type ProfileEntry,
@@ -63,6 +64,8 @@
   const gitDirty = $derived(git != null && JSON.stringify(git) !== savedGit)
 
   const installedCount = $derived(profiles.filter((p) => p.installed).length)
+  /** What ⌘N launches: the first enabled, installed, valid profile. */
+  const firstId = $derived(launchable(profiles)[0]?.id)
 
   /** ui.language as selected (applied right away, then saved). */
   let language = $state<LangSetting>(langSetting())
@@ -519,7 +522,7 @@
                 <div class="who">
                   <div class="name">
                     {p.name}
-                    {#if i === 0}<span class="tag first">⌘N</span>{/if}
+                    {#if p.id === firstId}<span class="tag first">⌘N</span>{/if}
                     <span class="tag">{sourceLabel(p)}</span>
                   </div>
                   <div class="cmd" title={p.path ?? ''}>
@@ -853,8 +856,10 @@
   .row.drop-after::after {
     bottom: -1px;
   }
+  /* Narrow windows: the actions wrap under the row instead of overlapping. */
   .row-main {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 10px;
     min-height: 48px;
@@ -890,11 +895,12 @@
     opacity: 0.25;
   }
   .who {
-    flex: 1;
+    flex: 1 1 160px;
     min-width: 0;
   }
   .name {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 6px;
     font-weight: 600;
@@ -977,6 +983,7 @@
     align-items: center;
     gap: 10px;
     min-width: 230px;
+    margin-left: auto;
     justify-content: flex-end;
   }
   .confirm {

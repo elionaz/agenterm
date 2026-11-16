@@ -28,6 +28,8 @@ func TestOutputActivityLine(t *testing.T) {
 		want   string
 	}{
 		{"plain", []string{"compiling\nrunning tests\n"}, "running tests"},
+		{"backspace redraw", []string{"% f\bfor i in 1 2", "\r\n"}, "% for i in 1 2"}, // zsh highlighting
+		{"backspace split", []string{"ab", "\b\bxy\n"}, "xy"},
 		{"partial line wins", []string{"done\nDownloading pkg"}, "Downloading pkg"},
 		{"ansi stripped", []string{"\x1b[1;32m✓\x1b[0m \x1b[2mBuilt\x1b[0m in 2s\r\n"}, "Built in 2s"},
 		{"cr overwrite", []string{"Progress 10%\rProgress 55%"}, "Progress 55%"},
@@ -72,6 +74,7 @@ func TestShellPromptIsNotActivity(t *testing.T) {
 		"% ",
 		"PS C:\\> ",
 		"/tmp/>",
+		"elionaz@MacBook-Pro-de-Jonathan:/private/tmp/agqa/h/worktrees/repo1-e207cf44/ffab8554$ ", // long worktree path
 	}
 	for _, p := range prompts {
 		if !looksLikePrompt(p) {
@@ -92,6 +95,8 @@ func TestShellPromptIsNotActivity(t *testing.T) {
 		"Compiling agenterm v0.2.0 -> target/debug/agenterm and running a very long build step that ends in >", // too long
 		"Deploying to prod --> staging",
 		"Thinking",
+		"elionaz@MacBook-Pro-de-Jonathan:/private/tmp/agqa/h/worktrees/repo1-e207cf44/ffab8554$ make test", // typed
+		"user@host: a long log line that mentions an address and goes on and on past the limit with a $",
 	}
 	for _, p := range notPrompts {
 		if looksLikePrompt(p) {
@@ -199,6 +204,9 @@ func TestTailLines(t *testing.T) {
 		t.Fatalf("empty: %#v", got)
 	}
 	// CR overwrite keeps the longer tail of the old line (like a terminal).
+	if got := TailLines([]byte("$ f\bfor x\n"), 8); !reflect.DeepEqual(got, []string{"$ for x"}) {
+		t.Fatalf("backspace: %q", got)
+	}
 	if got := TailLines([]byte("abcdef\rXY\n"), 8); !reflect.DeepEqual(got, []string{"XYcdef"}) {
 		t.Fatalf("overwrite: %q", got)
 	}

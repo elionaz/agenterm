@@ -13,6 +13,7 @@ import (
 
 	"github.com/elionaz/agenterm/internal/daemon"
 	"github.com/elionaz/agenterm/internal/paths"
+	"github.com/elionaz/agenterm/internal/settings"
 )
 
 type recorder struct {
@@ -149,6 +150,23 @@ func TestAppAgainstDaemon(t *testing.T) {
 	waitFor(t, "replayed scrollback", func() bool { return strings.Count(rec.output(id), "agent-42") > before })
 	if rec.has(evError + ":" + id) {
 		t.Fatal("replacing a stream emitted pty-error")
+	}
+
+	// Each Settings tab saves only its own section: the others keep their
+	// values (they used to be overwritten with zero values).
+	if _, err := a.SaveSettings(SettingsPatch{Activity: &settings.Activity{StallSeconds: 7}, Notify: &settings.Notify{Enabled: true, Sound: true, OnDone: true, OnStall: true}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.SaveSettings(SettingsPatch{Git: &settings.Git{Editor: "zed", DefaultMode: "worktree"}}); err != nil {
+		t.Fatal(err)
+	}
+	st, err := a.SaveSettings(SettingsPatch{UI: &settings.UI{Language: "es"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.UI.Language != "es" || st.Git.Editor != "zed" || st.Git.DefaultMode != "worktree" ||
+		st.Activity.StallSeconds != 7 || !st.Notify.Sound || !st.Notify.OnDone || !st.Notify.OnStall {
+		t.Fatalf("partial saves clobbered other sections: %+v", st)
 	}
 
 	if _, err := a.Kill(id); err != nil {

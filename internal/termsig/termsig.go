@@ -95,8 +95,9 @@ type Parser struct {
 }
 
 // Feed parses p. onSignal (may be nil) is called for every signal; onText
-// (may be nil) receives runs of printable text (with \r and \n kept), so a
-// caller can keep an ANSI-free tail of the output.
+// (may be nil) receives runs of printable text (with \r, \n, \t and \b
+// kept), so a caller can keep an ANSI-free tail of the output. Backspace is
+// kept because line editors redraw with it (zsh echoes "f\bfor").
 func (p *Parser) Feed(b []byte, onSignal func(Signal), onText func([]byte)) {
 	textStart := -1
 	flush := func(i int) {
@@ -118,7 +119,7 @@ func (p *Parser) Feed(b []byte, onSignal func(Signal), onText func([]byte)) {
 				if onSignal != nil {
 					onSignal(Signal{Bell: true})
 				}
-			case c >= 0x20 || c == '\n' || c == '\r' || c == '\t':
+			case c >= 0x20 || c == '\n' || c == '\r' || c == '\t' || c == '\b':
 				if textStart < 0 {
 					textStart = i
 				}

@@ -341,7 +341,7 @@
                 <div class="orphan" title={t('sidebar.orphanTitle', { path: w.path, branch: w.branch, base: w.base })}>
                   <div class="line">
                     <span class="chip">⎇ {w.branch.replace(/^agent\//, '')}</span>
-                    {#if w.git}<span class="changes">{changesLabel(w.git)}{#if w.git.ahead} ↑{w.git.ahead}{/if}</span>{/if}
+                    {#if w.git}<span class="changes">{changesLabel(w.git)}{w.git.ahead ? ` ↑${w.git.ahead}` : ''}</span>{/if}
                   </div>
                   <div class="orphan-actions">
                     <button onclick={() => onOpenWorktree(w.id)}>{t('sidebar.viewChanges')}</button>
@@ -550,13 +550,17 @@
     background: var(--accent-bg);
     color: var(--fg);
   }
+  /* The name keeps its width; the branch chip shrinks first (longer state
+     words, e.g. "esperando", would otherwise squeeze the name to "s…"). */
   .session-name {
-    flex: 1;
+    flex: 0 0 auto;
+    max-width: 50%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .state {
+    margin-left: auto;
     font-size: 10.5px;
     color: var(--muted);
   }
@@ -690,8 +694,12 @@
     color: var(--fg);
     background: var(--hover);
   }
+  /* As wide as the project row: wider would spill past the sidebar's
+     left edge (and be clipped by its scroller). */
   .menu.wide {
-    min-width: 250px;
+    left: 0;
+    right: 0;
+    min-width: 0;
   }
   .spawn-form {
     display: flex;
@@ -782,7 +790,7 @@
     background: var(--hover-strong);
   }
   .chip {
-    flex: 0 1 auto;
+    flex: 0 100 auto;
     min-width: 0;
     max-width: 90px;
     overflow: hidden;
