@@ -856,8 +856,10 @@
   .row.drop-after::after {
     bottom: -1px;
   }
+  /* Narrow windows: the actions wrap under the row instead of overlapping. */
   .row-main {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 10px;
     min-height: 48px;
@@ -893,11 +895,12 @@
     opacity: 0.25;
   }
   .who {
-    flex: 1;
+    flex: 1 1 160px;
     min-width: 0;
   }
   .name {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 6px;
     font-weight: 600;
@@ -980,6 +983,7 @@
     align-items: center;
     gap: 10px;
     min-width: 230px;
+    margin-left: auto;
     justify-content: flex-end;
   }
   .confirm {
