@@ -690,8 +690,12 @@
     color: var(--fg);
     background: var(--hover);
   }
+  /* As wide as the project row: wider would spill past the sidebar's
+     left edge (and be clipped by its scroller). */
   .menu.wide {
-    min-width: 250px;
+    left: 0;
+    right: 0;
+    min-width: 0;
   }
   .spawn-form {
     display: flex;
