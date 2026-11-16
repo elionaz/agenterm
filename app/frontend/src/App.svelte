@@ -411,7 +411,7 @@
       <nav class="view-tabs">
         <button class:on={view === 'terminal'} onclick={() => setView('terminal')}>{t('view.terminal')}</button>
         <button class:on={view === 'changes'} onclick={() => setView('changes')}
-          >{t('view.changes')}{#if selected.git} ({selected.git.files}){/if}</button
+          >{t('view.changes')}{selected.git ? ` (${selected.git.files})` : ''}</button
         >
       </nav>
     {/if}

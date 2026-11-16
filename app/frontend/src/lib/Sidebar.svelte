@@ -341,7 +341,7 @@
                 <div class="orphan" title={t('sidebar.orphanTitle', { path: w.path, branch: w.branch, base: w.base })}>
                   <div class="line">
                     <span class="chip">⎇ {w.branch.replace(/^agent\//, '')}</span>
-                    {#if w.git}<span class="changes">{changesLabel(w.git)}{#if w.git.ahead} ↑{w.git.ahead}{/if}</span>{/if}
+                    {#if w.git}<span class="changes">{changesLabel(w.git)}{w.git.ahead ? ` ↑${w.git.ahead}` : ''}</span>{/if}
                   </div>
                   <div class="orphan-actions">
                     <button onclick={() => onOpenWorktree(w.id)}>{t('sidebar.viewChanges')}</button>
