@@ -230,8 +230,12 @@ func meaningfulLine(s string) string {
 }
 
 // maxPromptRunes bounds what may be taken for a shell prompt: longer lines
-// are output even if they end like one.
-const maxPromptRunes = 80
+// are output even if they end like one. A user@host prompt shows the whole
+// directory, and worktree folders are long, so it gets a larger bound.
+const (
+	maxPromptRunes         = 80
+	maxUserHostPromptRunes = 240
+)
 
 // userHost matches the user@host (or user@host:dir) start of common prompts
 // (optionally after a "(venv)" marker); shellName bash's default "bash-5.2".
@@ -252,8 +256,15 @@ var (
 func looksLikePrompt(s string) bool {
 	t := strings.TrimRightFunc(s, unicode.IsSpace)
 	r := []rune(strings.TrimLeftFunc(t, unicode.IsSpace))
-	if len(r) == 0 || len(r) > maxPromptRunes {
+	if len(r) == 0 || len(r) > maxUserHostPromptRunes {
 		return false
+	}
+	if len(r) > maxPromptRunes {
+		// Only an unmistakable user@host:dir$ (no spaces in the directory).
+		last := r[len(r)-1]
+		body := string(r[:len(r)-1])
+		return strings.ContainsRune("$%#", last) && !strings.ContainsFunc(body, unicode.IsSpace) &&
+			userHost.MatchString(body+" ")
 	}
 	if r[0] == '➜' {
 		return true

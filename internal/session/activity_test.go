@@ -72,6 +72,7 @@ func TestShellPromptIsNotActivity(t *testing.T) {
 		"% ",
 		"PS C:\\> ",
 		"/tmp/>",
+		"elionaz@MacBook-Pro-de-Jonathan:/private/tmp/agqa/h/worktrees/repo1-e207cf44/ffab8554$ ", // long worktree path
 	}
 	for _, p := range prompts {
 		if !looksLikePrompt(p) {
@@ -92,6 +93,8 @@ func TestShellPromptIsNotActivity(t *testing.T) {
 		"Compiling agenterm v0.2.0 -> target/debug/agenterm and running a very long build step that ends in >", // too long
 		"Deploying to prod --> staging",
 		"Thinking",
+		"elionaz@MacBook-Pro-de-Jonathan:/private/tmp/agqa/h/worktrees/repo1-e207cf44/ffab8554$ make test", // typed
+		"user@host: a long log line that mentions an address and goes on and on past the limit with a $",
 	}
 	for _, p := range notPrompts {
 		if looksLikePrompt(p) {
