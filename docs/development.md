@@ -105,6 +105,8 @@ report `dev`.
    - builds everything with `scripts/release-local.sh <version>` (the same script you run locally):
      the universal app (`wails build -platform darwin/universal`), the universal CLI (cgo, `lipo`)
      bundled at `agenterm.app/Contents/Helpers/agenterm`, and the Linux CLI (`CGO_ENABLED=0`);
+   - embeds Sparkle (see [In-app updates](#in-app-updates-sparkle)) and signs it inside-out
+     before the rest;
    - signs the CLI and then the app with the Developer ID, hardened runtime, a secure timestamp and
      `app/build/darwin/entitlements.plist`, if the certificate secrets exist; otherwise it keeps an
      ad-hoc signature, warns, and the release notes say it's an unsigned build;
@@ -112,8 +114,12 @@ report `dev`.
      secrets exist too; a rejected submission fails the job and prints the `notarytool log`;
    - packages `agenterm-<v>-macos-universal.{zip,dmg}`, `agenterm-<v>-darwin-universal.tar.gz`,
      `agenterm-<v>-linux-{amd64,arm64}.tar.gz` and `checksums.txt`, and uploads them to the run;
+   - if `SPARKLE_PRIVATE_ED_KEY` exists, EdDSA-signs the (stapled) zip and writes `appcast.xml`;
    - creates the GitHub release `vX.Y.Z` with the CHANGELOG section as notes (or generated notes if
-     there's none) and every artifact attached;
+     there's none) and every artifact attached, `appcast.xml` included when the build is notarized.
+     Once `SPARKLE_PUBLIC_ED_KEY` is set, a release without `appcast.xml` isn't marked *Latest* (the
+     feed URL points at the latest release). A pre-release (`X.Y.Z-suffix`) is published as a GitHub pre-release: never *Latest*,
+     never offered in-app, and the Homebrew cask isn't updated;
    - if `HOMEBREW_TAP_TOKEN` exists, renders `packaging/homebrew/agenterm.rb.tmpl` with the version
      and the zip's sha256 (`scripts/render-cask.sh`) and pushes it to `Casks/agenterm.rb` in
      [elionaz/homebrew-tap](https://github.com/elionaz/homebrew-tap) as "agenterm X.Y.Z".
@@ -133,6 +139,12 @@ updated.
 | `APPLE_API_ISSUER_ID` | App Store Connect issuer id (notarization) |
 | `APPLE_API_KEY_P8_BASE64` | the API key's `.p8` file, base64 (notarization) |
 | `HOMEBREW_TAP_TOKEN` | a GitHub token that can push to `elionaz/homebrew-tap` |
+| `SPARKLE_PRIVATE_ED_KEY` | Sparkle's EdDSA private key, as `generate_keys -x` exports it: signs the update zip and enables `appcast.xml` |
+| `SPARKLE_PUBLIC_ED_KEY` | its public key (`SUPublicEDKey`); a repository **variable** (it isn't secret), or a secret |
+
+Without `SPARKLE_PUBLIC_ED_KEY` the app is built with its updater off; without
+`SPARKLE_PRIVATE_ED_KEY` there's no `appcast.xml`, so installed apps aren't offered the release.
+Both cases only warn.
 
 **Developer ID Application certificate** (needs the Account Holder role in the Apple Developer
 program):
@@ -191,7 +203,97 @@ Application: …" scripts/release-local.sh 0.1.0`. Notarization also needs `NOTA
 `.p8`), `NOTARY_KEY_ID` and `NOTARY_ISSUER_ID`.
 
 On GitHub: *Actions → Release → Run workflow* with a version. It builds, signs and notarizes (if the
-secrets exist) and uploads the artifacts to the run, but doesn't create a release or touch the tap.
+secrets exist) and uploads the artifacts to the run (`appcast.xml` included), but doesn't create a
+release or touch the tap.
+
+To try the appcast locally without your real key, use a throwaway ed25519 pair (OpenSSL 3, no
+keychain involved):
+
+```sh
+k=$(mktemp -d)
+openssl genpkey -algorithm ed25519 -out "$k/key.pem"
+export SPARKLE_PRIVATE_ED_KEY=$(openssl pkey -in "$k/key.pem" -outform DER | tail -c 32 | base64)
+export SPARKLE_PUBLIC_ED_KEY=$(openssl pkey -in "$k/key.pem" -pubout -outform DER | tail -c 32 | base64)
+scripts/release-local.sh 0.2.0-dev
+xmllint --noout dist/appcast.xml
+```
+
+### In-app updates (Sparkle)
+
+The app embeds [Sparkle 2](https://sparkle-project.org): `scripts/fetch-sparkle.sh` downloads the
+pinned release (`SPARKLE_VERSION`), checks it against the SHA-256 GitHub publishes for it and
+caches it in `.cache/sparkle/` (gitignored). `release-local.sh` then:
+
+- builds the app with `-tags sparkle` (`app/updater_sparkle_darwin.{go,m}`; every other build,
+  `wails dev` and tests included, gets `app/updater_stub.go`), weak-linking `Sparkle.framework`
+  through `@rpath` = `Contents/Frameworks`;
+- copies the framework to `agenterm.app/Contents/Frameworks/` and signs, in this order and without
+  `--deep`, as Sparkle documents for Developer ID apps: `XPCServices/Installer.xpc`,
+  `XPCServices/Downloader.xpc` (`--preserve-metadata=entitlements`), `Autoupdate`, `Updater.app`,
+  the framework; then the CLI and the app as before;
+- sets `SUPublicEDKey` in `Info.plist` (the template has `SUFeedURL` =
+  `https://github.com/elionaz/agenterm/releases/latest/download/appcast.xml`, daily automatic checks
+  and automatic updates allowed), or removes it when `SPARKLE_PUBLIC_ED_KEY` is empty: the app then
+  keeps the updater off;
+- after notarizing and stapling the zip, signs it with `bin/sign_update --ed-key-file` (the key goes
+  through a 0600 temp file, never the command line or the log), verifies the signature, checks it
+  against `SPARKLE_PUBLIC_ED_KEY` with OpenSSL and writes `dist/appcast.xml`
+  (`scripts/render-appcast.sh`: a single item, the release's zip, `minimumSystemVersion` 13.0 and
+  the CHANGELOG section as release notes).
+
+The release uploads `appcast.xml` as an asset, so `releases/latest/download/appcast.xml` always
+points at the newest release. Unnotarized builds don't publish it: Sparkle would install an app
+Gatekeeper then refuses to open.
+
+The app turns its updater off, and says why in **Settings → General → Updates** and in **Check for
+Updates…**, when it's a development build, when it has no `SUPublicEDKey`, and when it was
+installed by Homebrew: the bundle resolves into a `Caskroom`, or
+`<brew prefix>/Caskroom/agenterm/<bundle version>` exists (brew moves the `.app` to `/Applications`
+and keeps that folder as its record), for the prefixes `$HOMEBREW_PREFIX`, `/opt/homebrew` and
+`/usr/local`. That's also why the cask doesn't declare `auto_updates true`: brew remains the only
+updater for brew installs and `brew outdated` keeps reporting new versions.
+
+**Generating the key pair** (once, on your Mac; the private key never goes into the repo):
+
+```sh
+SPARKLE_DIR=$(scripts/fetch-sparkle.sh)
+"$SPARKLE_DIR/bin/generate_keys" --account agenterm          # creates it in your login keychain, prints the public key
+"$SPARKLE_DIR/bin/generate_keys" --account agenterm -x sparkle-private.txt
+gh secret set SPARKLE_PRIVATE_ED_KEY < sparkle-private.txt
+gh variable set SPARKLE_PUBLIC_ED_KEY --body "$("$SPARKLE_DIR/bin/generate_keys" --account agenterm -p)"
+rm sparkle-private.txt
+```
+
+Keep a backup of the private key (the keychain item, or the exported text in a password manager):
+if it's lost, installed apps can't verify updates any more and users have to download the next
+version by hand.
+
+**Rotating the key**: generate a new pair (another `--account`), then publish one release signed
+with the **old** private key that ships the **new** public key: keep `SPARKLE_PRIVATE_ED_KEY` as
+is, set the variable `SPARKLE_PUBLIC_ED_KEY` to the new key and `SPARKLE_KEY_ROTATION=1` (a
+repository variable; it skips the check that both keys are a pair). Once that release is out,
+replace `SPARKLE_PRIVATE_ED_KEY` with the new private key and delete `SPARKLE_KEY_ROTATION`. If the
+old key leaked, do the same right away; if it's lost, there's no in-app path: announce that the
+next version has to be installed by hand.
+
+**The daemon after an update.** Sparkle replaces and relaunches the app, but the daemon (started
+from the old executable) keeps running, by design, with the sessions. On every (re)connection the
+app compares `daemon.ping`'s `version` (absent in daemons before 0.2.0) with its own and, if the
+daemon is older, shows a banner with **Restart now** (with a confirmation when agents are working).
+`RestartDaemon`:
+
+1. writes the ids of the live sessions to `restart.json` in the runtime dir;
+2. stops the daemon with force (live sessions are recorded as suspended) and waits for its
+   **process** to exit — its pid file goes away last thing — not just for the socket to stop
+   answering: the old daemon is still killing its agents then, and daemons before 0.2.0 remove the
+   socket path as their very last step, which would orphan a new daemon already listening there.
+   A pid reused by another program counts as gone; a daemon still there after 20 s is SIGKILLed
+   (its sessions are already recorded as suspended);
+3. starts the new daemon, which restores the sessions in `restart.json` as suspended whatever
+   `sessions.restore` says (and doesn't auto-resume them under `always`), and deletes the file;
+4. resumes exactly those sessions. Sessions that were already suspended stay so.
+
+Development builds (`dev`) never show the banner, nor does a daemon newer than the app.
 
 ## Icon
 

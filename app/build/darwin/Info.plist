@@ -23,6 +23,20 @@
         <string>true</string>
         <key>NSHumanReadableCopyright</key>
         <string>{{.Info.Copyright}}</string>
+        <!-- Sparkle (in-app updates; release builds only, see
+             scripts/release-local.sh, which replaces the SUPublicEDKey
+             placeholder with $SPARKLE_PUBLIC_ED_KEY or removes the key:
+             without it the updater stays off). -->
+        <key>SUFeedURL</key>
+        <string>https://github.com/elionaz/agenterm/releases/latest/download/appcast.xml</string>
+        <key>SUPublicEDKey</key>
+        <string>@SPARKLE_PUBLIC_ED_KEY@</string>
+        <key>SUEnableAutomaticChecks</key>
+        <true/>
+        <key>SUScheduledCheckInterval</key>
+        <integer>86400</integer>
+        <key>SUAllowsAutomaticUpdates</key>
+        <true/>
         {{if .Info.FileAssociations}}
         <key>CFBundleDocumentTypes</key>
         <array>

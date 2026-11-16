@@ -10,8 +10,9 @@
     type Profile,
     type ProfileEntry,
     type Settings,
+    type UpdaterState,
   } from './api'
-  import { langSetting, setLangSetting, systemLang, t, th, type LangSetting } from './i18n.svelte'
+  import { langSetting, locale, setLangSetting, systemLang, t, th, type LangSetting } from './i18n.svelte'
   import { appearance, setAppearance, setTermPrefs, termPrefs, type Appearance } from './prefs.svelte'
   import { MAX_FONT_SIZE, MIN_FONT_SIZE, defaultPrefs, themeLabels, themeNames, themeOf, type TermPrefs } from './themes'
 
@@ -105,6 +106,48 @@
       restoreError = errorMessage(e)
     }
   }
+
+  /** In-app updates (General tab). */
+  let updater = $state<UpdaterState | null>(null)
+  let updaterError = $state<string | null>(null)
+
+  async function loadUpdater() {
+    try {
+      updater = await api.updaterState()
+      // Settings opened while the updater is still starting: ask again.
+      if (updater.reason === 'starting') setTimeout(loadUpdater, 500)
+    } catch (e) {
+      updaterError = errorMessage(e)
+    }
+  }
+
+  async function setUpdater(fn: () => Promise<UpdaterState>) {
+    updaterError = null
+    try {
+      updater = await fn()
+    } catch (e) {
+      updaterError = errorMessage(e)
+    }
+  }
+
+  async function checkNow() {
+    updaterError = null
+    try {
+      await api.checkForUpdates()
+    } catch (e) {
+      updaterError = errorMessage(e)
+    }
+    // The check runs in Sparkle's window; refresh "last checked" later.
+    setTimeout(() => void loadUpdater(), 3000)
+  }
+
+  const updaterHintKey = $derived(
+    updater?.reason === 'homebrew'
+      ? 'settings.updates.homebrew'
+      : updater?.reason === 'nokey' || updater?.reason === 'nobundle' || updater?.reason === 'unsupported'
+        ? 'settings.updates.unavailable'
+        : 'settings.updates.error',
+  )
 
   /** Appearance tab: everything applies at once and is saved shortly after. */
   let appearanceError = $state<string | null>(null)
@@ -440,6 +483,7 @@
 
   onMount(() => {
     void loadSettings()
+    void loadUpdater()
   })
 </script>
 
@@ -560,6 +604,59 @@
           </select>
         </label>
         {#if restoreError}<div class="error">{restoreError}</div>{/if}
+
+        <h3 class="group">{t('settings.updates')}</h3>
+        {#if updater}
+          <div class="field">
+            <span>
+              <b>{t('settings.updates.version', { version: updater.version })}</b>
+              <em>
+                {updater.lastCheck
+                  ? t('settings.updates.lastCheck', { when: new Date(updater.lastCheck).toLocaleString(locale()) })
+                  : updater.enabled
+                    ? t('settings.updates.neverChecked')
+                    : ''}
+              </em>
+            </span>
+            {#if updater.enabled}
+              <button class="btn" disabled={!updater.canCheck} onclick={checkNow}>{t('settings.updates.check')}</button>
+            {/if}
+          </div>
+          {#if updater.enabled}
+            <label class="check">
+              <input
+                type="checkbox"
+                checked={updater.automaticChecks}
+                onchange={(e) => {
+                  const on = (e.currentTarget as HTMLInputElement).checked
+                  void setUpdater(() => api.setAutomaticChecks(on))
+                }}
+              />
+              <span>
+                <b>{t('settings.updates.auto')}</b>
+                <em>{t('settings.updates.autoHelp')}</em>
+              </span>
+            </label>
+            <label class="check" class:dim={!updater.automaticChecks}>
+              <input
+                type="checkbox"
+                checked={updater.automaticDownloads}
+                disabled={!updater.automaticChecks}
+                onchange={(e) => {
+                  const on = (e.currentTarget as HTMLInputElement).checked
+                  void setUpdater(() => api.setAutomaticDownloads(on))
+                }}
+              />
+              <span>
+                <b>{t('settings.updates.download')}</b>
+                <em>{t('settings.updates.downloadHelp')}</em>
+              </span>
+            </label>
+          {:else if updater.reason !== 'starting'}
+            <p class="hint updates">{@html th(updaterHintKey)}</p>
+          {/if}
+        {/if}
+        {#if updaterError}<div class="error">{updaterError}</div>{/if}
       </section>
     {:else if tab === 'appearance'}
       <section class="pane narrow">
@@ -986,6 +1083,17 @@
   }
   .hint.foot {
     margin-top: 12px;
+  }
+  .group {
+    margin: 22px 0 2px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .hint.updates {
+    padding-top: 8px;
   }
   /* :global: also styles the markup of {@html th(...)} strings. */
   .settings :global(kbd),

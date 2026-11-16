@@ -280,6 +280,15 @@ type WorktreeOpenParams struct {
 	Target    string `json:"target"` // editor | finder
 }
 
+// PingResult is daemon.ping's. Version and Commit identify the daemon's
+// build (internal/version); daemons before 0.2.0 send neither, so a client
+// that finds an empty Version is talking to an older daemon.
+type PingResult struct {
+	OK      bool   `json:"ok"`
+	Version string `json:"version,omitempty"`
+	Commit  string `json:"commit,omitempty"`
+}
+
 // ShutdownParams are daemon.shutdown's. Without Force the daemon refuses
 // while any session is still alive (only exited ones may be discarded).
 type ShutdownParams struct {
@@ -525,4 +534,10 @@ type Event struct {
 	ProjectID string `json:"projectId,omitempty"`
 	// Live is filled in session.activity and session.state events.
 	Live
+}
+
+// RestartMarker is the content of paths.RestartFile: the sessions that
+// were live when the app replaced the daemon ("Restart now").
+type RestartMarker struct {
+	Resume []string `json:"resume"`
 }

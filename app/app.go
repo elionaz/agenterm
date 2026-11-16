@@ -56,10 +56,12 @@ type App struct {
 	emit   func(event string, data ...any) // runtime.EventsEmit; swapped in tests
 	desk   desktop                         // OS notifications / Dock; nopDesktop in tests
 	att    attention
+	upd    updaterCtl // in-app updates (updates.go)
 
 	wailsCtx context.Context // the Wails runtime context (nil in tests)
 
-	startMu sync.Mutex // serialises daemon auto-start
+	startMu sync.Mutex                      // serialises daemon auto-start
+	launch  func(ctx context.Context) error // starts the daemon; nil: this executable (tests swap it)
 
 	mu      sync.Mutex
 	streams map[string]*attachment
@@ -83,6 +85,7 @@ func NewApp() *App {
 		streams: make(map[string]*attachment),
 		desk:    nopDesktop{},
 		att:     attention{unread: make(map[string]bool)},
+		upd:     updaterCtl{reason: updStarting},
 	}
 }
 
@@ -94,7 +97,11 @@ func (a *App) startup(ctx context.Context) {
 	a.emit = func(event string, data ...any) { runtime.EventsEmit(ctx, event, data...) }
 	a.wailsCtx = ctx
 	a.desk = newDesktop(ctx, a.focusSession)
-	installPreferencesMenu(i18n.T(uiLang(p), i18n.MenuPreferences), func() { a.emit(evOpenSettings) })
+	lang := uiLang(p)
+	installPreferencesMenu(i18n.T(lang, i18n.MenuPreferences), func() { a.emit(evOpenSettings) })
+	// Off the startup callback: Sparkle is set up on the main thread, which
+	// may be waiting for startup to return.
+	go a.startUpdater(p)
 	a.start(ctx, p)
 	a.focusMu.Lock()
 	a.started = true
@@ -121,13 +128,29 @@ func (a *App) shutdown(context.Context) {
 	}
 }
 
+// noSelfLaunch is set by TestMain: a test App must set launch.
+var noSelfLaunch bool
+
 // ensureDaemon starts the daemon from this very executable if it is not
 // reachable, so the .app does not need a separately installed CLI.
 func (a *App) ensureDaemon(ctx context.Context) error {
 	a.startMu.Lock()
 	defer a.startMu.Unlock()
+	return a.ensureDaemonLocked(ctx)
+}
+
+func (a *App) ensureDaemonLocked(ctx context.Context) error {
 	if transport.Alive(transport.Default(), a.paths.Socket()) {
 		return nil
+	}
+	if a.launch != nil {
+		return a.launch(ctx)
+	}
+	if noSelfLaunch {
+		// Under `go test` this executable is app.test: `app.test daemon`
+		// would rerun the whole suite, which launches another one… (a fork
+		// bomb that took the machine down once).
+		return errors.New("test App without launch tried to start a daemon")
 	}
 	exe, err := os.Executable()
 	if err != nil {
@@ -327,6 +350,9 @@ func (a *App) SystemLanguage() string {
 func (a *App) applyLanguage(ui settings.UI) {
 	if a.wailsCtx != nil {
 		setPreferencesTitle(i18n.T(ui.Lang(), i18n.MenuPreferences))
+		if r := a.updaterReason(); r != updStarting {
+			setUpdatesMenu(updatesMenuText(ui.Lang(), r))
+		}
 	}
 }
 

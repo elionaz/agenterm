@@ -52,12 +52,18 @@ func (p Paths) Ensure() error {
 	return nil
 }
 
-func (p Paths) Socket() string   { return filepath.Join(p.RuntimeDir, "d.sock") }
-func (p Paths) PidFile() string  { return filepath.Join(p.RuntimeDir, "d.pid") }
-func (p Paths) LogFile() string  { return filepath.Join(p.RuntimeDir, "daemon.log") }
-func (p Paths) Profiles() string { return filepath.Join(p.ConfigDir, "profiles.yaml") }
-func (p Paths) Projects() string { return filepath.Join(p.ConfigDir, "projects.json") }
-func (p Paths) Settings() string { return filepath.Join(p.ConfigDir, "settings.yaml") }
+func (p Paths) Socket() string  { return filepath.Join(p.RuntimeDir, "d.sock") }
+func (p Paths) PidFile() string { return filepath.Join(p.RuntimeDir, "d.pid") }
+func (p Paths) LogFile() string { return filepath.Join(p.RuntimeDir, "daemon.log") }
+
+// RestartFile lists the sessions a daemon restart (the app's "Restart now")
+// suspended: the next daemon restores them whatever sessions.restore says
+// and leaves resuming them to the app. Written by the app, consumed (and
+// removed) by the daemon at startup.
+func (p Paths) RestartFile() string { return filepath.Join(p.RuntimeDir, "restart.json") }
+func (p Paths) Profiles() string    { return filepath.Join(p.ConfigDir, "profiles.yaml") }
+func (p Paths) Projects() string    { return filepath.Join(p.ConfigDir, "projects.json") }
+func (p Paths) Settings() string    { return filepath.Join(p.ConfigDir, "settings.yaml") }
 
 // HooksDir holds generated, agenterm-only agent integration files (Claude
 // settings, opencode plugin…). It is never inside a project.

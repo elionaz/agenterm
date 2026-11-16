@@ -259,7 +259,9 @@ func (s *Server) Run(ctx context.Context) error {
 	}
 	s.connMu.Unlock()
 	s.wg.Wait()
-	_ = t.Cleanup(s.sock)
+	// No t.Cleanup(s.sock) here: ln.Close above already unlinked the socket
+	// (net.UnixListener), and by now the path may belong to the daemon that
+	// replaced this one (restart), whose socket removing would orphan it.
 	if b, err := os.ReadFile(pidFile); err == nil && strings.TrimSpace(string(b)) == strconv.Itoa(os.Getpid()) {
 		os.Remove(pidFile)
 	}

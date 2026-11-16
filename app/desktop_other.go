@@ -26,3 +26,5 @@ func (otherDesktop) Activate()         {}
 
 func installPreferencesMenu(string, func()) {}
 func setPreferencesTitle(string)            {}
+func installUpdatesMenu(string, string)     {}
+func setUpdatesMenu(string, string)         {}

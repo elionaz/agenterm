@@ -14,6 +14,14 @@ export function Attach(arg1, arg2, arg3) {
   return window['go']['main']['App']['Attach'](arg1, arg2, arg3);
 }
 
+export function CheckForUpdates() {
+  return window['go']['main']['App']['CheckForUpdates']();
+}
+
+export function DaemonStatus() {
+  return window['go']['main']['App']['DaemonStatus']();
+}
+
 export function DeleteProfile(arg1) {
   return window['go']['main']['App']['DeleteProfile'](arg1);
 }
@@ -102,6 +110,10 @@ export function Resize(arg1, arg2, arg3) {
   return window['go']['main']['App']['Resize'](arg1, arg2, arg3);
 }
 
+export function RestartDaemon() {
+  return window['go']['main']['App']['RestartDaemon']();
+}
+
 export function Resume(arg1) {
   return window['go']['main']['App']['Resume'](arg1);
 }
@@ -120,6 +132,14 @@ export function SaveSettings(arg1) {
 
 export function SessionDiff(arg1) {
   return window['go']['main']['App']['SessionDiff'](arg1);
+}
+
+export function SetAutomaticChecks(arg1) {
+  return window['go']['main']['App']['SetAutomaticChecks'](arg1);
+}
+
+export function SetAutomaticDownloads(arg1) {
+  return window['go']['main']['App']['SetAutomaticDownloads'](arg1);
 }
 
 export function SetVisibleSessions(arg1) {
@@ -144,6 +164,10 @@ export function Tail(arg1, arg2) {
 
 export function TakePendingFocus() {
   return window['go']['main']['App']['TakePendingFocus']();
+}
+
+export function UpdaterState() {
+  return window['go']['main']['App']['UpdaterState']();
 }
 
 export function WorktreeDiff(arg1) {

@@ -53,6 +53,18 @@ export const es: Dict = {
   'empty.launchHint': 'Lanza un agente con <b>+</b> junto a un proyecto.',
   'empty.launchHintKey': 'Lanza un agente con <b>+</b> junto a un proyecto o pulsa <kbd>⌘N</kbd> ({name}).',
   'empty.chooseAgents': 'Elegir agentes…',
+  'banner.daemonOld':
+    'El servicio en segundo plano es de una versión anterior ({version}). Reinícialo para terminar de actualizar — las sesiones se suspenderán y se reanudarán.',
+  'banner.daemonOldUnknown':
+    'El servicio en segundo plano es de una versión anterior. Reinícialo para terminar de actualizar — las sesiones se suspenderán y se reanudarán.',
+  'banner.restartNow': 'Reiniciar ahora',
+  'banner.restartBusy': {
+    one: 'Hay un agente trabajando: reiniciar lo interrumpe (se reanuda después). ¿Reiniciar igualmente?',
+    other: 'Hay {n} agentes trabajando: reiniciar los interrumpe (se reanudan después). ¿Reiniciar igualmente?',
+  },
+  'banner.restartAnyway': 'Reiniciar',
+  'banner.cancel': 'Ahora no',
+  'banner.restarting': 'Reiniciando…',
   'banner.reconnecting': 'Reconectando con el daemon…',
 
   'term.exited': '[proceso terminado · código {code}]',
@@ -230,6 +242,20 @@ export const es: Dict = {
   'settings.restore.ask': 'Preguntar (dejarlas suspendidas)',
   'settings.restore.always': 'Reanudarlas automáticamente',
   'settings.restore.never': 'Descartarlas',
+  'settings.updates': 'Actualizaciones',
+  'settings.updates.version': 'agenterm {version}',
+  'settings.updates.lastCheck': 'Última comprobación: {when}',
+  'settings.updates.neverChecked': 'Aún no se ha comprobado',
+  'settings.updates.check': 'Buscar ahora',
+  'settings.updates.auto': 'Buscar actualizaciones automáticamente',
+  'settings.updates.autoHelp': 'Una vez al día, en segundo plano.',
+  'settings.updates.download': 'Descargar e instalar actualizaciones automáticamente',
+  'settings.updates.downloadHelp': 'Se instalan al salir de agenterm; si no, se te pregunta antes.',
+  'settings.updates.homebrew':
+    'Instalado con Homebrew — actualízalo con <code>brew upgrade --cask agenterm</code>. Las actualizaciones integradas están desactivadas para que Homebrew siga a cargo.',
+  'settings.updates.unavailable':
+    'Las actualizaciones integradas no están disponibles en esta compilación (compilaciones de desarrollo y sin clave de actualización).',
+  'settings.updates.error': 'El actualizador no pudo arrancar; revisa el log de la app.',
 
   'settings.source.variant': 'variante de {id}',
   'settings.source.catalog': 'catálogo',
