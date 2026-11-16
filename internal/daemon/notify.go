@@ -34,9 +34,6 @@ func (s *Server) notifyNow(ev protocol.Event) {
 		Sound:     st.Notify.WantsSound(ev.AttentionKind),
 		SessionID: ev.SessionID,
 		Kind:      ev.AttentionKind,
+		Osascript: st.Notify.UsesOsascript(),
 	})
-}
-
-func osascriptNotify(n Notification) {
-	_ = desktopnotify.Osascript(n.Title, n.Body, n.Sound)
 }

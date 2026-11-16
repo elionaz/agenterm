@@ -4,6 +4,7 @@ package desktopnotify
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"runtime"
 	"strconv"
@@ -48,11 +49,28 @@ func Body(lang i18n.Lang, kind, message string) string {
 	return i18n.T(lang, i18n.NotifyAttention)
 }
 
+// EnvNotify is the kill switch for desktop notifications: AGENTERM_NOTIFY=off
+// disables every notification the app and the daemon would post (native and
+// osascript), whatever settings.yaml says. Meant for test and demo
+// instances, next to AGENTERM_HOME.
+const EnvNotify = "AGENTERM_NOTIFY"
+
+// Disabled reports whether AGENTERM_NOTIFY turns desktop notifications off
+// ("off", "0", "false" or "no", any case).
+func Disabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(EnvNotify))) {
+	case "off", "0", "false", "no":
+		return true
+	}
+	return false
+}
+
 // Osascript posts a notification through AppleScript. macOS attributes it
-// to Script Editor, and clicking it does not open agenterm, so it is only a
-// fallback. Best effort and bounded in time; a no-op outside macOS.
+// to Script Editor, and clicking it opens Script Editor rather than
+// agenterm, so it is only an opt-in fallback (notify.fallback: osascript).
+// Best effort and bounded in time; a no-op outside macOS and when Disabled.
 func Osascript(title, body string, sound bool) error {
-	if runtime.GOOS != "darwin" {
+	if runtime.GOOS != "darwin" || Disabled() {
 		return nil
 	}
 	script := "display notification " + appleScriptString(body) + " with title " + appleScriptString(title)

@@ -53,10 +53,48 @@ func TestShouldNotify(t *testing.T) {
 	}
 }
 
+func TestNotifyFallback(t *testing.T) {
+	if d := Defaults().Notify; d.Fallback != FallbackNone || d.UsesOsascript() {
+		t.Fatalf("default fallback = %q", d.Fallback)
+	}
+	for in, want := range map[string]string{"osascript": FallbackOsascript, " OSAScript ": FallbackOsascript, "none": FallbackNone, "bogus": FallbackNone, "": FallbackNone} {
+		s, err := Parse([]byte("notify:\n  fallback: \"" + in + "\"\n"))
+		if err != nil || s.Notify.Fallback != want {
+			t.Errorf("fallback %q: got %q %v, want %q", in, s.Notify.Fallback, err, want)
+		}
+	}
+	if !(Notify{Fallback: FallbackOsascript}).UsesOsascript() || (Notify{}).UsesOsascript() {
+		t.Fatal("UsesOsascript")
+	}
+	// Saved in place next to the other notify keys; an empty value is none.
+	p := filepath.Join(t.TempDir(), "settings.yaml")
+	os.WriteFile(p, []byte("notify:\n  sound: false # quiet\n"), 0o600)
+	st := Defaults()
+	st.Notify.Sound = false
+	st.Notify.Fallback = FallbackOsascript
+	if err := Save(p, st); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(p)
+	if !strings.Contains(string(data), "fallback: osascript") || !strings.Contains(string(data), "# quiet") {
+		t.Fatalf("file:\n%s", data)
+	}
+	if got, err := Load(p); err != nil || got != st {
+		t.Fatalf("round trip: %+v %v", got, err)
+	}
+	st.Notify.Fallback = ""
+	if err := Save(p, st); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := Load(p); got.Notify.Fallback != FallbackNone {
+		t.Fatalf("saved %q", got.Notify.Fallback)
+	}
+}
+
 func TestSaveRoundTrip(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "settings.yaml")
 	os.WriteFile(p, []byte("notify:\n  sound: false\n"), 0o600)
-	want := Settings{Notify: Notify{Enabled: true, Sound: true, OnDone: false}, Activity: Activity{StallSeconds: 60},
+	want := Settings{Notify: Notify{Enabled: true, Sound: true, OnDone: false, Fallback: FallbackOsascript}, Activity: Activity{StallSeconds: 60},
 		Git: Git{Editor: "cursor -n", WorktreeDir: "~/wt", DefaultMode: ModeWorktree}, UI: UI{Language: "es", Appearance: AppearanceLight},
 		Sessions: Sessions{Restore: RestoreAlways},
 		Terminal: Terminal{FontFamily: "Menlo", FontSize: 14, LineHeight: 1.2, CursorStyle: "bar", Theme: "nord"}}

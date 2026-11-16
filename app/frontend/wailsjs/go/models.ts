@@ -782,17 +782,19 @@ export namespace settings {
 	    sound: boolean;
 	    notifyOnDone: boolean;
 	    notifyOnStall: boolean;
-	
+	    fallback?: string;
+
 	    static createFrom(source: any = {}) {
 	        return new Notify(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.enabled = source["enabled"];
 	        this.sound = source["sound"];
 	        this.notifyOnDone = source["notifyOnDone"];
 	        this.notifyOnStall = source["notifyOnStall"];
+	        this.fallback = source["fallback"];
 	    }
 	}
 	export class Sessions {

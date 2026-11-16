@@ -371,7 +371,11 @@
   }
 
   function applySettings(s: Settings) {
-    notify = { ...s.notify, notifyOnStall: s.notify.notifyOnStall ?? true }
+    notify = {
+      ...s.notify,
+      notifyOnStall: s.notify.notifyOnStall ?? true,
+      fallback: s.notify.fallback === 'osascript' ? 'osascript' : 'none',
+    }
     stallSeconds = String(s.activity?.stallSeconds ?? 180)
     savedNotify = JSON.stringify([notify, stallSeconds.trim()])
     git = {
@@ -826,6 +830,20 @@
             <span>
               <b>{t('settings.n.stall')}</b>
               <em>{t('settings.n.stallHelp')}</em>
+            </span>
+          </label>
+          <label class="check" class:dim={!notify.enabled}>
+            <input
+              type="checkbox"
+              checked={notify.fallback === 'osascript'}
+              onchange={(e) => {
+                if (notify) notify.fallback = e.currentTarget.checked ? 'osascript' : 'none'
+              }}
+              disabled={!notify.enabled}
+            />
+            <span>
+              <b>{t('settings.n.fallback')}</b>
+              <em>{t('settings.n.fallbackHelp')}</em>
             </span>
           </label>
           <label class="field">

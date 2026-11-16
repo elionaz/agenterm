@@ -303,6 +303,9 @@ export const es: Dict = {
   'settings.n.stall': 'Avisar si parece trabado',
   'settings.n.stallHelp':
     'Aviso discreto (sin sonido, no cuenta como pendiente) cuando un turno lleva un rato sin salida ni eventos.',
+  'settings.n.fallback': 'Alternativa con AppleScript (aparece como Editor de Scripts)',
+  'settings.n.fallbackHelp':
+    'Cuando las notificaciones nativas no están disponibles o permitidas. Desactivado: no se muestran. Al pulsarlas se abre Editor de Scripts, no agenterm.',
   'settings.n.stallSeconds': 'Segundos sin actividad para «¿trabado?»',
   'settings.n.stallSecondsHelp':
     'Solo en agentes con hooks (Claude Code) mientras hay un turno abierto. 0 desactiva la detección. Se aplica a las sesiones nuevas.',

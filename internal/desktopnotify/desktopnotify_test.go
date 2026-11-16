@@ -38,3 +38,12 @@ func TestAppleScriptString(t *testing.T) {
 		t.Fatalf("got %s", got)
 	}
 }
+
+func TestDisabled(t *testing.T) {
+	for v, want := range map[string]bool{"off": true, " OFF ": true, "0": true, "false": true, "no": true, "": false, "on": false, "1": false} {
+		t.Setenv(EnvNotify, v)
+		if got := Disabled(); got != want {
+			t.Errorf("%s=%q: Disabled() = %v, want %v", EnvNotify, v, got, want)
+		}
+	}
+}

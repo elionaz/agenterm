@@ -12,9 +12,17 @@ import (
 	"time"
 
 	"github.com/elionaz/agenterm/internal/daemon"
+	"github.com/elionaz/agenterm/internal/desktopnotify"
 	"github.com/elionaz/agenterm/internal/paths"
 	"github.com/elionaz/agenterm/internal/settings"
 )
+
+// TestMain: whatever a test wires up (a real desktop, a daemon's default
+// notifier), it never posts real desktop notifications.
+func TestMain(m *testing.M) {
+	os.Setenv(desktopnotify.EnvNotify, "off")
+	os.Exit(m.Run())
+}
 
 type recorder struct {
 	mu  sync.Mutex
@@ -81,7 +89,7 @@ func TestAppAgainstDaemon(t *testing.T) {
 		t.Fatal(err)
 	}
 	srv, err := daemon.New(daemon.Config{Paths: p, SearchPath: func() string { return "/usr/bin:/bin" }, IdleAfter: time.Hour, KillGrace: time.Second,
-		Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), Notifier: func(daemon.Notification) {}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,8 +162,12 @@ func TestAppAgainstDaemon(t *testing.T) {
 
 	// Each Settings tab saves only its own section: the others keep their
 	// values (they used to be overwritten with zero values).
-	if _, err := a.SaveSettings(SettingsPatch{Activity: &settings.Activity{StallSeconds: 7}, Notify: &settings.Notify{Enabled: true, Sound: true, OnDone: true, OnStall: true}}); err != nil {
+	if _, err := a.SaveSettings(SettingsPatch{Activity: &settings.Activity{StallSeconds: 7}, Notify: &settings.Notify{Enabled: true, Sound: true, OnDone: true, OnStall: true, Fallback: settings.FallbackOsascript}}); err != nil {
 		t.Fatal(err)
+	}
+	// A notify section without fallback (an older frontend) keeps it.
+	if st, err := a.SaveSettings(SettingsPatch{Notify: &settings.Notify{Enabled: true, Sound: true, OnDone: true, OnStall: true}}); err != nil || st.Notify.Fallback != settings.FallbackOsascript {
+		t.Fatalf("notify without fallback: %+v %v", st.Notify, err)
 	}
 	if _, err := a.SaveSettings(SettingsPatch{Git: &settings.Git{Editor: "zed", DefaultMode: "worktree"}}); err != nil {
 		t.Fatal(err)
@@ -177,7 +189,7 @@ func TestAppAgainstDaemon(t *testing.T) {
 	}
 	if st.UI.Language != "es" || st.UI.Appearance != "light" || st.Git.Editor != "zed" || st.Git.DefaultMode != "worktree" ||
 		st.Sessions.Restore != settings.RestoreNever || st.Terminal != term ||
-		st.Activity.StallSeconds != 7 || !st.Notify.Sound || !st.Notify.OnDone || !st.Notify.OnStall {
+		st.Activity.StallSeconds != 7 || !st.Notify.Sound || !st.Notify.OnDone || !st.Notify.OnStall || st.Notify.Fallback != settings.FallbackOsascript {
 		t.Fatalf("partial saves clobbered other sections: %+v", st)
 	}
 	// And the language alone keeps the appearance.

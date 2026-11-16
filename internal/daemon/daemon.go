@@ -50,7 +50,8 @@ type Config struct {
 	// and the .app (both implement `notify`).
 	Exe string
 	// Notifier shows a desktop notification when no UI client is
-	// subscribed. nil means osascript on macOS (no-op elsewhere).
+	// subscribed. nil means none (tests and embedders never post real
+	// notifications by accident); the daemon command passes its own.
 	Notifier func(n Notification)
 	// SearchPath returns the PATH list used to detect installed agents.
 	// nil means this process's PATH plus the login shell's (cached; see
@@ -64,6 +65,9 @@ type Notification struct {
 	Sound       bool
 	SessionID   string
 	Kind        string
+	// Osascript: settings allow the osascript fallback (notify.fallback)
+	// when native notifications cannot be used.
+	Osascript bool
 }
 
 // Server is the daemon.
@@ -130,7 +134,7 @@ func New(cfg Config) (*Server, error) {
 		}
 	}
 	if cfg.Notifier == nil {
-		cfg.Notifier = osascriptNotify
+		cfg.Notifier = func(Notification) {}
 	}
 	if err := cfg.Paths.Ensure(); err != nil {
 		return nil, err
