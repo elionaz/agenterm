@@ -12,7 +12,9 @@ repo it's hard to tell which one is working, which one is done and which one is 
 approval. agenterm groups sessions by project, keeps agents alive even after you close the app and
 tells you when one of them needs you.
 
-<!-- TODO: screenshot — add docs/img/screenshot.png -->
+<p align="center">
+  <img src="docs/img/screenshot.png" alt="agenterm: projects and sessions in the sidebar, live activity, an approval waiting, and the terminal" width="900">
+</p>
 
 ## Features
 

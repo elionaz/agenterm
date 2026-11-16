@@ -12,7 +12,9 @@ opencode, Gemini, Cursor…) sobre el mismo repo es difícil saber cuál está t
 y cuál está esperando tu aprobación. agenterm agrupa las sesiones por proyecto, mantiene los agentes
 vivos aunque cierres la app y te avisa cuando alguno te necesita.
 
-<!-- TODO: captura — añadir docs/img/screenshot.png -->
+<p align="center">
+  <img src="docs/img/screenshot.png" alt="agenterm: proyectos y sesiones en la barra lateral, actividad en vivo, una aprobación pendiente y la terminal" width="900">
+</p>
 
 ## Funciones
 
