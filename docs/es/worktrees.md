@@ -41,9 +41,10 @@ confianza la primera vez para la carpeta nueva.
   reinicios del daemon.
 - Estados de un worktree (`agenterm worktrees <proyecto>`):
   - `live`: una sesión viva lo usa;
-  - `exited`: solo lo usan sesiones ya terminadas que siguen en la lista;
-  - `orphan` (huérfano): ninguna sesión del daemon lo usa (las quitaste de la lista o el daemon se
-    reinició).
+  - `exited`: solo lo usan sesiones ya terminadas que siguen en la lista, o sesiones `suspended`
+    tras un reinicio del daemon (reanudar una la vuelve a abrir en este worktree);
+  - `orphan` (huérfano): ninguna sesión del daemon lo usa (las quitaste o descartaste, o ya habían
+    terminado antes de que el daemon se reiniciara).
 - Al listar los worktrees de un proyecto, el daemon olvida los que ya no existen en disco (y hace
   `git worktree prune`) y **adopta** los worktrees que git conoce dentro de la carpeta de worktrees
   de ese proyecto pero que el registro no tiene (por ejemplo, si se perdió `worktrees.json`).

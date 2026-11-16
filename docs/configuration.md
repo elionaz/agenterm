@@ -11,6 +11,7 @@
 | generated hook files | `~/.agenterm/hooks/` | `/x/hooks/` |
 | session worktrees | `~/.agenterm/worktrees/<project>-<projectId>/<sessionId>/` (or `git.worktree_dir`) | `/x/worktrees/…` |
 | worktree registry | `~/.agenterm/worktrees.json` | `/x/worktrees.json` |
+| sessions to restore and their scrollback | `~/.agenterm/sessions.json`, `~/.agenterm/scrollback/<id>.log` | `/x/…` |
 
 - Directories are created with `0700` permissions and the socket with `0600`.
 - On macOS a unix socket path is limited to about 104 bytes: if you use `AGENTERM_HOME`, keep it
@@ -65,6 +66,7 @@ A YAML list. Each entry has a required, unique `id` and is **layered over** the 
 | `setup_hooks` | `claude`, `codex` or `none` |
 | `idle_seconds` | seconds without output before going idle (overrides the daemon's value, 3 s) |
 | `attention_patterns` | regular expressions (Go syntax) over recent output with ANSI stripped; a match marks the session as waiting for your reply |
+| `resume_args` | arguments appended (after `args`) when a session of this profile is resumed after a daemon restart and there is no agent session id to resume; e.g. `["--continue"]`. The catalog sets it for opencode (`--continue`: the project's last session). claude and codex resume by id and only use it as a fallback. Not shown in the app's editor (saving from the app keeps it) |
 
 ### Merge rules
 
@@ -132,6 +134,7 @@ Every key is optional; missing ones take the default value.
 | `git.editor` | `""` | for "Open in editor": a command on the `PATH` (`code`, `cursor -n`, `zed`), an absolute path or the name of a macOS app (`Visual Studio Code`, `Cursor.app`). Empty: `code` if it's on the `PATH`, otherwise Finder |
 | `git.worktree_dir` | `""` | where to create worktrees (absolute path or `~/…`). Empty: `~/.agenterm/worktrees` (or `$AGENTERM_HOME/worktrees`) |
 | `git.default_mode` | `same` | `same` or `worktree`: what the **+** menu (and ⌘N) suggests in a project where you haven't chosen yet |
+| `sessions.restore` | `ask` | what a starting daemon does with the sessions that were live when the previous one stopped: `ask` (keep them `suspended` until you resume or discard them), `always` (resume them right away) or `never` (discard them). See [architecture.md](architecture.md#persistence-and-resume) |
 
 ```yaml
 ui:
@@ -147,6 +150,8 @@ git:
   editor: ""
   worktree_dir: ""
   default_mode: same
+sessions:
+  restore: ask
 ```
 
 When it's read:
@@ -155,13 +160,15 @@ When it's read:
 - `activity.stall_seconds` is read when each session is launched: it affects new sessions.
 - `git.worktree_dir` is read when each worktree is created (and when listing a project's worktrees).
 - `git.editor` is read on every "Open in editor".
+- `sessions.restore` is read when the daemon starts.
 
 **Settings → Notifications** edits the `notify.*` keys and `activity.stall_seconds` (RPC
 `settings.save`). Saving edits the file in place: unknown keys and comments **are preserved**, and
 fields a client doesn't send keep their value. If the file can't be parsed, the defaults are used
 (and this is logged); saving replaces it.
 
-**Settings → Git** edits `git.editor`, `git.worktree_dir` and `git.default_mode`.
+**Settings → Git** edits `git.editor`, `git.worktree_dir` and `git.default_mode`. **Settings →
+General** edits `ui.language` and `sessions.restore` (saved right away).
 
 ### Language
 

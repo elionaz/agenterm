@@ -36,6 +36,12 @@ Es lo mismo que corre el CI (más `npm run check` y `npm run build` del frontend
   en modo worktree sobre un repo temporal, hace cambios escribiendo en ella y comprueba
   `session.diff`, que `kill` conserva el worktree, el huérfano tras reiniciar el daemon, reabrirlo,
   el merge y `worktree.remove` (rechazo y force).
+- `internal/daemon/persist_test.go` cubre la persistencia: una sesión de shell escribe salida, el
+  daemon se detiene (`stop --force` y cancelación), un daemon nuevo sobre el mismo `AGENTERM_HOME`
+  la lista como `suspended` con su scrollback reproducido, la reanuda (misma carpeta, línea «sesión
+  restaurada») y descarta otra; las políticas `always`/`never`; un script falso con
+  `setup_hooks: claude` que comprueba que `--resume <session_id>` va tras la inyección de
+  `--settings`; reanudaciones fallidas y un `sessions.json` corrupto. Nunca se lanza un agente real.
 - Los tests de `internal/gitx` usan repos reales en directorios temporales con la configuración de
   git aislada (`GIT_CONFIG_NOSYSTEM=1`, `GIT_CONFIG_GLOBAL` vacío, `HOME` temporal).
 
@@ -94,8 +100,14 @@ En macOS la CLI de Inkscape no queda en el `PATH`; está en
 - **Solo macOS.** La app, las notificaciones y el Dock son exclusivos de macOS y solo se prueba en
   macOS (Apple Silicon). El transporte es un socket unix; no hay soporte para Windows.
 - **Sin releases firmadas** todavía: hay que compilar desde el código fuente.
-- **Las sesiones no sobreviven a un reinicio del daemon** (ni de la computadora): sus procesos
-  mueren y el scrollback se pierde. Los worktrees sí se conservan, como huérfanos.
+- **Un reinicio del daemon (o de la computadora) mata los procesos.** Las sesiones vuelven como
+  `suspended`, con su scrollback, y se relanzan al reanudarlas: Claude Code y codex continúan su
+  conversación por id, opencode con `--continue` (la *última* sesión del proyecto, que puede no ser
+  la misma si hay varias en una carpeta), otros agentes solo con `resume_args`. Una shell vuelve
+  en su carpeta inicial, sin lo que estuviera corriendo en ella. codex solo informa su thread id
+  tras el primer turno, así que una sesión de codex que nunca terminó un turno empieza de cero.
+- **Persistir el scrollback cuesta escrituras en disco**: se reescribe el ring entero (hasta 8 MiB)
+  como mucho cada 2 s por sesión mientras produce salida.
 - **Notificaciones con la app cerrada**: si el daemon lo arrancó la CLI (no está dentro del `.app`)
   o el bundle no tiene permiso, se usa `osascript`: la notificación aparece como *Script Editor* y
   pulsarla no abre agenterm.

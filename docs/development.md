@@ -36,6 +36,12 @@ This is what CI runs (plus the frontend's `npm run check` and `npm run build`).
   shell in worktree mode on a temporary repo, makes changes by typing into it and checks
   `session.diff`, that `kill` keeps the worktree, the orphan after restarting the daemon, reopening
   it, the merge and `worktree.remove` (refusal and force).
+- `internal/daemon/persist_test.go` covers persistence: a shell session writes output, the daemon
+  stops (`stop --force` and cancellation), a new daemon on the same `AGENTERM_HOME` lists it as
+  `suspended` with its scrollback replayed, resumes it (same folder, "session restored" line) and
+  discards another; the `always`/`never` policies; a fake `setup_hooks: claude` script that
+  checks `--resume <session_id>` comes after the `--settings` injection; failed resumes and a
+  corrupt `sessions.json`. No real agent is ever launched.
 - The `internal/gitx` tests use real repos in temporary directories with isolated git configuration
   (`GIT_CONFIG_NOSYSTEM=1`, empty `GIT_CONFIG_GLOBAL`, temporary `HOME`).
 
@@ -92,8 +98,14 @@ On macOS the Inkscape CLI isn't on the `PATH`; it's at
 - **macOS only.** The app, notifications and the Dock are macOS-only, and it's only tested on macOS
   (Apple Silicon). The transport is a unix socket; Windows isn't supported.
 - **No signed releases** yet: you have to build from source.
-- **Sessions don't survive a daemon restart** (or a computer restart): their processes die and the
-  scrollback is lost. Worktrees are kept, as orphans.
+- **A daemon restart (or a computer restart) kills the processes.** Sessions come back as
+  `suspended`, with their scrollback, and are respawned on resume: Claude Code and codex continue
+  their conversation by id, opencode with `--continue` (the project's *last* session, which may not
+  be the same one if several run in one folder), other agents only with `resume_args`. A shell
+  comes back in its starting folder, without whatever was running in it. codex only reports its
+  thread id after the first turn, so a codex session that never finished a turn starts fresh.
+- **Scrollback persistence costs disk writes**: the whole ring (up to 8 MiB) is rewritten at most
+  every 2 s per session while it produces output.
 - **Notifications with the app closed**: if the CLI started the daemon (it isn't inside the `.app`)
   or the bundle has no permission, `osascript` is used: the notification shows up as *Script Editor*
   and clicking it doesn't open agenterm.

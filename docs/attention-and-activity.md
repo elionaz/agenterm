@@ -13,6 +13,7 @@ Each session has a **state** (what the process is doing), an **attention** (why 
 | `waiting_input` | waiting for your reply (approval, question or terminal signal) |
 | `idle` | idle / turn finished |
 | `exited` | the process ended (final state) |
+| `suspended` | restored after a daemon restart: no process yet, only its saved scrollback; resume or discard it (see [architecture.md](architecture.md#persistence-and-resume)) |
 
 There are two sources:
 
@@ -53,6 +54,7 @@ Hooks from `--settings` are **added** to yours. Each hook has a 5 s timeout (3 s
 
 | hook | effect |
 |---|---|
+| `SessionStart` | no state change: records Claude's `session_id`, so a daemon restart can resume the conversation |
 | `UserPromptSubmit` | `running`, activity "Thinking…" and a new turn (resets the timer) |
 | `PreToolUse` | `running` and an activity line based on the tool (see below) |
 | `PostToolUse` | `running` |

@@ -70,7 +70,7 @@ JSON delimitado por `\n`. Petición `{"id":1,"method":"session.list","params":{�
 | proyectos | `project.add`, `project.list`, `project.remove`, `project.git` |
 | perfiles | `profile.list`, `profile.catalog`, `profile.save`, `profile.delete`, `profile.reorder`, `profile.rescan` |
 | ajustes | `settings.get`, `settings.save` |
-| sesiones | `session.spawn`, `session.list`, `session.kill`, `session.resize`, `session.notify`, `session.ack`, `session.attach`, `session.tail`, `session.diff` |
+| sesiones | `session.spawn`, `session.list`, `session.kill`, `session.resize`, `session.notify`, `session.ack`, `session.attach`, `session.tail`, `session.diff`, `session.resume`, `session.discard` |
 | worktrees | `worktree.list`, `worktree.diff`, `worktree.remove`, `worktree.merge`, `worktree.open` |
 | daemon | `events.subscribe`, `daemon.ping`, `daemon.shutdown` |
 
@@ -86,6 +86,14 @@ Algunos parámetros:
 - `session.diff` / `worktree.diff`: `{sessionId | worktreeId, stat}`.
 - `worktree.remove`: `{id, force, deleteBranch, dryRun}` → `{removed, loss}`.
 - `worktree.open`: `{id | sessionId, target: "editor" | "finder"}`.
+- `session.resume` / `session.discard`: `{sessionId}` o `{all: true}` → `{sessions, failed}`
+  (`failed`: `[{sessionId, error, errorCode, errorData}]`, solo con `all`; una sola sesión falla
+  con el error en sí). Solo para sesiones `suspended`.
+- `session.notify` acepta además `agent`, `agentSessionId` y `transcriptPath` (los envía
+  `notify --from-hook`): el id de sesión propio del agente, que se guarda para reanudar. Sin
+  `state` ni `activity` solo se guarda eso.
+- Las sesiones suspendidas añaden `suspendedAt`, `resumeMode` (`agent` | `args` | `fresh`) y, tras
+  un intento fallido, `resumeError` / `resumeErrorCode`.
 - `daemon.shutdown`: `{"force": false}` (sin parámetros = sin force); falla con un error que
   lista las sesiones vivas si quedan y no se pasa `force: true`.
 
@@ -110,6 +118,7 @@ siguen funcionando), para que la app pueda mostrarlos en su idioma (ver
 | `no_commits` | `{dir}` |
 | `base_missing` | `{base}` (vacío = no se pudo deducir una base) |
 | `dir_missing` | `{dir}` |
+| `resume_failed` | `{sessionId, reason, pid?}`; `reason`: `still_running`, `project_missing`, `not_suspended`, `busy` |
 
 Para códigos desconocidos se muestra el texto `error` en inglés. La lista está en `internal/apierr/apierr.go`.
 
@@ -143,6 +152,11 @@ binarios `tipo (1 byte) | longitud (4 bytes BE) | payload` (máximo 1 MiB):
 
 El daemon envía primero el snapshot del ring buffer y después la salida en vivo. Snapshot y
 suscripción se toman bajo el mismo lock, así que no hay huecos ni duplicados.
+
+Al acoplarse a una sesión `suspended` se reproduce su scrollback guardado más una línea tenue
+«suspendida desde …» y el stream queda abierto sin salida (la entrada se ignora). Cuando la sesión
+se reanuda, el stream termina con un frame de error `session resumed; reattach` (la app se vuelve a
+acoplar sola y recibe el proceso nuevo); cuando se descarta, con `session discarded`.
 
 ### Eventos Go → frontend (app)
 
@@ -180,17 +194,67 @@ Los clientes dan prioridad a `AGENTERM_HOME` sobre `AGENTERM_SOCK` (ver
 hooks generados pasan además `--sock <socket del daemon>`, así que llegan a su daemon aunque cambies
 `AGENTERM_HOME` dentro de la sesión.
 
-## Persistencia y sus límites
+## Persistencia y reanudación
 
 | sobrevive a… | cerrar la app | reiniciar el daemon / la computadora |
 |---|---|---|
-| procesos de las sesiones y su scrollback | sí | **no** |
+| procesos de las sesiones | sí | **no** (se relanzan al reanudar) |
+| lista de sesiones y scrollback | sí | sí (como sesiones `suspended`) |
+| la conversación del agente | sí | claude y codex: sí (se reanudan por id); otros: con `resume_args` |
 | proyectos (`projects.json`), perfiles, ajustes | sí | sí |
-| worktrees y su registro (`worktrees.json`) | sí | sí (quedan como huérfanos) |
+| worktrees y su registro (`worktrees.json`) | sí | sí |
 
-Las sesiones viven en memoria del daemon: si el daemon se detiene (`agenterm stop --force`,
-SIGTERM, un fallo, reiniciar la computadora), sus procesos mueren y su scrollback se pierde. Al
-reabrir la app, el daemon nuevo empieza sin sesiones; los worktrees siguen ahí para reabrirlos.
+Los procesos viven en el daemon: si se detiene (`agenterm stop --force`, SIGTERM, un fallo,
+reiniciar la computadora) mueren. Lo que el daemon siguiente necesita para traerlos de vuelta se
+guarda en disco, en el directorio de runtime:
+
+- **`sessions.json`**: un registro por sesión — `id`, `projectId`, `profileId`, `mode`,
+  `worktreeId`, `cwd`, `cmd`/`args` tal como se lanzaron (se muestran mientras está suspendida),
+  `pid`, tamaño, `createdAt`, el último `state`, `suspendedAt` y `resume`
+  (`{agent, sessionId, transcriptPath, at}`). El entorno resuelto **nunca** se guarda (los perfiles
+  pueden poner secretos en `env`): al reanudar se vuelve a resolver el perfil desde
+  `profiles.yaml`. Se escribe al lanzar, al terminar, al quitar y cuando el agente informa su id de
+  sesión; de forma atómica, `0600`. Un archivo que no se puede leer se aparta
+  (`sessions.json.corrupt-<hora>`, queda en el log) y el daemon arranca sin sesiones que restaurar.
+- **`scrollback/<id>.log`**: el ring buffer de la sesión (8 MiB como máximo, la capacidad del
+  ring), reescrito de forma atómica (`0600`) como mucho cada 2 s mientras hay salida nueva, y una
+  vez más cuando el daemon se detiene (antes de matar las sesiones).
+
+Una sesión que termina, o que matas, pierde ambos (no se restaura). Al arrancar, las sesiones que
+estaban vivas cuando se detuvo el daemon anterior vuelven como **`suspended`**: aparecen en la
+lista, con su scrollback, pero sin proceso. Luego decide `sessions.restore`
+([configuration.md](configuration.md#settingsyaml)): `ask` (por defecto) las deja suspendidas hasta
+que eliges **Reanudar** o **Descartar** (en la fila de la barra lateral o en el aviso «N sesiones de
+la ejecución anterior · Reanudar todas / Descartar todas»; CLI `agenterm resume|discard <id>|--all`),
+`always` las reanuda enseguida y `never` las descarta.
+
+**Reanudar** relanza el perfil en la misma carpeta — el mismo worktree en las sesiones de worktree
+— con el mismo id, tamaño y fecha de creación. La terminal nueva empieza con el scrollback
+guardado, los modos que dejó activos un programa de pantalla completa reiniciados (pantalla
+alternativa, ratón, cursor oculto…) y una línea tenue `── sesión restaurada · <hora> ──` que el
+daemon escribe en el scrollback en el idioma de `ui.language` (una línea ANSI normal en vez de una
+marca del protocolo: todos los clientes —app, `attach` de la CLI, `tail`— la muestran sin cambios).
+Cómo se relanza el agente (`resumeMode`):
+
+| perfil | se relanza como | `resumeMode` |
+|---|---|---|
+| `setup_hooks: claude` con id de sesión conocido | `claude --settings <hooks> --resume <session_id> <args>` | `agent` |
+| `setup_hooks: codex` con thread id conocido | `codex resume -c notify=… <args> <thread-id>` | `agent` |
+| con `resume_args` (opencode: `--continue`) | `<cmd> <hooks> <args> <resume_args>` | `args` |
+| cualquier otro (shell, agentes aún sin id de sesión) | `<cmd> <hooks> <args>`: un proceso nuevo | `fresh` |
+
+El `session_id` de Claude llega con cada payload de hook (agenterm escucha también `SessionStart`,
+así que se conoce desde el principio y sigue a `/clear`); codex informa su `thread-id` en el
+payload de `notify`, es decir, tras su primer turno. Ambos flags se comprobaron con
+`claude --help` (`--resume <id>`) y `codex resume --help` (`codex resume [OPTIONS] [SESSION_ID]`).
+
+Lo que **no** se restaura: el proceso en sí. Una shell vuelve en la carpeta inicial de la sesión sin
+nada en marcha; lo que corría en ella (servidores, `vim`…) se pierde. Un agente sin id reanudable
+empieza una conversación nueva. Reanudar falla —y la sesión sigue suspendida, con el error en su
+tooltip / `ls`— cuando la carpeta o el worktree ya no existen (`dir_missing`), el agente ya no está
+instalado (`profile_not_installed`), el proyecto se quitó o el proceso anterior sigue de algún modo
+en marcha (`resume_failed`; un pid solo cuenta como vivo si lidera su propio grupo de procesos y
+sigue ejecutando el mismo comando, así que un pid reciclado no lo bloquea).
 
 ## Seguridad y apagado
 

@@ -13,6 +13,7 @@ datos de **actividad** (qué está haciendo ahora, cuánto lleva, si parece trab
 | `waiting_input` | esperando tu respuesta (aprobación, pregunta o señal de la terminal) |
 | `idle` | inactivo / turno terminado |
 | `exited` | el proceso terminó (estado final) |
+| `suspended` | restaurada tras un reinicio del daemon: aún sin proceso, solo su scrollback guardado; reanúdala o descártala (ver [architecture.md](architecture.md#persistencia-y-reanudación)) |
 
 Hay dos fuentes:
 
@@ -53,6 +54,7 @@ de `--settings` se **suman** a los tuyos. Timeout de 5 s por hook (3 s para `Pre
 
 | hook | efecto |
 |---|---|
+| `SessionStart` | sin cambio de estado: guarda el `session_id` de Claude para poder reanudar la conversación tras un reinicio del daemon |
 | `UserPromptSubmit` | `running`, actividad "Pensando…" y nuevo turno (reinicia el cronómetro) |
 | `PreToolUse` | `running` y línea de actividad según la herramienta (ver abajo) |
 | `PostToolUse` | `running` |

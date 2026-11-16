@@ -22,7 +22,9 @@ tells you when one of them needs you.
   aider, Amp, goose, Qwen, Crush, Kiro, shell) that detects which ones are installed, plus your own
   profiles and variants in `profiles.yaml`.
 - **Sessions outlive the app**: a daemon owns the PTYs; close the window, reopen it and everything
-  is still there, scrollback included. The CLI and the app share the same daemon.
+  is still there, scrollback included. The CLI and the app share the same daemon. If the daemon
+  itself restarts, sessions come back suspended with their scrollback and resume with one click
+  (Claude Code and codex continue the same conversation).
 - **Attention detection**: approvals, questions, finished turns and errors (agent hooks or terminal
   signals), with native macOS notifications, a Dock badge and sidebar markers.
 - **Live activity**: what each agent is doing ("Editing main.go"), a turn timer, a "stalled?"
