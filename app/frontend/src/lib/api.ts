@@ -150,8 +150,10 @@ export const api = {
   tail: (id: string, lines: number): Promise<string[]> => App.Tail(id, lines),
   /** Marks a session's attention as seen. */
   ack: (id: string) => App.Ack(id),
-  /** Which session the window shows ('' for none): no notifications for it. */
-  setVisibleSession: (id: string) => App.SetVisibleSession(id),
+  /** Which sessions the window shows (every split pane): no notifications for them. */
+  setVisibleSessions: (ids: string[]) => App.SetVisibleSessions(ids),
+  /** Sets a session's display name ('' resets it to the profile's). */
+  rename: (id: string, name: string): Promise<Session> => App.Rename(id, name),
   /** Session a notification click asked for before the UI was up ('' if none). */
   takePendingFocus: (): Promise<string> => App.TakePendingFocus(),
   /** What ui.language "auto" resolves to on the backend ("en" | "es"). */

@@ -121,7 +121,7 @@ func TestAppAttentionNotifications(t *testing.T) {
 	fd.mu.Lock()
 	fd.active = true
 	fd.mu.Unlock()
-	a.SetVisibleSession(id)
+	a.SetVisibleSessions([]string{"other", id}) // one of several split panes
 	a.client.Notify(ctx, id, "running")
 	a.client.NotifyEvent(ctx, protocol.NotifyParams{SessionID: id, State: "idle", Message: "Listo"})
 	waitFor(t, "done badge", func() bool { _, b, _ := fd.snapshot(); return b == 1 })
@@ -130,12 +130,22 @@ func TestAppAttentionNotifications(t *testing.T) {
 		t.Fatalf("notified about the visible session: %+v", n)
 	}
 	// Another session visible: notify, silently for "done".
-	a.SetVisibleSession("other")
+	a.SetVisibleSessions([]string{"other"})
 	a.client.Notify(ctx, id, "running")
 	a.client.NotifyEvent(ctx, protocol.NotifyParams{SessionID: id, State: "idle", Message: "Listo"})
 	waitFor(t, "done note", func() bool { n, _, _ := fd.snapshot(); return len(n) == 2 })
 	if n, _, _ := fd.snapshot(); n[1].Body != "Listo" || n[1].Sound || n[1].Kind != "done" {
 		t.Fatalf("bad done note %+v", n[1])
+	}
+	// A renamed session is titled "<project> · <name>".
+	if _, err := a.Rename(id, "api"); err != nil {
+		t.Fatal(err)
+	}
+	a.client.Notify(ctx, id, "running")
+	a.client.NotifyEvent(ctx, protocol.NotifyParams{SessionID: id, State: "idle", Message: "Listo"})
+	waitFor(t, "renamed note", func() bool { n, _, _ := fd.snapshot(); return len(n) == 3 })
+	if n, _, _ := fd.snapshot(); n[2].Title != "web · api" {
+		t.Fatalf("renamed note title %q", n[2].Title)
 	}
 }
 

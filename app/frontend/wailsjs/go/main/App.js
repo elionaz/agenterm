@@ -86,6 +86,10 @@ export function RemoveWorktree(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['RemoveWorktree'](arg1, arg2, arg3, arg4);
 }
 
+export function Rename(arg1, arg2) {
+  return window['go']['main']['App']['Rename'](arg1, arg2);
+}
+
 export function ReorderProfiles(arg1) {
   return window['go']['main']['App']['ReorderProfiles'](arg1);
 }
@@ -118,8 +122,8 @@ export function SessionDiff(arg1) {
   return window['go']['main']['App']['SessionDiff'](arg1);
 }
 
-export function SetVisibleSession(arg1) {
-  return window['go']['main']['App']['SetVisibleSession'](arg1);
+export function SetVisibleSessions(arg1) {
+  return window['go']['main']['App']['SetVisibleSessions'](arg1);
 }
 
 export function Spawn(arg1, arg2, arg3, arg4) {

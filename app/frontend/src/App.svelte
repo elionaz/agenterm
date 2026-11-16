@@ -170,7 +170,7 @@
     const s = id ? sessions.find((x) => x.id === id) : undefined
     if (s) currentProjectId = s.projectId
     terms.show(id)
-    void api.setVisibleSession(id ?? '').catch(() => {})
+    void api.setVisibleSessions(id ? [id] : []).catch(() => {})
     ackIfVisible(id)
   }
 

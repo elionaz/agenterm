@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"log"
 	"sync"
@@ -47,7 +48,7 @@ func (nopDesktop) Activate()         {}
 type attention struct {
 	mu      sync.Mutex
 	unread  map[string]bool
-	visible string // session shown in the window (SetVisibleSession)
+	visible map[string]bool // sessions shown in the window (SetVisibleSessions)
 	badge   int
 }
 
@@ -122,7 +123,7 @@ func (a *App) notify(e protocol.Event) {
 	}
 	active := a.desk.IsActive()
 	a.att.mu.Lock()
-	visible := a.att.visible == e.SessionID
+	visible := a.att.visible[e.SessionID]
 	a.att.mu.Unlock()
 	if active && visible {
 		return
@@ -139,7 +140,7 @@ func (a *App) notify(e protocol.Event) {
 	n := note{
 		SessionID: e.SessionID,
 		Kind:      e.AttentionKind,
-		Title:     desktopnotify.Title(e.ProjectName, e.ProfileID),
+		Title:     desktopnotify.Title(e.ProjectName, cmp.Or(e.SessionName, e.ProfileID)),
 		Body:      desktopnotify.Body(lang, e.AttentionKind, e.AttentionMessage),
 		Sound:     st.Notify.WantsSound(e.AttentionKind),
 	}
@@ -163,11 +164,18 @@ func (a *App) focusSession(id string) {
 	a.emit(evFocusSession, id)
 }
 
-// SetVisibleSession tells the backend which session the window shows, so
-// it does not notify about what the user is looking at.
-func (a *App) SetVisibleSession(id string) {
+// SetVisibleSessions tells the backend which sessions the window shows
+// (every pane of a split layout), so it does not notify about what the
+// user is looking at.
+func (a *App) SetVisibleSessions(ids []string) {
+	set := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		if id != "" {
+			set[id] = true
+		}
+	}
 	a.att.mu.Lock()
-	a.att.visible = id
+	a.att.visible = set
 	a.att.mu.Unlock()
 }
 
