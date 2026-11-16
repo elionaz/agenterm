@@ -61,6 +61,7 @@ Usage:
 
 Environment:
   AGENTERM_HOME     single dir overriding ~/.agenterm and ~/.config/agenterm
+  AGENTERM_NOTIFY   off: no desktop notifications from the daemon (for test instances)
   AGENTERM_SESSION  default session for notify (set inside sessions)
   AGENTERM_SOCK     daemon socket (set inside sessions); ignored when AGENTERM_HOME is set
 `
@@ -197,7 +198,9 @@ func newClient(autoStart bool) (*client.Client, error) {
 			if err != nil {
 				return err
 			}
-			return client.StartDaemon(ctx, exe, p)
+			// The CLI inside agenterm.app starts the daemon as the app, so
+			// it gets native notifications and their clicks.
+			return client.StartDaemon(ctx, client.DaemonExecutable(exe), p)
 		}
 	}
 	return c, nil

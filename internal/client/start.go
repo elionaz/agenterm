@@ -5,12 +5,46 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/elionaz/agenterm/internal/paths"
 	"github.com/elionaz/agenterm/internal/transport"
 )
+
+// DaemonExecutable is the binary that should run `daemon` for the agenterm
+// executable exe. The CLI bundled in agenterm.app (Contents/Helpers/agenterm,
+// which Homebrew symlinks into PATH) defers to the app's own executable
+// (Contents/MacOS/agenterm) when it exists and is executable: only a process
+// of the bundle gets native notifications and their clicks. Any other exe
+// is returned unchanged.
+func DaemonExecutable(exe string) string {
+	real, err := filepath.EvalSymlinks(exe)
+	if err != nil {
+		return exe
+	}
+	app := appExeForHelper(real)
+	if app == "" {
+		return exe
+	}
+	if fi, err := os.Stat(app); err != nil || !fi.Mode().IsRegular() || fi.Mode().Perm()&0o111 == 0 {
+		return exe
+	}
+	return app
+}
+
+// appExeForHelper maps "/A/X.app/Contents/Helpers/agenterm" to
+// "/A/X.app/Contents/MacOS/agenterm"; "" when path is not a bundle helper.
+func appExeForHelper(path string) string {
+	const marker = ".app/Contents/Helpers/"
+	i := strings.LastIndex(path, marker)
+	if i < 0 || strings.Contains(path[i+len(marker):], "/") || i+len(marker) == len(path) {
+		return ""
+	}
+	return path[:i+len(".app")] + "/Contents/MacOS/agenterm"
+}
 
 // StartDaemon launches `<exe> daemon` detached from the caller (new session,
 // stdio to the daemon log) and waits until its socket accepts connections.
