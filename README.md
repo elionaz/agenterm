@@ -7,7 +7,9 @@ macOS (Wails v2 + Svelte + xterm.js) en `app/`, que es un cliente más del daemo
 (`internal/client`). **Fase 3**: detección de "necesita tu atención" (hooks de los agentes +
 señales de terminal) y notificaciones nativas, badge del Dock y sidebar. **Fase 4**: visibilidad de la
 actividad — qué está haciendo cada agente ahora mismo, cuánto lleva, si parece trabado, barras de
-progreso y una vista general en rejilla.
+progreso y una vista general en rejilla. **Fase 5**: git — cada sesión puede ir en su propio
+**worktree** (rama y carpeta aparte) y la app muestra sus **cambios** (diff con diff2html) con acciones
+de merge, editor y borrado seguro.
 
 ## Uso
 
@@ -20,7 +22,14 @@ agenterm project list
 agenterm profiles                   # catálogo + profiles.yaml, con instalado/activado
 agenterm profiles scan              # re-detecta los agentes instalados
 agenterm spawn <projectId|nombre> shell   # -> <sessionId>
-agenterm ls                         # con TURN (cronómetro del turno) y ACTIVITY
+agenterm spawn --worktree [--branch b] [--base main] <proyecto> claude   # -> <id> <rama> <carpeta>
+agenterm spawn --in-worktree <worktreeId> <proyecto> shell   # reabrir un worktree existente
+agenterm diff [--stat] <sessionId|worktreeId>   # diff unificado, o resumen por archivo
+agenterm worktrees <proyecto>       # worktrees de agenterm: live / exited / orphan
+agenterm worktree rm [--force] [--delete-branch] [--dry-run] <id>
+agenterm worktree merge <id>        # merge --no-ff en la carpeta principal
+agenterm worktree open [--finder] <id>
+agenterm ls                         # con TURN (cronómetro del turno), GIT (rama ±N ↑N) y ACTIVITY
 agenterm tail [-n 8] <sessionId>    # últimas líneas de salida en texto plano
 agenterm attach <sessionId>         # Ctrl-\ para desacoplar; la sesión sigue viva
 agenterm notify --kind permission --message "¿Borro node_modules?"  # dentro de una sesión
@@ -53,7 +62,9 @@ no imprime nada y **siempre** sale con 0 (timeout 2 s): nunca bloquea ni rompe a
 |---|---|---|
 | socket, pid, log | `~/.agenterm/{d.sock,d.pid,daemon.log}` | `/x/…` |
 | perfiles, proyectos, ajustes | `~/.config/agenterm/{profiles.yaml,projects.json,settings.yaml}` | `/x/…` |
-| ficheros de hooks generados | `~/.agenterm/hooks/` | `/x/hooks/` |
+| archivos de hooks generados | `~/.agenterm/hooks/` | `/x/hooks/` |
+| worktrees de las sesiones | `~/.agenterm/worktrees/<proyecto>-<id>/<sesión>/` (o `git.worktree_dir`) | `/x/worktrees/…` |
+| registro de worktrees | `~/.agenterm/worktrees.json` | `/x/worktrees.json` |
 
 Ojo: en macOS la ruta de un unix socket tiene un límite de ~104 bytes.
 
@@ -124,10 +135,10 @@ Los agentes no instalados no salen en el menú **+** (sí en Ajustes, con la pis
     - '\(y/n\)'
 ```
 
-Al guardar desde la app (o con las RPC `profile.save|delete|reorder`) el fichero se reescribe en
+Al guardar desde la app (o con las RPC `profile.save|delete|reorder`) el archivo se reescribe en
 formato canónico: una entrada por perfil en el orden del menú, solo con los campos que difieren de
 lo heredado (los del catálogo sin cambios quedan como `- id: x`). La escritura es atómica y deja
-el fichero anterior en `profiles.yaml.bak`; los comentarios no se conservan. Se relee en cada
+el archivo anterior en `profiles.yaml.bak`; los comentarios no se conservan. Se relee en cada
 `spawn`/`list`, así que también puedes editarlo a mano.
 
 ```sh
@@ -146,6 +157,8 @@ agenterm profiles scan   # vuelve a leer el PATH del shell de login y detecta de
   *Restablecer* (los del catálogo modificados), con confirmación en línea, y *Re-escanear*.
 - **Notificaciones**: los interruptores de `settings.yaml` (incluido *Avisar si parece trabado*) y
   los segundos sin actividad para el aviso de «¿trabado?», con *Guardar*.
+- **Git**: modo por defecto al lanzar (misma carpeta / worktree), editor para «Abrir en editor» y
+  carpeta de worktrees (ver fase 5).
 
 Los menús de **+** y ⌘N usan solo los perfiles activados e instalados, en ese orden.
 
@@ -166,7 +179,7 @@ con `agenterm ack`. Un `idle` explícito tras un turno (Stop / turn-complete) es
 | opencode y cualquier otro | — | BEL y notificaciones de terminal (abajo) + `attention_patterns` |
 
 Nunca se tocan `~/.claude/settings.json`, `~/.codex/config.toml`, la config de opencode ni el
-proyecto: todo va por flags en la línea de comandos y ficheros en `~/.agenterm/hooks/`. Los hooks
+proyecto: todo va por flags en la línea de comandos y archivos en `~/.agenterm/hooks/`. Los hooks
 llaman a `<ejecutable del daemon> notify --sock <socket> --from-hook …` con ruta absoluta (la CLI o
 el propio ejecutable del `.app`, que también implementa `notify`).
 
@@ -215,11 +228,15 @@ notify:
   notify_on_stall: true  # aviso discreto si un turno parece trabado (sin sonido)
 activity:
   stall_seconds: 180     # segundos sin salida ni eventos para marcar «¿trabado?»; 0 lo desactiva
+git:
+  editor: ""             # "code", "cursor -n", "Visual Studio Code"…; vacío: code si existe, si no Finder
+  worktree_dir: ""       # dónde crear worktrees (ruta absoluta o ~/…); vacío: ~/.agenterm/worktrees
+  default_mode: same     # same | worktree: lo que propone el menú + (y ⌘N) si no elegiste antes
 ```
 
-Todo está activado por defecto; el fichero es opcional y se relee en cada aviso (`stall_seconds`
+Todo está activado por defecto; el archivo es opcional y se relee en cada aviso (`stall_seconds`
 se lee al lanzar cada sesión). La app lo edita desde *Ajustes → Notificaciones* (RPC
-`settings.save`, escritura atómica con `.bak`). Al guardar se edita el fichero en su sitio: se
+`settings.save`, escritura atómica con `.bak`). Al guardar se edita el archivo en su sitio: se
 **conservan** las claves desconocidas y los comentarios, y los campos que un cliente no envía
 mantienen su valor actual.
 
@@ -238,7 +255,7 @@ mantienen su valor actual.
 
 **Línea de actividad.**
 
-- *Claude Code*: el fichero de hooks generado incluye `PreToolUse` (sin `matcher`: todas las
+- *Claude Code*: el archivo de hooks generado incluye `PreToolUse` (sin `matcher`: todas las
   herramientas; timeout 3 s). `notify --from-hook` no imprime nada y sale con 0, así que **nunca**
   emite una decisión de permisos: la llamada sigue el flujo normal de aprobación de Claude.
   `tool_name` + `tool_input` se traducen así: `Edit`/`Write`/`MultiEdit`/`NotebookEdit` →
@@ -288,6 +305,75 @@ extra de xterm). Pulsar una tarjeta abre la sesión; Esc o ⌘0 la cierran.
 **Sidebar.** Bajo el nombre del perfil: la actividad (recortada, tenue; completa en el tooltip) y el
 cronómetro del turno.
 
+## Git: worktrees y cambios (fase 5)
+
+Todo va por la CLI de `git` (con timeouts; nunca libgit2). Las consultas de solo lectura usan
+`GIT_OPTIONAL_LOCKS=0`, así que nunca toman `index.lock` mientras el agente usa git en la misma
+carpeta.
+
+### Modos de una sesión
+
+- **Misma carpeta** (`same`, por defecto): el agente trabaja en la carpeta del proyecto.
+- **Worktree nuevo** (`worktree`): `git worktree add <worktrees>/<proyecto>-<id>/<sesión> -b <rama> <base>`.
+  La rama por defecto es `agent/<perfil>-<4 primeros del id>` (se sanea: espacios y caracteres raros →
+  `-`, sin `..`, etc.; si existe se le añade `-2`, `-3`…). La base por defecto es la rama actual del
+  proyecto (o `main`/`master` si HEAD está separado). Los worktrees viven en el directorio de
+  agenterm, **nunca dentro del proyecto**. Se permite aunque la carpeta principal tenga cambios: el
+  worktree parte del commit de la base. Si el proyecto es una subcarpeta del repo, la sesión arranca
+  en esa misma subcarpeta del worktree. Errores claros si el proyecto no es un repo git (la opción sale
+  desactivada en la app), si el repo no tiene commits o si la base no existe.
+- Las integraciones de hooks funcionan igual en un worktree: Claude Code recibe
+  `--settings ~/.agenterm/hooks/claude-settings.json` (ruta absoluta) y no se escribe nada en el
+  worktree ni en el proyecto. Claude Code puede pedir confianza la primera vez para la carpeta nueva.
+
+**Matar una sesión nunca borra su worktree.** El registro (`worktrees.json`) sobrevive a reinicios
+del daemon. Un worktree es *huérfano* cuando ninguna sesión del daemon lo usa (la quitaste de la
+lista o el daemon se reinició); `worktree.list` además olvida los que ya no existen en disco (y hace
+`git worktree prune`) y **adopta** los worktrees de agenterm que git conoce pero el registro no.
+
+### Cambios (diff)
+
+- Worktree: `git diff <merge-base con la base>` (lo commiteado + lo no commiteado, en una lista) más
+  los archivos sin seguimiento no ignorados (`git ls-files --others --exclude-standard` + `git diff
+  --no-index /dev/null <archivo>`), y los commits por delante (`git log <base>..HEAD`, máx. 200). Si
+  la rama base desaparece se usa el commit base guardado al crear el worktree.
+- Misma carpeta: `git diff HEAD` + sin seguimiento (árbol vacío si el repo no tiene commits).
+- Por archivo: ruta, ruta anterior (renombrados), estado `A/M/D/R/C/T`, `+`/`−` (`--numstat`),
+  binario (sin contenido) y su parche. Tope de **2 MB** de parche en total: el resto de archivos se
+  listan sin contenido y el diff se marca `truncated`. Archivos sin seguimiento de más de 1 MB o más
+  allá de 300 tampoco llevan contenido.
+- **Resumen** en cada sesión (`git`: `files`, `uncommitted`, `ahead`): se recalcula de forma
+  perezosa — al pasar a inactivo/esperando/terminado y al pedir el diff — como mucho una vez cada 3 s
+  por sesión y nunca por cada trozo de salida. Cambios → evento `session.git`.
+
+### Acciones
+
+- **Merge a la base**: `git merge --no-ff` de la rama en la **carpeta principal** del repo, solo si
+  está en la rama base y sin cambios en archivos con seguimiento (los sin seguimiento no bloquean; no
+  hay stash automático). Si hay conflictos se hace `git merge --abort` y se informa. Los cambios sin
+  commitear del worktree no entran (se avisa).
+- **Eliminar worktree**: se niega si una sesión viva lo usa; sin *force* también si se perderían
+  cambios sin commitear o (con *borrar también la rama*) commits sin mergear en la base, con un error
+  que lista qué se perdería. `dryRun` solo lo comprueba. Tras borrar: `git worktree prune` y, si se
+  pidió, `git branch -D` (seguro: los commits sin mergear ya se comprobaron contra la base).
+- **Abrir en editor** (`git.editor`; por defecto `code` si está en el PATH, si no Finder), **Abrir en
+  Finder** (`open <carpeta>`), **Copiar rama** (portapapeles, en la app).
+
+### En la app
+
+- Menú **+**: tras elegir el agente, *Misma carpeta* o *Worktree nuevo* (rama editable ya rellena y
+  selector de base con la rama actual por defecto). La opción worktree sale desactivada, con el
+  motivo, si el proyecto no es un repo git. Se recuerda la última elección por proyecto (y ⌘N la usa).
+- Fila de la sesión: chip con la rama (sin `agent/`) y `±N` archivos cambiados; igual en las
+  tarjetas de la vista general (con `↑N` commits por delante).
+- Pestañas **Terminal | Cambios (N)** en sesiones con git: lista de archivos a la izquierda (estado,
+  `+`/`−`), commits por delante, diff a la derecha con diff2html (lado a lado / unificado, tema oscuro
+  de la app), ⟳, aviso de diff truncado y la barra de acciones (*Abrir en editor*, *Abrir en Finder*,
+  *Copiar rama*, *Merge a <base>*, *Eliminar worktree* con confirmación en línea que enseña qué se
+  perdería y casilla para forzar).
+- Bajo cada proyecto, **Worktrees huérfanos** (si hay): *Ver cambios*, *Abrir shell aquí* (una
+  sesión `shell` nueva en ese worktree) y *Eliminar*.
+
 ## App de escritorio (fase 2)
 
 Requisitos: Go, Node/npm y la CLI de Wails v2 (`go install github.com/wailsapp/wails/v2/cmd/wails@v2.17.1`;
@@ -322,7 +408,7 @@ Solo frontend: `cd app/frontend && npm install && npm run check && npm run build
 | `pty-replay-done:<id>` | fin del replay del scrollback |
 | `pty-exit:<id>` | código de salida |
 | `pty-error:<id>` | stream perdido (el frontend se reengancha y repinta) |
-| `daemon:event` | `session.spawned/state/attention/activity/removed` del daemon (con `attention*`, `unread`, `raised`, y los campos de actividad) |
+| `daemon:event` | `session.spawned/state/attention/activity/removed/git` y `worktree.changed` del daemon (con `attention*`, `unread`, `raised`, los campos de actividad y `git`) |
 | `app:focus-session` | se pulsó una notificación: seleccionar esa sesión |
 | `daemon:resync` | (re)suscrito: recargar listas |
 | `daemon:down` | sin conexión con el daemon (se reintenta y se relanza) |
@@ -347,6 +433,8 @@ internal/desktopnotify  textos de notificación + fallback osascript
 internal/macnotify  UNUserNotificationCenter (cgo, darwin): envío, permiso, clics y run loop del daemon
 internal/peercred   PID del proceso al otro lado del socket (LOCAL_PEERPID / SO_PEERCRED) + `ps`
 internal/settings   settings.yaml
+internal/gitx       git por CLI: repo, ramas, status, worktrees, diff, merge, abrir en editor
+internal/worktree   registro de worktrees de agenterm (worktrees.json)
 internal/profile    catálogo de agentes, detección, merge con profiles.yaml y escritura
 internal/shellenv   PATH del shell de login (app y daemon)
 internal/atomicfile escritura atómica con .bak
@@ -360,7 +448,12 @@ internal/paths      resolución de directorios
   respuesta `{"id":1,"result":{…}}` o `{"id":1,"error":"…"}`. Una conexión admite varias
   peticiones seguidas. Métodos: `project.add|list|remove`,
   `profile.list|catalog|save|delete|reorder|rescan`, `settings.get|save`,
-  `session.spawn|list|kill|resize|notify|ack|attach|tail`, `events.subscribe`, `daemon.ping|shutdown`.
+  `session.spawn|list|kill|resize|notify|ack|attach|tail|diff`, `project.git`,
+  `worktree.list|diff|remove|merge|open`, `events.subscribe`, `daemon.ping|shutdown`.
+  `session.spawn` acepta `mode` (`same`|`worktree`), `branch`, `base` y `worktreeId` (reabrir); la
+  info de sesión lleva `mode`, `worktreeId`, `worktreePath`, `branch`, `base` y `git`
+  (`{files, uncommitted, ahead, at}`). `worktree.remove` toma `{id, force, deleteBranch, dryRun}` y
+  devuelve `{removed, loss}`; `worktree.open` `{id | sessionId, target: editor|finder}`.
   `daemon.shutdown` (`{"force":false}`) falla con `hay N sesiones activas: …` si quedan sesiones
   vivas y no se pasa `force: true`.
   `session.tail` (`{"sessionId":…,"lines":8}`, máx. 200) devuelve `{"lines":[…]}`: el final del
@@ -368,7 +461,7 @@ internal/paths      resolución de directorios
   líneas en blanco.
 - **`events.subscribe`** (`{"client":"ui"}` opcional): tras la respuesta, el daemon emite un evento
   JSON por línea (`session.spawned`, `session.state`, `session.attention`, `session.activity`,
-  `session.removed`). `raised: true` marca una atención nueva (lo que merece notificación);
+  `session.removed`, `session.git` y `worktree.changed` con `projectId`). `raised: true` marca una atención nueva (lo que merece notificación);
   `stallRaised: true` (en `session.activity`) una sesión que acaba de quedarse "¿trabada?". Si el cliente se retrasa se le
   desconecta (debe resuscribirse y hacer `session.list`).
 - **`session.attach`**: tras la respuesta JSON la conexión pasa a frames binarios
@@ -402,4 +495,9 @@ go vet ./... && go test -race ./...
 ```
 
 Incluye un test de integración que levanta el daemon en un `AGENTERM_HOME` temporal y ejercita
-spawn, attach/detach/reattach con scrollback, notify, eventos, kill y apagado.
+spawn, attach/detach/reattach con scrollback, notify, eventos, kill y apagado, y otro que lanza una
+shell en modo worktree sobre un repo temporal, hace cambios escribiendo en ella, comprueba
+`session.diff`, que `kill` conserva el worktree, el huérfano tras reiniciar el daemon, reabrirlo, el
+merge y `worktree.remove` (rechazo y force). Los tests de `internal/gitx` usan repos reales en
+directorios temporales con la configuración de git aislada (`GIT_CONFIG_NOSYSTEM=1`,
+`GIT_CONFIG_GLOBAL` vacío, `HOME` temporal).

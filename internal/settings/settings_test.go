@@ -56,7 +56,8 @@ func TestShouldNotify(t *testing.T) {
 func TestSaveRoundTrip(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "settings.yaml")
 	os.WriteFile(p, []byte("notify:\n  sound: false\n"), 0o600)
-	want := Settings{Notify: Notify{Enabled: true, Sound: true, OnDone: false}, Activity: Activity{StallSeconds: 60}}
+	want := Settings{Notify: Notify{Enabled: true, Sound: true, OnDone: false}, Activity: Activity{StallSeconds: 60},
+		Git: Git{Editor: "cursor -n", WorktreeDir: "~/wt", DefaultMode: ModeWorktree}}
 	if err := Save(p, want); err != nil {
 		t.Fatal(err)
 	}
@@ -132,5 +133,23 @@ func TestSaveNewAndBrokenFile(t *testing.T) {
 	}
 	if got, err := Load(p); err != nil || got != Defaults() {
 		t.Fatalf("broken replaced: %+v %v", got, err)
+	}
+}
+
+func TestGitSettings(t *testing.T) {
+	if d := Defaults(); d.Git.DefaultMode != ModeSame || d.Git.Editor != "" {
+		t.Fatalf("defaults %+v", d.Git)
+	}
+	s, err := Parse([]byte("git:\n  editor: \" Visual Studio Code \"\n  default_mode: bogus\n"))
+	if err != nil || s.Git.Editor != "Visual Studio Code" || s.Git.DefaultMode != ModeSame {
+		t.Fatalf("got %+v %v", s.Git, err)
+	}
+	// An empty mode is saved as "same".
+	p := filepath.Join(t.TempDir(), "settings.yaml")
+	if err := Save(p, Settings{}); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := Load(p); got.Git.DefaultMode != ModeSame {
+		t.Fatalf("saved mode = %q", got.Git.DefaultMode)
 	}
 }

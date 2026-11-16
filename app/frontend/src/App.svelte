@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte'
   import { EventsOn, WindowSetTitle } from '../wailsjs/runtime/runtime'
+  import Changes from './lib/Changes.svelte'
   import Grid from './lib/Grid.svelte'
   import ProgressBar from './lib/ProgressBar.svelte'
   import Settings from './lib/Settings.svelte'
@@ -13,10 +14,14 @@
     errorMessage,
     launchable,
     needsAttention,
+    rememberedMode,
     type DaemonEvent,
     type Profile,
     type Project,
     type Session,
+    type SpawnMode,
+    type SpawnOptions,
+    type WorktreeInfo,
   } from './lib/api'
 
   let projects = $state<Project[]>([])
@@ -33,6 +38,14 @@
   let gridProjectId = $state<string | null>(null)
   /** Ticks every second for the elapsed timers. */
   let now = $state(Date.now())
+  /** agenterm worktrees per project (for the orphan lists). */
+  let worktrees = $state<Record<string, WorktreeInfo[]>>({})
+  /** Which tab each session shows: terminal (default) or its changes. */
+  let views = $state<Record<string, 'terminal' | 'changes'>>({})
+  /** An orphaned worktree's changes shown over the main area. */
+  let orphanView = $state<{ id: string; remove: boolean } | null>(null)
+  /** settings git.default_mode (what ⌘N / the + menu start with). */
+  let defaultMode: SpawnMode = 'same'
 
   let termHost: HTMLDivElement
   let errorTimer: number | undefined
@@ -44,6 +57,40 @@
   const spawnable = $derived(launchable(profiles))
   const selectedTimer = $derived(selected ? timerInfo(selected, now, true) : null)
   const selectedProgress = $derived(selected && selected.state !== 'exited' ? progressOf(selected) : undefined)
+  /** The selected session has a git folder: offer the Cambios tab. */
+  const hasChanges = $derived(!!selected && (selected.mode === 'worktree' || !!selected.git))
+  const view = $derived(selected && hasChanges ? (views[selected.id] ?? 'terminal') : 'terminal')
+
+  function setView(v: 'terminal' | 'changes') {
+    if (!selected) return
+    views[selected.id] = v
+    if (v === 'terminal') terms.focus()
+    else if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+  }
+
+  async function refreshWorktrees(projectId: string) {
+    try {
+      const list = await api.listWorktrees(projectId)
+      worktrees = { ...worktrees, [projectId]: list }
+    } catch {
+      /* older daemon or not a repo: no list */
+    }
+  }
+
+  function refreshAllWorktrees() {
+    for (const p of projects) void refreshWorktrees(p.id)
+  }
+
+  function openOrphan(id: string, remove = false) {
+    gridOpen = false
+    orphanView = { id, remove }
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+  }
+
+  function closeOrphan() {
+    orphanView = null
+    terms.focus()
+  }
 
   $effect(() => {
     WindowSetTitle(attentionCount ? `agenterm (${attentionCount})` : 'agenterm')
@@ -98,6 +145,11 @@
     }
     if (!selectedId) select(fallbackSelection(), true)
     loaded = true
+    refreshAllWorktrees()
+    void api
+      .getSettings()
+      .then((st) => (defaultMode = st.git?.defaultMode === 'worktree' ? 'worktree' : 'same'))
+      .catch(() => {})
   }
 
   function fallbackSelection(): string | null {
@@ -152,11 +204,12 @@
     terms.focus()
   }
 
-  async function spawn(projectId: string, profileId: string) {
+  async function spawn(projectId: string, profileId: string, opts?: Partial<SpawnOptions>) {
     const { cols, rows } = terms.proposeSize()
-    const info = await guard(api.spawn(projectId, profileId, cols, rows))
+    const info = await guard(api.spawn(projectId, profileId, cols, rows, opts))
     if (!info) return
     if (!sessions.some((s) => s.id === info.id)) sessions = [...sessions, info]
+    if (opts?.worktreeId) orphanView = null
     select(info.id)
   }
 
@@ -211,6 +264,12 @@
       case 'session.activity':
         sessions = sessions.map((s) => (s.id === ev.sessionId ? mergeLive(s, ev) : s))
         break
+      case 'session.git':
+        sessions = sessions.map((s) => (s.id === ev.sessionId ? { ...s, git: ev.git as Session['git'] } : s))
+        break
+      case 'worktree.changed':
+        if (ev.projectId) void refreshWorktrees(ev.projectId)
+        break
       case 'session.spawned':
         void refreshSessions()
         break
@@ -223,6 +282,11 @@
   }
 
   function onKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape' && orphanView && !settingsOpen) {
+      e.preventDefault()
+      closeOrphan()
+      return
+    }
     if (!isAppShortcut(e)) return
     e.preventDefault()
     if (e.key === ',') {
@@ -244,7 +308,7 @@
     // ⌘N: new session in the current project with the first profile.
     const pid = currentProjectId ?? projects[0]?.id
     const prof = spawnable[0]
-    if (pid && prof) void spawn(pid, prof.id)
+    if (pid && prof) void spawn(pid, prof.id, { mode: rememberedMode(pid, defaultMode) })
   }
 
   function focusFromNotification(id: string) {
@@ -304,12 +368,17 @@
     onOpenSettings={openSettings}
     onOpenGrid={openGrid}
     {now}
+    {worktrees}
+    onOpenWorktree={openOrphan}
   />
 
   <main class="main">
     <header class="titlebar drag">
       {#if selected}
         <span class="title">{selected.profileId}</span>
+        {#if selected.mode === 'worktree' && selected.branch}
+          <span class="branch" title={selected.worktreePath}>⎇ {selected.branch}</span>
+        {/if}
         {#if selected.attentionKind && selected.state !== 'exited'}
           <span class="attn {selected.attentionKind}" title={selected.attentionMessage ?? ''}>
             {attentionLabel(selected.attentionKind)}{#if selected.attentionMessage}: {selected.attentionMessage}{/if}
@@ -328,7 +397,28 @@
       {/if}
     </header>
 
+    {#if selected && hasChanges}
+      <nav class="view-tabs">
+        <button class:on={view === 'terminal'} onclick={() => setView('terminal')}>Terminal</button>
+        <button class:on={view === 'changes'} onclick={() => setView('changes')}
+          >Cambios{#if selected.git} ({selected.git.files}){/if}</button
+        >
+      </nav>
+    {/if}
+
     <div class="term-area">
+      {#if selected && view === 'changes'}
+        <Changes
+          sessionId={selected.id}
+          live={selected.state !== 'exited'}
+          gitStamp={selected.git ? `${selected.git.files}|${selected.git.uncommitted}|${selected.git.ahead}` : ''}
+          onError={showError}
+          onRemoved={() => {
+            setView('terminal')
+            void refreshSessions()
+          }}
+        />
+      {/if}
       {#if selectedProgress}<div class="pane-progress"><ProgressBar progress={selectedProgress} thick /></div>{/if}
       <div class="term-host" bind:this={termHost}></div>
 
@@ -367,6 +457,24 @@
         onOpen={openFromGrid}
         onClose={closeGrid}
       />
+    {/if}
+
+    {#if orphanView && !settingsOpen}
+      <div class="orphan-view">
+        {#key orphanView.id}
+          <Changes
+            worktreeId={orphanView.id}
+            startRemove={orphanView.remove}
+            onError={showError}
+            onClose={closeOrphan}
+            onRemoved={() => {
+              const pid = Object.keys(worktrees).find((k) => worktrees[k].some((w) => w.id === orphanView?.id))
+              closeOrphan()
+              if (pid) void refreshWorktrees(pid)
+            }}
+          />
+        {/key}
+      </div>
     {/if}
 
     {#if settingsOpen}
@@ -461,6 +569,37 @@
     left: 0;
     right: 0;
     z-index: 2;
+  }
+  .branch {
+    flex: none;
+    font: 11.5px var(--mono);
+    color: var(--blue);
+  }
+  .view-tabs {
+    flex: none;
+    display: flex;
+    gap: 2px;
+    padding: 0 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .view-tabs button {
+    padding: 5px 10px 4px;
+    font-size: 12px;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+  }
+  .view-tabs button:hover {
+    color: var(--fg);
+  }
+  .view-tabs button.on {
+    color: var(--fg);
+    border-bottom-color: var(--blue);
+  }
+  .orphan-view {
+    position: absolute;
+    inset: 38px 0 0 0;
+    z-index: 5;
+    background: var(--bg);
   }
   .subtitle {
     color: var(--muted);

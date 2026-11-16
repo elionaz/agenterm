@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -38,10 +39,30 @@ func (a Activity) StallAfter() time.Duration {
 // DefaultStallSeconds is activity.stall_seconds when unset.
 const DefaultStallSeconds = 180
 
+// Git configures worktree sessions and the diff actions.
+type Git struct {
+	// Editor opens a worktree from "Abrir en editor": a command on PATH
+	// ("code", "cursor -n"), an absolute path or a macOS app name
+	// ("Visual Studio Code"). Empty: `code` if found, else Finder.
+	Editor string `json:"editor"`
+	// WorktreeDir overrides where worktrees are created (default
+	// ~/.agenterm/worktrees; "~/" is expanded).
+	WorktreeDir string `json:"worktreeDir"`
+	// DefaultMode is what the spawn menu preselects: same | worktree.
+	DefaultMode string `json:"defaultMode"`
+}
+
+// Spawn modes (Git.DefaultMode, session.spawn's mode).
+const (
+	ModeSame     = "same"
+	ModeWorktree = "worktree"
+)
+
 // Settings is the parsed file.
 type Settings struct {
 	Notify   Notify   `json:"notify"`
 	Activity Activity `json:"activity"`
+	Git      Git      `json:"git"`
 }
 
 type fileNotify struct {
@@ -55,9 +76,16 @@ type fileActivity struct {
 	StallSeconds *int `yaml:"stall_seconds"`
 }
 
+type fileGit struct {
+	Editor      *string `yaml:"editor"`
+	WorktreeDir *string `yaml:"worktree_dir"`
+	DefaultMode *string `yaml:"default_mode"`
+}
+
 type file struct {
 	Notify   fileNotify   `yaml:"notify"`
 	Activity fileActivity `yaml:"activity"`
+	Git      fileGit      `yaml:"git"`
 }
 
 const header = "# agenterm: ajustes (ver README)\n"
@@ -85,6 +113,9 @@ func Save(path string, s Settings) error {
 	setKey(root, []string{"notify", "notify_on_done"}, b(s.Notify.OnDone), "!!bool")
 	setKey(root, []string{"notify", "notify_on_stall"}, b(s.Notify.OnStall), "!!bool")
 	setKey(root, []string{"activity", "stall_seconds"}, strconv.Itoa(max(s.Activity.StallSeconds, 0)), "!!int")
+	setKey(root, []string{"git", "editor"}, strings.TrimSpace(s.Git.Editor), "!!str")
+	setKey(root, []string{"git", "worktree_dir"}, strings.TrimSpace(s.Git.WorktreeDir), "!!str")
+	setKey(root, []string{"git", "default_mode"}, normMode(s.Git.DefaultMode), "!!str")
 	var buf bytes.Buffer
 	enc := yaml.NewEncoder(&buf)
 	enc.SetIndent(2)
@@ -130,7 +161,15 @@ func Defaults() Settings {
 	return Settings{
 		Notify:   Notify{Enabled: true, Sound: true, OnDone: true, OnStall: true},
 		Activity: Activity{StallSeconds: DefaultStallSeconds},
+		Git:      Git{DefaultMode: ModeSame},
 	}
+}
+
+func normMode(m string) string {
+	if strings.TrimSpace(m) == ModeWorktree {
+		return ModeWorktree
+	}
+	return ModeSame
 }
 
 // Parse decodes YAML, filling missing keys with defaults.
@@ -151,6 +190,15 @@ func Parse(data []byte) (Settings, error) {
 	set(&s.Notify.OnStall, f.Notify.OnStall)
 	if f.Activity.StallSeconds != nil {
 		s.Activity.StallSeconds = max(*f.Activity.StallSeconds, 0)
+	}
+	if f.Git.Editor != nil {
+		s.Git.Editor = strings.TrimSpace(*f.Git.Editor)
+	}
+	if f.Git.WorktreeDir != nil {
+		s.Git.WorktreeDir = strings.TrimSpace(*f.Git.WorktreeDir)
+	}
+	if f.Git.DefaultMode != nil {
+		s.Git.DefaultMode = normMode(*f.Git.DefaultMode)
 	}
 	return s, nil
 }

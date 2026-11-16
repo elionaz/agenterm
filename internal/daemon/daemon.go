@@ -29,6 +29,7 @@ import (
 	"github.com/elionaz/agenterm/internal/status"
 	"github.com/elionaz/agenterm/internal/termsig"
 	"github.com/elionaz/agenterm/internal/transport"
+	"github.com/elionaz/agenterm/internal/worktree"
 )
 
 // ErrAlreadyRunning is returned by Run when another daemon owns the socket.
@@ -77,6 +78,8 @@ type Server struct {
 	sessions map[string]*session.Session
 	order    []string
 
+	gitState
+
 	connMu sync.Mutex
 	conns  map[net.Conn]struct{}
 	wg     sync.WaitGroup
@@ -121,7 +124,14 @@ func New(cfg Config) (*Server, error) {
 		cfg.SearchPath = func() string { return shellenv.JoinPaths(os.Getenv("PATH"), shellenv.LoginPath()) }
 	}
 	det := &profile.Detector{SearchPath: cfg.SearchPath}
+	wts, err := worktree.Open(cfg.Paths.Worktrees())
+	if err != nil {
+		return nil, err
+	}
+	bg, bgCancel := context.WithCancel(context.Background())
 	return &Server{
+		gitState: gitState{wts: wts, git: make(map[string]sessGit), gitCache: make(map[string]*gitEntry),
+			bg: bg, bgCancel: bgCancel},
 		cfg:      cfg,
 		sock:     cfg.Paths.Socket(),
 		projects: reg,
@@ -203,6 +213,7 @@ func (s *Server) Run(ctx context.Context) error {
 	ln.Close()
 	<-acceptDone
 	s.killAll()
+	s.stopGit()
 	s.bus.closeAll()
 	s.connMu.Lock()
 	for c := range s.conns {
@@ -321,6 +332,19 @@ func (s *Server) lookup(id string) (*session.Session, error) {
 	return sess, nil
 }
 
+// sessionInfo describes sess, with its git context and cached GitInfo.
+func (s *Server) sessionInfo(sess *session.Session) protocol.SessionInfo {
+	info := sessionInfo(sess)
+	if g := s.sessionGit(sess.ID); g != nil {
+		info.Mode, info.WorktreeID, info.Branch, info.Base = g.Mode, g.WorktreeID, g.Branch, g.Base
+		if g.Mode == protocol.ModeWorktree {
+			info.WorktreePath = g.Dir
+		}
+		info.Git = s.cachedGit(sess.ID)
+	}
+	return info
+}
+
 func sessionInfo(sess *session.Session) protocol.SessionInfo {
 	cols, rows := sess.Size()
 	info := protocol.SessionInfo{
@@ -437,5 +461,9 @@ func (s *Server) publishState(id, projectName, profileID string, c status.Change
 	s.bus.publish(ev)
 	if ev.Raised && s.bus.uiCount() == 0 {
 		s.fallbackNotify(ev)
+	}
+	// The turn ended (or the agent waits): a good moment to look at git.
+	if c.From != c.To && c.To != status.Running {
+		s.requestGit(id)
 	}
 }

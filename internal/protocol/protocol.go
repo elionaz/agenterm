@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/elionaz/agenterm/internal/gitx"
 	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/project"
 )
@@ -49,6 +50,21 @@ const (
 	MethodEventsSubscribe = "events.subscribe"
 	MethodDaemonPing      = "daemon.ping"
 	MethodDaemonShutdown  = "daemon.shutdown"
+
+	// Git worktrees and diffs.
+	MethodProjectGit     = "project.git"
+	MethodSessionDiff    = "session.diff"
+	MethodWorktreeDiff   = "worktree.diff"
+	MethodWorktreeList   = "worktree.list"
+	MethodWorktreeRemove = "worktree.remove"
+	MethodWorktreeMerge  = "worktree.merge"
+	MethodWorktreeOpen   = "worktree.open"
+)
+
+// Session modes (SpawnParams.Mode, SessionInfo.Mode).
+const (
+	ModeSame     = "same"
+	ModeWorktree = "worktree"
 )
 
 // Request is a single control call.
@@ -121,6 +137,132 @@ type SpawnParams struct {
 	ProfileID string `json:"profileId"`
 	Cols      uint16 `json:"cols,omitempty"`
 	Rows      uint16 `json:"rows,omitempty"`
+	// Mode is same (the project folder; default) or worktree (a new git
+	// worktree on a new branch, under the agenterm runtime dir).
+	Mode string `json:"mode,omitempty"`
+	// Branch for a new worktree (default agent/<profile>-<id>; sanitized
+	// and made unique). Base is the branch/commit it starts from (default:
+	// the project's current branch).
+	Branch string `json:"branch,omitempty"`
+	Base   string `json:"base,omitempty"`
+	// WorktreeID reopens an existing agenterm worktree (implies worktree
+	// mode; Branch and Base are ignored).
+	WorktreeID string `json:"worktreeId,omitempty"`
+}
+
+// GitInfo is a session's (or worktree's) change summary, refreshed lazily
+// (on idle/done/exit and on demand, throttled).
+type GitInfo struct {
+	// Files changed against the base (worktree: merge base with the base
+	// branch, committed + uncommitted; same folder: HEAD), untracked
+	// included.
+	Files int `json:"files"`
+	// Uncommitted paths (git status).
+	Uncommitted int `json:"uncommitted"`
+	// Ahead: commits on the branch that the base does not have.
+	Ahead int       `json:"ahead"`
+	At    time.Time `json:"at"`
+}
+
+// ProjectGitParams / ProjectGit: what the spawn menu needs to offer the
+// worktree mode.
+type ProjectGitParams struct {
+	ProjectID string `json:"projectId"`
+}
+
+type ProjectGit struct {
+	IsRepo        bool     `json:"isRepo"`
+	Root          string   `json:"root,omitempty"`
+	CurrentBranch string   `json:"currentBranch,omitempty"`
+	DefaultBase   string   `json:"defaultBase,omitempty"`
+	Branches      []string `json:"branches"`
+	// Error explains why worktrees are unavailable (not a repo, no commits).
+	Error string `json:"error,omitempty"`
+}
+
+// DiffParams selects a session's or a worktree's diff. Stat skips the
+// patch text.
+type DiffParams struct {
+	SessionID  string `json:"sessionId,omitempty"`
+	WorktreeID string `json:"worktreeId,omitempty"`
+	Stat       bool   `json:"stat,omitempty"`
+}
+
+// DiffResult is session.diff / worktree.diff's result.
+type DiffResult struct {
+	// From is what the work tree is compared with (merge base / HEAD).
+	From      string          `json:"from"`
+	Files     []gitx.DiffFile `json:"files"`
+	Additions int             `json:"additions"`
+	Deletions int             `json:"deletions"`
+	// Truncated: the patch text hit the 2 MB cap (see DiffFile.Truncated).
+	Truncated  bool          `json:"truncated,omitempty"`
+	PatchSize  int           `json:"patchSize"`
+	Mode       string        `json:"mode"`
+	Dir        string        `json:"dir"`
+	WorktreeID string        `json:"worktreeId,omitempty"`
+	Branch     string        `json:"branch,omitempty"`
+	Base       string        `json:"base,omitempty"`
+	Commits    []gitx.Commit `json:"commits"`
+	Git        GitInfo       `json:"git"`
+}
+
+// Patch concatenates every file's patch.
+func (d DiffResult) Patch() string {
+	return gitx.DiffResult{Files: d.Files}.Patch()
+}
+
+type WorktreeListParams struct {
+	ProjectID string `json:"projectId"`
+}
+
+// WorktreeInfo describes an agenterm worktree.
+type WorktreeInfo struct {
+	ID        string    `json:"id"`
+	ProjectID string    `json:"projectId"`
+	Path      string    `json:"path"`
+	Branch    string    `json:"branch"`
+	Base      string    `json:"base"`
+	ProfileID string    `json:"profileId,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
+	// SessionIDs are the daemon's sessions in it (live or exited).
+	SessionIDs []string `json:"sessionIds"`
+	// Live: a running session uses it. Orphan: no session at all (it
+	// ended and was removed, or the daemon restarted).
+	Live   bool     `json:"live"`
+	Orphan bool     `json:"orphan"`
+	Git    *GitInfo `json:"git,omitempty"`
+}
+
+type WorktreeList struct {
+	Worktrees []WorktreeInfo `json:"worktrees"`
+}
+
+// WorktreeRemoveParams: without Force the daemon refuses when uncommitted
+// changes (or, with DeleteBranch, unmerged commits) would be lost. DryRun
+// only reports that (Loss) without removing anything.
+type WorktreeRemoveParams struct {
+	ID           string `json:"id"`
+	Force        bool   `json:"force,omitempty"`
+	DeleteBranch bool   `json:"deleteBranch,omitempty"`
+	DryRun       bool   `json:"dryRun,omitempty"`
+}
+
+type WorktreeRemoveResult struct {
+	Removed bool            `json:"removed"`
+	Loss    *gitx.LossError `json:"loss,omitempty"`
+}
+
+type WorktreeRef struct {
+	ID string `json:"id"`
+}
+
+// WorktreeOpenParams opens a worktree (ID) or a session's folder
+// (SessionID) in the editor or Finder.
+type WorktreeOpenParams struct {
+	ID        string `json:"id,omitempty"`
+	SessionID string `json:"sessionId,omitempty"`
+	Target    string `json:"target"` // editor | finder
 }
 
 // ShutdownParams are daemon.shutdown's. Without Force the daemon refuses
@@ -232,6 +374,13 @@ type SessionInfo struct {
 	AttentionMessage string     `json:"attentionMessage,omitempty"`
 	AttentionAt      *time.Time `json:"attentionAt,omitempty"`
 	Unread           bool       `json:"unread,omitempty"`
+	// Mode is same | worktree; worktree sessions name their worktree.
+	Mode         string   `json:"mode,omitempty"`
+	WorktreeID   string   `json:"worktreeId,omitempty"`
+	WorktreePath string   `json:"worktreePath,omitempty"`
+	Branch       string   `json:"branch,omitempty"`
+	Base         string   `json:"base,omitempty"`
+	Git          *GitInfo `json:"git,omitempty"`
 	Live
 }
 
@@ -250,6 +399,11 @@ const (
 	// EventSessionActivity: activity line, progress, stall flag or output
 	// heartbeat changed (coalesced: at most ~2 per second per session).
 	EventSessionActivity = "session.activity"
+	// EventSessionGit: the session's GitInfo changed (Git).
+	EventSessionGit = "session.git"
+	// EventWorktrees: a project's worktree list changed (ProjectID):
+	// created, removed, orphaned or reopened.
+	EventWorktrees = "worktree.changed"
 )
 
 // Event is pushed to events.subscribe streams.
@@ -277,6 +431,10 @@ type Event struct {
 	// UIs may show a low-urgency notification (kind "stall"). It is not an
 	// attention: it does not count as unread.
 	StallRaised bool `json:"stallRaised,omitempty"`
+	// Git (session.git) is the new change summary.
+	Git *GitInfo `json:"git,omitempty"`
+	// ProjectID (worktree.changed).
+	ProjectID string `json:"projectId,omitempty"`
 	// Live is filled in session.activity and session.state events.
 	Live
 }

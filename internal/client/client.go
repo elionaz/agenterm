@@ -13,6 +13,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/elionaz/agenterm/internal/gitx"
 	"github.com/elionaz/agenterm/internal/paths"
 	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/project"
@@ -359,4 +360,55 @@ func (e *Events) Close() error { return e.conn.Close() }
 func IsRemote(err error) bool {
 	var re *RemoteError
 	return errors.As(err, &re)
+}
+
+// ProjectGit reports whether a project can use worktrees, its branches and
+// the default base.
+func (c *Client) ProjectGit(ctx context.Context, projectID string) (protocol.ProjectGit, error) {
+	var r protocol.ProjectGit
+	err := c.Call(ctx, protocol.MethodProjectGit, protocol.ProjectGitParams{ProjectID: projectID}, &r)
+	return r, err
+}
+
+// SessionDiff returns a session's changes (worktree: against its base;
+// same folder: against HEAD). stat skips the patch text.
+func (c *Client) SessionDiff(ctx context.Context, id string, stat bool) (protocol.DiffResult, error) {
+	var r protocol.DiffResult
+	err := c.Call(ctx, protocol.MethodSessionDiff, protocol.DiffParams{SessionID: id, Stat: stat}, &r)
+	return r, err
+}
+
+// WorktreeDiff returns a worktree's changes against its base (also for
+// orphaned worktrees without a session).
+func (c *Client) WorktreeDiff(ctx context.Context, id string, stat bool) (protocol.DiffResult, error) {
+	var r protocol.DiffResult
+	err := c.Call(ctx, protocol.MethodWorktreeDiff, protocol.DiffParams{WorktreeID: id, Stat: stat}, &r)
+	return r, err
+}
+
+// Worktrees lists a project's agenterm worktrees (live and orphaned).
+func (c *Client) Worktrees(ctx context.Context, projectID string) ([]protocol.WorktreeInfo, error) {
+	var r protocol.WorktreeList
+	err := c.Call(ctx, protocol.MethodWorktreeList, protocol.WorktreeListParams{ProjectID: projectID}, &r)
+	return r.Worktrees, err
+}
+
+// WorktreeRemove removes a worktree (see protocol.WorktreeRemoveParams).
+func (c *Client) WorktreeRemove(ctx context.Context, p protocol.WorktreeRemoveParams) (protocol.WorktreeRemoveResult, error) {
+	var r protocol.WorktreeRemoveResult
+	err := c.Call(ctx, protocol.MethodWorktreeRemove, p, &r)
+	return r, err
+}
+
+// WorktreeMerge merges a worktree's branch into its base in the main tree.
+func (c *Client) WorktreeMerge(ctx context.Context, id string) (gitx.MergeResult, error) {
+	var r gitx.MergeResult
+	err := c.Call(ctx, protocol.MethodWorktreeMerge, protocol.WorktreeRef{ID: id}, &r)
+	return r, err
+}
+
+// WorktreeOpen opens a worktree (or a session's folder) in the editor or
+// Finder.
+func (c *Client) WorktreeOpen(ctx context.Context, p protocol.WorktreeOpenParams) error {
+	return c.Call(ctx, protocol.MethodWorktreeOpen, p, nil)
 }

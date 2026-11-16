@@ -3,7 +3,7 @@
   // and the last lines of output (plain text from session.tail — no xterm).
   import { onDestroy, onMount } from 'svelte'
   import { EventsOn } from '../../wailsjs/runtime/runtime'
-  import { api, attentionLabel, needsAttention, type DaemonEvent, type Project, type Session } from './api'
+  import { api, attentionLabel, changesLabel, needsAttention, type DaemonEvent, type Project, type Session } from './api'
   import { progressOf, timerInfo } from './activity'
   import ProgressBar from './ProgressBar.svelte'
 
@@ -140,6 +140,13 @@
             {#if allProjects || !projectId}<span class="proj">{projectName(s.projectId)}</span>{/if}
             <span class="badge {badgeClass(s)}">{stateLabel(s)}</span>
           </div>
+          {#if (s.mode === 'worktree' && s.branch) || (s.git && s.git.files > 0)}
+            <div class="git">
+              {#if s.mode === 'worktree' && s.branch}<span class="branch">⎇ {s.branch}</span>{/if}
+              {#if s.git && s.git.files > 0}<span class="changes">{changesLabel(s.git)}</span>{/if}
+              {#if s.git?.ahead}<span class="ahead">↑{s.git.ahead}</span>{/if}
+            </div>
+          {/if}
           {#if s.attentionKind && s.state !== 'exited' && s.attentionMessage}
             <div class="attn {s.attentionKind}">{s.attentionMessage}</div>
           {/if}
@@ -154,6 +161,27 @@
 </div>
 
 <style>
+  .git {
+    display: flex;
+    gap: 8px;
+    min-width: 0;
+    font: 11px var(--mono);
+  }
+  .git .branch {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--blue);
+  }
+  .git .changes {
+    flex: none;
+    color: var(--amber);
+  }
+  .git .ahead {
+    flex: none;
+    color: var(--muted);
+  }
   .grid-view {
     position: absolute;
     inset: 38px 0 0 0;

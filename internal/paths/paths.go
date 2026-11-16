@@ -62,3 +62,10 @@ func (p Paths) Settings() string { return filepath.Join(p.ConfigDir, "settings.y
 // HooksDir holds generated, agenterm-only agent integration files (Claude
 // settings, opencode plugin…). It is never inside a project.
 func (p Paths) HooksDir() string { return filepath.Join(p.RuntimeDir, "hooks") }
+
+// WorktreesDir is where per-session git worktrees are created by default
+// (settings git.worktree_dir overrides it). It is never inside a project.
+func (p Paths) WorktreesDir() string { return filepath.Join(p.RuntimeDir, "worktrees") }
+
+// Worktrees is the registry of agenterm-managed worktrees.
+func (p Paths) Worktrees() string { return filepath.Join(p.RuntimeDir, "worktrees.json") }

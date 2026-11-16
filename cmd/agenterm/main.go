@@ -34,7 +34,15 @@ Usage:
   agenterm project rm <id>
   agenterm profiles                   list agent profiles (catalog + profiles.yaml)
   agenterm profiles scan              re-detect installed agents and list them
-  agenterm spawn [--cols C --rows R] <projectId|name> <profileId>
+  agenterm spawn [--cols C --rows R] [--worktree [--branch B] [--base X] | --in-worktree ID]
+                <projectId|name> <profileId>
+                                      --worktree: new git worktree + branch for the session
+  agenterm diff [--stat] <sessionId|worktreeId>   changes (worktree: vs its base)
+  agenterm worktrees <projectId|name> list agenterm worktrees (live / exited / orphan)
+  agenterm worktree rm [--force] [--delete-branch] [--dry-run] <id>
+  agenterm worktree merge <id>        merge its branch into the base (main folder must be
+                                      clean and on the base branch)
+  agenterm worktree open [--finder] <id>
   agenterm ls                         list sessions (with activity line and timers)
   agenterm tail [-n N] <sessionId>    last N lines of output as plain text (default 8)
   agenterm attach <sessionId>         attach (detach with Ctrl-\)
@@ -91,6 +99,15 @@ func run(args []string) error {
 		return cmdSpawn(ctx, c, rest)
 	case "ls":
 		return cmdLs(ctx, c)
+	case "diff":
+		return cmdDiff(ctx, c, rest)
+	case "worktrees":
+		if len(rest) != 1 {
+			return errors.New("usage: agenterm worktrees <projectId|name>")
+		}
+		return cmdWorktrees(ctx, c, rest[0])
+	case "worktree":
+		return cmdWorktree(ctx, c, rest)
 	case "tail":
 		fs := flag.NewFlagSet("tail", flag.ContinueOnError)
 		n := fs.Int("n", 8, "lines")
@@ -278,11 +295,22 @@ func cmdSpawn(ctx context.Context, c *client.Client, args []string) error {
 	fs := flag.NewFlagSet("spawn", flag.ContinueOnError)
 	cols := fs.Uint("cols", 0, "initial columns (default: current terminal or 80)")
 	rows := fs.Uint("rows", 0, "initial rows (default: current terminal or 24)")
+	wt := fs.Bool("worktree", false, "run in a new git worktree (own branch)")
+	branch := fs.String("branch", "", "branch for --worktree (default agent/<profile>-<id>)")
+	base := fs.String("base", "", "base branch for --worktree (default: the project's current branch)")
+	inWT := fs.String("in-worktree", "", "run in an existing agenterm worktree (id)")
 	if err := parseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() != 2 {
-		return errors.New("usage: agenterm spawn <projectId> <profileId>")
+		return errors.New("usage: agenterm spawn [--worktree [--branch B] [--base X]] <projectId> <profileId>")
+	}
+	if !*wt && (*branch != "" || *base != "") {
+		return errors.New("--branch and --base need --worktree")
+	}
+	mode := ""
+	if *wt {
+		mode = protocol.ModeWorktree
 	}
 	cc, rr := uint16(*cols), uint16(*rows)
 	if cc == 0 || rr == 0 {
@@ -290,9 +318,14 @@ func cmdSpawn(ctx context.Context, c *client.Client, args []string) error {
 			cc, rr = w, h
 		}
 	}
-	info, err := c.Spawn(ctx, protocol.SpawnParams{ProjectID: fs.Arg(0), ProfileID: fs.Arg(1), Cols: cc, Rows: rr})
+	info, err := c.Spawn(ctx, protocol.SpawnParams{ProjectID: fs.Arg(0), ProfileID: fs.Arg(1), Cols: cc, Rows: rr,
+		Mode: mode, Branch: *branch, Base: *base, WorktreeID: *inWT})
 	if err != nil {
 		return err
+	}
+	if info.WorktreeID != "" {
+		fmt.Printf("%s\t%s\t%s\n", info.ID, info.Branch, info.WorktreePath)
+		return nil
 	}
 	fmt.Println(info.ID)
 	return nil
@@ -304,10 +337,10 @@ func cmdLs(ctx context.Context, c *client.Client) error {
 		return err
 	}
 	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tPROJECT\tPROFILE\tSTATE\tATTENTION\tPID\tSIZE\tAGE\tTURN\tACTIVITY\tCWD")
+	fmt.Fprintln(w, "ID\tPROJECT\tPROFILE\tSTATE\tATTENTION\tPID\tSIZE\tAGE\tTURN\tGIT\tACTIVITY\tCWD")
 	for _, s := range ss {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s%s\t%s\t%d\t%dx%d\t%s\t%s\t%s\t%s\n", s.ID, s.ProjectID, s.ProfileID, s.State, exitSuffix(s),
-			attention(s), s.Pid, s.Cols, s.Rows, time.Since(s.CreatedAt).Round(time.Second), turn(s), activity(s), s.Cwd)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s%s\t%s\t%d\t%dx%d\t%s\t%s\t%s\t%s\t%s\n", s.ID, s.ProjectID, s.ProfileID, s.State, exitSuffix(s),
+			attention(s), s.Pid, s.Cols, s.Rows, time.Since(s.CreatedAt).Round(time.Second), turn(s), gitCol(s.Branch, s.Git), activity(s), s.Cwd)
 	}
 	return w.Flush()
 }

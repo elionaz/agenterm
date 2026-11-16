@@ -1,5 +1,19 @@
 <script lang="ts">
-  import { attentionLabel, needsAttention, type Profile, type Project, type Session } from './api'
+  import {
+    api,
+    attentionLabel,
+    changesLabel,
+    needsAttention,
+    rememberMode,
+    rememberedMode,
+    type Profile,
+    type Project,
+    type ProjectGit,
+    type Session,
+    type SpawnMode,
+    type SpawnOptions,
+    type WorktreeInfo,
+  } from './api'
   import { progressOf, shortTimer } from './activity'
   import ProgressBar from './ProgressBar.svelte'
 
@@ -11,7 +25,11 @@
     currentProjectId: string | null
     onSelect: (id: string) => void
     onSelectProject: (id: string) => void
-    onSpawn: (projectId: string, profileId: string) => void
+    onSpawn: (projectId: string, profileId: string, opts?: Partial<SpawnOptions>) => void
+    /** agenterm worktrees per project (orphans are listed under it). */
+    worktrees: Record<string, WorktreeInfo[]>
+    /** Opens an orphaned worktree's changes (optionally with removal asked). */
+    onOpenWorktree: (worktreeId: string, remove?: boolean) => void
     onKill: (id: string) => void
     onAddProject: () => void
     onRemoveProject: (id: string) => void
@@ -37,10 +55,19 @@
     onOpenSettings,
     onOpenGrid,
     now,
+    worktrees,
+    onOpenWorktree,
   }: Props = $props()
 
   let collapsed = $state<Record<string, boolean>>({})
   let menuFor = $state<string | null>(null)
+  /** Second step of the spawn menu: the profile picked, where to run it. */
+  let picked = $state<Profile | null>(null)
+  let projGit = $state<ProjectGit | null>(null)
+  let mode = $state<SpawnMode>('same')
+  let branch = $state('')
+  let base = $state('')
+  let defaultMode: SpawnMode = 'same'
 
   const byProject = $derived.by(() => {
     const m = new Map<string, Session[]>()
@@ -84,20 +111,71 @@
 
   function toggleMenu(projectId: string, ev: MouseEvent) {
     ev.stopPropagation()
-    menuFor = menuFor === projectId ? null : projectId
+    if (menuFor === projectId) {
+      closeMenu()
+      return
+    }
+    menuFor = projectId
+    picked = null
+    projGit = null
+    // What the second step needs: is it a repo, its branches, the default.
+    void api
+      .projectGit(projectId)
+      .then((g) => menuFor === projectId && (projGit = g))
+      .catch(() => menuFor === projectId && (projGit = { isRepo: false, branches: [], error: 'git no disponible' }))
+    void api
+      .getSettings()
+      .then((st) => (defaultMode = st.git?.defaultMode === 'worktree' ? 'worktree' : 'same'))
+      .catch(() => {})
   }
 
-  function pick(projectId: string, profileId: string) {
-    menuFor = null
-    onSpawn(projectId, profileId)
+  const canWorktree = $derived(!!projGit?.isRepo && !projGit.error)
+
+  function randomSuffix(): string {
+    return Math.random().toString(16).slice(2, 6)
+  }
+
+  function pick(projectId: string, prof: Profile) {
+    picked = prof
+    mode = rememberedMode(projectId, defaultMode)
+    if (mode === 'worktree' && projGit && !canWorktree) mode = 'same'
+    branch = `agent/${prof.id}-${randomSuffix()}`
+    base = projGit?.defaultBase || projGit?.currentBranch || ''
+  }
+
+  function launch(projectId: string) {
+    if (!picked) return
+    const wt = mode === 'worktree' && canWorktree
+    rememberMode(projectId, wt ? 'worktree' : 'same')
+    const prof = picked
+    closeMenu()
+    onSpawn(projectId, prof.id, wt ? { mode: 'worktree', branch: branch.trim(), base } : { mode: 'same' })
   }
 
   function closeMenu() {
     menuFor = null
+    picked = null
+  }
+
+  function orphansOf(projectId: string): WorktreeInfo[] {
+    return (worktrees[projectId] ?? []).filter((w) => w.orphan)
+  }
+
+  function reopen(projectId: string, w: WorktreeInfo) {
+    const shell = profiles.find((p) => p.id === 'shell') ?? profiles[0]
+    if (!shell) return
+    onSpawn(projectId, shell.id, { worktreeId: w.id })
+  }
+
+  function branchTitle(s: Session): string {
+    let t = `Worktree en la rama ${s.branch}`
+    if (s.base) t += ` (desde ${s.base})`
+    if (s.git) t += `\n${s.git.files} archivos cambiados · ${s.git.uncommitted} sin commitear · ${s.git.ahead} commits por delante`
+    return t
   }
 </script>
 
-<svelte:window onclick={closeMenu} onkeydown={(e) => e.key === 'Escape' && closeMenu()} />
+<svelte:window onclick={closeMenu} onkeydown={(e) => e.key === 'Escape' && menuFor && closeMenu()} />
 
 <aside class="sidebar">
   <div class="titlebar drag">
@@ -142,23 +220,71 @@
           {#if menuFor === p.id}
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <div class="menu" onclick={(e) => e.stopPropagation()}>
-              {#each profiles as prof (prof.id)}
-                <button class="menu-item" title={prof.path ?? prof.cmd} onclick={() => pick(p.id, prof.id)}>
-                  <span>{prof.name || prof.id}</span>
-                  <span class="menu-cmd">{prof.id}</span>
-                </button>
+            <div class="menu" class:wide={!!picked} onclick={(e) => e.stopPropagation()}>
+              {#if !picked}
+                {#each profiles as prof (prof.id)}
+                  <button class="menu-item" title={prof.path ?? prof.cmd} onclick={() => pick(p.id, prof)}>
+                    <span>{prof.name || prof.id}</span>
+                    <span class="menu-cmd">{prof.id}</span>
+                  </button>
+                {:else}
+                  <div class="menu-empty">Sin agentes disponibles</div>
+                {/each}
+                <div class="menu-sep"></div>
+                <button
+                  class="menu-item muted"
+                  onclick={() => {
+                    closeMenu()
+                    onOpenSettings()
+                  }}><span>Elegir agentes…</span><span class="menu-cmd">⌘,</span></button
+                >
               {:else}
-                <div class="menu-empty">Sin agentes disponibles</div>
-              {/each}
-              <div class="menu-sep"></div>
-              <button
-                class="menu-item muted"
-                onclick={() => {
-                  menuFor = null
-                  onOpenSettings()
-                }}><span>Elegir agentes…</span><span class="menu-cmd">⌘,</span></button
-              >
+                <form
+                  class="spawn-form"
+                  onsubmit={(e) => {
+                    e.preventDefault()
+                    launch(p.id)
+                  }}
+                >
+                  <div class="spawn-head">
+                    <button type="button" class="icon back" title="Volver" onclick={() => (picked = null)}>‹</button>
+                    <b>{picked.name || picked.id}</b>
+                  </div>
+                  <label class="opt">
+                    <input type="radio" bind:group={mode} value="same" />
+                    <span><b>Misma carpeta</b><em>{p.path}</em></span>
+                  </label>
+                  <label
+                    class="opt"
+                    class:disabled={!canWorktree}
+                    title={!projGit ? 'Comprobando el repositorio…' : canWorktree ? '' : `No disponible: ${projGit.error ?? 'no es un repositorio git'}`}
+                  >
+                    <input type="radio" bind:group={mode} value="worktree" disabled={!canWorktree} />
+                    <span
+                      ><b>Worktree nuevo</b><em
+                        >{!projGit ? 'comprobando git…' : canWorktree ? 'rama propia, carpeta aparte' : (projGit.error ?? 'no es un repositorio git')}</em
+                      ></span
+                    >
+                  </label>
+                  {#if mode === 'worktree' && canWorktree}
+                    <label class="fld">
+                      <span>Rama</span>
+                      <input bind:value={branch} spellcheck="false" placeholder="agent/…" />
+                    </label>
+                    <label class="fld">
+                      <span>Base</span>
+                      <select bind:value={base}>
+                        {#each projGit?.branches ?? [] as b (b)}
+                          <option value={b}>{b}{b === projGit?.currentBranch ? ' (actual)' : ''}</option>
+                        {/each}
+                      </select>
+                    </label>
+                  {/if}
+                  <div class="spawn-actions">
+                    <button type="submit" class="launch">Lanzar ↵</button>
+                  </div>
+                </form>
+              {/if}
             </div>
           {/if}
         </div>
@@ -181,6 +307,12 @@
                   <div class="line">
                     <span class="dot {badgeClass(s)}"></span>
                     <span class="session-name">{s.profileId}</span>
+                    {#if s.mode === 'worktree' && s.branch}
+                      <span class="chip" title={branchTitle(s)}>⎇ {s.branch.replace(/^agent\//, '')}</span>
+                    {/if}
+                    {#if s.git && s.git.files > 0}
+                      <span class="changes" title={`${s.git.files} archivos cambiados`}>{changesLabel(s.git)}</span>
+                    {/if}
                     <span class="state {badgeClass(s)}">{stateLabel(s)}</span>
                     {#if i < 9 && p.id === currentProjectId}<span class="kbd">⌘{i + 1}</span>{/if}
                     <button
@@ -205,6 +337,27 @@
               <li class="no-sessions">Sin sesiones</li>
             {/each}
           </ul>
+          {@const orphans = orphansOf(p.id)}
+          {#if orphans.length}
+            <div class="orphans">
+              <div class="orphans-title" title="Worktrees de agenterm sin sesión: su carpeta y su rama siguen ahí">
+                Worktrees huérfanos
+              </div>
+              {#each orphans as w (w.id)}
+                <div class="orphan" title={`${w.path}\nrama ${w.branch} (desde ${w.base})`}>
+                  <div class="line">
+                    <span class="chip">⎇ {w.branch.replace(/^agent\//, '')}</span>
+                    {#if w.git}<span class="changes">{changesLabel(w.git)}{#if w.git.ahead} ↑{w.git.ahead}{/if}</span>{/if}
+                  </div>
+                  <div class="orphan-actions">
+                    <button onclick={() => onOpenWorktree(w.id)}>Ver cambios</button>
+                    <button onclick={() => reopen(p.id, w)}>Abrir shell aquí</button>
+                    <button class="danger" onclick={() => onOpenWorktree(w.id, true)}>Eliminar</button>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          {/if}
         {/if}
       </section>
     {/each}
@@ -542,6 +695,156 @@
   .gear:hover {
     color: var(--fg);
     background: var(--hover);
+  }
+  .menu.wide {
+    min-width: 250px;
+  }
+  .spawn-form {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 2px;
+  }
+  .spawn-head {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 2px 6px;
+    color: var(--fg);
+  }
+  .back {
+    font-size: 16px;
+  }
+  .opt {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 5px 6px;
+    border-radius: 5px;
+    color: var(--fg);
+  }
+  .opt:hover:not(.disabled) {
+    background: var(--hover);
+  }
+  .opt.disabled {
+    opacity: 0.5;
+  }
+  .opt input {
+    margin-top: 2px;
+    accent-color: var(--blue);
+  }
+  .opt span {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .opt b {
+    font-weight: 500;
+  }
+  .opt em {
+    font-style: normal;
+    font-size: 11px;
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 200px;
+  }
+  .fld {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 6px 3px 28px;
+    font-size: 11.5px;
+    color: var(--fg-dim);
+  }
+  .fld span {
+    width: 34px;
+  }
+  .fld input,
+  .fld select {
+    flex: 1;
+    min-width: 0;
+    font: 11.5px var(--mono);
+    color: var(--fg);
+    background: var(--bg);
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    padding: 3px 5px;
+  }
+  .spawn-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding: 6px 2px 2px;
+  }
+  .launch {
+    padding: 4px 12px;
+    border-radius: 5px;
+    background: var(--accent-bg);
+    color: var(--fg);
+    border: 1px solid var(--border-strong);
+  }
+  .launch:hover {
+    background: var(--hover-strong);
+  }
+  .chip {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0 5px;
+    border-radius: 8px;
+    font: 10px var(--mono);
+    line-height: 15px;
+    color: var(--blue);
+    background: color-mix(in srgb, var(--blue) 12%, transparent);
+  }
+  .changes {
+    flex: none;
+    font: 10px var(--mono);
+    color: var(--amber);
+  }
+  .orphans {
+    margin: 2px 0 4px 10px;
+    padding: 4px 0 2px;
+    border-top: 1px dashed var(--border-strong);
+  }
+  .orphans-title {
+    padding: 0 8px 2px;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .orphan {
+    padding: 2px 4px 4px 8px;
+    border-radius: 6px;
+  }
+  .orphan:hover {
+    background: var(--hover);
+  }
+  .orphan .line {
+    height: 20px;
+  }
+  .orphan .chip {
+    max-width: 150px;
+  }
+  .orphan-actions {
+    display: flex;
+    gap: 8px;
+    font-size: 10.5px;
+  }
+  .orphan-actions button {
+    color: var(--muted);
+  }
+  .orphan-actions button:hover {
+    color: var(--fg);
+    text-decoration: underline;
+  }
+  .orphan-actions .danger:hover {
+    color: var(--red);
   }
   .menu-sep {
     height: 1px;

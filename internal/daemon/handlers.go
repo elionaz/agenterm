@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"os/exec"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/elionaz/agenterm/internal/session"
 	"github.com/elionaz/agenterm/internal/settings"
 	"github.com/elionaz/agenterm/internal/status"
+	"github.com/elionaz/agenterm/internal/worktree"
 )
 
 func (s *Server) dispatch(req protocol.Request) (any, error) {
@@ -117,7 +119,7 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 		if err := sess.Resize(p.Cols, p.Rows); err != nil {
 			return nil, err
 		}
-		return sessionInfo(sess), nil
+		return s.sessionInfo(sess), nil
 	case protocol.MethodSessionNotify:
 		p, err := decode[protocol.NotifyParams](req.Params)
 		if err != nil {
@@ -129,7 +131,7 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 				return nil, err
 			}
 			sess.SetActivity(p.Activity)
-			return sessionInfo(sess), nil
+			return s.sessionInfo(sess), nil
 		}
 		st, err := status.ParseState(p.State)
 		if err != nil {
@@ -146,7 +148,7 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 		if err := sess.NotifyEvent(status.Event{State: st, Kind: kind, Message: p.Message, Activity: p.Activity, Turn: p.Turn}); err != nil {
 			return nil, err
 		}
-		return sessionInfo(sess), nil
+		return s.sessionInfo(sess), nil
 	case protocol.MethodSessionTail:
 		p, err := decode[protocol.TailParams](req.Params)
 		if err != nil {
@@ -157,6 +159,52 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 			return nil, err
 		}
 		return protocol.TailResult{SessionID: sess.ID, Lines: sess.Tail(p.Lines)}, nil
+	case protocol.MethodProjectGit:
+		p, err := decode[protocol.ProjectGitParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.projectGit(p)
+	case protocol.MethodSessionDiff, protocol.MethodWorktreeDiff:
+		p, err := decode[protocol.DiffParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		if req.Method == protocol.MethodSessionDiff && p.SessionID == "" {
+			return nil, errors.New("falta sessionId")
+		}
+		if req.Method == protocol.MethodWorktreeDiff && p.WorktreeID == "" {
+			return nil, errors.New("falta worktreeId")
+		}
+		return s.diff(p)
+	case protocol.MethodWorktreeList:
+		p, err := decode[protocol.WorktreeListParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.worktreeList(p)
+	case protocol.MethodWorktreeRemove:
+		p, err := decode[protocol.WorktreeRemoveParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		res, err := s.worktreeRemove(p)
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
+	case protocol.MethodWorktreeMerge:
+		p, err := decode[protocol.WorktreeRef](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.worktreeMerge(p)
+	case protocol.MethodWorktreeOpen:
+		p, err := decode[protocol.WorktreeOpenParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.worktreeOpen(p)
 	case protocol.MethodSessionAck:
 		p, err := decode[protocol.SessionRef](req.Params)
 		if err != nil {
@@ -167,7 +215,7 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 			return nil, err
 		}
 		sess.Ack()
-		return sessionInfo(sess), nil
+		return s.sessionInfo(sess), nil
 	}
 	return nil, fmt.Errorf("unknown method %q", req.Method)
 }
@@ -232,12 +280,49 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 	}
 	s.mu.Unlock()
 
+	// Where the session runs: the project folder, a new worktree or an
+	// existing one.
+	mode := p.Mode
+	if p.WorktreeID != "" {
+		mode = protocol.ModeWorktree
+	}
+	cwd := proj.Path
+	g := sessGit{Mode: protocol.ModeSame, Dir: proj.Path}
+	var created *worktree.Record
+	switch {
+	case p.WorktreeID != "":
+		rec, err := s.wts.Get(p.WorktreeID)
+		if err != nil {
+			return protocol.SessionInfo{}, err
+		}
+		if rec.ProjectID != proj.ID {
+			return protocol.SessionInfo{}, fmt.Errorf("el worktree %s es de otro proyecto", rec.ID)
+		}
+		if _, err := os.Stat(rec.Path); err != nil {
+			return protocol.SessionInfo{}, fmt.Errorf("la carpeta del worktree ya no existe: %s", rec.Path)
+		}
+		cwd, g = recCwd(rec), recGit(rec)
+	case mode == protocol.ModeWorktree:
+		rec, dir, err := s.createWorktree(proj, prof.ID, id, p.Branch, p.Base)
+		if err != nil {
+			return protocol.SessionInfo{}, err
+		}
+		created, cwd, g = &rec, dir, recGit(rec)
+	case mode == "" || mode == protocol.ModeSame:
+	default:
+		return protocol.SessionInfo{}, fmt.Errorf("modo desconocido %q (same o worktree)", p.Mode)
+	}
+	s.mu.Lock()
+	s.git[id] = g
+	s.mu.Unlock()
+
 	sess, err := session.Spawn(session.Options{
 		ID:          id,
 		ProjectID:   proj.ID,
 		ProjectDir:  proj.Path,
 		ProjectName: proj.Name,
 		ProfileID:   prof.ID,
+		Cwd:         cwd,
 		Cmd:         cmd,
 		Args:        append(inj.Args, prof.Args...),
 		Env:         append(prof.Environ(), inj.Env...),
@@ -255,21 +340,34 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 		AttentionPatterns: patterns,
 	})
 	if err != nil {
+		s.mu.Lock()
+		delete(s.git, id)
+		s.mu.Unlock()
+		if created != nil {
+			s.discardWorktree(*created)
+		}
 		return protocol.SessionInfo{}, err
 	}
 	s.mu.Lock()
 	s.sessions[id] = sess
 	s.order = append(s.order, id)
 	s.mu.Unlock()
-	s.log.Info("session spawned", "id", id, "project", proj.Name, "profile", prof.ID, "pid", sess.Pid)
+	s.log.Info("session spawned", "id", id, "project", proj.Name, "profile", prof.ID, "pid", sess.Pid, "mode", g.Mode, "cwd", cwd)
+	s.requestGit(id)
 
-	info := sessionInfo(sess)
+	info := s.sessionInfo(sess)
 	s.bus.publish(protocol.Event{Type: protocol.EventSessionSpawned, SessionID: id, State: info.State, At: time.Now().UTC(),
 		ProjectName: proj.Name, ProfileID: prof.ID})
+	if g.WorktreeID != "" {
+		s.publishWorktrees(proj.ID)
+	}
 	go func() {
 		<-sess.Done()
 		code, _ := sess.ExitCode()
 		s.log.Info("session exited", "id", id, "code", code)
+		if g.WorktreeID != "" {
+			s.publishWorktrees(proj.ID) // no longer live (the worktree stays)
+		}
 	}()
 	return info, nil
 }
@@ -283,7 +381,7 @@ func (s *Server) list() protocol.SessionList {
 	s.mu.Unlock()
 	out := protocol.SessionList{Sessions: make([]protocol.SessionInfo, 0, len(list))}
 	for _, sess := range list {
-		out.Sessions = append(out.Sessions, sessionInfo(sess))
+		out.Sessions = append(out.Sessions, s.sessionInfo(sess))
 	}
 	return out
 }
@@ -306,10 +404,10 @@ func (s *Server) kill(id string) (protocol.SessionInfo, error) {
 		}
 		s.mu.Unlock()
 		s.bus.publish(protocol.Event{Type: protocol.EventSessionRemoved, SessionID: id, At: time.Now().UTC()})
-		return sessionInfo(sess), nil
+		return s.sessionInfo(sess), nil
 	}
 	sess.Kill(s.cfg.KillGrace)
-	return sessionInfo(sess), nil
+	return s.sessionInfo(sess), nil
 }
 
 // handleAttach upgrades conn to the framed attach protocol: scrollback, a
@@ -331,7 +429,7 @@ func (s *Server) handleAttach(conn net.Conn, br *bufio.Reader, req protocol.Requ
 	}
 	snapshot, sub := sess.Attach()
 	defer sub.Close()
-	if err := writeResponse(conn, req.ID, sessionInfo(sess), nil); err != nil {
+	if err := writeResponse(conn, req.ID, s.sessionInfo(sess), nil); err != nil {
 		return
 	}
 

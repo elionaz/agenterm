@@ -50,12 +50,32 @@ export function ListSessions() {
   return window['go']['main']['App']['ListSessions']();
 }
 
+export function ListWorktrees(arg1) {
+  return window['go']['main']['App']['ListWorktrees'](arg1);
+}
+
+export function MergeWorktree(arg1) {
+  return window['go']['main']['App']['MergeWorktree'](arg1);
+}
+
+export function OpenWorktree(arg1, arg2, arg3) {
+  return window['go']['main']['App']['OpenWorktree'](arg1, arg2, arg3);
+}
+
 export function ProfileCatalog() {
   return window['go']['main']['App']['ProfileCatalog']();
 }
 
+export function ProjectGit(arg1) {
+  return window['go']['main']['App']['ProjectGit'](arg1);
+}
+
 export function RemoveProject(arg1) {
   return window['go']['main']['App']['RemoveProject'](arg1);
+}
+
+export function RemoveWorktree(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['RemoveWorktree'](arg1, arg2, arg3, arg4);
 }
 
 export function ReorderProfiles(arg1) {
@@ -78,6 +98,10 @@ export function SaveSettings(arg1) {
   return window['go']['main']['App']['SaveSettings'](arg1);
 }
 
+export function SessionDiff(arg1) {
+  return window['go']['main']['App']['SessionDiff'](arg1);
+}
+
 export function SetVisibleSession(arg1) {
   return window['go']['main']['App']['SetVisibleSession'](arg1);
 }
@@ -86,10 +110,18 @@ export function Spawn(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['Spawn'](arg1, arg2, arg3, arg4);
 }
 
+export function SpawnIn(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['SpawnIn'](arg1, arg2, arg3, arg4, arg5);
+}
+
 export function Tail(arg1, arg2) {
   return window['go']['main']['App']['Tail'](arg1, arg2);
 }
 
 export function TakePendingFocus() {
   return window['go']['main']['App']['TakePendingFocus']();
+}
+
+export function WorktreeDiff(arg1) {
+  return window['go']['main']['App']['WorktreeDiff'](arg1);
 }

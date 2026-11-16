@@ -1,3 +1,156 @@
+export namespace gitx {
+	
+	export class Commit {
+	    hash: string;
+	    short: string;
+	    subject: string;
+	    author: string;
+	    // Go type: time
+	    date: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new Commit(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.hash = source["hash"];
+	        this.short = source["short"];
+	        this.subject = source["subject"];
+	        this.author = source["author"];
+	        this.date = this.convertValues(source["date"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class DiffFile {
+	    path: string;
+	    oldPath?: string;
+	    status: string;
+	    additions: number;
+	    deletions: number;
+	    binary?: boolean;
+	    untracked?: boolean;
+	    patch?: string;
+	    truncated?: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new DiffFile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.oldPath = source["oldPath"];
+	        this.status = source["status"];
+	        this.additions = source["additions"];
+	        this.deletions = source["deletions"];
+	        this.binary = source["binary"];
+	        this.untracked = source["untracked"];
+	        this.patch = source["patch"];
+	        this.truncated = source["truncated"];
+	    }
+	}
+	export class LossError {
+	    path: string;
+	    branch: string;
+	    base: string;
+	    uncommitted?: string[];
+	    unmerged?: Commit[];
+	
+	    static createFrom(source: any = {}) {
+	        return new LossError(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.branch = source["branch"];
+	        this.base = source["base"];
+	        this.uncommitted = source["uncommitted"];
+	        this.unmerged = this.convertValues(source["unmerged"], Commit);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class MergeResult {
+	    base: string;
+	    branch: string;
+	    commits: number;
+	    output?: string;
+	    uncommitted?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new MergeResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.base = source["base"];
+	        this.branch = source["branch"];
+	        this.commits = source["commits"];
+	        this.output = source["output"];
+	        this.uncommitted = source["uncommitted"];
+	    }
+	}
+
+}
+
+export namespace main {
+	
+	export class SpawnOptions {
+	    mode: string;
+	    branch: string;
+	    base: string;
+	    worktreeId: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SpawnOptions(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.mode = source["mode"];
+	        this.branch = source["branch"];
+	        this.base = source["base"];
+	        this.worktreeId = source["worktreeId"];
+	    }
+	}
+
+}
+
 export namespace profile {
 	
 	export class Entry {
@@ -161,6 +314,120 @@ export namespace protocol {
 	        this.path = source["path"];
 	    }
 	}
+	export class GitInfo {
+	    files: number;
+	    uncommitted: number;
+	    ahead: number;
+	    // Go type: time
+	    at: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new GitInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.files = source["files"];
+	        this.uncommitted = source["uncommitted"];
+	        this.ahead = source["ahead"];
+	        this.at = this.convertValues(source["at"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class DiffResult {
+	    from: string;
+	    files: gitx.DiffFile[];
+	    additions: number;
+	    deletions: number;
+	    truncated?: boolean;
+	    patchSize: number;
+	    mode: string;
+	    dir: string;
+	    worktreeId?: string;
+	    branch?: string;
+	    base?: string;
+	    commits: gitx.Commit[];
+	    git: GitInfo;
+	
+	    static createFrom(source: any = {}) {
+	        return new DiffResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.from = source["from"];
+	        this.files = this.convertValues(source["files"], gitx.DiffFile);
+	        this.additions = source["additions"];
+	        this.deletions = source["deletions"];
+	        this.truncated = source["truncated"];
+	        this.patchSize = source["patchSize"];
+	        this.mode = source["mode"];
+	        this.dir = source["dir"];
+	        this.worktreeId = source["worktreeId"];
+	        this.branch = source["branch"];
+	        this.base = source["base"];
+	        this.commits = this.convertValues(source["commits"], gitx.Commit);
+	        this.git = this.convertValues(source["git"], GitInfo);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	export class ProjectGit {
+	    isRepo: boolean;
+	    root?: string;
+	    currentBranch?: string;
+	    defaultBase?: string;
+	    branches: string[];
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProjectGit(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.isRepo = source["isRepo"];
+	        this.root = source["root"];
+	        this.currentBranch = source["currentBranch"];
+	        this.defaultBase = source["defaultBase"];
+	        this.branches = source["branches"];
+	        this.error = source["error"];
+	    }
+	}
 	export class Progress {
 	    state: string;
 	    value: number;
@@ -196,6 +463,12 @@ export namespace protocol {
 	    // Go type: time
 	    attentionAt?: any;
 	    unread?: boolean;
+	    mode?: string;
+	    worktreeId?: string;
+	    worktreePath?: string;
+	    branch?: string;
+	    base?: string;
+	    git?: GitInfo;
 	    activity?: string;
 	    // Go type: time
 	    activityAt?: any;
@@ -238,6 +511,12 @@ export namespace protocol {
 	        this.attentionMessage = source["attentionMessage"];
 	        this.attentionAt = this.convertValues(source["attentionAt"], null);
 	        this.unread = source["unread"];
+	        this.mode = source["mode"];
+	        this.worktreeId = source["worktreeId"];
+	        this.worktreePath = source["worktreePath"];
+	        this.branch = source["branch"];
+	        this.base = source["base"];
+	        this.git = this.convertValues(source["git"], GitInfo);
 	        this.activity = source["activity"];
 	        this.activityAt = this.convertValues(source["activityAt"], null);
 	        this.activitySource = source["activitySource"];
@@ -248,6 +527,89 @@ export namespace protocol {
 	        this.stalled = source["stalled"];
 	        this.stalledAt = this.convertValues(source["stalledAt"], null);
 	        this.progress = this.convertValues(source["progress"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class WorktreeInfo {
+	    id: string;
+	    projectId: string;
+	    path: string;
+	    branch: string;
+	    base: string;
+	    profileId?: string;
+	    // Go type: time
+	    createdAt: any;
+	    sessionIds: string[];
+	    live: boolean;
+	    orphan: boolean;
+	    git?: GitInfo;
+	
+	    static createFrom(source: any = {}) {
+	        return new WorktreeInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.projectId = source["projectId"];
+	        this.path = source["path"];
+	        this.branch = source["branch"];
+	        this.base = source["base"];
+	        this.profileId = source["profileId"];
+	        this.createdAt = this.convertValues(source["createdAt"], null);
+	        this.sessionIds = source["sessionIds"];
+	        this.live = source["live"];
+	        this.orphan = source["orphan"];
+	        this.git = this.convertValues(source["git"], GitInfo);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class WorktreeRemoveResult {
+	    removed: boolean;
+	    loss?: gitx.LossError;
+	
+	    static createFrom(source: any = {}) {
+	        return new WorktreeRemoveResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.removed = source["removed"];
+	        this.loss = this.convertValues(source["loss"], gitx.LossError);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -285,6 +647,22 @@ export namespace settings {
 	        this.stallSeconds = source["stallSeconds"];
 	    }
 	}
+	export class Git {
+	    editor: string;
+	    worktreeDir: string;
+	    defaultMode: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Git(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.editor = source["editor"];
+	        this.worktreeDir = source["worktreeDir"];
+	        this.defaultMode = source["defaultMode"];
+	    }
+	}
 	export class Notify {
 	    enabled: boolean;
 	    sound: boolean;
@@ -306,6 +684,7 @@ export namespace settings {
 	export class Settings {
 	    notify: Notify;
 	    activity: Activity;
+	    git: Git;
 	
 	    static createFrom(source: any = {}) {
 	        return new Settings(source);
@@ -315,6 +694,7 @@ export namespace settings {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.notify = this.convertValues(source["notify"], Notify);
 	        this.activity = this.convertValues(source["activity"], Activity);
+	        this.git = this.convertValues(source["git"], Git);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

@@ -14,6 +14,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/elionaz/agenterm/internal/client"
+	"github.com/elionaz/agenterm/internal/gitx"
 	"github.com/elionaz/agenterm/internal/paths"
 	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/project"
@@ -27,6 +28,7 @@ const (
 	flushDelay = 8 * time.Millisecond
 	flushBytes = 32 * 1024
 	callTO     = 10 * time.Second
+	gitTO      = 70 * time.Second // diffs, worktree creation, merges
 )
 
 // Event names emitted to the frontend. Per-session events are suffixed
@@ -139,7 +141,11 @@ func (a *App) ensureDaemon(ctx context.Context) error {
 
 // call runs fn with a timeout, starting the daemon first if needed.
 func (a *App) call(fn func(ctx context.Context) error) error {
-	ctx, cancel := context.WithTimeout(a.ctx, callTO)
+	return a.callTimeout(callTO, fn)
+}
+
+func (a *App) callTimeout(to time.Duration, fn func(ctx context.Context) error) error {
+	ctx, cancel := context.WithTimeout(a.ctx, to)
 	defer cancel()
 	if err := a.ensureDaemon(ctx); err != nil {
 		return fmt.Errorf("start daemon: %w", err)
@@ -304,10 +310,26 @@ func (a *App) ListSessions() ([]protocol.SessionInfo, error) {
 }
 
 func (a *App) Spawn(projectID, profileID string, cols, rows int) (protocol.SessionInfo, error) {
+	return a.SpawnIn(projectID, profileID, cols, rows, SpawnOptions{})
+}
+
+// SpawnOptions choose where a session runs (see protocol.SpawnParams).
+type SpawnOptions struct {
+	Mode       string `json:"mode"` // same | worktree
+	Branch     string `json:"branch"`
+	Base       string `json:"base"`
+	WorktreeID string `json:"worktreeId"` // reopen an existing worktree
+}
+
+// SpawnIn launches a session in the project folder, a new worktree or an
+// existing one.
+func (a *App) SpawnIn(projectID, profileID string, cols, rows int, o SpawnOptions) (protocol.SessionInfo, error) {
 	var info protocol.SessionInfo
-	err := a.call(func(ctx context.Context) (err error) {
+	// Creating a worktree checks out files: allow more than a plain call.
+	err := a.callTimeout(gitTO, func(ctx context.Context) (err error) {
 		info, err = a.client.Spawn(ctx, protocol.SpawnParams{
 			ProjectID: projectID, ProfileID: profileID, Cols: clampDim(cols), Rows: clampDim(rows),
+			Mode: o.Mode, Branch: o.Branch, Base: o.Base, WorktreeID: o.WorktreeID,
 		})
 		return err
 	})
@@ -489,4 +511,82 @@ func nonNil[T any](s []T) []T {
 		return []T{}
 	}
 	return s
+}
+
+// --- Git worktrees & diffs ----------------------------------------------------
+
+// ProjectGit tells the spawn menu whether worktrees are available, the
+// branches and the default base.
+func (a *App) ProjectGit(projectID string) (protocol.ProjectGit, error) {
+	var out protocol.ProjectGit
+	err := a.call(func(ctx context.Context) (err error) {
+		out, err = a.client.ProjectGit(ctx, projectID)
+		return err
+	})
+	out.Branches = nonNil(out.Branches)
+	return out, err
+}
+
+// SessionDiff returns a session's changes (with per-file patches).
+func (a *App) SessionDiff(id string) (protocol.DiffResult, error) {
+	var out protocol.DiffResult
+	err := a.callTimeout(gitTO, func(ctx context.Context) (err error) {
+		out, err = a.client.SessionDiff(ctx, id, false)
+		return err
+	})
+	return diffNonNil(out), err
+}
+
+// WorktreeDiff returns a worktree's changes (orphans included).
+func (a *App) WorktreeDiff(id string) (protocol.DiffResult, error) {
+	var out protocol.DiffResult
+	err := a.callTimeout(gitTO, func(ctx context.Context) (err error) {
+		out, err = a.client.WorktreeDiff(ctx, id, false)
+		return err
+	})
+	return diffNonNil(out), err
+}
+
+func diffNonNil(d protocol.DiffResult) protocol.DiffResult {
+	d.Files = nonNil(d.Files)
+	d.Commits = nonNil(d.Commits)
+	return d
+}
+
+// ListWorktrees lists a project's agenterm worktrees.
+func (a *App) ListWorktrees(projectID string) ([]protocol.WorktreeInfo, error) {
+	var out []protocol.WorktreeInfo
+	err := a.callTimeout(gitTO, func(ctx context.Context) (err error) {
+		out, err = a.client.Worktrees(ctx, projectID)
+		return err
+	})
+	return nonNil(out), err
+}
+
+// RemoveWorktree removes a worktree; dryRun only reports what would be lost.
+func (a *App) RemoveWorktree(id string, force, deleteBranch, dryRun bool) (protocol.WorktreeRemoveResult, error) {
+	var out protocol.WorktreeRemoveResult
+	err := a.callTimeout(gitTO, func(ctx context.Context) (err error) {
+		out, err = a.client.WorktreeRemove(ctx, protocol.WorktreeRemoveParams{ID: id, Force: force, DeleteBranch: deleteBranch, DryRun: dryRun})
+		return err
+	})
+	return out, err
+}
+
+// MergeWorktree merges a worktree's branch into its base (main folder).
+func (a *App) MergeWorktree(id string) (gitx.MergeResult, error) {
+	var out gitx.MergeResult
+	err := a.callTimeout(gitTO, func(ctx context.Context) (err error) {
+		out, err = a.client.WorktreeMerge(ctx, id)
+		return err
+	})
+	return out, err
+}
+
+// OpenWorktree opens a worktree (id) or a session's folder (sessionID) in
+// the editor or Finder (target: editor | finder).
+func (a *App) OpenWorktree(id, sessionID, target string) error {
+	return a.call(func(ctx context.Context) error {
+		return a.client.WorktreeOpen(ctx, protocol.WorktreeOpenParams{ID: id, SessionID: sessionID, Target: target})
+	})
 }

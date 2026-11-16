@@ -1,6 +1,6 @@
 // Thin typed layer over the generated Wails bindings.
 import * as App from '../../wailsjs/go/main/App'
-import type { profile, project, protocol, settings } from '../../wailsjs/go/models'
+import type { gitx, main, profile, project, protocol, settings } from '../../wailsjs/go/models'
 
 // Plain data (the generated classes carry a convertValues helper we never use).
 export type Project = Omit<project.Project, 'convertValues'>
@@ -12,6 +12,16 @@ export type Settings = Omit<settings.Settings, 'convertValues'>
 export type Session = Omit<protocol.SessionInfo, 'convertValues'>
 export type SessionState = 'running' | 'waiting_input' | 'idle' | 'exited'
 export type AttentionKind = 'permission' | 'question' | 'done' | 'error'
+export type SpawnMode = 'same' | 'worktree'
+export type SpawnOptions = main.SpawnOptions
+export type GitInfo = Omit<protocol.GitInfo, 'convertValues'>
+export type DiffFile = gitx.DiffFile
+export type Commit = Omit<gitx.Commit, 'convertValues'>
+export type DiffResult = Omit<protocol.DiffResult, 'convertValues'>
+export type WorktreeInfo = Omit<protocol.WorktreeInfo, 'convertValues'>
+export type ProjectGit = protocol.ProjectGit
+export type LossInfo = Omit<gitx.LossError, 'convertValues'>
+export type MergeResult = gitx.MergeResult
 
 /** Mirrors protocol.Progress (terminal OSC 9;4 progress). */
 export interface Progress {
@@ -35,7 +45,14 @@ export interface Live {
 
 /** Mirrors protocol.Event (Go). */
 export interface DaemonEvent extends Live {
-  type: 'session.spawned' | 'session.state' | 'session.removed' | 'session.attention' | 'session.activity'
+  type:
+    | 'session.spawned'
+    | 'session.state'
+    | 'session.removed'
+    | 'session.attention'
+    | 'session.activity'
+    | 'session.git'
+    | 'worktree.changed'
   sessionId: string
   state?: SessionState
   prevState?: string
@@ -50,6 +67,10 @@ export interface DaemonEvent extends Live {
   raised?: boolean
   /** session.activity: the session just became stalled. */
   stallRaised?: boolean
+  /** session.git: the new change summary (absent: no longer a git folder). */
+  git?: GitInfo
+  /** worktree.changed: whose worktree list changed. */
+  projectId?: string
 }
 
 /** A session needs the user and they have not looked at it yet. */
@@ -85,10 +106,28 @@ export const api = {
   reorderProfiles: (ids: string[]): Promise<Profile[]> => App.ReorderProfiles(ids),
   rescanProfiles: (): Promise<Profile[]> => App.RescanProfiles(),
   getSettings: (): Promise<Settings> => App.GetSettings(),
-  saveSettings: (s: Settings): Promise<Settings> => App.SaveSettings(s as settings.Settings),
+  /** Fields left out keep their saved values. */
+  saveSettings: (s: Partial<Settings>): Promise<Settings> => App.SaveSettings(s as settings.Settings),
   listSessions: (): Promise<Session[]> => App.ListSessions(),
-  spawn: (projectId: string, profileId: string, cols: number, rows: number) =>
-    App.Spawn(projectId, profileId, cols, rows),
+  spawn: (projectId: string, profileId: string, cols: number, rows: number, opts?: Partial<SpawnOptions>) =>
+    App.SpawnIn(projectId, profileId, cols, rows, {
+      mode: opts?.mode ?? '',
+      branch: opts?.branch ?? '',
+      base: opts?.base ?? '',
+      worktreeId: opts?.worktreeId ?? '',
+    }),
+  /** Whether a project can use worktrees, its branches and default base. */
+  projectGit: (projectId: string): Promise<ProjectGit> => App.ProjectGit(projectId),
+  sessionDiff: (id: string): Promise<DiffResult> => App.SessionDiff(id),
+  worktreeDiff: (id: string): Promise<DiffResult> => App.WorktreeDiff(id),
+  listWorktrees: (projectId: string): Promise<WorktreeInfo[]> => App.ListWorktrees(projectId),
+  /** dryRun: only report what would be lost (result.loss). */
+  removeWorktree: (id: string, o: { force?: boolean; deleteBranch?: boolean; dryRun?: boolean }) =>
+    App.RemoveWorktree(id, !!o.force, !!o.deleteBranch, !!o.dryRun),
+  mergeWorktree: (id: string): Promise<MergeResult> => App.MergeWorktree(id),
+  /** Opens a worktree (id) or a session's folder in the editor or Finder. */
+  openFolder: (target: 'editor' | 'finder', ref: { worktreeId?: string; sessionId?: string }) =>
+    App.OpenWorktree(ref.worktreeId ?? '', ref.sessionId ?? '', target),
   kill: (id: string) => App.Kill(id),
   attach: (id: string, cols: number, rows: number) => App.Attach(id, cols, rows),
   detach: (id: string) => App.Detach(id),
@@ -103,6 +142,30 @@ export const api = {
   setVisibleSession: (id: string) => App.SetVisibleSession(id),
   /** Session a notification click asked for before the UI was up ('' if none). */
   takePendingFocus: (): Promise<string> => App.TakePendingFocus(),
+}
+
+/** "±3" for a session's changed files ('' when unknown). */
+export function changesLabel(g: GitInfo | undefined | null): string {
+  return g ? `±${g.files}` : ''
+}
+
+/** Last spawn mode chosen for a project (localStorage), else the default. */
+export function rememberedMode(projectId: string, fallback: SpawnMode): SpawnMode {
+  try {
+    const v = localStorage.getItem(`agenterm.spawnMode.${projectId}`)
+    if (v === 'same' || v === 'worktree') return v
+  } catch {
+    /* storage unavailable */
+  }
+  return fallback
+}
+
+export function rememberMode(projectId: string, mode: SpawnMode) {
+  try {
+    localStorage.setItem(`agenterm.spawnMode.${projectId}`, mode)
+  } catch {
+    /* storage unavailable */
+  }
 }
 
 /** Profiles that belong in a spawn menu (enabled, installed, valid). */

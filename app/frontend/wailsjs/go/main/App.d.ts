@@ -4,6 +4,8 @@ import {project} from '../models';
 import {protocol} from '../models';
 import {profile} from '../models';
 import {settings} from '../models';
+import {gitx} from '../models';
+import {main} from '../models';
 
 export function Ack(arg1:string):Promise<void>;
 
@@ -29,9 +31,19 @@ export function ListProjects():Promise<Array<project.Project>>;
 
 export function ListSessions():Promise<Array<protocol.SessionInfo>>;
 
+export function ListWorktrees(arg1:string):Promise<Array<protocol.WorktreeInfo>>;
+
+export function MergeWorktree(arg1:string):Promise<gitx.MergeResult>;
+
+export function OpenWorktree(arg1:string,arg2:string,arg3:string):Promise<void>;
+
 export function ProfileCatalog():Promise<Array<protocol.CatalogInfo>>;
 
+export function ProjectGit(arg1:string):Promise<protocol.ProjectGit>;
+
 export function RemoveProject(arg1:string):Promise<void>;
+
+export function RemoveWorktree(arg1:string,arg2:boolean,arg3:boolean,arg4:boolean):Promise<protocol.WorktreeRemoveResult>;
 
 export function ReorderProfiles(arg1:Array<string>):Promise<Array<profile.Profile>>;
 
@@ -43,10 +55,16 @@ export function SaveProfile(arg1:profile.Entry):Promise<Array<profile.Profile>>;
 
 export function SaveSettings(arg1:settings.Settings):Promise<settings.Settings>;
 
+export function SessionDiff(arg1:string):Promise<protocol.DiffResult>;
+
 export function SetVisibleSession(arg1:string):Promise<void>;
 
 export function Spawn(arg1:string,arg2:string,arg3:number,arg4:number):Promise<protocol.SessionInfo>;
 
+export function SpawnIn(arg1:string,arg2:string,arg3:number,arg4:number,arg5:main.SpawnOptions):Promise<protocol.SessionInfo>;
+
 export function Tail(arg1:string,arg2:number):Promise<Array<string>>;
 
 export function TakePendingFocus():Promise<string>;
+
+export function WorktreeDiff(arg1:string):Promise<protocol.DiffResult>;

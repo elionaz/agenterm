@@ -19,7 +19,7 @@
 
   let { profiles, onProfiles, onClose }: Props = $props()
 
-  type Tab = 'agents' | 'notify'
+  type Tab = 'agents' | 'notify' | 'git'
   type Mode = 'edit' | 'new' | 'variant'
   interface Form {
     id: string
@@ -51,6 +51,13 @@
   let savedNotify = $state<string>('')
   let notifyError = $state<string | null>(null)
   let notifySaved = $state(false)
+
+  /** git.* as edited in the Git tab. */
+  let git = $state<Settings['git'] | null>(null)
+  let savedGit = ''
+  let gitError = $state<string | null>(null)
+  let gitSaved = $state(false)
+  const gitDirty = $derived(git != null && JSON.stringify(git) !== savedGit)
 
   const installedCount = $derived(profiles.filter((p) => p.installed).length)
   const notifyDirty = $derived(notify != null && JSON.stringify([notify, stallSeconds.trim()]) !== savedNotify)
@@ -279,6 +286,30 @@
     notify = { ...s.notify, notifyOnStall: s.notify.notifyOnStall ?? true }
     stallSeconds = String(s.activity?.stallSeconds ?? 180)
     savedNotify = JSON.stringify([notify, stallSeconds.trim()])
+    git = {
+      editor: s.git?.editor ?? '',
+      worktreeDir: s.git?.worktreeDir ?? '',
+      defaultMode: s.git?.defaultMode === 'worktree' ? 'worktree' : 'same',
+    }
+    savedGit = JSON.stringify(git)
+  }
+
+  async function saveGit() {
+    if (!git) return
+    gitSaved = false
+    const dir = git.worktreeDir.trim()
+    if (dir && !dir.startsWith('/') && !dir.startsWith('~/')) {
+      gitError = 'Carpeta de worktrees: escribe una ruta absoluta (o que empiece por ~/), o déjala vacía'
+      return
+    }
+    try {
+      const s = await api.saveSettings({ git: { editor: git.editor.trim(), worktreeDir: dir, defaultMode: git.defaultMode } })
+      applySettings(s)
+      gitError = null
+      gitSaved = true
+    } catch (e) {
+      gitError = errorMessage(e)
+    }
   }
 
   async function saveNotify() {
@@ -508,7 +539,7 @@
           catálogo.
         </p>
       </section>
-    {:else}
+    {:else if tab === 'notify'}
       <section class="pane narrow">
         {#if notify}
           <label class="check">
@@ -553,6 +584,47 @@
           <p class="hint">Se guarda en <code>settings.yaml</code>; la app y el daemon lo releen en cada aviso.</p>
         {/if}
         {#if notifyError}
+          <div class="error">{notifyError}</div>
+          <button class="btn" onclick={loadSettings}>Reintentar</button>
+        {/if}
+      </section>
+    {:else}
+      <section class="pane narrow">
+        {#if git}
+          <div class="check">
+            <span>
+              <b>Modo por defecto al lanzar</b>
+              <em>Lo que el menú <b>+</b> propone si aún no elegiste nada en ese proyecto (se recuerda la última elección por proyecto).</em>
+              <span class="radios">
+                <label><input type="radio" bind:group={git.defaultMode} value="same" /> Misma carpeta</label>
+                <label><input type="radio" bind:group={git.defaultMode} value="worktree" /> Worktree nuevo</label>
+              </span>
+            </span>
+          </div>
+          <label class="field">
+            <span>
+              <b>Editor</b>
+              <em>Para «Abrir en editor»: un comando (<code>code</code>, <code>cursor -n</code>, <code>zed</code>) o el nombre de una app de macOS (<code>Visual Studio Code</code>). Vacío: <code>code</code> si está instalado, si no Finder.</em>
+            </span>
+            <input class="text" bind:value={git.editor} placeholder="code" spellcheck="false" />
+          </label>
+          <label class="field">
+            <span>
+              <b>Carpeta de worktrees</b>
+              <em>Dónde se crean (nunca dentro del proyecto). Vacío: <code>~/.agenterm/worktrees</code>. Afecta a los worktrees nuevos.</em>
+            </span>
+            <input class="text" bind:value={git.worktreeDir} placeholder="~/.agenterm/worktrees" spellcheck="false" />
+          </label>
+          <div class="editor-actions left">
+            <button class="btn primary" disabled={!gitDirty} onclick={saveGit}>Guardar</button>
+            {#if gitSaved && !gitDirty}<span class="saved">Guardado ✓</span>{/if}
+          </div>
+          <p class="hint">Se guarda en <code>settings.yaml</code> (<code>git.editor</code>, <code>git.worktree_dir</code>, <code>git.default_mode</code>).</p>
+        {/if}
+        {#if gitError}
+          <div class="error">{gitError}</div>
+        {/if}
+        {#if notifyError && !git}
           <div class="error">{notifyError}</div>
           <button class="btn" onclick={loadSettings}>Reintentar</button>
         {/if}
@@ -988,5 +1060,25 @@
     width: 80px;
     flex: none;
     text-align: right;
+  }
+  .field .text {
+    width: 220px;
+    flex: none;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .radios {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 16px !important;
+    margin-top: 6px;
+  }
+  .radios label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .radios input {
+    accent-color: var(--blue);
   }
 </style>

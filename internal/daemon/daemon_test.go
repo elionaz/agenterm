@@ -27,6 +27,9 @@ const testProfiles = `
 - id: shell
   cmd: /bin/sh
   idle_seconds: 0.2
+- id: hookedclaude
+  cmd: /bin/echo
+  setup_hooks: claude
 `
 
 // hermeticPath keeps detection off the login shell (and the user's rc files).
@@ -52,6 +55,13 @@ func startDaemonWith(t *testing.T, notifier func(daemon.Notification)) (*client.
 	if err := os.WriteFile(p.Profiles(), []byte(testProfiles), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	c, stop := startDaemonIn(t, p, notifier)
+	return c, p, stop
+}
+
+// startDaemonIn runs a daemon on existing paths (e.g. a restart).
+func startDaemonIn(t *testing.T, p paths.Paths, notifier func(daemon.Notification)) (*client.Client, func()) {
+	t.Helper()
 	srv, err := daemon.New(daemon.Config{
 		Paths:      p,
 		IdleAfter:  time.Hour, // keep the heuristic out of the way unless a profile overrides it
@@ -93,7 +103,7 @@ func startDaemonWith(t *testing.T, notifier func(daemon.Notification)) (*client.
 		}
 	}
 	t.Cleanup(stop)
-	return c, p, stop
+	return c, stop
 }
 
 func ctxT(t *testing.T) context.Context {
