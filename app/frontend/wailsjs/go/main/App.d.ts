@@ -17,6 +17,10 @@ export function DeleteProfile(arg1:string):Promise<Array<profile.Profile>>;
 
 export function Detach(arg1:string):Promise<void>;
 
+export function Discard(arg1:string):Promise<protocol.SessionInfo>;
+
+export function DiscardAll():Promise<protocol.SessionBatch>;
+
 export function GetSettings():Promise<settings.Settings>;
 
 export function Input(arg1:string,arg2:string):Promise<void>;
@@ -50,6 +54,10 @@ export function ReorderProfiles(arg1:Array<string>):Promise<Array<profile.Profil
 export function RescanProfiles():Promise<Array<profile.Profile>>;
 
 export function Resize(arg1:string,arg2:number,arg3:number):Promise<void>;
+
+export function Resume(arg1:string):Promise<protocol.SessionInfo>;
+
+export function ResumeAll():Promise<protocol.SessionBatch>;
 
 export function SaveProfile(arg1:profile.Entry):Promise<Array<profile.Profile>>;
 

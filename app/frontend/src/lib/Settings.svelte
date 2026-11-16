@@ -87,6 +87,23 @@
       languageError = errorMessage(e)
     }
   }
+  /** sessions.restore (saved right away). */
+  let restore = $state<'ask' | 'always' | 'never'>('ask')
+  let restoreError = $state<string | null>(null)
+
+  async function saveRestore(v: 'ask' | 'always' | 'never') {
+    const prev = restore
+    restore = v
+    restoreError = null
+    try {
+      const s = await api.saveSettings({ sessions: { restore: v } })
+      onSettings?.(s)
+    } catch (e) {
+      restore = prev
+      restoreError = errorMessage(e)
+    }
+  }
+
   const notifyDirty = $derived(notify != null && JSON.stringify([notify, stallSeconds.trim()]) !== savedNotify)
 
   function sourceLabel(p: Profile): string {
@@ -321,6 +338,8 @@
     savedGit = JSON.stringify(git)
     setLangSetting(s.ui?.language)
     language = langSetting()
+    const r = s.sessions?.restore
+    restore = r === 'always' || r === 'never' ? r : 'ask'
   }
 
   async function saveGit() {
@@ -473,6 +492,22 @@
         </label>
         {#if languageError}<div class="error">{languageError}</div>{/if}
         <p class="hint">{@html th('settings.languageHint')}</p>
+        <label class="field">
+          <span>
+            <b>{t('settings.restore')}</b>
+            <em>{t('settings.restoreHelp')}</em>
+          </span>
+          <select
+            class="lang"
+            value={restore}
+            onchange={(e) => saveRestore((e.currentTarget as HTMLSelectElement).value as 'ask' | 'always' | 'never')}
+          >
+            <option value="ask">{t('settings.restore.ask')}</option>
+            <option value="always">{t('settings.restore.always')}</option>
+            <option value="never">{t('settings.restore.never')}</option>
+          </select>
+        </label>
+        {#if restoreError}<div class="error">{restoreError}</div>{/if}
       </section>
     {:else if tab === 'agents'}
       <section class="pane">

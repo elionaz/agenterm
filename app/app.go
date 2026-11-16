@@ -396,6 +396,44 @@ func (a *App) Kill(id string) (protocol.SessionInfo, error) {
 	return info, err
 }
 
+// Resume respawns a session suspended by a daemon restart (same id).
+func (a *App) Resume(id string) (protocol.SessionInfo, error) {
+	b, err := a.suspended(id, false, a.client.Resume)
+	if err != nil || len(b.Sessions) == 0 {
+		return protocol.SessionInfo{}, err
+	}
+	return b.Sessions[0], nil
+}
+
+// Discard forgets a suspended session and its saved scrollback.
+func (a *App) Discard(id string) (protocol.SessionInfo, error) {
+	b, err := a.suspended(id, false, a.client.Discard)
+	if err != nil || len(b.Sessions) == 0 {
+		return protocol.SessionInfo{}, err
+	}
+	return b.Sessions[0], nil
+}
+
+// ResumeAll resumes every suspended session (failures in Failed).
+func (a *App) ResumeAll() (protocol.SessionBatch, error) {
+	return a.suspended("", true, a.client.Resume)
+}
+
+// DiscardAll discards every suspended session.
+func (a *App) DiscardAll() (protocol.SessionBatch, error) {
+	return a.suspended("", true, a.client.Discard)
+}
+
+func (a *App) suspended(id string, all bool, fn func(context.Context, string, bool) (protocol.SessionBatch, error)) (protocol.SessionBatch, error) {
+	var out protocol.SessionBatch
+	err := a.callTimeout(gitTO, func(ctx context.Context) (err error) {
+		out, err = fn(ctx, id, all)
+		return err
+	})
+	out.Sessions = nonNil(out.Sessions)
+	return out, err
+}
+
 // Attach (re)opens the output stream of a session. The frontend must listen
 // to `pty:<id>` before calling it: the daemon replays the scrollback first,
 // then `pty-replay-done:<id>`, then live output. Attaching an already

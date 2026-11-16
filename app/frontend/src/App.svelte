@@ -227,6 +227,26 @@
     sessions = sessions.map((s) => (s.id === id ? { ...s, ...info } : s))
   }
 
+  async function resume(id: string) {
+    const info = await guard(api.resume(id))
+    if (info) sessions = sessions.map((s) => (s.id === id ? info : s))
+  }
+
+  async function discard(id: string) {
+    await guard(api.discard(id)) // session.removed updates the list
+  }
+
+  async function resumeAll() {
+    const b = await guard(api.resumeAll())
+    if (b?.failed?.length) showError(b.failed.map((f) => `${f.sessionId}: ${f.error}`).join('\n'))
+    void refreshSessions()
+  }
+
+  async function discardAll() {
+    await guard(api.discardAll())
+    void refreshSessions()
+  }
+
   async function addProject() {
     const p = await guard(api.addProject())
     if (!p) return
@@ -392,6 +412,10 @@
     onSelectProject={selectProject}
     onSpawn={spawn}
     onKill={kill}
+    onResume={resume}
+    onDiscard={discard}
+    onResumeAll={resumeAll}
+    onDiscardAll={discardAll}
     onAddProject={addProject}
     onRemoveProject={removeProject}
     onOpenSettings={openSettings}
