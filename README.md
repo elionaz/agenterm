@@ -4,172 +4,178 @@
 
 # agenterm
 
-Workspace de escritorio para agentes de código, organizado por proyecto. Las pestañas de una
-terminal no se pueden agrupar por proyecto, y cuando lanzas varios agentes (Claude Code, codex,
-opencode, Gemini, Cursor…) sobre el mismo repo es difícil saber cuál está trabajando, cuál terminó
-y cuál está esperando tu aprobación. agenterm agrupa las sesiones por proyecto, mantiene los agentes
-vivos aunque cierres la app y te avisa cuando alguno te necesita.
+**English** · [Español](README.es.md)
 
-<!-- TODO: captura — añadir docs/img/screenshot.png -->
+A desktop workspace for coding agents, organized by project. Terminal tabs can't be grouped by
+project, and once you run several agents (Claude Code, codex, opencode, Gemini, Cursor…) on the same
+repo it's hard to tell which one is working, which one is done and which one is waiting for your
+approval. agenterm groups sessions by project, keeps agents alive even after you close the app and
+tells you when one of them needs you.
 
-## Funciones
+<!-- TODO: screenshot — add docs/img/screenshot.png -->
 
-- **Proyectos y sesiones** en una barra lateral: cada proyecto es una carpeta y cada sesión una
-  terminal (xterm.js) con un agente o una shell.
-- **Cualquier CLI de agente**: catálogo integrado (Claude Code, codex, opencode, Gemini, Cursor,
-  Copilot, aider, Amp, goose, Qwen, Crush, Kiro, shell) con detección automática de los instalados,
-  más perfiles propios y variantes en `profiles.yaml`.
-- **Las sesiones sobreviven a la app**: un daemon es dueño de las PTYs; cierras la ventana, la
-  reabres y todo sigue ahí con su scrollback. La CLI y la app comparten el mismo daemon.
-- **Detección de atención**: aprobaciones, preguntas, turnos terminados y errores (hooks del agente
-  o señales de terminal), con notificaciones nativas de macOS, badge del Dock y marcas en la sidebar.
-- **Actividad en vivo**: qué está haciendo cada agente ("Editando main.go"), cronómetro del turno,
-  aviso de «¿trabado?», barras de progreso (OSC 9;4) y una vista general en rejilla (⌘0).
-- **Worktrees de git por sesión**: cada agente puede trabajar en su propia rama y carpeta; la
-  pestaña **Cambios** muestra el diff y permite hacer merge a la base o eliminar el worktree de forma
-  segura.
-- **Ajustes en la app**: activar, ordenar y editar agentes, y configurar las notificaciones y git.
+## Features
 
-## Estado y requisitos
+- **Projects and sessions** in a sidebar: each project is a folder and each session is a terminal
+  (xterm.js) running an agent or a shell.
+- **Any agent CLI**: a built-in catalog (Claude Code, codex, opencode, Gemini, Cursor, Copilot,
+  aider, Amp, goose, Qwen, Crush, Kiro, shell) that detects which ones are installed, plus your own
+  profiles and variants in `profiles.yaml`.
+- **Sessions outlive the app**: a daemon owns the PTYs; close the window, reopen it and everything
+  is still there, scrollback included. The CLI and the app share the same daemon.
+- **Attention detection**: approvals, questions, finished turns and errors (agent hooks or terminal
+  signals), with native macOS notifications, a Dock badge and sidebar markers.
+- **Live activity**: what each agent is doing ("Editing main.go"), a turn timer, a "stalled?"
+  warning, progress bars (OSC 9;4) and a grid overview (⌘0).
+- **Per-session git worktrees**: each agent can work on its own branch and folder; the **Changes**
+  tab shows the diff and lets you merge into the base or safely remove the worktree.
+- **In-app settings**: enable, reorder and edit agents, and configure the language, notifications
+  and git.
+- **English and Spanish**: the app follows your macOS preferred languages (falling back to English)
+  or the language you pick in **Settings → General**.
 
-Proyecto en etapa temprana: todavía no hay releases firmadas, así que hay que compilarlo desde el
-código fuente.
+## Status and requirements
 
-- **macOS** (probado en Apple Silicon). La app y las notificaciones son exclusivas de macOS.
-- **Go 1.27.4+** (ver `go.mod`).
-- **Node 24+** y npm (para el frontend; es la versión que usa el CI).
-- **CLI de Wails v2**: `go install github.com/wailsapp/wails/v2/cmd/wails@v2.17.1` (`wails doctor`
-  debe pasar).
+Early-stage project: there are no signed releases yet, so you have to build it from source.
 
-## Instalación desde el código fuente
+- **macOS** (tested on Apple Silicon). The app and notifications are macOS-only.
+- **Go 1.27.4+** (see `go.mod`).
+- **Node 24+** and npm (for the frontend; it's the version CI uses).
+- **Wails v2 CLI**: `go install github.com/wailsapp/wails/v2/cmd/wails@v2.17.1` (`wails doctor`
+  must pass).
+
+## Building from source
 
 ```sh
 git clone https://github.com/elionaz/agenterm.git
 cd agenterm
 
-# App de escritorio (incluye el daemon)
+# Desktop app (includes the daemon)
 cd app && wails build          # -> app/build/bin/agenterm.app
-open build/bin/agenterm.app    # o cópiala a /Applications
+open build/bin/agenterm.app    # or copy it to /Applications
 
-# CLI (opcional)
+# CLI (optional)
 cd .. && go build -o agenterm ./cmd/agenterm
 ```
 
-La primera vez que abras la app, macOS pregunta si permites notificaciones. Si lo rechazaste:
-*Ajustes del Sistema → Notificaciones → agenterm* → "Permitir notificaciones".
+The first time you open the app, macOS asks whether to allow notifications. If you declined:
+*System Settings → Notifications → agenterm* → "Allow notifications".
 
-## Inicio rápido
+## Quick start
 
-**App.** Haz clic en **+ Proyecto** y elige una carpeta. Con el **+** junto al proyecto eliges un agente
-y si corre en la misma carpeta o en un worktree nuevo; **⌘N** lanza el primer agente de la lista.
-Cuando un agente te necesita verás un punto ámbar en la sidebar y una notificación.
+**App.** Click the sidebar's **+ Project** button and pick a folder. With the **+** next to a
+project you choose an agent and whether it runs in the project folder or in a new worktree; **⌘N**
+launches the first agent in the list. When an agent needs you, you'll see an amber dot in the sidebar
+and get a notification.
 
-**CLI.** Cualquier comando arranca el daemon si no está corriendo:
+**CLI.** Any command starts the daemon if it isn't running:
 
 ```sh
-agenterm project add ~/Dev/miapp           # -> <projectId>  miapp  /Users/yo/Dev/miapp
-agenterm profiles                          # agentes del catálogo, instalados o no
-agenterm spawn miapp claude                # -> <sessionId>
-agenterm spawn --worktree miapp codex      # -> <sessionId>  <rama>  <carpeta>
-agenterm ls                                # estado, atención, actividad, rama…
-agenterm attach <sessionId>                # Ctrl-\ para desacoplar; la sesión sigue viva
-agenterm stop                              # se niega si quedan sesiones vivas (usa --force)
+agenterm project add ~/Dev/myapp           # -> <projectId>  myapp  /Users/me/Dev/myapp
+agenterm profiles                          # catalog agents, installed or not
+agenterm spawn myapp claude                # -> <sessionId>
+agenterm spawn --worktree myapp codex      # -> <sessionId>  <branch>  <folder>
+agenterm ls                                # state, attention, activity, branch…
+agenterm attach <sessionId>                # Ctrl-\ to detach; the session keeps running
+agenterm stop                              # refuses while sessions are live (use --force)
 ```
 
-Referencia completa: [docs/cli.md](docs/cli.md).
+Full reference: [docs/cli.md](docs/cli.md).
 
-## Cómo se detecta la atención
+## How attention is detected
 
-Todo se configura **solo para las sesiones que lanza agenterm**, con flags en la línea de comandos y
-archivos generados en `~/.agenterm/hooks/`. Nunca se modifican tus configuraciones
-(`~/.claude/settings.json`, `~/.codex/config.toml`…) ni la carpeta del proyecto.
+Everything is configured **only for the sessions agenterm launches**, through command-line flags and
+files generated in `~/.agenterm/hooks/`. Your own configuration (`~/.claude/settings.json`,
+`~/.codex/config.toml`…) and the project folder are never modified.
 
-| agente | mecanismo | qué detecta |
+| agent | mechanism | what it detects |
 |---|---|---|
-| Claude Code | hooks vía `claude --settings <archivo generado>` (se suman a los tuyos) | trabajando + actividad, aprobación, pregunta, terminó, error |
-| codex | `codex -c notify=[…]` + notificaciones OSC 9 del TUI | terminó (`notify`); aprobaciones y preguntas (OSC 9) |
-| los demás | señales de terminal: BEL, OSC 9, OSC 777, OSC 99 y `attention_patterns` | esperando tu respuesta |
+| Claude Code | hooks via `claude --settings <generated file>` (added on top of yours) | working + activity, approval, question, done, error |
+| codex | `codex -c notify=[…]` + OSC 9 notifications from the TUI | done (`notify`); approvals and questions (OSC 9) |
+| everything else | terminal signals: BEL, OSC 9, OSC 777, OSC 99 and `attention_patterns` | waiting for your reply |
 
-Detalles (estados, *ack*, «¿trabado?», progreso, notificaciones con la app cerrada):
+Details (states, *ack*, "stalled?", progress, notifications while the app is closed):
 [docs/attention-and-activity.md](docs/attention-and-activity.md).
 
-## Configuración
+## Configuration
 
-| | por defecto | con `AGENTERM_HOME=/x` |
+| | default | with `AGENTERM_HOME=/x` |
 |---|---|---|
-| socket, pid, log del daemon | `~/.agenterm/{d.sock,d.pid,daemon.log}` | `/x/…` |
+| daemon socket, pid, log | `~/.agenterm/{d.sock,d.pid,daemon.log}` | `/x/…` |
 | `profiles.yaml`, `settings.yaml`, `projects.json` | `~/.config/agenterm/` | `/x/` |
-| hooks generados, worktrees, `worktrees.json` | `~/.agenterm/{hooks,worktrees,worktrees.json}` | `/x/…` |
+| generated hooks, worktrees, `worktrees.json` | `~/.agenterm/{hooks,worktrees,worktrees.json}` | `/x/…` |
 
-`profiles.yaml` y `settings.yaml` son opcionales y la app los edita desde **Ajustes** (⌘,).
+`profiles.yaml` and `settings.yaml` are optional, and the app edits them from **Settings** (⌘,).
 
-**`profiles.yaml`** se superpone al catálogo por `id`: cambias solo los campos que pongas, creas
-variantes con `extends`, ocultas agentes con `enabled: false` y el orden de la lista es el del menú
-(el primero es el de ⌘N):
+**`profiles.yaml`** is layered over the catalog by `id`: you change only the fields you set, create
+variants with `extends`, hide agents with `enabled: false`, and the list order is the menu order (the
+first one is what ⌘N launches):
 
 ```yaml
-- id: claude-yolo                 # variante: hereda todo de claude
-  name: Claude (sin permisos)
+- id: claude-yolo                 # variant: inherits everything from claude
+  name: Claude (no permissions)
   extends: claude
   args: ["--dangerously-skip-permissions"]
 - id: claude
   env: {CLAUDE_CODE_USE_BEDROCK: "1"}
 - id: gemini
   enabled: false
-- id: mio                         # perfil propio
-  cmd: $HOME/bin/mi-agente
+- id: mine                        # your own profile
+  cmd: $HOME/bin/my-agent
   attention_patterns: ['\(y/n\)']
 ```
 
-**`settings.yaml`** (valores por defecto):
+**`settings.yaml`** (defaults):
 
 ```yaml
+ui:
+  language: auto         # auto (macOS preferred languages, else English) | en | es
 notify:
-  enabled: true          # notificaciones (app y daemon)
-  sound: true            # sonido en aprobación/pregunta
-  notify_on_done: true   # avisar también cuando un agente termina
-  notify_on_stall: true  # aviso discreto si un turno parece trabado
+  enabled: true          # notifications (app and daemon)
+  sound: true            # sound on approval/question
+  notify_on_done: true   # also notify when an agent finishes
+  notify_on_stall: true  # low-key notice when a turn looks stalled
 activity:
-  stall_seconds: 180     # segundos sin salida ni eventos para «¿trabado?»; 0 lo desactiva
+  stall_seconds: 180     # seconds without output or events before "stalled?"; 0 disables it
 git:
-  editor: ""             # para «Abrir en editor»; vacío: code si existe, si no Finder
-  worktree_dir: ""       # dónde crear worktrees; vacío: ~/.agenterm/worktrees
+  editor: ""             # for "Open in editor"; empty: code if available, else Finder
+  worktree_dir: ""       # where to create worktrees; empty: ~/.agenterm/worktrees
   default_mode: same     # same | worktree
 ```
 
-Todas las reglas y el catálogo completo: [docs/configuration.md](docs/configuration.md). Worktrees
-y diff: [docs/worktrees.md](docs/worktrees.md).
+All the rules and the full catalog: [docs/configuration.md](docs/configuration.md). Worktrees and
+diffs: [docs/worktrees.md](docs/worktrees.md).
 
-## Atajos de teclado
+## Keyboard shortcuts
 
-| atajo | acción |
+| shortcut | action |
 |---|---|
-| ⌘N | nueva sesión en el proyecto actual con el primer agente activado e instalado |
-| ⌘1 … ⌘9 | seleccionar la sesión n del proyecto actual |
-| ⌘0 | abrir/cerrar la vista general |
-| ⌘, | abrir Ajustes |
-| ⌘C / ⌘V | copiar la selección / pegar en la terminal |
-| Esc | cerrar la vista general, Ajustes o la vista de un worktree huérfano |
-| `Ctrl-\` | desacoplarse de `agenterm attach` (CLI) |
+| ⌘N | new session in the current project with the first enabled, installed agent |
+| ⌘1 … ⌘9 | select session n of the current project |
+| ⌘0 | open/close the overview |
+| ⌘, | open Settings |
+| ⌘C / ⌘V | copy the selection / paste into the terminal |
+| Esc | close the overview, Settings or an orphaned worktree's view |
+| `Ctrl-\` | detach from `agenterm attach` (CLI) |
 
-## Documentación
+## Documentation
 
-- [docs/cli.md](docs/cli.md): todos los comandos y flags de la CLI.
-- [docs/configuration.md](docs/configuration.md): rutas, `profiles.yaml`, catálogo de agentes y
-  `settings.yaml`.
-- [docs/attention-and-activity.md](docs/attention-and-activity.md): hooks, señales de terminal,
-  notificaciones, actividad, «¿trabado?» y progreso.
-- [docs/worktrees.md](docs/worktrees.md): worktrees por sesión, diff, merge y borrado.
-- [docs/architecture.md](docs/architecture.md): daemon, app y CLI, protocolo, eventos y
-  persistencia.
-- [docs/development.md](docs/development.md): desarrollo, tests, icono y limitaciones conocidas.
+- [docs/cli.md](docs/cli.md): every CLI command and flag.
+- [docs/configuration.md](docs/configuration.md): paths, `profiles.yaml`, the agent catalog,
+  `settings.yaml` and the app language.
+- [docs/attention-and-activity.md](docs/attention-and-activity.md): hooks, terminal signals,
+  notifications, activity, "stalled?" and progress.
+- [docs/worktrees.md](docs/worktrees.md): per-session worktrees, diff, merge and removal.
+- [docs/architecture.md](docs/architecture.md): daemon, app and CLI, protocol, events and
+  persistence.
+- [docs/development.md](docs/development.md): development, tests, the icon and known limitations.
 
-Si cambias comandos, flags, rutas o `settings.yaml`, actualiza este README y el documento
-correspondiente en `docs/`.
+If you change commands, flags, paths or `settings.yaml`, update the README and the matching document
+in `docs/`, in English (`README.md`, `docs/`) and Spanish (`README.es.md`, `docs/es/`).
 
-## Contribuir
+## Contributing
 
-Las contribuciones son bienvenidas vía pull request: lee [CONTRIBUTING.md](CONTRIBUTING.md). Para
-reportar vulnerabilidades, sigue [SECURITY.md](SECURITY.md).
+Contributions are welcome via pull request: read [CONTRIBUTING.md](CONTRIBUTING.md). To report a
+vulnerability, follow [SECURITY.md](SECURITY.md).
 
-Licencia: [MIT](LICENSE).
+License: [MIT](LICENSE).

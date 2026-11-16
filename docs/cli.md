@@ -1,169 +1,173 @@
-# Referencia de la CLI
+# CLI reference
+
+**English** · [Español](es/cli.md)
 
 ```sh
 go build -o agenterm ./cmd/agenterm
-agenterm help            # también -h / --help
+agenterm help            # also -h / --help
 ```
 
-Un solo binario hace de CLI, de daemon (`agenterm daemon`) y de callback para los hooks de los
-agentes (`agenterm notify`). El ejecutable de la app (`agenterm.app/Contents/MacOS/agenterm`)
-también implementa `daemon` y `notify`, así que la app no depende de la CLI.
+A single binary acts as the CLI, the daemon (`agenterm daemon`) and the callback for agent hooks
+(`agenterm notify`). The app's executable (`agenterm.app/Contents/MacOS/agenterm`) also implements
+`daemon` and `notify`, so the app doesn't depend on the CLI.
 
-Reglas generales:
+General rules:
 
-- Cualquier comando que hable con el daemon lo **arranca si no está corriendo** (desacoplado, con la
-  salida en `daemon.log`), salvo `stop`, `notify` y los comandos lanzados dentro de una sesión que
-  solo tienen `$AGENTERM_SOCK` (ver [Qué daemon usa un comando](#qué-daemon-usa-un-comando)).
-- Los flags pueden ir antes o después de los argumentos (`agenterm diff abc123 --stat`) y se
-  aceptan con uno o dos guiones (`-force` / `--force`).
-- Donde se pide un proyecto puedes usar su id o su nombre.
-- Los ids de proyectos y sesiones son 8 caracteres hexadecimales. El id de un worktree es el de la
-  sesión que lo creó.
-- Si algo falla, el comando imprime `agenterm: <error>` y sale con 1.
+- Any command that talks to the daemon **starts it if it isn't running** (detached, with its output
+  in `daemon.log`), except `stop`, `notify` and commands run inside a session that only have
+  `$AGENTERM_SOCK` (see [Which daemon a command uses](#which-daemon-a-command-uses)).
+- Flags can go before or after the arguments (`agenterm diff abc123 --stat`) and accept one or two
+  dashes (`-force` / `--force`).
+- Wherever a project is expected you can use its id or its name.
+- Project and session ids are 8 hex characters. A worktree's id is the id of the session that
+  created it.
+- On failure, the command prints `agenterm: <error>` and exits with 1.
+- CLI output and daemon error messages are in English, regardless of `ui.language` (see
+  [configuration.md](configuration.md#language)).
 
 ## Daemon
 
 ### `agenterm daemon [--detach] [--idle D]`
 
-Ejecuta el daemon en primer plano (log a stderr) hasta recibir SIGTERM/SIGINT o una petición de
-apagado.
+Runs the daemon in the foreground (logging to stderr) until it gets SIGTERM/SIGINT or a shutdown
+request.
 
 | flag | |
 |---|---|
-| `--detach` | lo arranca en segundo plano (log en `daemon.log`) y vuelve cuando el socket responde; si ya corre, lo dice y sale con 0 |
-| `--idle D` | timeout de inactividad de la heurística (duración de Go: `3s`, `1500ms`…); por defecto 3 s. Un perfil puede sobrescribirlo con `idle_seconds` |
+| `--detach` | starts it in the background (logging to `daemon.log`) and returns once the socket responds; if it's already running, says so and exits with 0 |
+| `--idle D` | idle timeout for the heuristic (a Go duration: `3s`, `1500ms`…); 3 s by default. A profile can override it with `idle_seconds` |
 
 ### `agenterm stop [--force]`
 
-Pide al daemon que se apague y espera (hasta 10 s) a que el socket desaparezca; imprime
-`daemon stopped`. Nunca arranca un daemon.
+Asks the daemon to shut down and waits (up to 10 s) for the socket to disappear; prints
+`daemon stopped`. It never starts a daemon.
 
-- Sin `--force` **se niega** (sale con 1) si hay sesiones que no han terminado:
-  `hay N sesiones activas: <id> (<perfil>), …; usa --force para cerrarlas`. Las sesiones `exited` no
-  cuentan.
-- `--force` mata las sesiones vivas y apaga el daemon.
+- Without `--force` it **refuses** (exits with 1) if there are sessions that haven't finished: the
+  error lists them (`<id> (<profile>)`) and suggests `--force`. `exited` sessions don't count.
+- `--force` kills the live sessions and shuts the daemon down.
 
-La comprobación la hace el propio daemon, así que también protege de scripts o clientes antiguos.
-Cada petición (aceptada o rechazada) queda en `daemon.log` con el proceso que la hizo (ver
-[architecture.md](architecture.md#seguridad-y-apagado)).
+The check is done by the daemon itself, so it also protects against scripts and older clients. Every
+request (accepted or refused) is logged in `daemon.log` along with the process that made it (see
+[architecture.md](architecture.md#security-and-shutdown)).
 
-## Proyectos
+## Projects
 
-| comando | |
+| command | |
 |---|---|
-| `agenterm project add <dir> [--name N]` | registra una carpeta (rutas relativas se resuelven desde tu directorio actual). Imprime `<id>  <nombre>  <ruta>`. El nombre por defecto es el de la carpeta. Si la carpeta ya estaba registrada devuelve el proyecto existente |
-| `agenterm project list` (o `ls`) | tabla `ID NAME PATH ADDED` |
-| `agenterm project rm <id>` (o `remove`) | quita el proyecto de la lista (no borra archivos) |
+| `agenterm project add <dir> [--name N]` | registers a folder (relative paths are resolved from your current directory). Prints `<id>  <name>  <path>`. The name defaults to the folder name. If the folder is already registered, returns the existing project |
+| `agenterm project list` (or `ls`) | `ID NAME PATH ADDED` table |
+| `agenterm project rm <id>` (or `remove`) | removes the project from the list (doesn't delete any files) |
 
-## Perfiles (agentes)
+## Profiles (agents)
 
-| comando | |
+| command | |
 |---|---|
-| `agenterm profiles` (o `profiles list` / `ls`) | perfiles efectivos (catálogo + `profiles.yaml`), en el orden del menú |
-| `agenterm profiles scan` | vuelve a leer el `PATH` del shell de login, detecta de nuevo los agentes instalados y los lista |
+| `agenterm profiles` (or `profiles list` / `ls`) | effective profiles (catalog + `profiles.yaml`), in menu order |
+| `agenterm profiles scan` | re-reads the login shell's `PATH`, detects installed agents again and lists them |
 
-Columnas: `ID NAME ENABLED INSTALLED SOURCE STATUS CMD`. `INSTALLED` es la ruta del ejecutable,
-`-` si no se encontró, o `error: …` si la entrada de `profiles.yaml` es inválida. `SOURCE` es
-`catalog`, `override` (del catálogo con cambios tuyos) o `custom`. Ver
+Columns: `ID NAME ENABLED INSTALLED SOURCE STATUS CMD`. `INSTALLED` is the executable's path, `-` if
+it wasn't found, or `error: …` if the `profiles.yaml` entry is invalid. `SOURCE` is `catalog`,
+`override` (a catalog agent with your changes) or `custom`. See
 [configuration.md](configuration.md).
 
-## Sesiones
+## Sessions
 
-### `agenterm spawn [flags] <proyecto> <perfil>`
+### `agenterm spawn [flags] <project> <profile>`
 
-Lanza una sesión e imprime su id. En modo worktree imprime `<id>  <rama>  <carpeta>`.
+Launches a session and prints its id. In worktree mode it prints `<id>  <branch>  <folder>`.
 
 | flag | |
 |---|---|
-| `--cols C`, `--rows R` | tamaño inicial (por defecto el de tu terminal, o 80×24) |
-| `--worktree` | crea un worktree de git nuevo con su propia rama |
-| `--branch B` | rama para `--worktree` (por defecto `agent/<perfil>-<4 primeros del id>`) |
-| `--base X` | rama o commit base para `--worktree` (por defecto la rama actual del proyecto) |
-| `--in-worktree ID` | lanza la sesión en un worktree de agenterm que ya existe (p. ej. un huérfano) |
+| `--cols C`, `--rows R` | initial size (defaults to your terminal's, or 80×24) |
+| `--worktree` | creates a new git worktree with its own branch |
+| `--branch B` | branch for `--worktree` (defaults to `agent/<profile>-<first 4 of the id>`) |
+| `--base X` | base branch or commit for `--worktree` (defaults to the project's current branch) |
+| `--in-worktree ID` | launches the session in an existing agenterm worktree (e.g. an orphan) |
 
-`--branch` y `--base` requieren `--worktree`. Falla si el perfil no existe, tiene un error o su
-comando no está instalado (el mensaje incluye la pista de instalación del catálogo). Ver
+`--branch` and `--base` require `--worktree`. Fails if the profile doesn't exist, has an error or its
+command isn't installed (the message includes the catalog's install hint). See
 [worktrees.md](worktrees.md).
 
 ### `agenterm ls`
 
-Tabla con `ID PROJECT PROFILE STATE ATTENTION PID SIZE AGE TURN GIT ACTIVITY CWD`:
+Table with `ID PROJECT PROFILE STATE ATTENTION PID SIZE AGE TURN GIT ACTIVITY CWD`:
 
-- `STATE`: `running`, `waiting_input`, `idle` o `exited(<código>)`.
-- `ATTENTION`: `permission`, `question`, `done`, `error` o `-`; con `*` si no se ha visto.
-- `TURN`: cronómetro del turno en curso (`4m12s`) o duración del último (`=6m0s`).
-- `GIT`: rama, `±N` archivos cambiados y `↑N` commits por delante de la base.
-- `ACTIVITY`: `[hook|output] <línea de actividad>`, con `(estado N%)` si hay progreso y el prefijo
-  `STALLED` si el turno parece trabado.
+- `STATE`: `running`, `waiting_input`, `idle` or `exited(<code>)`.
+- `ATTENTION`: `permission`, `question`, `done`, `error` or `-`; with `*` if not seen yet.
+- `TURN`: timer for the current turn (`4m12s`) or duration of the last one (`=6m0s`).
+- `GIT`: branch, `±N` changed files and `↑N` commits ahead of the base.
+- `ACTIVITY`: `[hook|output] <activity line>`, with `(state N%)` if there's progress and a
+  `STALLED` prefix if the turn looks stalled.
 
 ### `agenterm tail [-n N] <sessionId>`
 
-Últimas `N` líneas (por defecto 8, máximo 200) de la salida en texto plano, sin secuencias ANSI.
+The last `N` lines (8 by default, 200 max) of the output as plain text, without ANSI sequences.
 
 ### `agenterm attach <sessionId>`
 
-Conecta tu terminal a la sesión: primero repinta el scrollback y después sigue en vivo. Reenvía los
-cambios de tamaño de la ventana. **Ctrl-\\** se desacopla; la sesión sigue viva.
+Connects your terminal to the session: it first repaints the scrollback and then follows live.
+Window size changes are forwarded. **Ctrl-\\** detaches; the session keeps running.
 
 ### `agenterm kill <sessionId>`
 
-Termina la sesión (SIGHUP + SIGTERM al grupo de procesos, SIGKILL a los 2 s) e imprime
-`<id> <estado>`. Sobre una sesión que ya terminó, la **quita de la lista**. Nunca borra su worktree.
+Terminates the session (SIGHUP + SIGTERM to the process group, SIGKILL after 2 s) and prints
+`<id> <state>`. On a session that has already exited, it **removes it from the list**. It never
+deletes the session's worktree.
 
 ### `agenterm ack <sessionId>`
 
-Marca la atención de la sesión como vista (lo mismo que seleccionarla en la app).
+Marks the session's attention as seen (same as selecting it in the app).
 
 ## Git
 
-| comando | |
+| command | |
 |---|---|
-| `agenterm diff [--stat] <sessionId\|worktreeId>` | diff unificado de la sesión (worktree: contra su base; misma carpeta: contra `HEAD`). Con `--stat`, resumen por archivo, commits por delante y totales |
-| `agenterm worktrees <proyecto>` | worktrees de agenterm del proyecto: `ID BRANCH BASE STATE GIT SESSIONS PATH`, con `STATE` = `live`, `exited` u `orphan` |
-| `agenterm worktree rm [--force] [--delete-branch] [--dry-run] <id>` (o `remove`) | elimina un worktree. `--dry-run` solo dice qué se perdería |
-| `agenterm worktree merge <id>` | `git merge --no-ff` de su rama en la carpeta principal |
-| `agenterm worktree open [--finder] <id>` | abre el worktree en el editor (`git.editor`) o, con `--finder`, en Finder |
+| `agenterm diff [--stat] <sessionId\|worktreeId>` | unified diff of the session (worktree: against its base; same folder: against `HEAD`). With `--stat`, a per-file summary, commits ahead and totals |
+| `agenterm worktrees <project>` | the project's agenterm worktrees: `ID BRANCH BASE STATE GIT SESSIONS PATH`, with `STATE` = `live`, `exited` or `orphan` |
+| `agenterm worktree rm [--force] [--delete-branch] [--dry-run] <id>` (or `remove`) | removes a worktree. `--dry-run` only reports what would be lost |
+| `agenterm worktree merge <id>` | `git merge --no-ff` of its branch into the main folder |
+| `agenterm worktree open [--finder] <id>` | opens the worktree in the editor (`git.editor`) or, with `--finder`, in Finder |
 
-Las reglas de seguridad de `rm` y `merge` están en [worktrees.md](worktrees.md#acciones).
+The safety rules for `rm` and `merge` are in [worktrees.md](worktrees.md#actions).
 
 ## `agenterm notify`
 
-Lo usan los hooks de los agentes, pero también puedes llamarlo tú (o un script) **dentro de una
-sesión**. Nunca arranca el daemon y tiene timeout de 3 s.
+Agent hooks use it, but you (or a script) can also call it **inside a session**. It never starts
+the daemon and has a 3 s timeout.
 
 ```sh
-agenterm notify --kind permission --message "¿Borro node_modules?"
-agenterm notify --activity "Ejecutando migraciones"
+agenterm notify --kind permission --message "Delete node_modules?"
+agenterm notify --activity "Running migrations"
 agenterm notify --state idle
 ```
 
 | flag | |
 |---|---|
-| `--session ID` | sesión (por defecto `$AGENTERM_SESSION`, que el daemon inyecta en cada sesión) |
-| `--state S` | `running`, `waiting_input` o `idle` (alias: `waiting`, `done`) |
-| `--kind K` | `permission`, `question`, `done` o `error`; si no das `--state`, lo implica (`permission`/`question` → `waiting_input`, `done`/`error` → `idle`) |
-| `--message M` | texto de la notificación |
-| `--activity A` | línea de actividad; sin `--state` solo actualiza eso |
-| `--sock RUTA` | socket del daemon (por defecto el de la regla de abajo) |
-| `--from-hook claude\|codex` | lee el payload de un hook: Claude Code por stdin, codex como último argumento |
+| `--session ID` | session (defaults to `$AGENTERM_SESSION`, which the daemon injects into every session) |
+| `--state S` | `running`, `waiting_input` or `idle` (aliases: `waiting`, `done`) |
+| `--kind K` | `permission`, `question`, `done` or `error`; without `--state`, it implies one (`permission`/`question` → `waiting_input`, `done`/`error` → `idle`) |
+| `--message M` | notification text |
+| `--activity A` | activity line; without `--state` it only updates that |
+| `--sock PATH` | daemon socket (defaults to the one given by the rule below) |
+| `--from-hook claude\|codex` | reads a hook payload: Claude Code's from stdin, codex's as the last argument |
 
-Con `--from-hook` no imprime nada y **siempre** sale con 0 (timeout de 2 s, payload de hasta
-1 MiB): nunca bloquea ni rompe al agente. Fuera de una sesión de agenterm (sin `--session` ni
-`$AGENTERM_SESSION`) no hace nada.
+With `--from-hook` it prints nothing and **always** exits with 0 (2 s timeout, payload up to 1 MiB):
+it never blocks or breaks the agent. Outside an agenterm session (no `--session` and no
+`$AGENTERM_SESSION`) it does nothing.
 
-## Variables de entorno
+## Environment variables
 
 | variable | |
 |---|---|
-| `AGENTERM_HOME` | un solo directorio que sustituye a `~/.agenterm` y `~/.config/agenterm` (útil para pruebas) |
-| `AGENTERM_SESSION` | id de la sesión; el daemon lo inyecta en cada sesión y `notify` lo usa por defecto |
-| `AGENTERM_SOCK` | socket del daemon; inyectado en cada sesión. Se ignora si `AGENTERM_HOME` está definido |
+| `AGENTERM_HOME` | a single directory that replaces both `~/.agenterm` and `~/.config/agenterm` (useful for testing) |
+| `AGENTERM_SESSION` | session id; the daemon injects it into every session and `notify` uses it by default |
+| `AGENTERM_SOCK` | daemon socket; injected into every session. Ignored if `AGENTERM_HOME` is set |
 
-### Qué daemon usa un comando
+### Which daemon a command uses
 
-1. Si `AGENTERM_HOME` está definido, **manda siempre**: se usa `$AGENTERM_HOME/d.sock`.
-2. Si no, `$AGENTERM_SOCK` (dentro de una sesión). En ese caso la CLI nunca arranca otro daemon.
-3. Si no hay ninguno, `~/.agenterm/d.sock`.
+1. If `AGENTERM_HOME` is set, it **always wins**: `$AGENTERM_HOME/d.sock` is used.
+2. Otherwise, `$AGENTERM_SOCK` (inside a session). In that case the CLI never starts another daemon.
+3. If neither is set, `~/.agenterm/d.sock`.
 
-Así `AGENTERM_HOME=/tmp/x agenterm stop` lanzado desde dentro de una sesión va a `/tmp/x` y no al
-daemon que aloja la sesión. Ver [architecture.md](architecture.md#entorno-de-las-sesiones).
+So `AGENTERM_HOME=/tmp/x agenterm stop` run from inside a session goes to `/tmp/x` and not to the
+daemon hosting the session. See [architecture.md](architecture.md#session-environment).

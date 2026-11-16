@@ -1,182 +1,189 @@
-# Arquitectura
+# Architecture
+
+**English** · [Español](es/architecture.md)
 
 ```
           ┌──────────────┐   ┌──────────────┐   ┌───────────────────────────┐
-          │ agenterm.app │   │ agenterm CLI │   │ hooks de los agentes      │
+          │ agenterm.app │   │ agenterm CLI │   │ agent hooks               │
           │ (Wails)      │   │              │   │ (`agenterm notify …`)     │
           └──────┬───────┘   └──────┬───────┘   └─────────────┬─────────────┘
-                 │   socket unix (~/.agenterm/d.sock)          │
+                 │   unix socket (~/.agenterm/d.sock)          │
                  └──────────────────┬──────────────────────────┘
                              ┌──────┴──────┐
-                             │   daemon    │  PTYs, estado, git, eventos
+                             │   daemon    │  PTYs, state, git, events
                              └──────┬──────┘
                  ┌──────────────────┼──────────────────┐
               claude              codex               shell …
 ```
 
-- El **daemon** es el único dueño de las PTYs: lanza los procesos, guarda su scrollback, calcula
-  estado, atención, actividad y git, y publica eventos. Escucha en un socket unix (`0600`).
-- La **app** y la **CLI** son clientes (`internal/client`). Cualquiera de los dos arranca el daemon
-  si no responde (`client.StartDaemon`: proceso desacoplado en su propia sesión, salida a
-  `daemon.log`). Cerrar la app o desacoplar `attach` no afecta a las sesiones.
-- El `.app` es autosuficiente: su ejecutable también implementa `daemon` y `notify`
-  (`agenterm.app/Contents/MacOS/agenterm daemon`), así que no hace falta la CLI.
-- Antes de lanzar el daemon, la app toma el `PATH` de tu shell de login (`$SHELL -l -i -c`, con
-  timeout de 3 s) y fija `TERM=xterm-256color`, `COLORTERM=truecolor`, `TERM_PROGRAM=agenterm` y
-  `LANG` si falta: las apps abiertas desde Finder heredan el entorno mínimo de launchd y no
-  encontrarían `claude` o `codex`. El daemon, a su vez, busca los agentes en su `PATH` más el del
-  shell de login.
+- The **daemon** is the sole owner of the PTYs: it launches the processes, keeps their scrollback,
+  computes state, attention, activity and git, and publishes events. It listens on a unix socket
+  (`0600`).
+- The **app** and the **CLI** are clients (`internal/client`). Either one starts the daemon if it
+  doesn't respond (`client.StartDaemon`: a detached process in its own session, output to
+  `daemon.log`). Closing the app or detaching from `attach` doesn't affect sessions.
+- The `.app` is self-contained: its executable also implements `daemon` and `notify`
+  (`agenterm.app/Contents/MacOS/agenterm daemon`), so the CLI isn't needed.
+- Before launching the daemon, the app takes the `PATH` from your login shell (`$SHELL -l -i -c`,
+  with a 3 s timeout) and sets `TERM=xterm-256color`, `COLORTERM=truecolor`, `TERM_PROGRAM=agenterm`
+  and `LANG` if missing: apps opened from Finder inherit launchd's minimal environment and wouldn't
+  find `claude` or `codex`. The daemon, in turn, looks for agents in its own `PATH` plus the login
+  shell's.
 
-## Paquetes
+## Packages
 
 ```
-cmd/agenterm            CLI + subcomandos `daemon` y `notify` (un solo binario)
-app/                    app Wails: bindings (app.go), agrupado de salida, atención, entorno del daemon
+cmd/agenterm            CLI + `daemon` and `notify` subcommands (a single binary)
+app/                    Wails app: bindings (app.go), output batching, attention, daemon environment
 app/frontend            Svelte 5 + TypeScript + xterm.js (WebGL, fit, unicode11) + diff2html
-internal/daemoncmd      subcomando `daemon` compartido por la CLI y la app (+ notificador de respaldo)
-internal/notifycmd      subcomando `notify` compartido por la CLI y la app
-internal/daemon         servidor: sesiones, RPC, attach, eventos, git, apagado, pid/socket
-internal/client         cliente reutilizable + StartDaemon + resolución del socket
-internal/protocol       tipos del protocolo: JSON por líneas + frames binarios
-internal/transport      Listen/Dial/Cleanup sobre socket unix
-internal/session        PTY (creack/pty), ring buffer, fan-out, kill/wait, actividad, tail
-internal/status         máquina de estados + atención + heurística + «¿trabado?»
-internal/termsig        parser streaming de BEL / OSC 9 / 777 / 99 y progreso OSC 9;4
-internal/hooks          configuración de hooks por sesión (claude, codex) y parseo de payloads
-internal/profile        catálogo de agentes, detección, combinación con profiles.yaml y escritura
-internal/settings       settings.yaml (lectura con valores por defecto y edición en su sitio)
-internal/gitx           git por CLI: repo, ramas, status, worktrees, diff, merge, abrir en editor
-internal/worktree       registro de worktrees de agenterm (worktrees.json)
-internal/project        registro de proyectos (projects.json)
-internal/desktopnotify  textos de las notificaciones + respaldo con osascript
-internal/macnotify      UNUserNotificationCenter (cgo, darwin): envío, permiso, clics, run loop
-internal/peercred       PID del proceso al otro lado del socket (LOCAL_PEERPID / SO_PEERCRED) + `ps`
-internal/shellenv       PATH del shell de login
-internal/atomicfile     escritura atómica con .bak
-internal/paths          resolución de directorios (AGENTERM_HOME)
+internal/daemoncmd      `daemon` subcommand shared by the CLI and the app (+ fallback notifier)
+internal/notifycmd      `notify` subcommand shared by the CLI and the app
+internal/daemon         server: sessions, RPC, attach, events, git, shutdown, pid/socket
+internal/client         reusable client + StartDaemon + socket resolution
+internal/protocol       protocol types: line-delimited JSON + binary frames
+internal/transport      Listen/Dial/Cleanup over a unix socket
+internal/session        PTY (creack/pty), ring buffer, fan-out, kill/wait, activity, tail
+internal/status         state machine + attention + heuristic + "stalled?"
+internal/termsig        streaming parser for BEL / OSC 9 / 777 / 99 and OSC 9;4 progress
+internal/hooks          per-session hook setup (claude, codex) and payload parsing
+internal/profile        agent catalog, detection, merging with profiles.yaml and writing
+internal/settings       settings.yaml (reading with defaults and in-place editing)
+internal/gitx           git via the CLI: repo, branches, status, worktrees, diff, merge, open in editor
+internal/worktree       agenterm worktree registry (worktrees.json)
+internal/project        project registry (projects.json)
+internal/desktopnotify  notification texts + osascript fallback
+internal/macnotify      UNUserNotificationCenter (cgo, darwin): sending, permission, clicks, run loop
+internal/peercred       PID of the process on the other end of the socket (LOCAL_PEERPID / SO_PEERCRED) + `ps`
+internal/shellenv       login shell PATH
+internal/atomicfile     atomic writes with .bak
+internal/paths          directory resolution (AGENTERM_HOME)
 ```
 
-## Protocolo
+## Protocol
 
 ### Control
 
-JSON delimitado por `\n`. Petición `{"id":1,"method":"session.list","params":{…}}`; respuesta
-`{"id":1,"result":{…}}` o `{"id":1,"error":"…"}`. Una conexión admite varias peticiones seguidas.
+`\n`-delimited JSON. Request `{"id":1,"method":"session.list","params":{…}}`; response
+`{"id":1,"result":{…}}` or `{"id":1,"error":"…"}`. A connection accepts several requests in a row.
 
-| grupo | métodos |
+| group | methods |
 |---|---|
-| proyectos | `project.add`, `project.list`, `project.remove`, `project.git` |
-| perfiles | `profile.list`, `profile.catalog`, `profile.save`, `profile.delete`, `profile.reorder`, `profile.rescan` |
-| ajustes | `settings.get`, `settings.save` |
-| sesiones | `session.spawn`, `session.list`, `session.kill`, `session.resize`, `session.notify`, `session.ack`, `session.attach`, `session.tail`, `session.diff` |
+| projects | `project.add`, `project.list`, `project.remove`, `project.git` |
+| profiles | `profile.list`, `profile.catalog`, `profile.save`, `profile.delete`, `profile.reorder`, `profile.rescan` |
+| settings | `settings.get`, `settings.save` |
+| sessions | `session.spawn`, `session.list`, `session.kill`, `session.resize`, `session.notify`, `session.ack`, `session.attach`, `session.tail`, `session.diff` |
 | worktrees | `worktree.list`, `worktree.diff`, `worktree.remove`, `worktree.merge`, `worktree.open` |
 | daemon | `events.subscribe`, `daemon.ping`, `daemon.shutdown` |
 
-Algunos parámetros:
+Some parameters:
 
-- `session.spawn`: `projectId` (id o nombre), `profileId`, `cols`, `rows`, `mode` (`same` |
-  `worktree`), `branch`, `base` y `worktreeId` (reabrir un worktree; implica `worktree`).
-- La información de sesión incluye `mode`, `worktreeId`, `worktreePath`, `branch`, `base`, `git`
-  (`{files, uncommitted, ahead, at}`), los campos de atención y los de actividad.
-- `session.tail`: `{"sessionId":…,"lines":8}` (máximo 200) devuelve `{"lines":[…]}`: el final del
-  scrollback (últimos 64 KiB) sin ANSI, con CR sobrescribiendo desde la columna 0 y sin tandas de
-  líneas en blanco.
+- `session.spawn`: `projectId` (id or name), `profileId`, `cols`, `rows`, `mode` (`same` |
+  `worktree`), `branch`, `base` and `worktreeId` (reopen a worktree; implies `worktree`).
+- Session info includes `mode`, `worktreeId`, `worktreePath`, `branch`, `base`, `git`
+  (`{files, uncommitted, ahead, at}`), the attention fields and the activity fields.
+- `session.tail`: `{"sessionId":…,"lines":8}` (200 max) returns `{"lines":[…]}`: the end of the
+  scrollback (last 64 KiB) with ANSI stripped, CR overwriting from column 0 and no runs of blank
+  lines.
 - `session.diff` / `worktree.diff`: `{sessionId | worktreeId, stat}`.
 - `worktree.remove`: `{id, force, deleteBranch, dryRun}` → `{removed, loss}`.
 - `worktree.open`: `{id | sessionId, target: "editor" | "finder"}`.
-- `daemon.shutdown`: `{"force": false}` (sin parámetros = sin force); falla con
-  `hay N sesiones activas: …` si quedan sesiones vivas y no se pasa `force: true`.
+- `daemon.shutdown`: `{"force": false}` (no params = no force); fails with an error listing the
+  live sessions if there are any and `force: true` isn't passed.
 
-### Eventos
+RPC error messages are in English. User-facing refusals also carry a stable error code so the app
+can show them in its language (see [configuration.md](configuration.md#language)).
 
-`events.subscribe` (con `{"client":"ui"}` opcional): tras la respuesta, el daemon emite un evento
-JSON por línea.
+### Events
 
-| evento | |
+`events.subscribe` (with an optional `{"client":"ui"}`): after the response, the daemon emits one
+JSON event per line.
+
+| event | |
 |---|---|
-| `session.spawned` | sesión nueva |
-| `session.state` | cambio de estado (con atención y actividad) |
-| `session.attention` | cambió la atención sin cambiar el estado (mensaje completado, *ack*) |
-| `session.activity` | línea de actividad, progreso, «¿trabado?» o latido de salida |
-| `session.git` | nuevo resumen de git (`git`) |
-| `session.removed` | la sesión se quitó de la lista |
-| `worktree.changed` | cambió la lista de worktrees de un proyecto (`projectId`) |
+| `session.spawned` | new session |
+| `session.state` | state change (with attention and activity) |
+| `session.attention` | attention changed without a state change (message filled in, *ack*) |
+| `session.activity` | activity line, progress, "stalled?" or output heartbeat |
+| `session.git` | new git summary (`git`) |
+| `session.removed` | the session was removed from the list |
+| `worktree.changed` | a project's worktree list changed (`projectId`) |
 
-`raised: true` marca una atención nueva (la que merece notificación); `stallRaised: true` (en
-`session.activity`), una sesión que acaba de quedarse «¿trabada?». Si un suscriptor se retrasa, se
-le desconecta: debe volver a suscribirse y pedir `session.list`. Mientras haya al menos un
-suscriptor `ui`, el daemon deja las notificaciones a la app.
+`raised: true` marks a new attention (one worth notifying about); `stallRaised: true` (in
+`session.activity`), a session that has just become "stalled?". If a subscriber falls behind, it's
+disconnected: it must resubscribe and request `session.list`. While there's at least one `ui`
+subscriber, the daemon leaves notifications to the app.
 
 ### Attach
 
-`session.attach` (`{sessionId, cols, rows}`): tras la respuesta JSON, la conexión pasa a frames
-binarios `tipo (1 byte) | longitud (4 bytes BE) | payload` (máximo 1 MiB):
+`session.attach` (`{sessionId, cols, rows}`): after the JSON response, the connection switches to
+binary frames `type (1 byte) | length (4 bytes BE) | payload` (1 MiB max):
 
-- daemon → cliente: `0x01` salida, `0x02` fin del replay, `0x03` exit (int32 BE), `0x04` error;
-- cliente → daemon: `0x10` input, `0x11` resize (cols, rows uint16 BE).
+- daemon → client: `0x01` output, `0x02` end of replay, `0x03` exit (int32 BE), `0x04` error;
+- client → daemon: `0x10` input, `0x11` resize (cols, rows uint16 BE).
 
-El daemon envía primero el snapshot del ring buffer y después la salida en vivo. Snapshot y
-suscripción se toman bajo el mismo lock, así que no hay huecos ni duplicados.
+The daemon first sends the ring buffer snapshot and then the live output. Snapshot and subscription
+are taken under the same lock, so there are no gaps or duplicates.
 
-### Eventos Go → frontend (app)
+### Go → frontend events (app)
 
-| evento | payload |
+| event | payload |
 |---|---|
-| `pty:<id>` | salida en base64, agrupada (cada 8 ms o 32 KiB) |
-| `pty-replay-done:<id>` | fin del replay del scrollback |
-| `pty-exit:<id>` | código de salida |
-| `pty-error:<id>` | stream perdido (el frontend se reengancha y repinta) |
-| `daemon:event` | cualquier evento del daemon (tabla de arriba) |
-| `daemon:resync` | (re)suscrito: recargar listas |
-| `daemon:down` | sin conexión con el daemon (se reintenta y se relanza) |
-| `app:focus-session` | se pulsó una notificación: seleccionar esa sesión |
-| `app:open-settings` | menú *agenterm → Preferencias…* |
+| `pty:<id>` | base64 output, batched (every 8 ms or 32 KiB) |
+| `pty-replay-done:<id>` | end of the scrollback replay |
+| `pty-exit:<id>` | exit code |
+| `pty-error:<id>` | stream lost (the frontend reattaches and repaints) |
+| `daemon:event` | any daemon event (table above) |
+| `daemon:resync` | (re)subscribed: reload lists |
+| `daemon:down` | no connection to the daemon (it retries and relaunches it) |
+| `app:focus-session` | a notification was clicked: select that session |
+| `app:open-settings` | the settings item in the **agenterm** app menu |
 
-## Sesiones
+## Sessions
 
-- Cada sesión tiene un ring buffer de scrollback (8 MiB) y N suscriptores con cola acotada; un
-  suscriptor lento se desconecta (frame `0x04`) en vez de bloquear la lectura del PTY.
-- `kill` envía SIGHUP y SIGTERM al grupo de procesos y SIGKILL a los 2 s. Un segundo `kill` sobre
-  una sesión terminada la quita de la lista.
-- Los ids de proyectos y sesiones son 4 bytes aleatorios en hexadecimal.
+- Each session has a scrollback ring buffer (8 MiB) and N subscribers with bounded queues; a slow
+  subscriber is disconnected (frame `0x04`) instead of blocking the PTY read.
+- `kill` sends SIGHUP and SIGTERM to the process group and SIGKILL after 2 s. A second `kill` on an
+  exited session removes it from the list.
+- Project and session ids are 4 random bytes in hex.
 
-### Entorno de las sesiones
+### Session environment
 
-El daemon inyecta en cada sesión:
+The daemon injects into every session:
 
 - `AGENTERM_SESSION=<id>`;
-- `AGENTERM_SOCK=<su socket>`;
-- `AGENTERM_HOME=<su directorio>` si el daemon usa `AGENTERM_HOME`; si usa las rutas por defecto,
-  **quita** cualquier `AGENTERM_HOME` heredado.
+- `AGENTERM_SOCK=<its socket>`;
+- `AGENTERM_HOME=<its directory>` if the daemon uses `AGENTERM_HOME`; if it uses the default paths,
+  it **removes** any inherited `AGENTERM_HOME`.
 
-Los clientes dan prioridad a `AGENTERM_HOME` sobre `AGENTERM_SOCK` (ver
-[cli.md](cli.md#qué-daemon-usa-un-comando)), así que ambos tienen que apuntar al mismo daemon. Los
-hooks generados pasan además `--sock <socket del daemon>`, así que llegan a su daemon aunque cambies
-`AGENTERM_HOME` dentro de la sesión.
+Clients give `AGENTERM_HOME` priority over `AGENTERM_SOCK` (see
+[cli.md](cli.md#which-daemon-a-command-uses)), so both must point to the same daemon. Generated hooks
+also pass `--sock <the daemon's socket>`, so they reach their daemon even if you change
+`AGENTERM_HOME` inside the session.
 
-## Persistencia y sus límites
+## Persistence and its limits
 
-| sobrevive a… | cerrar la app | reiniciar el daemon / la computadora |
+| survives… | closing the app | restarting the daemon / the computer |
 |---|---|---|
-| procesos de las sesiones y su scrollback | sí | **no** |
-| proyectos (`projects.json`), perfiles, ajustes | sí | sí |
-| worktrees y su registro (`worktrees.json`) | sí | sí (quedan como huérfanos) |
+| session processes and their scrollback | yes | **no** |
+| projects (`projects.json`), profiles, settings | yes | yes |
+| worktrees and their registry (`worktrees.json`) | yes | yes (as orphans) |
 
-Las sesiones viven en memoria del daemon: si el daemon se detiene (`agenterm stop --force`,
-SIGTERM, un fallo, reiniciar la computadora), sus procesos mueren y su scrollback se pierde. Al
-reabrir la app, el daemon nuevo empieza sin sesiones; los worktrees siguen ahí para reabrirlos.
+Sessions live in the daemon's memory: if the daemon stops (`agenterm stop --force`, SIGTERM, a
+crash, restarting the computer), their processes die and their scrollback is lost. When you reopen
+the app, the new daemon starts with no sessions; the worktrees are still there to reopen.
 
-## Seguridad y apagado
+## Security and shutdown
 
-- El socket es `0600` y los directorios `0700`: solo tu usuario puede hablar con el daemon.
-- `daemon.shutdown` **se niega** sin `force` mientras haya sesiones vivas, así que un `agenterm stop`
-  dirigido por error al daemon equivocado (por ejemplo, la limpieza de un test) no tumba trabajo
-  en curso. SIGTERM/SIGINT al daemon lo siguen apagando siempre (es el sistema quien lo pide).
-- Cada petición de apagado, aceptada o rechazada, queda en `daemon.log` con quién la hizo:
-  `peer_pid`, `peer_cmd`, `peer_ppid` y `peer_parent_cmd` (PID del otro extremo del socket con
-  `LOCAL_PEERPID` en macOS / `SO_PEERCRED` en Linux, y su línea de comandos vía `ps`), además de
-  `force` y `live`. El motivo del apagado (señal o RPC) también queda registrado.
-- `AGENTERM_HOME` manda sobre `AGENTERM_SOCK`: `AGENTERM_HOME=/tmp/x agenterm stop` lanzado desde
-  dentro de una sesión va a `/tmp/x`, no al daemon real.
-- Al apagarse, el daemon mata todas las sesiones y borra el socket y el pid file. Un socket huérfano
-  (nadie escuchando, tras un fallo) se detecta y se reemplaza al arrancar.
+- The socket is `0600` and the directories `0700`: only your user can talk to the daemon.
+- `daemon.shutdown` **refuses** without `force` while there are live sessions, so an
+  `agenterm stop` aimed at the wrong daemon by mistake (for example, a test's cleanup) doesn't take
+  down work in progress. SIGTERM/SIGINT to the daemon still always shut it down (the system is
+  asking).
+- Every shutdown request, accepted or refused, is logged in `daemon.log` with who made it:
+  `peer_pid`, `peer_cmd`, `peer_ppid` and `peer_parent_cmd` (the PID on the other end of the socket
+  via `LOCAL_PEERPID` on macOS / `SO_PEERCRED` on Linux, and its command line via `ps`), plus
+  `force` and `live`. The shutdown reason (signal or RPC) is logged too.
+- `AGENTERM_HOME` takes precedence over `AGENTERM_SOCK`: `AGENTERM_HOME=/tmp/x agenterm stop` run
+  from inside a session goes to `/tmp/x`, not to the real daemon.
+- On shutdown, the daemon kills every session and removes the socket and the pid file. A stale
+  socket (nobody listening, after a crash) is detected and replaced on startup.

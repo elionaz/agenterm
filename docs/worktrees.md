@@ -1,102 +1,104 @@
-# Worktrees y cambios
+# Worktrees and changes
 
-Cada sesión puede trabajar en la carpeta del proyecto o en su propio **worktree de git** (rama y
-carpeta aparte), para que varios agentes trabajen en paralelo sobre el mismo repo sin pisarse.
+**English** · [Español](es/worktrees.md)
 
-Todo va por la CLI de `git` (con timeouts; nunca libgit2). Las consultas de solo lectura usan
-`GIT_OPTIONAL_LOCKS=0`, así que nunca toman `index.lock` mientras el agente usa git en la misma
-carpeta.
+Each session can work in the project folder or in its own **git worktree** (a separate branch and
+folder), so several agents can work on the same repo in parallel without stepping on each other.
 
-## Modos de una sesión
+Everything goes through the `git` CLI (with timeouts; never libgit2). Read-only queries use
+`GIT_OPTIONAL_LOCKS=0`, so they never take `index.lock` while the agent is using git in the same
+folder.
 
-- **Misma carpeta** (`same`, por defecto): el agente trabaja en la carpeta del proyecto.
-- **Worktree nuevo** (`worktree`): `git worktree add -b <rama> <carpeta> <base>`.
-  - **Rama**: por defecto `agent/<perfil>-<4 primeros caracteres del id de la sesión>`. El nombre se
-    sanea (espacios y caracteres no válidos → `-`, sin `..`, sin `.lock`…) y, si ya existe, se le
-    añade `-2`, `-3`…
-  - **Base**: por defecto la rama actual del proyecto (o `main`/`master` si `HEAD` está separado).
-    Puede ser cualquier rama o commit.
-  - **Carpeta**: `<worktrees>/<proyecto>-<projectId>/<sessionId>/`, donde `<worktrees>` es
-    `~/.agenterm/worktrees` (o `git.worktree_dir`) y `<proyecto>` es el nombre del proyecto en
-    minúsculas y saneado. Los worktrees **nunca** se crean dentro del proyecto.
-  - Se permite aunque la carpeta principal tenga cambios: el worktree parte del commit de la base.
-  - Si el proyecto es una subcarpeta del repo, la sesión arranca en esa misma subcarpeta del
+## Session modes
+
+- **Same folder** (`same`, the default): the agent works in the project folder.
+- **New worktree** (`worktree`): `git worktree add -b <branch> <folder> <base>`.
+  - **Branch**: `agent/<profile>-<first 4 characters of the session id>` by default. The name is
+    sanitized (spaces and invalid characters → `-`, no `..`, no `.lock`…) and, if it already exists,
+    gets `-2`, `-3`… appended.
+  - **Base**: the project's current branch by default (or `main`/`master` if `HEAD` is detached).
+    It can be any branch or commit.
+  - **Folder**: `<worktrees>/<project>-<projectId>/<sessionId>/`, where `<worktrees>` is
+    `~/.agenterm/worktrees` (or `git.worktree_dir`) and `<project>` is the project name, lowercased
+    and sanitized. Worktrees are **never** created inside the project.
+  - It's allowed even if the main folder has changes: the worktree starts from the base's commit.
+  - If the project is a subfolder of the repo, the session starts in that same subfolder of the
     worktree.
-  - Errores claros si el proyecto no es un repo git (en la app la opción sale desactivada, con el
-    motivo), si el repo no tiene commits todavía o si la base no existe.
-- **Reabrir un worktree** (`--in-worktree <id>` en la CLI, *Abrir shell aquí* en la app): una
-  sesión nueva en un worktree de agenterm que ya existe.
+  - Clear errors if the project isn't a git repo (in the app the option is disabled, with the
+    reason), if the repo has no commits yet or if the base doesn't exist.
+- **Reopening a worktree** (`--in-worktree <id>` in the CLI, *open a shell here* in the app): a new
+  session in an existing agenterm worktree.
 
-El id de un worktree es el de la sesión que lo creó.
+A worktree's id is the id of the session that created it.
 
-Las integraciones de hooks funcionan igual en un worktree: Claude Code recibe `--settings` con una
-ruta absoluta y no se escribe nada en el worktree ni en el proyecto. Claude Code puede pedir
-confianza la primera vez para la carpeta nueva.
+Hook integrations work the same way in a worktree: Claude Code gets `--settings` with an absolute
+path and nothing is written to the worktree or the project. Claude Code may ask you to trust the new
+folder the first time.
 
-## Ciclo de vida
+## Lifecycle
 
-- **Matar una sesión nunca borra su worktree.** El registro (`worktrees.json`) sobrevive a los
-  reinicios del daemon.
-- Estados de un worktree (`agenterm worktrees <proyecto>`):
-  - `live`: una sesión viva lo usa;
-  - `exited`: solo lo usan sesiones ya terminadas que siguen en la lista;
-  - `orphan` (huérfano): ninguna sesión del daemon lo usa (las quitaste de la lista o el daemon se
-    reinició).
-- Al listar los worktrees de un proyecto, el daemon olvida los que ya no existen en disco (y hace
-  `git worktree prune`) y **adopta** los worktrees que git conoce dentro de la carpeta de worktrees
-  de ese proyecto pero que el registro no tiene (por ejemplo, si se perdió `worktrees.json`).
+- **Killing a session never deletes its worktree.** The registry (`worktrees.json`) survives daemon
+  restarts.
+- Worktree states (`agenterm worktrees <project>`):
+  - `live`: a live session is using it;
+  - `exited`: only used by sessions that have exited but are still in the list;
+  - `orphan`: no session in the daemon uses it (you removed them from the list or the daemon
+    restarted).
+- When listing a project's worktrees, the daemon forgets the ones that no longer exist on disk (and
+  runs `git worktree prune`) and **adopts** worktrees git knows about inside that project's
+  worktrees folder that the registry doesn't have (for example, if `worktrees.json` was lost).
 
-## Cambios (diff)
+## Changes (diff)
 
-- **Worktree**: `git diff <merge-base con la base>` (lo commiteado y lo no commiteado, en una sola
-  lista) más los archivos sin seguimiento no ignorados, y los commits por delante
-  (`git log <base>..HEAD`, máximo 200). Si la rama base desaparece se usa el commit base guardado al
-  crear el worktree.
-- **Misma carpeta**: `git diff HEAD` más los archivos sin seguimiento (contra el árbol vacío si el
-  repo no tiene commits).
-- Por archivo: ruta, ruta anterior (renombrados), estado `A`/`M`/`D`/`R`/`C`/`T`/`U`, líneas `+`/`−`,
-  si es binario (sin contenido) y su parche.
-- Límites: **2 MB** de parche en total (el resto de archivos se listan sin contenido y el diff se
-  marca `truncated`); los archivos sin seguimiento de más de 1 MB, o más allá de los primeros 300,
-  tampoco llevan contenido.
-- **Resumen** de cada sesión (`git`: `files`, `uncommitted`, `ahead`): se recalcula de forma
-  perezosa (al pasar a inactivo, esperando o terminado, y al pedir el diff), como mucho una vez cada
-  3 s por sesión y nunca por cada trozo de salida. Los cambios se publican con el evento
-  `session.git`.
+- **Worktree**: `git diff <merge-base with the base>` (committed and uncommitted changes, in a
+  single list) plus untracked, non-ignored files, and the commits ahead (`git log <base>..HEAD`, at
+  most 200). If the base branch disappears, the base commit saved when the worktree was created is
+  used.
+- **Same folder**: `git diff HEAD` plus untracked files (against the empty tree if the repo has no
+  commits).
+- Per file: path, previous path (renames), status `A`/`M`/`D`/`R`/`C`/`T`/`U`, `+`/`−` lines, whether
+  it's binary (no content) and its patch.
+- Limits: **2 MB** of patch in total (remaining files are listed without content and the diff is
+  marked `truncated`); untracked files over 1 MB, or beyond the first 300, don't include content
+  either.
+- Each session's **summary** (`git`: `files`, `uncommitted`, `ahead`) is recomputed lazily (on going
+  idle, waiting or exited, and when the diff is requested), at most once every 3 s per session and
+  never on every chunk of output. Changes are published with the `session.git` event.
 
-## Acciones
+## Actions
 
-- **Merge a la base** (`agenterm worktree merge <id>`): `git merge --no-ff` de la rama en la
-  **carpeta principal** del repo. Solo si:
-  - la carpeta principal está en la rama base;
-  - no tiene cambios en archivos con seguimiento (los sin seguimiento no bloquean; no hay stash
-    automático);
-  - la rama tiene commits que la base no tiene.
+- **Merge into the base** (`agenterm worktree merge <id>`): `git merge --no-ff` of the branch in the
+  repo's **main folder**. Only if:
+  - the main folder is on the base branch;
+  - it has no changes to tracked files (untracked files don't block it; there's no automatic
+    stash);
+  - the branch has commits the base doesn't have.
 
-  Si hay conflictos se hace `git merge --abort` y se informa qué archivos chocaron. Los cambios sin
-  commitear del worktree no entran en el merge (se avisa cuántos quedaron fuera).
-- **Eliminar worktree** (`agenterm worktree rm <id>`):
-  - se niega si una sesión viva lo usa;
-  - sin *force* también se niega si se perderían cambios sin commitear o, con *borrar también la
-    rama* (`--delete-branch`), commits sin mergear en la base; el error lista qué se perdería;
-  - `--dry-run` solo hace la comprobación;
-  - tras borrar: `git worktree prune` y, si se pidió, `git branch -D` (seguro: los commits sin
-    mergear ya se comprobaron contra la base, salvo con *force*).
-- **Abrir en editor** (`git.editor`; por defecto `code` si está en el `PATH`, si no Finder) y
-  **Abrir en Finder** (`agenterm worktree open [--finder] <id>`).
-- **Copiar rama** (solo en la app, al portapapeles).
+  On conflicts it runs `git merge --abort` and reports which files clashed. Uncommitted changes in
+  the worktree aren't part of the merge (you're told how many were left out).
+- **Remove worktree** (`agenterm worktree rm <id>`):
+  - refuses if a live session is using it;
+  - without *force* it also refuses if uncommitted changes would be lost or, when also deleting the
+    branch (`--delete-branch`), commits not merged into the base; the error lists what would be
+    lost;
+  - `--dry-run` only runs the check;
+  - after removing: `git worktree prune` and, if requested, `git branch -D` (safe: unmerged commits
+    were already checked against the base, unless *force* is used).
+- **Open in editor** (`git.editor`; `code` by default if it's on the `PATH`, otherwise Finder) and
+  **Open in Finder** (`agenterm worktree open [--finder] <id>`).
+- **Copy branch** (app only, to the clipboard).
 
-## En la app
+## In the app
 
-- Menú **+** del proyecto: tras elegir el agente, *Misma carpeta* o *Worktree nuevo* (rama editable
-  ya rellena y selector de base con la rama actual por defecto). Se recuerda la última elección por
-  proyecto, y ⌘N la usa; si no hay ninguna, se usa `git.default_mode`.
-- Fila de la sesión: chip con la rama (sin el prefijo `agent/`) y `±N` archivos cambiados; igual en
-  las tarjetas de la vista general, con `↑N` commits por delante.
-- Pestañas **Terminal | Cambios (N)** en las sesiones con git: lista de archivos a la izquierda
-  (estado, `+`/`−`), commits por delante, diff a la derecha con diff2html (lado a lado o unificado),
-  ⟳ para recargar, aviso de diff truncado y la barra de acciones (*Abrir en editor*, *Abrir en
-  Finder*, *Copiar rama*, *Merge a &lt;base&gt;*, *Eliminar worktree* con una confirmación que
-  muestra qué se perdería, la casilla *Borrar también la rama* y otra para forzar).
-- Bajo cada proyecto, **Worktrees huérfanos** (si hay): *Ver cambios*, *Abrir shell aquí* (una
-  sesión `shell` nueva en ese worktree) y *Eliminar*.
+- A project's **+** menu: after picking the agent, choose same folder or new worktree (an editable,
+  pre-filled branch and a base selector defaulting to the current branch). The last choice is
+  remembered per project, and ⌘N uses it; if there's none, `git.default_mode` is used.
+- Session row: a chip with the branch (without the `agent/` prefix) and `±N` changed files; the
+  same on the overview cards, with `↑N` commits ahead.
+- **Terminal** and **Changes (N)** tabs on sessions with git: a file list on the left (status,
+  `+`/`−`), commits ahead, the diff on the right with diff2html (side by side or unified), ⟳ to
+  reload, a truncated-diff notice and the action bar (open in editor, open in Finder, copy branch,
+  merge into &lt;base&gt;, and remove worktree with a confirmation that shows what would be lost, a
+  checkbox to also delete the branch and another to force).
+- Under each project, **orphaned worktrees** (if any): view changes, open a shell here (a new
+  `shell` session in that worktree) and remove.

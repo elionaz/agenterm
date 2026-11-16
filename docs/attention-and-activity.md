@@ -1,68 +1,70 @@
-# Atención y actividad
+# Attention and activity
 
-Cada sesión tiene un **estado** (qué hace el proceso), una **atención** (por qué te necesita) y
-datos de **actividad** (qué está haciendo ahora, cuánto lleva, si parece trabada).
+**English** · [Español](es/attention-and-activity.md)
 
-## Estados
+Each session has a **state** (what the process is doing), an **attention** (why it needs you) and
+**activity** data (what it's doing right now, for how long, and whether it looks stalled).
 
-| estado | significado |
+## States
+
+| state | meaning |
 |---|---|
-| `running` | trabajando |
-| `waiting_input` | esperando tu respuesta (aprobación, pregunta o señal de la terminal) |
-| `idle` | inactivo / turno terminado |
-| `exited` | el proceso terminó (estado final) |
+| `running` | working |
+| `waiting_input` | waiting for your reply (approval, question or terminal signal) |
+| `idle` | idle / turn finished |
+| `exited` | the process ended (final state) |
 
-Hay dos fuentes:
+There are two sources:
 
-- **Heurística** (perfiles `status: heuristic`): salida → `running`; 3 s sin salida (o
-  `idle_seconds` del perfil, o `agenterm daemon --idle`) → `idle`. `waiting_input` no lo termina la
-  salida (los spinners siguen pintando), sino lo que escribas. Las respuestas automáticas de la
-  terminal (foco, DA, DSR…) no cuentan como escribir.
-- **Eventos explícitos** (hooks de los agentes o `agenterm notify`). En perfiles `status: hooks`, el
-  primer evento explícito desactiva la heurística para esa sesión.
+- **Heuristic** (`status: heuristic` profiles): output → `running`; 3 s without output (or the
+  profile's `idle_seconds`, or `agenterm daemon --idle`) → `idle`. `waiting_input` isn't ended by
+  output (spinners keep drawing) but by what you type. Automatic terminal replies (focus, DA,
+  DSR…) don't count as typing.
+- **Explicit events** (agent hooks or `agenterm notify`). In `status: hooks` profiles, the first
+  explicit event turns the heuristic off for that session.
 
-## Atención
+## Attention
 
-| campo | |
+| field | |
 |---|---|
-| `attentionKind` | `permission`, `question`, `done` o `error` (vacío si no te necesita) |
-| `attentionMessage` | texto (la orden que pide permiso, la pregunta, el último mensaje…) |
-| `attentionAt` | cuándo se levantó |
-| `unread` | no la has visto todavía |
+| `attentionKind` | `permission`, `question`, `done` or `error` (empty if it doesn't need you) |
+| `attentionMessage` | text (the command asking for permission, the question, the last message…) |
+| `attentionAt` | when it was raised |
+| `unread` | you haven't seen it yet |
 
-- `unread` se borra al **seleccionar la sesión** en la app (RPC `session.ack`), al **escribir en
-  ella** o con `agenterm ack <id>`.
-- Un `idle` explícito tras un turno (hook `Stop` de Claude Code, `agent-turn-complete` de codex) es
-  un `done`. El `idle` heurístico **no** avisa: que no haya salida no significa que terminó.
+- `unread` is cleared when you **select the session** in the app (RPC `session.ack`), when you
+  **type into it** or with `agenterm ack <id>`.
+- An explicit `idle` after a turn (Claude Code's `Stop` hook, codex's `agent-turn-complete`) is a
+  `done`. A heuristic `idle` does **not** notify: no output doesn't mean it's finished.
 
-## De dónde salen las señales
+## Where the signals come from
 
-Las integraciones solo se aplican a las sesiones que lanza agenterm. Nunca se tocan
-`~/.claude/settings.json`, `~/.codex/config.toml`, la configuración de opencode ni el proyecto:
-todo va por flags en la línea de comandos y archivos generados en `~/.agenterm/hooks/` (o
-`$AGENTERM_HOME/hooks/`). Los hooks llaman a `<ejecutable del daemon> notify --sock <socket>
---from-hook …` con rutas absolutas: la CLI, o el propio ejecutable del `.app` si el daemon lo
-arrancó la app.
+Integrations only apply to the sessions agenterm launches. `~/.claude/settings.json`,
+`~/.codex/config.toml`, opencode's configuration and the project are never touched: everything goes
+through command-line flags and files generated in `~/.agenterm/hooks/` (or
+`$AGENTERM_HOME/hooks/`). Hooks call `<daemon executable> notify --sock <socket> --from-hook …` with
+absolute paths: the CLI, or the `.app`'s own executable if the app started the daemon.
 
 ### Claude Code (`setup_hooks: claude`)
 
-agenterm genera `hooks/claude-settings.json` y lanza `claude --settings <ese archivo> …`. Los hooks
-de `--settings` se **suman** a los tuyos. Timeout de 5 s por hook (3 s para `PreToolUse`).
+agenterm generates `hooks/claude-settings.json` and launches `claude --settings <that file> …`.
+Hooks from `--settings` are **added** to yours. Each hook has a 5 s timeout (3 s for
+`PreToolUse`).
 
-| hook | efecto |
+| hook | effect |
 |---|---|
-| `UserPromptSubmit` | `running`, actividad "Pensando…" y nuevo turno (reinicia el cronómetro) |
-| `PreToolUse` | `running` y línea de actividad según la herramienta (ver abajo) |
+| `UserPromptSubmit` | `running`, activity "Thinking…" and a new turn (resets the timer) |
+| `PreToolUse` | `running` and an activity line based on the tool (see below) |
 | `PostToolUse` | `running` |
-| `PermissionRequest` | `waiting_input` + `permission`, con un resumen ("Bash: rm -rf node_modules") |
+| `PermissionRequest` | `waiting_input` + `permission`, with a summary ("Bash: rm -rf node_modules") |
 | `Notification` `permission_prompt` | `waiting_input` + `permission` |
 | `Notification` `elicitation_dialog`, `elicitation_url_dialog`, `agent_needs_input` | `waiting_input` + `question` |
-| `Stop` | `idle` + `done`, con el último mensaje del asistente |
-| `StopFailure` | `idle` + `error`, con el detalle del error |
+| `Stop` | `idle` + `done`, with the assistant's last message |
+| `StopFailure` | `idle` + `error`, with the error details |
 
-Las demás notificaciones (como el recordatorio `idle_prompt`) se ignoran. `notify --from-hook` no
-imprime nada y sale con 0, así que **nunca** emite una decisión de permisos: cada herramienta sigue
-el flujo normal de aprobación de Claude.
+Other notifications (such as the `idle_prompt` reminder) are ignored. `notify --from-hook` prints
+nothing and exits with 0, so it **never** emits a permission decision: every tool goes through
+Claude's normal approval flow.
 
 ### codex (`setup_hooks: codex`)
 
@@ -73,135 +75,134 @@ codex -c 'notify=["<exe>","notify","--sock","<socket>","--from-hook","codex"]' \
       -c 'tui.notification_condition="always"' …
 ```
 
-- `notify` con `agent-turn-complete` → `idle` + `done` (con el último mensaje).
-- Las aprobaciones y preguntas llegan como notificaciones OSC 9 del TUI y las recoge el parser de
-  señales de terminal.
-- codex no avisa cuando vuelve a trabajar, así que el perfil usa `status: heuristic`.
+- `notify` with `agent-turn-complete` → `idle` + `done` (with the last message).
+- Approvals and questions arrive as OSC 9 notifications from the TUI and are picked up by the
+  terminal-signal parser.
+- codex doesn't report when it starts working again, so the profile uses `status: heuristic`.
 
-### Señales de terminal (cualquier agente)
+### Terminal signals (any agent)
 
-El parser es agnóstico del agente y no modifica el flujo: los bytes llegan intactos a la terminal.
+The parser is agent-agnostic and doesn't alter the stream: bytes reach the terminal untouched.
 
-| señal | |
+| signal | |
 |---|---|
-| BEL suelto | sin mensaje (no cuenta el BEL que cierra un OSC) |
-| `OSC 9 ; mensaje` | iTerm2 / Ghostty. `OSC 9;4` es **progreso** (abajo) y nunca pide atención; el resto de subcomandos numéricos de ConEmu se ignoran |
-| `OSC 777 ; notify ; título ; cuerpo` | urxvt / foot / Ghostty |
+| bare BEL | no message (the BEL that terminates an OSC doesn't count) |
+| `OSC 9 ; message` | iTerm2 / Ghostty. `OSC 9;4` is **progress** (below) and never asks for attention; other numeric ConEmu subcommands are ignored |
+| `OSC 777 ; notify ; title ; body` | urxvt / foot / Ghostty |
 | `OSC 99` | kitty |
-| `attention_patterns` | regex del perfil sobre la salida reciente sin ANSI, evaluadas cuando la salida lleva ~300 ms quieta |
+| `attention_patterns` | the profile's regexes over recent output with ANSI stripped, evaluated once output has been quiet for ~300 ms |
 
-Una señal pone la sesión en `waiting_input` con atención `question`, que dura hasta que escribas. En sesiones con hooks solo cuentan mientras el agente está `running` (los
-hooks ya informan esperas y finales de turno); si ya hay una atención sin leer, una señal solo
-completa su mensaje.
+A signal puts the session in `waiting_input` with a `question` attention, which lasts until you
+type. In sessions with hooks they only count while the agent is `running` (hooks already report
+waits and turn ends); if there's already an unread attention, a signal only fills in its message.
 
-## Notificaciones
+## Notifications
 
-### Con la app abierta
+### While the app is open
 
-La app se suscribe al daemon como cliente `ui` y es ella quien notifica:
+The app subscribes to the daemon as a `ui` client and handles notifications itself:
 
-- Notificación nativa si la ventana no está activa o la sesión no es la visible. Título
-  `<proyecto> · <perfil>`; cuerpo, el mensaje o "Necesita tu aprobación", "Está esperando tu
-  respuesta", "Terminó", "Terminó con un error". Al pulsarla se activa la app y se selecciona la
-  sesión.
-- Sonido solo en aprobaciones y preguntas (`notify.sound`).
-- Badge del Dock con el número de sesiones pendientes y rebote del icono en aprobaciones (si la app
-  no está al frente).
-- En la sidebar: punto ámbar pulsante, etiqueta (aprobación / pregunta / terminó / error), tooltip
-  con el mensaje, contador por proyecto y `agenterm (N)` en el título de la ventana.
-- Al marcar la atención como vista se retira la notificación entregada.
+- A native notification if the window isn't active or the session isn't the one on screen. Title
+  `<project> · <profile>`; the body is the message, or a generic text for the kind (needs your
+  approval, waiting for your reply, finished, finished with an error) in the app language
+  (`ui.language`). Clicking it activates the app and selects the session.
+- Sound only for approvals and questions (`notify.sound`).
+- A Dock badge with the number of pending sessions, and the icon bounces on approvals (if the app
+  isn't in front).
+- In the sidebar: a pulsing amber dot, a label (approval / question / done / error), a tooltip with
+  the message, a per-project counter and `agenterm (N)` in the window title.
+- Marking the attention as seen withdraws the delivered notification.
 
-### Con la app cerrada
+### While the app is closed
 
-Cuando ningún cliente `ui` está suscrito, avisa el daemon:
+When no `ui` client is subscribed, the daemon notifies:
 
-- Si su ejecutable está dentro de un `.app` (lo arrancó la app) y el bundle tiene permiso, usa
-  `UNUserNotificationCenter`: la notificación sale como **agenterm**, con su icono y el mismo
-  identificador que usa la app (`agenterm-<sessionId>`). La primera vez pide el permiso.
-- Al pulsarla, el daemon ejecuta `open -a <su .app> [--env AGENTERM_HOME=…]
-  agenterm://session/<id>`: la app se abre (o se activa) y selecciona esa sesión.
-- Si el daemon no está en un bundle (lo arrancó la CLI), no hay permiso o falla el envío, cae a
-  `osascript` (`display notification`): macOS la atribuye a *Script Editor* y pulsarla no abre
-  agenterm.
-- Nada de esto bloquea el daemon: el envío nativo tiene un límite de ~3 s y `osascript` de 5 s.
-- `daemon.log` registra cada aviso (`notifier=native` u `osascript`, o el estado del permiso si no
-  se pudo usar el nativo) y los clics (`notification clicked`).
+- If its executable is inside a `.app` (the app started it) and the bundle has permission, it uses
+  `UNUserNotificationCenter`: the notification shows up as **agenterm**, with its icon and the same
+  identifier the app uses (`agenterm-<sessionId>`). It asks for permission the first time.
+- On click, the daemon runs `open -a <its .app> [--env AGENTERM_HOME=…] agenterm://session/<id>`:
+  the app opens (or activates) and selects that session.
+- If the daemon isn't in a bundle (the CLI started it), there's no permission or sending fails, it
+  falls back to `osascript` (`display notification`): macOS attributes it to *Script Editor* and
+  clicking it doesn't open agenterm.
+- None of this blocks the daemon: native sending is capped at ~3 s and `osascript` at 5 s.
+- `daemon.log` records every notification (`notifier=native` or `osascript`, or the permission
+  status if the native path couldn't be used) and clicks (`notification clicked`).
 
-### Permiso de notificaciones
+### Notification permission
 
-La primera vez que abras el `.app` macOS pregunta si permites notificaciones. Si lo rechazaste:
-*Ajustes del Sistema → Notificaciones → agenterm* → "Permitir notificaciones" (y estilo "Alertas"
-si quieres que se queden en pantalla). Las de `osascript` se controlan en *Notificaciones → Script
-Editor*.
+The first time you open the `.app`, macOS asks whether to allow notifications. If you declined:
+*System Settings → Notifications → agenterm* → "Allow notifications" (and the "Alerts" style if you
+want them to stay on screen). `osascript` notifications are controlled under *Notifications →
+Script Editor*.
 
-### Esquema de URL
+### URL scheme
 
-`agenterm://session/<id>` abre la app en esa sesión. Está registrado en `CFBundleURLTypes` (vía
-`protocols` en `app/wails.json`) y la app lo recibe con `mac.Options.OnUrlOpen`; si la app no estaba
-abierta, selecciona la sesión al terminar de cargar.
+`agenterm://session/<id>` opens the app on that session. It's registered in `CFBundleURLTypes` (via
+`protocols` in `app/wails.json`) and the app receives it through `mac.Options.OnUrlOpen`; if the app
+wasn't open, it selects the session once it finishes loading.
 
-## Actividad
+## Activity
 
-Cada sesión lleva, en `session.list` y en los eventos:
+Each session carries, in `session.list` and in events:
 
-| campo | |
+| field | |
 |---|---|
-| `activity`, `activityAt`, `activitySource` | línea de actividad y su origen: `hook` u `output` |
-| `turnStartedAt`, `turnEndedAt` | inicio del turno actual (o último) y su fin (al pasar a `idle`/`exited`) |
-| `lastOutputAt`, `lastEventAt` | última salida del PTY y último evento explícito |
-| `stalled`, `stalledAt` | el turno parece trabado (es una marca, no un estado) |
+| `activity`, `activityAt`, `activitySource` | activity line and its source: `hook` or `output` |
+| `turnStartedAt`, `turnEndedAt` | start of the current (or last) turn and its end (on going `idle`/`exited`) |
+| `lastOutputAt`, `lastEventAt` | last PTY output and last explicit event |
+| `stalled`, `stalledAt` | the turn looks stalled (a flag, not a state) |
 | `progress` | `{state: normal\|error\|indeterminate\|paused, value: 0-100}` |
 
-### Línea de actividad
+### Activity line
 
-- **Claude Code** (hook `PreToolUse`): `Edit`/`Write`/`MultiEdit`/`NotebookEdit` → "Editando
-  main.go", `Read` → "Leyendo go.mod", `Bash` → "Bash: <comando, ~60 caracteres>", `Grep`/`Glob` →
-  "Buscando <patrón>", `WebFetch` → "Web: <host>", `WebSearch` → "Web: <consulta>", `Task`/`Agent` →
-  "Subagente: <descripción>", `TodoWrite` → "Actualizando tareas", `mcp__srv__tool` → "MCP:
-  srv.tool"; cualquier otra, su nombre. Con hooks, la salida no pisa la actividad.
-- **Resto de agentes**: la última línea con contenido de la salida (sin ANSI), recortada. Un CR que
-  redibuja la línea se queda con su última versión. Se ignoran líneas solo de spinner o de dibujo de
-  cajas, con menos de dos letras o dígitos, o que parecen el **prompt de la shell** (cortas y
-  terminadas en `$ % # > ❯ ➜` en las formas típicas, o empezando por `usuario@host`), así que en una
-  shell ves la última salida y no `usuario@mac ~ %`. En TUIs que redibujan la pantalla (opencode,
-  codex…) es la última línea que pintaron, que no siempre es la más informativa.
-- `agenterm notify --activity "texto"` también la fija (como `hook`).
-- El daemon emite `session.activity` agrupado: como mucho uno cada 500 ms por sesión (siempre con el
-  último valor), más un latido cada 5 s mientras haya salida.
+- **Claude Code** (`PreToolUse` hook): `Edit`/`Write`/`MultiEdit`/`NotebookEdit` → "Editing
+  main.go", `Read` → "Reading go.mod", `Bash` → "Bash: <command, ~60 characters>", `Grep`/`Glob` →
+  "Searching <pattern>", `WebFetch` → "Web: <host>", `WebSearch` → "Web: <query>", `Task`/`Agent` →
+  "Subagent: <description>", `TodoWrite` → "Updating tasks", `mcp__srv__tool` → "MCP: srv.tool";
+  any other tool, its name. With hooks, output doesn't overwrite the activity.
+- **Other agents**: the last non-empty output line (ANSI stripped), trimmed. A CR that redraws the
+  line keeps its latest version. Lines that are only spinners or box drawing, have fewer than two
+  letters or digits, or look like the **shell prompt** (short and ending in `$ % # > ❯ ➜` in the
+  usual forms, or starting with `user@host`) are ignored, so in a shell you see the last output and
+  not `user@mac ~ %`. In TUIs that redraw the screen (opencode, codex…) it's the last line they
+  drew, which isn't always the most informative.
+- `agenterm notify --activity "text"` also sets it (as `hook`).
+- The daemon emits `session.activity` in batches: at most one every 500 ms per session (always with
+  the latest value), plus a heartbeat every 5 s while there's output.
 
-### Cronómetros
+### Timers
 
-`turnStartedAt` se fija al pasar a `running` desde `idle` (o al responder tú a una espera detectada
-por la terminal) y en cada `UserPromptSubmit`; una aprobación (espera explícita → `running`)
-continúa el mismo turno. La app muestra "trabajando 4m 12s", "última salida hace 12s" (a partir de
-10 s) y, en reposo, "terminó en 6m".
+`turnStartedAt` is set on going `running` from `idle` (or when you answer a wait detected by the
+terminal) and on every `UserPromptSubmit`; an approval (explicit wait → `running`) continues the
+same turn. The app shows how long the agent has been working (e.g. 4m 12s), the time since the last
+output (from 10 s on) and, when idle, how long the turn took (e.g. 6m).
 
-### «¿Trabado?»
+### "Stalled?"
 
-Si un turno abierto **por un hook** (`running` explícito) pasa `activity.stall_seconds` (180 por
-defecto) sin salida y sin eventos, la sesión se marca `stalled` (evento `session.activity` con
-`stallRaised: true`) y la app lo muestra en naranja: "¿trabado? sin actividad hace 5m". Se borra con
-cualquier salida o evento.
+If a turn opened **by a hook** (explicit `running`) goes `activity.stall_seconds` (180 by default)
+without output or events, the session is marked `stalled` (a `session.activity` event with
+`stallRaised: true`) and the app shows it in orange, with the time since the last activity (e.g.
+5m). Any output or event clears it.
 
-- Con `notify.notify_on_stall` se envía una notificación de tipo `stall`: sin sonido, sin rebote
-  del Dock, no cuenta en el badge ni como pendiente. Con la app cerrada va por el mismo camino que
-  el resto de avisos del daemon.
-- Las sesiones heurísticas no tienen "turno abierto" (3 s sin salida ya es `idle`), así que nunca
-  se marcan.
-- El spinner de Claude Code redibuja cada segundo mientras trabaja y eso cuenta como salida: en
-  Claude el aviso detecta sobre todo cuelgues completos (proceso parado, terminal congelada), no una
-  herramienta lenta.
+- With `notify.notify_on_stall`, a `stall` notification is sent: no sound, no Dock bounce, and it
+  doesn't count towards the badge or as pending. With the app closed it takes the same path as the
+  daemon's other notifications.
+- Heuristic sessions have no "open turn" (3 s without output is already `idle`), so they're never
+  flagged.
+- Claude Code's spinner redraws every second while it works, and that counts as output: with Claude
+  the warning mostly catches complete hangs (stopped process, frozen terminal), not a slow tool.
 
-### Progreso
+### Progress
 
-`OSC 9 ; 4 ; st ; pr` (ConEmu / Windows Terminal / Ghostty; `st`: 0 borra, 1 normal, 2 error, 3
-indeterminado, 4 pausa; `pr`: 0-100) se muestra como una barra fina bajo la fila de la sesión y
-arriba del panel de terminal. Nunca levanta atención.
+`OSC 9 ; 4 ; st ; pr` (ConEmu / Windows Terminal / Ghostty; `st`: 0 clears, 1 normal, 2 error, 3
+indeterminate, 4 paused; `pr`: 0-100) is shown as a thin bar under the session's row and at the top
+of the terminal pane. It never raises attention.
 
-### Vista general (⌘0)
+### Overview (⌘0)
 
-El botón ▦ de la cabecera de la sidebar (o el de cada proyecto) abre una rejilla con las sesiones
-del proyecto actual (con un interruptor para ver todos los proyectos): perfil, estado, atención,
-actividad, cronómetros, progreso, rama y las últimas 8 líneas de salida en texto plano (RPC
-`session.tail`, refrescadas al llegar eventos y como mucho cada 1,5 s por sesión). Pulsar una
-tarjeta abre la sesión; Esc o ⌘0 la cierran.
+The ▦ button in the sidebar header (or each project's) opens a grid with the current project's
+sessions (with a toggle to show all projects): profile, state, attention, activity, timers,
+progress, branch and the last 8 lines of output as plain text (RPC `session.tail`, refreshed when
+events arrive and at most every 1.5 s per session). Clicking a card opens the session; Esc or ⌘0
+closes the overview.

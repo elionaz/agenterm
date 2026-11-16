@@ -1,17 +1,19 @@
-# Desarrollo
+# Development
 
-Requisitos: los de [README.md](../README.md#estado-y-requisitos) (Go, Node 24+ con npm y la CLI de
-Wails v2). Las reglas para abrir un pull request están en [CONTRIBUTING.md](../CONTRIBUTING.md).
+**English** · [Español](es/development.md)
 
-## App en modo desarrollo
+Requirements: those in [README.md](../README.md#status-and-requirements) (Go, Node 24+ with npm and
+the Wails v2 CLI). The rules for opening a pull request are in [CONTRIBUTING.md](../CONTRIBUTING.md).
+
+## App in development mode
 
 ```sh
 cd app
-wails dev     # hot reload (frontend en Vite); también sirve http://localhost:34115
+wails dev     # hot reload (frontend on Vite); also serves http://localhost:34115
 wails build   # -> app/build/bin/agenterm.app
 ```
 
-Solo el frontend:
+Frontend only:
 
 ```sh
 cd app/frontend
@@ -23,89 +25,86 @@ npm run build   # vite build
 ## Tests
 
 ```sh
-gofmt -l .                       # no debe listar nada
+gofmt -l .                       # must print nothing
 go vet ./... && go test -race ./...
 ```
 
-Es lo mismo que corre el CI (más `npm run check` y `npm run build` del frontend).
+This is what CI runs (plus the frontend's `npm run check` and `npm run build`).
 
-- Hay un test de integración que levanta el daemon en un `AGENTERM_HOME` temporal y ejercita spawn,
-  attach/detach/reattach con scrollback, notify, eventos, kill y apagado, y otro que lanza una shell
-  en modo worktree sobre un repo temporal, hace cambios escribiendo en ella y comprueba
-  `session.diff`, que `kill` conserva el worktree, el huérfano tras reiniciar el daemon, reabrirlo,
-  el merge y `worktree.remove` (rechazo y force).
-- Los tests de `internal/gitx` usan repos reales en directorios temporales con la configuración de
-  git aislada (`GIT_CONFIG_NOSYSTEM=1`, `GIT_CONFIG_GLOBAL` vacío, `HOME` temporal).
+- One integration test brings up the daemon in a temporary `AGENTERM_HOME` and exercises spawn,
+  attach/detach/reattach with scrollback, notify, events, kill and shutdown; another launches a
+  shell in worktree mode on a temporary repo, makes changes by typing into it and checks
+  `session.diff`, that `kill` keeps the worktree, the orphan after restarting the daemon, reopening
+  it, the merge and `worktree.remove` (refusal and force).
+- The `internal/gitx` tests use real repos in temporary directories with isolated git configuration
+  (`GIT_CONFIG_NOSYSTEM=1`, empty `GIT_CONFIG_GLOBAL`, temporary `HOME`).
 
-## Probar sin tocar tu instalación
+## Testing without touching your installation
 
-Usa un `AGENTERM_HOME` propio. Tiene que ser una ruta **corta** (`/tmp/…`): en macOS la ruta de un
-socket unix tiene un límite de unos 104 bytes y las carpetas temporales de `/var/folders/…` se
-pasan.
+Use your own `AGENTERM_HOME`. It must be a **short** path (`/tmp/…`): on macOS a unix socket path is
+limited to about 104 bytes and the temporary folders under `/var/folders/…` go over it.
 
 ```sh
 export AGENTERM_HOME=/tmp/agt
 go run ./cmd/agenterm project add .
 go run ./cmd/agenterm spawn agenterm shell
 go run ./cmd/agenterm ls
-go run ./cmd/agenterm stop --force      # apaga solo el daemon de /tmp/agt
+go run ./cmd/agenterm stop --force      # stops only the /tmp/agt daemon
 
-cd app && AGENTERM_HOME=/tmp/agt wails dev   # la app contra ese mismo daemon
+cd app && AGENTERM_HOME=/tmp/agt wails dev   # the app against that same daemon
 ```
 
-Como `AGENTERM_HOME` manda sobre `AGENTERM_SOCK`, esto también es seguro dentro de una sesión de
-agenterm: no toca el daemon que aloja la sesión.
+Since `AGENTERM_HOME` takes precedence over `AGENTERM_SOCK`, this is also safe inside an agenterm
+session: it doesn't touch the daemon hosting the session.
 
-## Bindings de Wails
+## Wails bindings
 
-Los bindings TypeScript de los métodos de `app/app.go` están en `app/frontend/wailsjs/` y se
-versionan. `wails dev` y `wails build` los regeneran; si cambias la firma de un método exportado y
-solo quieres los bindings:
+The TypeScript bindings for the methods in `app/app.go` live in `app/frontend/wailsjs/` and are
+checked in. `wails dev` and `wails build` regenerate them; if you change an exported method's
+signature and only want the bindings:
 
 ```sh
 cd app && wails generate module
 ```
 
-## Icono
+## Icon
 
-Las fuentes están en `assets/icon/`:
+The sources are in `assets/icon/`:
 
-- `agenterm-icon.svg`: el icono cuadrado, a sangre completa;
-- `agenterm-icon-rounded.svg`: con esquinas redondeadas (el del README);
-- `agenterm-icon-macos.svg`: con el margen de la plantilla de iconos de macOS, que es el que usa la
-  app.
+- `agenterm-icon.svg`: the square, full-bleed icon;
+- `agenterm-icon-rounded.svg`: with rounded corners (the one in the README);
+- `agenterm-icon-macos.svg`: with the macOS icon template's margin, which is the one the app uses.
 
-Wails genera el icono del `.app` a partir de `app/build/appicon.png` (1024×1024). Para regenerarlo
-con Inkscape 1.x:
+Wails generates the `.app` icon from `app/build/appicon.png` (1024×1024). To regenerate it with
+Inkscape 1.x:
 
 ```sh
 inkscape assets/icon/agenterm-icon-macos.svg \
   --export-type=png --export-filename=app/build/appicon.png -w 1024 -h 1024
 ```
 
-En macOS la CLI de Inkscape no queda en el `PATH`; está en
-`/Applications/Inkscape.app/Contents/MacOS/inkscape`. Usa colores sólidos en los bordes (no
-`stroke-opacity`): los trazos semitransparentes se suman donde se cruzan.
+On macOS the Inkscape CLI isn't on the `PATH`; it's at
+`/Applications/Inkscape.app/Contents/MacOS/inkscape`. Use solid colors on the edges (not
+`stroke-opacity`): semi-transparent strokes add up where they overlap.
 
-## Limitaciones conocidas
+## Known limitations
 
-- **Solo macOS.** La app, las notificaciones y el Dock son exclusivos de macOS y solo se prueba en
-  macOS (Apple Silicon). El transporte es un socket unix; no hay soporte para Windows.
-- **Sin releases firmadas** todavía: hay que compilar desde el código fuente.
-- **Las sesiones no sobreviven a un reinicio del daemon** (ni de la computadora): sus procesos
-  mueren y el scrollback se pierde. Los worktrees sí se conservan, como huérfanos.
-- **Notificaciones con la app cerrada**: si el daemon lo arrancó la CLI (no está dentro del `.app`)
-  o el bundle no tiene permiso, se usa `osascript`: la notificación aparece como *Script Editor* y
-  pulsarla no abre agenterm.
-- **codex** no avisa cuando empieza a trabajar: "trabajando" lo decide la heurística y no hay
-  aviso de «¿trabado?».
-- **«¿Trabado?»** solo existe en sesiones con hooks (Claude Code), y como el spinner de Claude
-  redibuja cada segundo, detecta sobre todo cuelgues completos, no herramientas lentas.
-- **Línea de actividad en TUIs** que redibujan la pantalla (opencode, codex…): es la última línea
-  que pintaron, que no siempre es la más informativa.
-- **Kiro CLI**: el nombre del binario (`kiro-cli chat`) viene de la documentación y no se ha
-  verificado con una instalación real; se puede corregir con `cmd:` en `profiles.yaml`.
-- **`profiles.yaml` pierde los comentarios** cuando la app lo guarda (se reescribe en formato
-  canónico). `settings.yaml` sí los conserva.
-- El merge de un worktree **no hace stash**: la carpeta principal tiene que estar limpia y en la
-  rama base.
+- **macOS only.** The app, notifications and the Dock are macOS-only, and it's only tested on macOS
+  (Apple Silicon). The transport is a unix socket; Windows isn't supported.
+- **No signed releases** yet: you have to build from source.
+- **Sessions don't survive a daemon restart** (or a computer restart): their processes die and the
+  scrollback is lost. Worktrees are kept, as orphans.
+- **Notifications with the app closed**: if the CLI started the daemon (it isn't inside the `.app`)
+  or the bundle has no permission, `osascript` is used: the notification shows up as *Script Editor*
+  and clicking it doesn't open agenterm.
+- **codex** doesn't report when it starts working: "working" is decided by the heuristic and there's
+  no "stalled?" warning.
+- **"Stalled?"** only exists in sessions with hooks (Claude Code), and since Claude's spinner
+  redraws every second, it mostly catches complete hangs, not slow tools.
+- **Activity line in TUIs** that redraw the screen (opencode, codex…): it's the last line they drew,
+  which isn't always the most informative.
+- **Kiro CLI**: the binary name (`kiro-cli chat`) comes from its documentation and hasn't been
+  verified against a real installation; you can fix it with `cmd:` in `profiles.yaml`.
+- **`profiles.yaml` loses its comments** when the app saves it (it's rewritten in canonical form).
+  `settings.yaml` keeps them.
+- Merging a worktree **doesn't stash**: the main folder must be clean and on the base branch.

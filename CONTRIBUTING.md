@@ -1,42 +1,49 @@
-# Contribuir a agenterm
+# Contributing to agenterm
 
-¡Gracias por tu interés! Estas son las reglas para colaborar.
+**English** · [Español](CONTRIBUTING.es.md)
 
-## Flujo de trabajo
+Thanks for your interest! These are the rules for contributing. Issues, PRs and comments in English
+or Spanish are welcome.
 
-1. **Abre un issue primero** para cambios no triviales (features, refactors, cambios de protocolo),
-   así acordamos el enfoque antes de que inviertas tiempo.
-2. **Haz fork** del repo y crea una rama desde `main`: `feat/<algo>`, `fix/<algo>`, `docs/<algo>`.
-3. **Abre un pull request contra `main`.** Nadie puede hacer push directo a `main`.
-4. Todo PR necesita:
-   - la **revisión del mantenedor** (@elionaz, que se pide automáticamente vía `CODEOWNERS`):
-     solo el mantenedor puede integrar PRs;
-   - el **CI en verde** (`go vet`, `go test -race`, chequeo del frontend);
-   - la rama **al día con `main`** y todas las conversaciones resueltas.
-5. Los PRs se integran con **squash merge**, así que el título del PR será el mensaje del commit.
+## Workflow
 
-## Mensajes de commit / títulos de PR
+1. **Open an issue first** for non-trivial changes (features, refactors, protocol changes), so we
+   can agree on the approach before you invest time.
+2. **Fork** the repo and create a branch from `main`: `feat/<topic>`, `fix/<topic>`, `docs/<topic>`.
+3. **Open a pull request against `main`.** Nobody can push directly to `main`.
+4. Every PR needs:
+   - the **maintainer's review** (@elionaz, requested automatically via `CODEOWNERS`): only the
+     maintainer can merge PRs;
+   - **green CI** (`go vet`, `go test -race`, frontend check);
+   - the branch **up to date with `main`** and all conversations resolved.
+5. PRs are merged with **squash merge**, so the PR title becomes the commit message.
 
-Usamos [Conventional Commits](https://www.conventionalcommits.org/):
-`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`. Ejemplo: `fix: evitar fuga del socket al cerrar el daemon`.
+## Commit messages / PR titles
 
-## Antes de abrir el PR
+We use [Conventional Commits](https://www.conventionalcommits.org/):
+`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`. Example: `fix: avoid leaking the socket when the daemon shuts down`.
+
+## Before opening the PR
 
 ```bash
-gofmt -l .                     # no debe listar nada
+gofmt -l .                     # must print nothing
 go vet ./... && go test -race ./...
-cd app/frontend && npm ci && npm run check && npm run build   # si tocas el frontend
+cd app/frontend && npm ci && npm run check && npm run build   # if you touch the frontend
 ```
 
-- Añade o actualiza tests para el comportamiento que cambies.
-- Actualiza el `README.md` si cambias comandos, flags, rutas o `settings.yaml`.
-- Mantén los PRs pequeños y enfocados en una sola cosa.
+- Add or update tests for the behavior you change.
+- Update the README and `docs/` if you change commands, flags, paths or `settings.yaml`. The main
+  documentation is in English (`README.md`, `docs/`) and the Spanish translation lives in
+  `README.es.md` and `docs/es/`: keep both up to date (if you can't write in one of the two
+  languages, say so in the PR).
+- Keep PRs small and focused on one thing.
 
-## Reportar bugs y proponer ideas
+## Reporting bugs and proposing ideas
 
-Usa las plantillas de issue. Para vulnerabilidades de seguridad **no abras un issue público**:
-sigue [SECURITY.md](SECURITY.md).
+Use the issue templates. For security vulnerabilities **don't open a public issue**: follow
+[SECURITY.md](SECURITY.md).
 
-## Licencia
+## License
 
-Al contribuir aceptas que tu aportación se publique bajo la [licencia MIT](LICENSE) del proyecto.
+By contributing you agree that your contribution is published under the project's
+[MIT license](LICENSE).

@@ -1,100 +1,100 @@
-# Configuración
+# Configuration
 
-## Rutas
+**English** · [Español](es/configuration.md)
 
-| | por defecto | con `AGENTERM_HOME=/x` |
+## Paths
+
+| | default | with `AGENTERM_HOME=/x` |
 |---|---|---|
-| socket, pid y log del daemon | `~/.agenterm/{d.sock,d.pid,daemon.log}` | `/x/…` |
-| perfiles, proyectos y ajustes | `~/.config/agenterm/{profiles.yaml,projects.json,settings.yaml}` | `/x/…` |
-| archivos de hooks generados | `~/.agenterm/hooks/` | `/x/hooks/` |
-| worktrees de las sesiones | `~/.agenterm/worktrees/<proyecto>-<projectId>/<sessionId>/` (o `git.worktree_dir`) | `/x/worktrees/…` |
-| registro de worktrees | `~/.agenterm/worktrees.json` | `/x/worktrees.json` |
+| daemon socket, pid and log | `~/.agenterm/{d.sock,d.pid,daemon.log}` | `/x/…` |
+| profiles, projects and settings | `~/.config/agenterm/{profiles.yaml,projects.json,settings.yaml}` | `/x/…` |
+| generated hook files | `~/.agenterm/hooks/` | `/x/hooks/` |
+| session worktrees | `~/.agenterm/worktrees/<project>-<projectId>/<sessionId>/` (or `git.worktree_dir`) | `/x/worktrees/…` |
+| worktree registry | `~/.agenterm/worktrees.json` | `/x/worktrees.json` |
 
-- Los directorios se crean con permisos `0700` y el socket con `0600`.
-- En macOS la ruta de un socket unix tiene un límite de unos 104 bytes: si usas `AGENTERM_HOME`,
-  que sea una ruta corta (`/tmp/agt`, no una carpeta temporal larga de `/var/folders/…`).
-- `profiles.yaml` y `settings.yaml` son opcionales. Cuando la app (o una RPC) los guarda, la
-  escritura es atómica y deja la versión anterior en `<archivo>.bak`.
+- Directories are created with `0700` permissions and the socket with `0600`.
+- On macOS a unix socket path is limited to about 104 bytes: if you use `AGENTERM_HOME`, keep it
+  short (`/tmp/agt`, not a long temporary folder under `/var/folders/…`).
+- `profiles.yaml` and `settings.yaml` are optional. When the app (or an RPC) saves them, the write
+  is atomic and leaves the previous version in `<file>.bak`.
 
-## Agentes: catálogo y detección
+## Agents: catalog and detection
 
-agenterm trae un catálogo de CLIs de agentes conocidos. Un agente cuenta como **instalado** si su
-binario se encuentra en el `PATH` del daemon o en el de tu shell de login (`$SHELL -l -i -c`); esa
-búsqueda se guarda en caché 5 minutos. `agenterm profiles scan` o **Re-escanear** en *Ajustes →
-Agentes* la refrescan.
+agenterm ships a catalog of known agent CLIs. An agent counts as **installed** if its binary is
+found in the daemon's `PATH` or in your login shell's (`$SHELL -l -i -c`); that lookup is cached for
+5 minutes. `agenterm profiles scan` or the rescan button in **Settings → Agents** refreshes it.
 
-| id | agente | comando | estado | hooks | notas |
+| id | agent | command | status | hooks | notes |
 |---|---|---|---|---|---|
 | `claude` | Claude Code | `claude` | `hooks` | `claude` | |
-| `codex` | Codex CLI | `codex` | `heuristic` | `codex` | `notify` solo avisa el fin de turno, así que "trabajando" lo decide la heurística |
+| `codex` | Codex CLI | `codex` | `heuristic` | `codex` | `notify` only reports the end of a turn, so "working" is decided by the heuristic |
 | `opencode` | opencode | `opencode` | `heuristic` | | |
 | `gemini` | Gemini CLI | `gemini` | `heuristic` | | |
 | `cursor-agent` | Cursor CLI | `cursor-agent` | `heuristic` | | |
 | `copilot` | GitHub Copilot CLI | `copilot` | `heuristic` | | |
-| `aider` | Aider | `aider` | `heuristic` | | patrón de atención `\(Y\)es/\(N\)o` |
+| `aider` | Aider | `aider` | `heuristic` | | attention pattern `\(Y\)es/\(N\)o` |
 | `amp` | Amp | `amp` | `heuristic` | | |
 | `goose` | goose | `goose session` | `heuristic` | | |
 | `qwen` | Qwen Code | `qwen` | `heuristic` | | |
 | `crush` | Crush | `crush` | `heuristic` | | |
-| `kiro` | Kiro CLI | `kiro-cli chat` | `heuristic` | | nombre del binario sin verificar |
-| `shell` | Shell | `$SHELL` (o `/bin/sh`) | `heuristic` | | siempre disponible |
+| `kiro` | Kiro CLI | `kiro-cli chat` | `heuristic` | | binary name not verified |
+| `shell` | Shell | `$SHELL` (or `/bin/sh`) | `heuristic` | | always available |
 
-- **estado** (`status`): `hooks` = el estado lo deciden eventos explícitos (hooks / `notify`) y la
-  heurística solo se usa hasta el primer evento; `heuristic` = salida → trabajando, unos segundos sin
-  salida → inactivo. Ver [attention-and-activity.md](attention-and-activity.md).
-- **hooks** (`setup_hooks`): integración que agenterm configura al lanzar el agente.
-- Los agentes no instalados (o desactivados) no salen en el menú **+** ni en ⌘N; en *Ajustes* sí,
-  con el comando de instalación y un enlace.
+- **status** (`status`): `hooks` = state is decided by explicit events (hooks / `notify`) and the
+  heuristic is only used until the first event; `heuristic` = output → working, a few seconds
+  without output → idle. See [attention-and-activity.md](attention-and-activity.md).
+- **hooks** (`setup_hooks`): the integration agenterm sets up when launching the agent.
+- Agents that aren't installed (or are disabled) don't appear in the **+** menu or on ⌘N; they do
+  appear in **Settings**, with the install command and a link.
 
 ## `profiles.yaml`
 
-Es una lista YAML. Cada entrada tiene un `id` obligatorio y único, y se **superpone** al catálogo:
+A YAML list. Each entry has a required, unique `id` and is **layered over** the catalog:
 
-| campo | |
+| field | |
 |---|---|
-| `id` | identificador (letras, dígitos, `.`, `_`, `-`) |
-| `name` | nombre visible |
-| `extends` | id del perfil del que hereda (solo perfiles propios) |
-| `enabled` | `false` lo oculta de los menús; por defecto `true` (no se hereda) |
-| `order` | posición explícita (menor primero); sin ella cuenta la posición en la lista |
-| `cmd` | comando; se expanden `$VARIABLES` |
-| `args` | lista de argumentos |
-| `env` | mapa `CLAVE: valor` (los valores también expanden `$VARIABLES`) |
-| `status` | `hooks` o `heuristic` |
-| `setup_hooks` | `claude`, `codex` o `none` |
-| `idle_seconds` | segundos sin salida para pasar a inactivo (sobrescribe el valor del daemon, 3 s) |
-| `attention_patterns` | expresiones regulares (sintaxis de Go) sobre la salida reciente sin ANSI; una coincidencia marca la sesión como esperando tu respuesta |
+| `id` | identifier (letters, digits, `.`, `_`, `-`) |
+| `name` | display name |
+| `extends` | id of the profile it inherits from (custom profiles only) |
+| `enabled` | `false` hides it from the menus; `true` by default (not inherited) |
+| `order` | explicit position (lowest first); without it, the position in the list counts |
+| `cmd` | command; `$VARIABLES` are expanded |
+| `args` | list of arguments |
+| `env` | `KEY: value` map (values also expand `$VARIABLES`) |
+| `status` | `hooks` or `heuristic` |
+| `setup_hooks` | `claude`, `codex` or `none` |
+| `idle_seconds` | seconds without output before going idle (overrides the daemon's value, 3 s) |
+| `attention_patterns` | regular expressions (Go syntax) over recent output with ANSI stripped; a match marks the session as waiting for your reply |
 
-### Reglas de combinación
+### Merge rules
 
-- **Entrada con el id de un agente del catálogo**: solo cambia los campos que pongas; el resto
-  (incluido `setup_hooks`) se hereda. Un campo vacío u omitido hereda; `setup_hooks: none` desactiva
-  la integración; `args: []` vacía los argumentos heredados. Una entrada del catálogo no puede usar
-  `extends`.
-- **Id nuevo sin `extends`**: perfil propio; `cmd` es obligatorio.
-- **Id nuevo con `extends: <id>`**: variante. Hereda todo del padre ya resuelto (con tus cambios
-  incluidos) y sus campos se aplican encima; `args`, `env` y `attention_patterns` **reemplazan** a
-  los del padre (no se mezclan). El nombre por defecto de una variante es su id.
-- **Orden**: primero las entradas del archivo, por `order` o por posición; después los agentes del
-  catálogo que el archivo no menciona, en el orden del catálogo. El primero activado e instalado es
-  el de ⌘N. Una entrada que solo tiene `- id: x` sirve para fijar la posición de un agente del
-  catálogo.
-- **Errores**: un error en una entrada (regex inválida, `extends` desconocido o cíclico, falta
-  `cmd`, `setup_hooks` desconocido…) solo inutiliza esa entrada; se ve en `agenterm profiles` y en
-  *Ajustes*. Los errores de estructura (YAML inválido, id vacío o duplicado) invalidan el archivo entero: los
-  comandos que lo leen fallan hasta que lo corrijas.
+- **Entry with a catalog agent's id**: changes only the fields you set; the rest (including
+  `setup_hooks`) is inherited. An empty or omitted field inherits; `setup_hooks: none` disables the
+  integration; `args: []` clears the inherited arguments. A catalog entry can't use `extends`.
+- **New id without `extends`**: a custom profile; `cmd` is required.
+- **New id with `extends: <id>`**: a variant. It inherits everything from the already-resolved
+  parent (your changes included) and its own fields are applied on top; `args`, `env` and
+  `attention_patterns` **replace** the parent's (they aren't merged). A variant's default name is
+  its id.
+- **Order**: file entries first, by `order` or by position; then the catalog agents the file
+  doesn't mention, in catalog order. The first enabled, installed one is what ⌘N launches. An entry
+  with just `- id: x` pins a catalog agent's position.
+- **Errors**: an error in one entry (invalid regex, unknown or cyclic `extends`, missing `cmd`,
+  unknown `setup_hooks`…) only disables that entry; it shows up in `agenterm profiles` and in
+  **Settings**. Structural errors (invalid YAML, empty or duplicate id) invalidate the whole file:
+  commands that read it fail until you fix it.
 
 ```yaml
-- id: claude-yolo           # variante
-  name: Claude (sin permisos)
+- id: claude-yolo           # variant
+  name: Claude (no permissions)
   extends: claude
   args: ["--dangerously-skip-permissions"]
 - id: claude
   env: {CLAUDE_CODE_USE_BEDROCK: "1"}
 - id: gemini
   enabled: false
-- id: mio                   # perfil propio
-  cmd: $HOME/bin/mi-agente
+- id: mine                  # custom profile
+  cmd: $HOME/bin/my-agent
   args: []
   env: {}
   status: heuristic         # hooks | heuristic
@@ -104,36 +104,38 @@ Es una lista YAML. Cada entrada tiene un `id` obligatorio y único, y se **super
     - '\(y/n\)'
 ```
 
-### Edición desde la app
+### Editing from the app
 
-*Ajustes → Agentes* (⌘,, el ⚙ de la sidebar o *agenterm → Preferencias…*) permite activar y
-desactivar, reordenar (arrastrar o ▲▼), *Editar* (nombre, comando, argumentos, entorno
-`CLAVE=valor`, modo de estado, integración de hooks, segundos de inactividad y patrones de
-atención), *Duplicar como variante*, *+ Agente personalizado*, *Borrar* (perfiles propios) o
-*Restablecer* (agentes del catálogo modificados) y *Re-escanear*.
+**Settings → Agents** (⌘,, the ⚙ in the sidebar or the **agenterm** app menu) lets you enable and
+disable agents, reorder them (drag or ▲▼), edit them (name, command, arguments, `KEY=value`
+environment, status mode, hook integration, idle seconds and attention patterns), duplicate one as a
+variant, add a custom agent, delete custom profiles, reset modified catalog agents and rescan.
 
-Al guardar desde la app (RPC `profile.save`, `profile.delete`, `profile.reorder`) el archivo se
-reescribe en **formato canónico**: una entrada por perfil en el orden del menú, solo con los campos
-que difieren de lo heredado (los agentes del catálogo sin cambios quedan como `- id: x`) y sin
-`order`. **Los comentarios no se conservan.** El archivo se relee en cada `spawn` y cada listado,
-así que también puedes editarlo a mano.
+When the app saves (RPC `profile.save`, `profile.delete`, `profile.reorder`), the file is rewritten
+in **canonical form**: one entry per profile in menu order, only with the fields that differ from
+what's inherited (unchanged catalog agents become `- id: x`) and without `order`. **Comments are not
+preserved.** The file is re-read on every `spawn` and every listing, so you can also edit it by
+hand.
 
 ## `settings.yaml`
 
-Todas las claves son opcionales; las que faltan toman el valor por defecto.
+Every key is optional; missing ones take the default value.
 
-| clave | por defecto | |
+| key | default | |
 |---|---|---|
-| `notify.enabled` | `true` | notificaciones (de la app y del daemon) |
-| `notify.sound` | `true` | sonido, solo en aprobaciones y preguntas |
-| `notify.notify_on_done` | `true` | avisar también cuando un agente termina su turno (los errores avisan siempre) |
-| `notify.notify_on_stall` | `true` | aviso discreto cuando un turno parece trabado |
-| `activity.stall_seconds` | `180` | segundos sin salida ni eventos para marcar «¿trabado?»; `0` lo desactiva |
-| `git.editor` | `""` | para «Abrir en editor»: un comando en el `PATH` (`code`, `cursor -n`, `zed`), una ruta absoluta o el nombre de una app de macOS (`Visual Studio Code`, `Cursor.app`). Vacío: `code` si está en el `PATH`, si no Finder |
-| `git.worktree_dir` | `""` | dónde crear los worktrees (ruta absoluta o `~/…`). Vacío: `~/.agenterm/worktrees` (o `$AGENTERM_HOME/worktrees`) |
-| `git.default_mode` | `same` | `same` o `worktree`: lo que propone el menú **+** (y ⌘N) en un proyecto donde aún no elegiste |
+| `ui.language` | `auto` | app language: `auto`, `en` or `es` (see [Language](#language)) |
+| `notify.enabled` | `true` | notifications (from the app and the daemon) |
+| `notify.sound` | `true` | sound, only for approvals and questions |
+| `notify.notify_on_done` | `true` | also notify when an agent finishes its turn (errors always notify) |
+| `notify.notify_on_stall` | `true` | low-key notice when a turn looks stalled |
+| `activity.stall_seconds` | `180` | seconds without output or events before marking "stalled?"; `0` disables it |
+| `git.editor` | `""` | for "Open in editor": a command on the `PATH` (`code`, `cursor -n`, `zed`), an absolute path or the name of a macOS app (`Visual Studio Code`, `Cursor.app`). Empty: `code` if it's on the `PATH`, otherwise Finder |
+| `git.worktree_dir` | `""` | where to create worktrees (absolute path or `~/…`). Empty: `~/.agenterm/worktrees` (or `$AGENTERM_HOME/worktrees`) |
+| `git.default_mode` | `same` | `same` or `worktree`: what the **+** menu (and ⌘N) suggests in a project where you haven't chosen yet |
 
 ```yaml
+ui:
+  language: auto
 notify:
   enabled: true
   sound: true
@@ -147,17 +149,28 @@ git:
   default_mode: same
 ```
 
-Cuándo se lee:
+When it's read:
 
-- `notify.*` se relee en cada notificación (en la app y en el daemon).
-- `activity.stall_seconds` se lee al lanzar cada sesión: afecta a las sesiones nuevas.
-- `git.worktree_dir` se lee al crear cada worktree (y al listar los de un proyecto).
-- `git.editor` se lee en cada «Abrir en editor».
+- `notify.*` is re-read on every notification (in the app and in the daemon).
+- `activity.stall_seconds` is read when each session is launched: it affects new sessions.
+- `git.worktree_dir` is read when each worktree is created (and when listing a project's worktrees).
+- `git.editor` is read on every "Open in editor".
 
-*Ajustes → Notificaciones* edita las claves `notify.*` y `activity.stall_seconds` (RPC
-`settings.save`). Al guardar, el archivo se edita directamente: **se conservan** las claves
-desconocidas y los comentarios, y los campos que un cliente no envía mantienen su valor. Si el
-archivo no se puede interpretar se usan los valores por defecto (y se anota en el log); al guardar
-se reemplaza.
+**Settings → Notifications** edits the `notify.*` keys and `activity.stall_seconds` (RPC
+`settings.save`). Saving edits the file in place: unknown keys and comments **are preserved**, and
+fields a client doesn't send keep their value. If the file can't be parsed, the defaults are used
+(and this is logged); saving replaces it.
 
-*Ajustes → Git* edita `git.editor`, `git.worktree_dir` y `git.default_mode`.
+**Settings → Git** edits `git.editor`, `git.worktree_dir` and `git.default_mode`.
+
+### Language
+
+`ui.language` sets the app language:
+
+- `auto` (default): follows the macOS preferred languages, falling back to English;
+- `en`: English;
+- `es`: Spanish.
+
+You can pick it in **Settings → General**; it localizes the app UI, its menu and notifications. CLI
+output and daemon/RPC error messages are always in English; user-facing refusals carry stable error
+codes so the app can show them in its language.
