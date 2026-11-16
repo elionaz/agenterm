@@ -117,8 +117,8 @@ report `dev`.
    - if `SPARKLE_PRIVATE_ED_KEY` exists, EdDSA-signs the (stapled) zip and writes `appcast.xml`;
    - creates the GitHub release `vX.Y.Z` with the CHANGELOG section as notes (or generated notes if
      there's none) and every artifact attached, `appcast.xml` included when the build is notarized.
-     A release without `appcast.xml` isn't marked *Latest* (the feed URL points at the latest
-     release). A pre-release (`X.Y.Z-suffix`) is published as a GitHub pre-release: never *Latest*,
+     Once `SPARKLE_PUBLIC_ED_KEY` is set, a release without `appcast.xml` isn't marked *Latest* (the
+     feed URL points at the latest release). A pre-release (`X.Y.Z-suffix`) is published as a GitHub pre-release: never *Latest*,
      never offered in-app, and the Homebrew cask isn't updated;
    - if `HOMEBREW_TAP_TOKEN` exists, renders `packaging/homebrew/agenterm.rb.tmpl` with the version
      and the zip's sha256 (`scripts/render-cask.sh`) and pushes it to `Casks/agenterm.rb` in
@@ -286,7 +286,9 @@ daemon is older, shows a banner with **Restart now** (with a confirmation when a
 2. stops the daemon with force (live sessions are recorded as suspended) and waits for its
    **process** to exit — its pid file goes away last thing — not just for the socket to stop
    answering: the old daemon is still killing its agents then, and daemons before 0.2.0 remove the
-   socket path as their very last step, which would orphan a new daemon already listening there;
+   socket path as their very last step, which would orphan a new daemon already listening there.
+   A pid reused by another program counts as gone; a daemon still there after 20 s is SIGKILLed
+   (its sessions are already recorded as suspended);
 3. starts the new daemon, which restores the sessions in `restart.json` as suspended whatever
    `sessions.restore` says (and doesn't auto-resume them under `always`), and deletes the file;
 4. resumes exactly those sessions. Sessions that were already suspended stay so.

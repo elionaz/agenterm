@@ -120,8 +120,8 @@ builds sin ldflags dicen `dev`.
      `appcast.xml`;
    - crea la release `vX.Y.Z` en GitHub con la sección del CHANGELOG como notas (o notas generadas
      si no hay) y todos los artefactos adjuntos, `appcast.xml` incluido si el build está notarizado.
-     Una release sin `appcast.xml` no se marca como *Latest* (la URL del feed apunta a la última
-     release). Una pre-release (`X.Y.Z-sufijo`) se publica como pre-release de GitHub: nunca es
+     Con `SPARKLE_PUBLIC_ED_KEY` configurada, una release sin `appcast.xml` no se marca como
+     *Latest* (la URL del feed apunta a la última release). Una pre-release (`X.Y.Z-sufijo`) se publica como pre-release de GitHub: nunca es
      *Latest*, nunca se ofrece desde la app y no actualiza el cask de Homebrew;
    - si existe `HOMEBREW_TAP_TOKEN`, rellena `packaging/homebrew/agenterm.rb.tmpl` con la versión y
      el sha256 del zip (`scripts/render-cask.sh`) y lo sube a `Casks/agenterm.rb` en
@@ -290,7 +290,8 @@ agentes trabajando). `RestartDaemon`:
    que su **proceso** termine —su archivo pid es lo último que borra—, no solo a que el socket deje
    de responder: el daemon viejo aún está matando a sus agentes, y los daemons anteriores a 0.2.0
    borran la ruta del socket como último paso, lo que dejaría huérfano a un daemon nuevo que ya
-   escucha ahí;
+   escucha ahí. Un pid reutilizado por otro programa cuenta como terminado; un daemon que sigue
+   ahí tras 20 s recibe SIGKILL (sus sesiones ya constan como suspendidas);
 3. arranca el nuevo daemon, que restaura las sesiones de `restart.json` como suspendidas diga lo
    que diga `sessions.restore` (y no las reanuda solo con `always`), y borra el archivo;
 4. reanuda exactamente esas sesiones. Las que ya estaban suspendidas siguen así.

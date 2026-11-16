@@ -6,6 +6,8 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"os/exec"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -27,15 +29,48 @@ func TestDaemonMismatch(t *testing.T) {
 		{"0.2.1", "0.2.0", true},
 		{"0.10.0", "0.9.0", true},
 		{"0.2.0", "0.2.0-rc.1", true},
-		{"0.2.0", "0.3.0", false},      // newer daemon: never downgrade it
-		{"0.2.0-rc.1", "0.2.0", false}, // ditto
-		{"0.2.0", "garbage", true},     // unknown: offer the restart
-		{"dev", "0.1.0", false},        // development builds never ask
+		{"0.2.0", "0.3.0", false},           // newer daemon: never downgrade it
+		{"0.2.0-rc.1", "0.2.0", false},      // ditto
+		{"0.2.0", "garbage", true},          // unknown: offer the restart
+		{"0.3.0-rc.10", "0.3.0-rc.9", true}, // numeric identifiers
+		{"0.3.0-rc.9", "0.3.0-rc.10", false},
+		{"0.3.0-rc.1", "0.3.0-beta.2", true}, // "beta" < "rc"
+		{"0.3.0-rc.1", "0.3.0-rc", true},     // shorter first
+		{"0.3.0-1", "0.3.0-alpha", false},    // numeric before alphanumeric
+		{"dev", "0.1.0", false},              // development builds never ask
 		{"dev", "dev", false},
 	} {
 		if got := daemonMismatch(c.app, c.daemon); got != c.want {
 			t.Errorf("daemonMismatch(%q, %q) = %v, want %v", c.app, c.daemon, got, c.want)
 		}
+	}
+}
+
+// TestIsDaemonProc: a reused pid (another program) does not count as the
+// old daemon, and a stuck non-agenterm process is never killed.
+func TestIsDaemonProc(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("procName is darwin-only")
+	}
+	if n := procName(os.Getpid()); n == "" {
+		t.Fatal("procName(self) is empty")
+	}
+	if !isDaemonProc(os.Getpid()) {
+		t.Fatal("in-process daemon not recognised")
+	}
+	cmd := exec.Command("/bin/sleep", "30")
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { cmd.Process.Kill(); cmd.Wait() })
+	if n := procName(cmd.Process.Pid); n != "sleep" {
+		t.Fatalf("procName(sleep) = %q", n)
+	}
+	if isDaemonProc(cmd.Process.Pid) {
+		t.Fatal("sleep taken for a daemon")
+	}
+	if killStuckDaemon(cmd.Process.Pid) || !processAlive(cmd.Process.Pid) {
+		t.Fatal("killStuckDaemon killed a non-agenterm process")
 	}
 }
 
