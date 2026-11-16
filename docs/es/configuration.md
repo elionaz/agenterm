@@ -171,12 +171,12 @@ se reemplaza.
 
 `ui.language` elige el idioma de la app:
 
-- `auto` (por defecto): sigue los idiomas preferidos de macOS; si ninguno está disponible, usa
-  inglés;
+- `auto` (por defecto): el primero entre inglés y español que aparezca en los idiomas preferidos de
+  macOS, luego en `LC_ALL` / `LC_MESSAGES` / `LANG` (se ignoran `C`/`POSIX`); si no, inglés;
 - `en`: inglés;
 - `es`: español.
 
 Se elige en *Ajustes → General* y localiza la interfaz de la app, su menú y las notificaciones. La
 salida de la CLI y los mensajes de error del daemon y de las RPC están siempre en inglés; los
 rechazos que ve el usuario llevan un código de error estable, para que la app pueda mostrarlos en su
-idioma.
+idioma. Cualquier otro valor se trata como `auto`.

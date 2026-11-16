@@ -90,8 +90,28 @@ Some parameters:
 - `daemon.shutdown`: `{"force": false}` (no params = no force); fails with an error listing the
   live sessions if there are any and `force: true` isn't passed.
 
-RPC error messages are in English. User-facing refusals also carry a stable error code so the app
-can show them in its language (see [configuration.md](configuration.md#language)).
+RPC error messages are in English. User-facing refusals also carry a stable `errorCode` plus
+structured `errorData` next to the `error` message (older clients keep working), so the app can
+show them in its language (see [configuration.md](configuration.md#language)):
+
+| code | `errorData` |
+|---|---|
+| `live_sessions` | `{count, sessions: [{id, profileId}]}` |
+| `worktree_dirty`, `worktree_unmerged` | `{path, branch, base, uncommitted, unmerged}` |
+| `worktree_live` | `{sessionId}` |
+| `worktree_not_found` | `{id}` |
+| `merge_main_dirty` | `{dir, count}` |
+| `merge_wrong_branch` | `{dir, current, base}` (empty `current` = detached HEAD) |
+| `merge_nothing` | `{branch, base}` |
+| `merge_conflict` | `{branch, base, files}` |
+| `branch_missing`, `branch_exists`, `branch_invalid` | `{branch}` |
+| `profile_not_installed` | `{profileId, cmd, install}` |
+| `not_a_repo` | `{dir, project?}` |
+| `no_commits` | `{dir}` |
+| `base_missing` | `{base}` (empty = no base could be guessed) |
+| `dir_missing` | `{dir}` |
+
+Unknown codes fall back to the English `error` text. The list lives in `internal/apierr/apierr.go`.
 
 ### Events
 

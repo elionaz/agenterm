@@ -18,7 +18,7 @@ Frontend only:
 ```sh
 cd app/frontend
 npm ci
-npm run check   # svelte-check
+npm run check   # svelte-check + scripts/check-i18n.ts (needs Node 22.18+)
 npm run build   # vite build
 ```
 

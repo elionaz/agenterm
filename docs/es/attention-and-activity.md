@@ -160,7 +160,10 @@ Cada sesión lleva, en `session.list` y en los eventos:
   main.go", `Read` → "Leyendo go.mod", `Bash` → "Bash: <comando, ~60 caracteres>", `Grep`/`Glob` →
   "Buscando <patrón>", `WebFetch` → "Web: <host>", `WebSearch` → "Web: <consulta>", `Task`/`Agent` →
   "Subagente: <descripción>", `TodoWrite` → "Actualizando tareas", `mcp__srv__tool` → "MCP:
-  srv.tool"; cualquier otra, su nombre. Con hooks, la salida no pisa la actividad.
+  srv.tool"; cualquier otra, su nombre. Con hooks, la salida no pisa la actividad. El daemon manda
+  `activityKind` (`thinking`, `edit`, `read`, `bash`, `search`, `web`, `subagent`, `todo`, `mcp`,
+  `tool`) y `activityTarget` junto al texto `activity` en inglés, y la app lo muestra en su idioma
+  (los textos de arriba son los de la interfaz en español).
 - **Resto de agentes**: la última línea con contenido de la salida (sin ANSI), recortada. Un CR que
   redibuja la línea se queda con su última versión. Se ignoran líneas solo de spinner o de dibujo de
   cajas, con menos de dos letras o dígitos, o que parecen el **prompt de la shell** (cortas y

@@ -167,10 +167,11 @@ fields a client doesn't send keep their value. If the file can't be parsed, the 
 
 `ui.language` sets the app language:
 
-- `auto` (default): follows the macOS preferred languages, falling back to English;
+- `auto` (default): the first of English/Spanish found in the macOS preferred languages, then in
+  `LC_ALL` / `LC_MESSAGES` / `LANG` (`C`/`POSIX` are skipped); otherwise English;
 - `en`: English;
 - `es`: Spanish.
 
 You can pick it in **Settings → General**; it localizes the app UI, its menu and notifications. CLI
 output and daemon/RPC error messages are always in English; user-facing refusals carry stable error
-codes so the app can show them in its language.
+codes so the app can show them in its language. Any other value is treated as `auto`.

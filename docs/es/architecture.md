@@ -90,8 +90,28 @@ Algunos parámetros:
   lista las sesiones vivas si quedan y no se pasa `force: true`.
 
 Los mensajes de error de las RPC están en inglés. Los rechazos que ve el usuario llevan además un
-código de error estable, para que la app pueda mostrarlos en su idioma (ver
-[configuration.md](configuration.md#idioma)).
+`errorCode` estable y un `errorData` estructurado junto al mensaje `error` (los clientes antiguos
+siguen funcionando), para que la app pueda mostrarlos en su idioma (ver
+[configuration.md](configuration.md#idioma)):
+
+| código | `errorData` |
+|---|---|
+| `live_sessions` | `{count, sessions: [{id, profileId}]}` |
+| `worktree_dirty`, `worktree_unmerged` | `{path, branch, base, uncommitted, unmerged}` |
+| `worktree_live` | `{sessionId}` |
+| `worktree_not_found` | `{id}` |
+| `merge_main_dirty` | `{dir, count}` |
+| `merge_wrong_branch` | `{dir, current, base}` (`current` vacío = HEAD separado) |
+| `merge_nothing` | `{branch, base}` |
+| `merge_conflict` | `{branch, base, files}` |
+| `branch_missing`, `branch_exists`, `branch_invalid` | `{branch}` |
+| `profile_not_installed` | `{profileId, cmd, install}` |
+| `not_a_repo` | `{dir, project?}` |
+| `no_commits` | `{dir}` |
+| `base_missing` | `{base}` (vacío = no se pudo deducir una base) |
+| `dir_missing` | `{dir}` |
+
+Para códigos desconocidos se muestra el texto `error` en inglés. La lista está en `internal/apierr/apierr.go`.
 
 ### Eventos
 
