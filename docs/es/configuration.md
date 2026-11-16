@@ -129,6 +129,12 @@ Todas las claves son opcionales; las que faltan toman el valor por defecto.
 | clave | por defecto | |
 |---|---|---|
 | `ui.language` | `auto` | idioma de la app: `auto`, `en` o `es` (ver [Idioma](#idioma)) |
+| `ui.appearance` | `system` | colores de la app (barra lateral, barras de título, Ajustes): `system` sigue el modo claro/oscuro de macOS, o `dark` / `light`. Las terminales usan su propio `terminal.theme` |
+| `terminal.font_family` | `"SF Mono", Menlo, Monaco, monospace` | una lista CSS de fuentes; se usa la primera instalada. Vacío: el valor por defecto |
+| `terminal.font_size` | `13` | puntos, entre 8 y 32. ⌘= / ⌘- / ⌘⌥0 lo cambian (y lo guardan) desde cualquier parte de la app |
+| `terminal.line_height` | `1.15` | múltiplo del tamaño de fuente, entre 1.0 y 2.0 |
+| `terminal.cursor_style` | `block` | `block`, `bar` o `underline` |
+| `terminal.theme` | `agenterm-dark` | paleta integrada: `agenterm-dark`, `agenterm-light`, `solarized-dark`, `solarized-light`, `dracula`, `gruvbox-dark` o `nord`. Un nombre desconocido vuelve a `agenterm-dark` |
 | `notify.enabled` | `true` | notificaciones (de la app y del daemon) |
 | `notify.sound` | `true` | sonido, solo en aprobaciones y preguntas |
 | `notify.notify_on_done` | `true` | avisar también cuando un agente termina su turno (los errores avisan siempre) |
@@ -142,6 +148,7 @@ Todas las claves son opcionales; las que faltan toman el valor por defecto.
 ```yaml
 ui:
   language: auto
+  appearance: system
 notify:
   enabled: true
   sound: true
@@ -155,6 +162,12 @@ git:
   default_mode: same
 sessions:
   restore: ask
+terminal:
+  font_family: '"SF Mono", Menlo, Monaco, monospace'
+  font_size: 13
+  line_height: 1.15
+  cursor_style: block
+  theme: agenterm-dark
 ```
 
 Cuándo se lee:
@@ -164,6 +177,9 @@ Cuándo se lee:
 - `git.worktree_dir` se lee al crear cada worktree (y al listar los de un proyecto).
 - `git.editor` se lee en cada «Abrir en editor».
 - `sessions.restore` se lee al arrancar el daemon.
+- `ui.appearance` y `terminal.*` los lee la app al cargar (y al abrir Ajustes); los cambios hechos
+  en la app se aplican al momento a todas las terminales abiertas. Una edición a mano se aplica al
+  recargar la ventana.
 
 *Ajustes → Notificaciones* edita las claves `notify.*` y `activity.stall_seconds` (RPC
 `settings.save`). Al guardar, el archivo se edita directamente: **se conservan** las claves
@@ -172,7 +188,9 @@ archivo no se puede interpretar se usan los valores por defecto (y se anota en e
 se reemplaza.
 
 *Ajustes → Git* edita `git.editor`, `git.worktree_dir` y `git.default_mode`. *Ajustes → General*
-edita `ui.language` y `sessions.restore` (se guardan al momento).
+edita `ui.language` y `sessions.restore` (se guardan al momento). *Ajustes → Apariencia* edita
+`ui.appearance` y `terminal.*`, con vista previa; los cambios se aplican al momento a las terminales
+abiertas y se guardan enseguida.
 
 ### Idioma
 

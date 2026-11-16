@@ -136,6 +136,7 @@ export namespace main {
 	    git?: settings.Git;
 	    ui?: settings.UI;
 	    sessions?: settings.Sessions;
+	    terminal?: settings.Terminal;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsPatch(source);
@@ -148,6 +149,7 @@ export namespace main {
 	        this.git = this.convertValues(source["git"], settings.Git);
 	        this.ui = this.convertValues(source["ui"], settings.UI);
 	        this.sessions = this.convertValues(source["sessions"], settings.Sessions);
+	        this.terminal = this.convertValues(source["terminal"], settings.Terminal);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -511,6 +513,7 @@ export namespace protocol {
 	    projectId: string;
 	    projectDir: string;
 	    profileId: string;
+	    name?: string;
 	    projectName?: string;
 	    cmd: string;
 	    args?: string[];
@@ -568,6 +571,7 @@ export namespace protocol {
 	        this.projectId = source["projectId"];
 	        this.projectDir = source["projectDir"];
 	        this.profileId = source["profileId"];
+	        this.name = source["name"];
 	        this.projectName = source["projectName"];
 	        this.cmd = source["cmd"];
 	        this.args = source["args"];
@@ -803,8 +807,29 @@ export namespace settings {
 	        this.restore = source["restore"];
 	    }
 	}
+	export class Terminal {
+	    fontFamily: string;
+	    fontSize: number;
+	    lineHeight: number;
+	    cursorStyle: string;
+	    theme: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Terminal(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.fontFamily = source["fontFamily"];
+	        this.fontSize = source["fontSize"];
+	        this.lineHeight = source["lineHeight"];
+	        this.cursorStyle = source["cursorStyle"];
+	        this.theme = source["theme"];
+	    }
+	}
 	export class UI {
-	    language: string;
+	    language?: string;
+	    appearance?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new UI(source);
@@ -813,6 +838,7 @@ export namespace settings {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.language = source["language"];
+	        this.appearance = source["appearance"];
 	    }
 	}
 	export class Settings {
@@ -821,6 +847,7 @@ export namespace settings {
 	    git: Git;
 	    ui: UI;
 	    sessions: Sessions;
+	    terminal: Terminal;
 	
 	    static createFrom(source: any = {}) {
 	        return new Settings(source);
@@ -833,6 +860,7 @@ export namespace settings {
 	        this.git = this.convertValues(source["git"], Git);
 	        this.ui = this.convertValues(source["ui"], UI);
 	        this.sessions = this.convertValues(source["sessions"], Sessions);
+	        this.terminal = this.convertValues(source["terminal"], Terminal);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -853,6 +881,7 @@ export namespace settings {
 		    return a;
 		}
 	}
+	
 
 }
 

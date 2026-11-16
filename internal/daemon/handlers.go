@@ -125,6 +125,12 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 			return s.batch(p, s.resume)
 		}
 		return s.batch(p, s.discard)
+	case protocol.MethodSessionRename:
+		p, err := decode[protocol.RenameParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.rename(p)
 	case protocol.MethodSessionResize:
 		p, err := decode[protocol.ResizeParams](req.Params)
 		if err != nil {
@@ -448,7 +454,7 @@ func (s *Server) startSession(sp startSpec) (protocol.SessionInfo, error) {
 
 	info := s.sessionInfo(sess)
 	s.bus.publish(protocol.Event{Type: protocol.EventSessionSpawned, SessionID: id, State: info.State, At: time.Now().UTC(),
-		ProjectName: proj.Name, ProfileID: prof.ID})
+		ProjectName: proj.Name, ProfileID: prof.ID, SessionName: info.Name})
 	if g.WorktreeID != "" {
 		s.publishWorktrees(proj.ID)
 	}
@@ -499,8 +505,10 @@ func (s *Server) kill(id string) (protocol.SessionInfo, error) {
 			}
 		}
 		s.mu.Unlock()
+		info := s.sessionInfo(sess)
+		s.setName(id, "")
 		s.bus.publish(protocol.Event{Type: protocol.EventSessionRemoved, SessionID: id, At: time.Now().UTC()})
-		return s.sessionInfo(sess), nil
+		return info, nil
 	}
 	sess.Kill(s.cfg.KillGrace)
 	return s.sessionInfo(sess), nil

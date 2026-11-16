@@ -6,7 +6,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -60,11 +62,88 @@ const (
 )
 
 // UI configures the desktop app (and the texts the daemon renders for it).
+//
+// Its JSON fields are omitempty: a client saving only one of them (the
+// General tab the language, the Appearance tab the appearance) sends the
+// section without the other, which then keeps its saved value.
 type UI struct {
 	// Language is auto | en | es. auto follows the system's preferred
 	// languages (macOS AppleLanguages, then LC_ALL/LC_MESSAGES/LANG): the
 	// first of en/es found, else English.
-	Language string `json:"language"`
+	Language string `json:"language,omitempty"`
+	// Appearance is the app chrome's color scheme: system (follow macOS)
+	// | dark | light.
+	Appearance string `json:"appearance,omitempty"`
+}
+
+// UI.Appearance values.
+const (
+	AppearanceSystem = "system"
+	AppearanceDark   = "dark"
+	AppearanceLight  = "light"
+)
+
+func normAppearance(v string) string {
+	switch v = strings.ToLower(strings.TrimSpace(v)); v {
+	case AppearanceDark, AppearanceLight:
+		return v
+	}
+	return AppearanceSystem
+}
+
+// Terminal configures the desktop app's terminals.
+type Terminal struct {
+	// FontFamily is a CSS font-family list.
+	FontFamily string `json:"fontFamily"`
+	// FontSize in points (MinFontSize..MaxFontSize).
+	FontSize int `json:"fontSize"`
+	// LineHeight is a multiple of the font size (1.0..2.0).
+	LineHeight float64 `json:"lineHeight"`
+	// CursorStyle is block | bar | underline.
+	CursorStyle string `json:"cursorStyle"`
+	// Theme names a built-in palette (Themes); unknown names fall back to
+	// DefaultTheme.
+	Theme string `json:"theme"`
+}
+
+// Terminal defaults and limits.
+const (
+	DefaultFontFamily = `"SF Mono", Menlo, Monaco, monospace`
+	DefaultFontSize   = 13
+	MinFontSize       = 8
+	MaxFontSize       = 32
+	DefaultLineHeight = 1.15
+	DefaultCursor     = "block"
+	DefaultTheme      = "agenterm-dark"
+)
+
+// Themes are the built-in terminal palettes (the app defines their colors).
+var Themes = []string{"agenterm-dark", "agenterm-light", "solarized-dark", "solarized-light", "dracula", "gruvbox-dark", "nord"}
+
+func normTerminal(t Terminal) Terminal {
+	t.FontFamily = strings.TrimSpace(t.FontFamily)
+	if t.FontFamily == "" {
+		t.FontFamily = DefaultFontFamily
+	}
+	if t.FontSize == 0 {
+		t.FontSize = DefaultFontSize
+	}
+	t.FontSize = min(max(t.FontSize, MinFontSize), MaxFontSize)
+	if t.LineHeight == 0 {
+		t.LineHeight = DefaultLineHeight
+	}
+	// Two decimals at most, within 1.0..2.0.
+	t.LineHeight = min(max(math.Round(t.LineHeight*100)/100, 1), 2)
+	switch t.CursorStyle = strings.ToLower(strings.TrimSpace(t.CursorStyle)); t.CursorStyle {
+	case "block", "bar", "underline":
+	default:
+		t.CursorStyle = DefaultCursor
+	}
+	t.Theme = strings.ToLower(strings.TrimSpace(t.Theme))
+	if !slices.Contains(Themes, t.Theme) {
+		t.Theme = DefaultTheme
+	}
+	return t
 }
 
 // Lang resolves Language to the language to render in.
@@ -101,6 +180,7 @@ type Settings struct {
 	Git      Git      `json:"git"`
 	UI       UI       `json:"ui"`
 	Sessions Sessions `json:"sessions"`
+	Terminal Terminal `json:"terminal"`
 }
 
 type fileNotify struct {
@@ -121,11 +201,20 @@ type fileGit struct {
 }
 
 type fileUI struct {
-	Language *string `yaml:"language"`
+	Language   *string `yaml:"language"`
+	Appearance *string `yaml:"appearance"`
 }
 
 type fileSessions struct {
 	Restore *string `yaml:"restore"`
+}
+
+type fileTerminal struct {
+	FontFamily  *string  `yaml:"font_family"`
+	FontSize    *int     `yaml:"font_size"`
+	LineHeight  *float64 `yaml:"line_height"`
+	CursorStyle *string  `yaml:"cursor_style"`
+	Theme       *string  `yaml:"theme"`
 }
 
 type file struct {
@@ -134,6 +223,7 @@ type file struct {
 	Git      fileGit      `yaml:"git"`
 	UI       fileUI       `yaml:"ui"`
 	Sessions fileSessions `yaml:"sessions"`
+	Terminal fileTerminal `yaml:"terminal"`
 }
 
 const header = "# agenterm settings (see README)\n"
@@ -165,7 +255,14 @@ func Save(path string, s Settings) error {
 	setKey(root, []string{"git", "worktree_dir"}, strings.TrimSpace(s.Git.WorktreeDir), "!!str")
 	setKey(root, []string{"git", "default_mode"}, normMode(s.Git.DefaultMode), "!!str")
 	setKey(root, []string{"ui", "language"}, i18n.NormalizeSetting(s.UI.Language), "!!str")
+	setKey(root, []string{"ui", "appearance"}, normAppearance(s.UI.Appearance), "!!str")
 	setKey(root, []string{"sessions", "restore"}, normRestore(s.Sessions.Restore), "!!str")
+	term := normTerminal(s.Terminal)
+	setKey(root, []string{"terminal", "font_family"}, term.FontFamily, "!!str")
+	setKey(root, []string{"terminal", "font_size"}, strconv.Itoa(term.FontSize), "!!int")
+	setKey(root, []string{"terminal", "line_height"}, strconv.FormatFloat(term.LineHeight, 'f', -1, 64), "!!float")
+	setKey(root, []string{"terminal", "cursor_style"}, term.CursorStyle, "!!str")
+	setKey(root, []string{"terminal", "theme"}, term.Theme, "!!str")
 	var buf bytes.Buffer
 	enc := yaml.NewEncoder(&buf)
 	enc.SetIndent(2)
@@ -212,8 +309,9 @@ func Defaults() Settings {
 		Notify:   Notify{Enabled: true, Sound: true, OnDone: true, OnStall: true},
 		Activity: Activity{StallSeconds: DefaultStallSeconds},
 		Git:      Git{DefaultMode: ModeSame},
-		UI:       UI{Language: i18n.Auto},
+		UI:       UI{Language: i18n.Auto, Appearance: AppearanceSystem},
 		Sessions: Sessions{Restore: RestoreAsk},
+		Terminal: normTerminal(Terminal{}),
 	}
 }
 
@@ -255,9 +353,29 @@ func Parse(data []byte) (Settings, error) {
 	if f.UI.Language != nil {
 		s.UI.Language = i18n.NormalizeSetting(*f.UI.Language)
 	}
+	if f.UI.Appearance != nil {
+		s.UI.Appearance = normAppearance(*f.UI.Appearance)
+	}
 	if f.Sessions.Restore != nil {
 		s.Sessions.Restore = normRestore(*f.Sessions.Restore)
 	}
+	ft := f.Terminal
+	if ft.FontFamily != nil {
+		s.Terminal.FontFamily = *ft.FontFamily
+	}
+	if ft.FontSize != nil {
+		s.Terminal.FontSize = *ft.FontSize
+	}
+	if ft.LineHeight != nil {
+		s.Terminal.LineHeight = *ft.LineHeight
+	}
+	if ft.CursorStyle != nil {
+		s.Terminal.CursorStyle = *ft.CursorStyle
+	}
+	if ft.Theme != nil {
+		s.Terminal.Theme = *ft.Theme
+	}
+	s.Terminal = normTerminal(s.Terminal)
 	return s, nil
 }
 

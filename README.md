@@ -17,7 +17,12 @@ tells you when one of them needs you.
 ## Features
 
 - **Projects and sessions** in a sidebar: each project is a folder and each session is a terminal
-  (xterm.js) running an agent or a shell.
+  (xterm.js) running an agent or a shell. Double-click a session to give it a name.
+- **Split panes**: show several sessions side by side or stacked (⌘D / ⌘⇧D), with draggable
+  dividers; the layout is kept per project.
+- **Terminal comforts**: search the scrollback (⌘F), built-in themes (agenterm, Solarized,
+  Dracula, Gruvbox, Nord), font, size, line height and cursor, plus a light or dark app (or follow
+  macOS).
 - **Any agent CLI**: a built-in catalog (Claude Code, codex, opencode, Gemini, Cursor, Copilot,
   aider, Amp, goose, Qwen, Crush, Kiro, shell) that detects which ones are installed, plus your own
   profiles and variants in `profiles.yaml`.
@@ -31,8 +36,8 @@ tells you when one of them needs you.
   warning, progress bars (OSC 9;4) and a grid overview (⌘0).
 - **Per-session git worktrees**: each agent can work on its own branch and folder; the **Changes**
   tab shows the diff and lets you merge into the base or safely remove the worktree.
-- **In-app settings**: enable, reorder and edit agents, and configure the language, notifications
-  and git.
+- **In-app settings**: enable, reorder and edit agents, and configure the language, appearance,
+  notifications and git.
 - **English and Spanish**: the app follows your macOS preferred languages (falling back to English)
   or the language you pick in **Settings → General**.
 
@@ -132,6 +137,14 @@ first one is what ⌘N launches):
 ```yaml
 ui:
   language: auto         # auto (macOS preferred languages, else English) | en | es
+  appearance: system     # the app's colors: system (follow macOS) | dark | light
+terminal:
+  font_family: '"SF Mono", Menlo, Monaco, monospace'
+  font_size: 13          # 8-32 (⌘= / ⌘- / ⌘⌥0 change it too)
+  line_height: 1.15      # 1.0-2.0
+  cursor_style: block    # block | bar | underline
+  theme: agenterm-dark   # agenterm-dark | agenterm-light | solarized-dark | solarized-light |
+                         # dracula | gruvbox-dark | nord
 notify:
   enabled: true          # notifications (app and daemon)
   sound: true            # sound on approval/question
@@ -156,8 +169,14 @@ diffs: [docs/worktrees.md](docs/worktrees.md).
 | ⌘1 … ⌘9 | select session n of the current project |
 | ⌘0 | open/close the overview |
 | ⌘, | open Settings |
+| ⌘D / ⌘⇧D | split the focused pane right / down with a new session of the same agent and mode |
+| ⌘W | close the focused pane (the session keeps running; stop it with × in the sidebar) |
+| ⌘[ / ⌘] | focus the previous / next pane |
+| ⌘⌥← ↑ → ↓ | focus the pane in that direction |
+| ⌘F | search the focused terminal; Enter / ⇧Enter or ⌘G / ⌘⇧G for next / previous |
+| ⌘= / ⌘- / ⌘⌥0 | bigger / smaller / default terminal font (saved to `terminal.font_size`) |
 | ⌘C / ⌘V | copy the selection / paste into the terminal |
-| Esc | close the overview, Settings or an orphaned worktree's view |
+| Esc | close the search bar, the overview, Settings or an orphaned worktree's view |
 | `Ctrl-\` | detach from `agenterm attach` (CLI) |
 
 ## Documentation

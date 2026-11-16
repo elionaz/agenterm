@@ -92,8 +92,9 @@ comando no está instalado (el mensaje incluye la pista de instalación del cat�
 
 ### `agenterm ls`
 
-Tabla con `ID PROJECT PROFILE STATE ATTENTION PID SIZE AGE TURN GIT ACTIVITY CWD`:
+Tabla con `ID NAME PROJECT PROFILE STATE ATTENTION PID SIZE AGE TURN GIT ACTIVITY CWD`:
 
+- `NAME`: el nombre puesto con `rename` (o en la app), `-` si no tiene.
 - `STATE`: `running`, `waiting_input`, `idle`, `exited(<código>)` o `suspended[<modo>]`
   (restaurada tras un reinicio del daemon; `<modo>` es cómo la relanzaría `resume`: `agent`, `args`
   o `fresh`, seguido de `!<errorCode>` si el último intento falló).
@@ -119,6 +120,15 @@ cambios de tamaño de la ventana. **Ctrl-\\** se desacopla; la sesión sigue viv
 Termina la sesión (SIGHUP + SIGTERM al grupo de procesos, SIGKILL a los 2 s) e imprime
 `<id> <estado>`. Sobre una sesión que ya terminó, la **quita de la lista**; sobre una `suspended`,
 la descarta. Nunca borra su worktree. Una sesión matada no se restaura tras reiniciar el daemon.
+
+### `agenterm rename <sessionId> <nombre>`
+
+Pone un nombre a la sesión (se ve en la barra lateral de la app, las cabeceras de los paneles, la
+vista general y las notificaciones, que dicen `<proyecto> · <nombre>`) e imprime `<id> <nombre>`.
+Las palabras restantes se unen con espacios (`agenterm rename ab12 servidor api`); usa `--` antes
+de un nombre que empiece por `-`. `--reset` (o dejar el nombre vacío en la app) vuelve al nombre del
+perfil. Los nombres se recortan, tienen como mucho 80 caracteres y sobreviven a los reinicios del
+daemon y a las reanudaciones (RPC `session.rename`).
 
 ### `agenterm resume <sessionId>|--all`
 

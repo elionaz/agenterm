@@ -163,14 +163,26 @@ func TestAppAgainstDaemon(t *testing.T) {
 	if _, err := a.SaveSettings(SettingsPatch{Sessions: &settings.Sessions{Restore: settings.RestoreNever}}); err != nil {
 		t.Fatal(err)
 	}
-	st, err := a.SaveSettings(SettingsPatch{UI: &settings.UI{Language: "es"}})
+	term := settings.Terminal{FontFamily: "Menlo", FontSize: 15, LineHeight: 1.3, CursorStyle: "bar", Theme: "dracula"}
+	if _, err := a.SaveSettings(SettingsPatch{Terminal: &term}); err != nil {
+		t.Fatal(err)
+	}
+	// The Appearance tab saves ui.appearance alone: ui.language stays.
+	if _, err := a.SaveSettings(SettingsPatch{UI: &settings.UI{Language: "es"}}); err != nil {
+		t.Fatal(err)
+	}
+	st, err := a.SaveSettings(SettingsPatch{UI: &settings.UI{Appearance: "light"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if st.UI.Language != "es" || st.Git.Editor != "zed" || st.Git.DefaultMode != "worktree" ||
-		st.Sessions.Restore != settings.RestoreNever ||
+	if st.UI.Language != "es" || st.UI.Appearance != "light" || st.Git.Editor != "zed" || st.Git.DefaultMode != "worktree" ||
+		st.Sessions.Restore != settings.RestoreNever || st.Terminal != term ||
 		st.Activity.StallSeconds != 7 || !st.Notify.Sound || !st.Notify.OnDone || !st.Notify.OnStall {
 		t.Fatalf("partial saves clobbered other sections: %+v", st)
+	}
+	// And the language alone keeps the appearance.
+	if st, err = a.SaveSettings(SettingsPatch{UI: &settings.UI{Language: "en"}}); err != nil || st.UI.Appearance != "light" || st.UI.Language != "en" {
+		t.Fatalf("language save: %+v %v", st.UI, err)
 	}
 
 	if _, err := a.Kill(id); err != nil {

@@ -294,6 +294,13 @@ func (c *Client) Ack(ctx context.Context, id string) (protocol.SessionInfo, erro
 	return info, err
 }
 
+// Rename sets a session's display name (empty: back to the profile's).
+func (c *Client) Rename(ctx context.Context, id, name string) (protocol.SessionInfo, error) {
+	var info protocol.SessionInfo
+	err := c.Call(ctx, protocol.MethodSessionRename, protocol.RenameParams{SessionID: id, Name: name}, &info)
+	return info, err
+}
+
 // Stream is an attached session. Recv must be called from a single
 // goroutine; Input/Resize may be called concurrently with Recv.
 type Stream struct {

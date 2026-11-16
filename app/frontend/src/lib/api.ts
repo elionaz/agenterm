@@ -61,8 +61,11 @@ export interface DaemonEvent extends Live {
     | 'session.attention'
     | 'session.activity'
     | 'session.git'
+    | 'session.renamed'
     | 'worktree.changed'
   sessionId: string
+  /** The session's display name (session.renamed: the new one; absent: reset). */
+  sessionName?: string
   state?: SessionState
   prevState?: string
   source?: string
@@ -80,6 +83,11 @@ export interface DaemonEvent extends Live {
   git?: GitInfo
   /** worktree.changed: whose worktree list changed. */
   projectId?: string
+}
+
+/** What a session is called: its given name, else its profile. */
+export function sessionTitle(s: Pick<Session, 'name' | 'profileId'>): string {
+  return s.name || s.profileId
 }
 
 /** A session needs the user and they have not looked at it yet. */
@@ -150,8 +158,10 @@ export const api = {
   tail: (id: string, lines: number): Promise<string[]> => App.Tail(id, lines),
   /** Marks a session's attention as seen. */
   ack: (id: string) => App.Ack(id),
-  /** Which session the window shows ('' for none): no notifications for it. */
-  setVisibleSession: (id: string) => App.SetVisibleSession(id),
+  /** Which sessions the window shows (every split pane): no notifications for them. */
+  setVisibleSessions: (ids: string[]) => App.SetVisibleSessions(ids),
+  /** Sets a session's display name ('' resets it to the profile's). */
+  rename: (id: string, name: string): Promise<Session> => App.Rename(id, name),
   /** Session a notification click asked for before the UI was up ('' if none). */
   takePendingFocus: (): Promise<string> => App.TakePendingFocus(),
   /** What ui.language "auto" resolves to on the backend ("en" | "es"). */

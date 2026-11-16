@@ -17,7 +17,12 @@ vivos aunque cierres la app y te avisa cuando alguno te necesita.
 ## Funciones
 
 - **Proyectos y sesiones** en una barra lateral: cada proyecto es una carpeta y cada sesión una
-  terminal (xterm.js) con un agente o una shell.
+  terminal (xterm.js) con un agente o una shell. Doble clic en una sesión para ponerle nombre.
+- **Paneles divididos**: varias sesiones lado a lado o apiladas (⌘D / ⌘⇧D), con divisores que se
+  arrastran; la disposición se guarda por proyecto.
+- **Comodidades de terminal**: búsqueda en el scrollback (⌘F), temas integrados (agenterm,
+  Solarized, Dracula, Gruvbox, Nord), fuente, tamaño, interlineado y cursor, y la app en claro u
+  oscuro (o siguiendo a macOS).
 - **Cualquier CLI de agente**: catálogo integrado (Claude Code, codex, opencode, Gemini, Cursor,
   Copilot, aider, Amp, goose, Qwen, Crush, Kiro, shell) con detección automática de los instalados,
   más perfiles propios y variantes en `profiles.yaml`.
@@ -32,8 +37,8 @@ vivos aunque cierres la app y te avisa cuando alguno te necesita.
 - **Worktrees de git por sesión**: cada agente puede trabajar en su propia rama y carpeta; la
   pestaña **Cambios** muestra el diff y permite hacer merge a la base o eliminar el worktree de forma
   segura.
-- **Ajustes en la app**: activar, ordenar y editar agentes, y configurar el idioma, las
-  notificaciones y git.
+- **Ajustes en la app**: activar, ordenar y editar agentes, y configurar el idioma, la apariencia,
+  las notificaciones y git.
 - **En inglés y español**: la app sigue los idiomas preferidos de macOS (con inglés como respaldo)
   o el idioma que elijas en *Ajustes → General*.
 
@@ -133,6 +138,14 @@ variantes con `extends`, ocultas agentes con `enabled: false` y el orden de la l
 ```yaml
 ui:
   language: auto         # auto (idiomas preferidos de macOS; si no, inglés) | en | es
+  appearance: system     # colores de la app: system (sigue a macOS) | dark | light
+terminal:
+  font_family: '"SF Mono", Menlo, Monaco, monospace'
+  font_size: 13          # 8-32 (también ⌘= / ⌘- / ⌘⌥0)
+  line_height: 1.15      # 1.0-2.0
+  cursor_style: block    # block | bar | underline
+  theme: agenterm-dark   # agenterm-dark | agenterm-light | solarized-dark | solarized-light |
+                         # dracula | gruvbox-dark | nord
 notify:
   enabled: true          # notificaciones (app y daemon)
   sound: true            # sonido en aprobación/pregunta
@@ -157,8 +170,14 @@ y diff: [docs/es/worktrees.md](docs/es/worktrees.md).
 | ⌘1 … ⌘9 | seleccionar la sesión n del proyecto actual |
 | ⌘0 | abrir/cerrar la vista general |
 | ⌘, | abrir Ajustes |
+| ⌘D / ⌘⇧D | dividir el panel enfocado a la derecha / abajo con una sesión nueva del mismo agente y modo |
+| ⌘W | cerrar el panel enfocado (la sesión sigue en marcha; se termina con × en la barra lateral) |
+| ⌘[ / ⌘] | enfocar el panel anterior / siguiente |
+| ⌘⌥← ↑ → ↓ | enfocar el panel en esa dirección |
+| ⌘F | buscar en la terminal enfocada; Enter / ⇧Enter o ⌘G / ⌘⇧G para siguiente / anterior |
+| ⌘= / ⌘- / ⌘⌥0 | fuente de la terminal más grande / más pequeña / por defecto (se guarda en `terminal.font_size`) |
 | ⌘C / ⌘V | copiar la selección / pegar en la terminal |
-| Esc | cerrar la vista general, Ajustes o la vista de un worktree huérfano |
+| Esc | cerrar la búsqueda, la vista general, Ajustes o la vista de un worktree huérfano |
 | `Ctrl-\` | desacoplarse de `agenterm attach` (CLI) |
 
 ## Documentación

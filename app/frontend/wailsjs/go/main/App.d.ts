@@ -49,6 +49,8 @@ export function RemoveProject(arg1:string):Promise<void>;
 
 export function RemoveWorktree(arg1:string,arg2:boolean,arg3:boolean,arg4:boolean):Promise<protocol.WorktreeRemoveResult>;
 
+export function Rename(arg1:string,arg2:string):Promise<protocol.SessionInfo>;
+
 export function ReorderProfiles(arg1:Array<string>):Promise<Array<profile.Profile>>;
 
 export function RescanProfiles():Promise<Array<profile.Profile>>;
@@ -65,7 +67,7 @@ export function SaveSettings(arg1:main.SettingsPatch):Promise<settings.Settings>
 
 export function SessionDiff(arg1:string):Promise<protocol.DiffResult>;
 
-export function SetVisibleSession(arg1:string):Promise<void>;
+export function SetVisibleSessions(arg1:Array<string>):Promise<void>;
 
 export function Spawn(arg1:string,arg2:string,arg3:number,arg4:number):Promise<protocol.SessionInfo>;
 

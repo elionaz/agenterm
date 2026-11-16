@@ -126,6 +126,12 @@ Every key is optional; missing ones take the default value.
 | key | default | |
 |---|---|---|
 | `ui.language` | `auto` | app language: `auto`, `en` or `es` (see [Language](#language)) |
+| `ui.appearance` | `system` | the app's colors (sidebar, title bars, Settings): `system` follows macOS light/dark, or `dark` / `light`. Terminals keep their own `terminal.theme` |
+| `terminal.font_family` | `"SF Mono", Menlo, Monaco, monospace` | a CSS font-family list; the first installed font is used. Empty: the default |
+| `terminal.font_size` | `13` | points, clamped to 8–32. ⌘= / ⌘- / ⌘⌥0 change it (and save it) from anywhere in the app |
+| `terminal.line_height` | `1.15` | a multiple of the font size, 1.0–2.0 |
+| `terminal.cursor_style` | `block` | `block`, `bar` or `underline` |
+| `terminal.theme` | `agenterm-dark` | built-in palette: `agenterm-dark`, `agenterm-light`, `solarized-dark`, `solarized-light`, `dracula`, `gruvbox-dark` or `nord`. Unknown names fall back to `agenterm-dark` |
 | `notify.enabled` | `true` | notifications (from the app and the daemon) |
 | `notify.sound` | `true` | sound, only for approvals and questions |
 | `notify.notify_on_done` | `true` | also notify when an agent finishes its turn (errors always notify) |
@@ -139,6 +145,7 @@ Every key is optional; missing ones take the default value.
 ```yaml
 ui:
   language: auto
+  appearance: system
 notify:
   enabled: true
   sound: true
@@ -152,6 +159,12 @@ git:
   default_mode: same
 sessions:
   restore: ask
+terminal:
+  font_family: '"SF Mono", Menlo, Monaco, monospace'
+  font_size: 13
+  line_height: 1.15
+  cursor_style: block
+  theme: agenterm-dark
 ```
 
 When it's read:
@@ -161,6 +174,9 @@ When it's read:
 - `git.worktree_dir` is read when each worktree is created (and when listing a project's worktrees).
 - `git.editor` is read on every "Open in editor".
 - `sessions.restore` is read when the daemon starts.
+- `ui.appearance` and `terminal.*` are read by the app when it loads (and when Settings opens);
+  changes made in the app apply at once to every open terminal. A hand edit applies on the next
+  reload of the window.
 
 **Settings → Notifications** edits the `notify.*` keys and `activity.stall_seconds` (RPC
 `settings.save`). Saving edits the file in place: unknown keys and comments **are preserved**, and
@@ -168,7 +184,9 @@ fields a client doesn't send keep their value. If the file can't be parsed, the 
 (and this is logged); saving replaces it.
 
 **Settings → Git** edits `git.editor`, `git.worktree_dir` and `git.default_mode`. **Settings →
-General** edits `ui.language` and `sessions.restore` (saved right away).
+General** edits `ui.language` and `sessions.restore` (saved right away). **Settings →
+Appearance** edits `ui.appearance` and `terminal.*`, with a live preview; changes apply to the open
+terminals at once and are saved right away.
 
 ### Language
 

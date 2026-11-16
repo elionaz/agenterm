@@ -3,7 +3,7 @@
   // and the last lines of output (plain text from session.tail — no xterm).
   import { onDestroy, onMount } from 'svelte'
   import { EventsOn } from '../../wailsjs/runtime/runtime'
-  import { api, changesLabel, needsAttention, type DaemonEvent, type Project, type Session } from './api'
+  import { api, changesLabel, needsAttention, sessionTitle, type DaemonEvent, type Project, type Session } from './api'
   import { activityText, progressOf, stateLabel, timerInfo } from './activity'
   import { t } from './i18n.svelte'
   import ProgressBar from './ProgressBar.svelte'
@@ -122,7 +122,7 @@
         >
           <div class="card-head">
             <span class="dot {badgeClass(s)}"></span>
-            <span class="name">{s.profileId}</span>
+            <span class="name">{sessionTitle(s)}</span>
             {#if allProjects || !projectId}<span class="proj">{projectName(s.projectId)}</span>{/if}
             <span class="badge {badgeClass(s)}">{stateLabel(s)}</span>
           </div>
@@ -255,7 +255,7 @@
     box-shadow: inset 3px 0 0 var(--red);
   }
   .card.stalled {
-    box-shadow: inset 3px 0 0 #e08a3c;
+    box-shadow: inset 3px 0 0 var(--orange);
   }
   .card-head {
     display: flex;
@@ -299,7 +299,7 @@
     color: var(--blue);
   }
   .badge.stalled {
-    color: #e08a3c;
+    color: var(--orange);
     font-weight: 600;
   }
   .attn {
@@ -328,7 +328,7 @@
     font-variant-numeric: tabular-nums;
   }
   .timer.stalled {
-    color: #e08a3c;
+    color: var(--orange);
     font-weight: 600;
   }
   .tail {
@@ -338,7 +338,7 @@
     padding: 6px 8px;
     border-radius: 5px;
     background: var(--bg);
-    color: #aeb1b8;
+    color: var(--fg-dim);
     font-family: var(--mono);
     font-size: 10.5px;
     line-height: 1.35;
@@ -370,6 +370,6 @@
     background: var(--red);
   }
   .dot.stalled {
-    background: #e08a3c;
+    background: var(--orange);
   }
 </style>

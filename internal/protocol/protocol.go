@@ -39,6 +39,9 @@ const (
 	MethodSessionAck    = "session.ack"
 	MethodSessionAttach = "session.attach"
 	MethodSessionTail   = "session.tail"
+	// MethodSessionRename sets (or, with an empty name, clears) a
+	// session's display name.
+	MethodSessionRename = "session.rename"
 	// Sessions restored from a previous daemon run (state suspended).
 	MethodSessionResume   = "session.resume"
 	MethodSessionDiscard  = "session.discard"
@@ -310,6 +313,16 @@ type BatchError struct {
 	ErrorData json.RawMessage `json:"errorData,omitempty"`
 }
 
+// RenameParams is session.rename's: Name is trimmed and capped at
+// MaxSessionName runes; empty resets the session to its profile's name.
+type RenameParams struct {
+	SessionID string `json:"sessionId"`
+	Name      string `json:"name"`
+}
+
+// MaxSessionName caps SessionInfo.Name (in runes).
+const MaxSessionName = 80
+
 type ResizeParams struct {
 	SessionID string `json:"sessionId"`
 	Cols      uint16 `json:"cols"`
@@ -407,6 +420,9 @@ type SessionInfo struct {
 	ProjectID  string `json:"projectId"`
 	ProjectDir string `json:"projectDir"`
 	ProfileID  string `json:"profileId"`
+	// Name is the user-given display name (session.rename); empty means
+	// "use the profile's name".
+	Name string `json:"name,omitempty"`
 	// ProjectName is the project's display name (for notifications).
 	ProjectName string    `json:"projectName,omitempty"`
 	Cmd         string    `json:"cmd"`
@@ -468,6 +484,9 @@ const (
 	EventSessionActivity = "session.activity"
 	// EventSessionGit: the session's GitInfo changed (Git).
 	EventSessionGit = "session.git"
+	// EventSessionRenamed: the session's display name changed
+	// (SessionName; empty: back to the profile's name).
+	EventSessionRenamed = "session.renamed"
 	// EventWorktrees: a project's worktree list changed (ProjectID):
 	// created, removed, orphaned or reopened.
 	EventWorktrees = "worktree.changed"
@@ -491,9 +510,11 @@ type Event struct {
 	Unread           bool       `json:"unread,omitempty"`
 	// Raised: a new attention was raised by this event; UIs notify on it.
 	Raised bool `json:"raised,omitempty"`
-	// ProjectName and ProfileID label notifications.
+	// ProjectName, ProfileID and SessionName (the user-given name, if
+	// any) label notifications.
 	ProjectName string `json:"projectName,omitempty"`
 	ProfileID   string `json:"profileId,omitempty"`
+	SessionName string `json:"sessionName,omitempty"`
 	// StallRaised (session.activity): the session just became stalled;
 	// UIs may show a low-urgency notification (kind "stall"). It is not an
 	// attention: it does not count as unread.

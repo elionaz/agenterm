@@ -40,6 +40,8 @@ type Record struct {
 	ID        string `json:"id"`
 	ProjectID string `json:"projectId"`
 	ProfileID string `json:"profileId"`
+	// Name is the user-given display name (empty: the profile's).
+	Name string `json:"name,omitempty"`
 	// Mode is same | worktree; WorktreeID names the worktree record.
 	Mode       string `json:"mode,omitempty"`
 	WorktreeID string `json:"worktreeId,omitempty"`

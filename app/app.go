@@ -302,6 +302,7 @@ type SettingsPatch struct {
 	Git      *settings.Git      `json:"git,omitempty"`
 	UI       *settings.UI       `json:"ui,omitempty"`
 	Sessions *settings.Sessions `json:"sessions,omitempty"`
+	Terminal *settings.Terminal `json:"terminal,omitempty"`
 }
 
 func (a *App) SaveSettings(s SettingsPatch) (settings.Settings, error) {
@@ -392,6 +393,16 @@ func (a *App) Kill(id string) (protocol.SessionInfo, error) {
 	var info protocol.SessionInfo
 	err := a.call(func(ctx context.Context) (err error) {
 		info, err = a.client.Kill(ctx, id)
+		return err
+	})
+	return info, err
+}
+
+// Rename sets a session's display name (empty: back to the profile's).
+func (a *App) Rename(id, name string) (protocol.SessionInfo, error) {
+	var info protocol.SessionInfo
+	err := a.call(func(ctx context.Context) (err error) {
+		info, err = a.client.Rename(ctx, id, name)
 		return err
 	})
 	return info, err

@@ -1,40 +1,18 @@
-// One xterm.js Terminal per attached session, kept alive (hidden) when not
-// selected so switching is instant and scrollback is preserved.
-import { Terminal, type ITheme } from '@xterm/xterm'
+// One xterm.js Terminal per attached session, kept alive when not shown so
+// switching is instant and scrollback is preserved. Shown terminals live in
+// the slot of a split pane (place); the others wait in a hidden parking
+// element.
+import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
+import { SearchAddon, type ISearchOptions } from '@xterm/addon-search'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
 import '@xterm/xterm/css/xterm.css'
 import { ClipboardSetText, EventsOn } from '../../wailsjs/runtime/runtime'
 import { api, b64ToBytes, errorMessage } from './api'
 import { t } from './i18n.svelte'
+import { defaultPrefs, themeOf, type TermPrefs } from './themes'
 
-export const theme: ITheme = {
-  background: '#141518',
-  foreground: '#d6d7dc',
-  cursor: '#d6d7dc',
-  cursorAccent: '#141518',
-  selectionBackground: '#3a3d4a',
-  black: '#1d1f24',
-  red: '#e06c75',
-  green: '#98c379',
-  yellow: '#e5c07b',
-  blue: '#61afef',
-  magenta: '#c678dd',
-  cyan: '#56b6c2',
-  white: '#c8ccd4',
-  brightBlack: '#5c6370',
-  brightRed: '#ef7b84',
-  brightGreen: '#a8d38a',
-  brightYellow: '#f0cd8b',
-  brightBlue: '#74bdf7',
-  brightMagenta: '#d58bea',
-  brightCyan: '#69c7d3',
-  brightWhite: '#ffffff',
-}
-
-const FONT_FAMILY = '"SF Mono", Menlo, Monaco, "JetBrains Mono", monospace'
-const FONT_SIZE = 13
 const MAX_REATTACH = 3
 
 interface Entry {
@@ -42,6 +20,7 @@ interface Entry {
   el: HTMLDivElement
   term: Terminal
   fit: FitAddon
+  search: SearchAddon
   offs: Array<() => void>
   /** True until the daemon finished replaying scrollback. While replaying,
    * xterm's automatic replies to queries in old output (DA, DSR…) must not
@@ -54,59 +33,77 @@ interface Entry {
    * are sent one call at a time to keep their order. */
   pending: number[]
   sending: boolean
+  fitTimer: number | undefined
 }
 
 /** Decides whether a ⌘-keydown belongs to the app rather than the terminal. */
 export type ShortcutFilter = (e: KeyboardEvent) => boolean
 
+export interface SearchResult {
+  index: number
+  count: number
+}
+
 export class TerminalManager {
-  private host: HTMLElement | null = null
+  private parking: HTMLElement | null = null
   private entries = new Map<string, Entry>()
-  private active: string | null = null
+  /** The terminal that should have the keyboard (focused once placed). */
+  private wanted: string | null = null
   private resizeObs: ResizeObserver | null = null
-  private fitTimer: number | undefined
+  private prefs: TermPrefs = defaultPrefs
 
   constructor(
     private isAppShortcut: ShortcutFilter,
     private onError: (msg: string) => void,
+    /** A terminal got the keyboard (e.g. clicked): its pane takes the focus. */
+    private onFocus: (id: string) => void = () => {},
   ) {}
 
-  mount(host: HTMLElement) {
-    this.host = host
-    this.resizeObs = new ResizeObserver(() => {
-      clearTimeout(this.fitTimer)
-      this.fitTimer = window.setTimeout(() => this.fitActive(), 30)
+  mount(parking: HTMLElement) {
+    this.parking = parking
+    this.resizeObs = new ResizeObserver((items) => {
+      for (const it of items) {
+        const e = [...this.entries.values()].find((x) => x.el === it.target)
+        if (e) this.fitSoon(e)
+      }
     })
-    this.resizeObs.observe(host)
+    for (const e of this.entries.values()) this.resizeObs.observe(e.el)
   }
 
   unmount() {
     this.resizeObs?.disconnect()
     for (const id of [...this.entries.keys()]) this.dispose(id)
-    this.host = null
+    this.parking = null
   }
 
   has(id: string) {
     return this.entries.has(id)
   }
 
-  /** Shows the terminal for id, creating and attaching it on first use. */
-  show(id: string | null) {
-    this.active = id
-    for (const e of this.entries.values()) e.el.style.display = e.id === id ? '' : 'none'
-    if (!id || !this.host) return
+  /** Shows id's terminal in slot, creating and attaching it on first use. */
+  place(id: string, slot: HTMLElement) {
     let e = this.entries.get(id)
     if (!e) {
-      e = this.create(id)
+      e = this.create(id, slot)
       void this.attach(e)
-    } else {
-      this.fit(e)
+    } else if (e.el.parentElement !== slot) {
+      slot.appendChild(e.el)
+      this.fitSoon(e)
     }
-    e.term.focus()
+    if (this.wanted === id) e.term.focus()
   }
 
-  focus() {
-    if (this.active) this.entries.get(this.active)?.term.focus()
+  /** Parks id's terminal again, if slot still holds it. */
+  unplace(id: string, slot: HTMLElement) {
+    const e = this.entries.get(id)
+    if (e && e.el.parentElement === slot && this.parking) this.parking.appendChild(e.el)
+  }
+
+  /** Gives id's terminal the keyboard (as soon as it is placed). */
+  focus(id: string | null = this.wanted) {
+    this.wanted = id
+    const e = id ? this.entries.get(id) : undefined
+    if (e && e.el.parentElement !== this.parking) e.term.focus()
   }
 
   dispose(id: string) {
@@ -114,11 +111,12 @@ export class TerminalManager {
     if (!e) return
     e.disposed = true
     this.entries.delete(id)
+    clearTimeout(e.fitTimer)
+    this.resizeObs?.unobserve(e.el)
     e.offs.forEach((off) => off())
     void api.detach(id).catch(() => {})
     e.term.dispose()
     e.el.remove()
-    if (this.active === id) this.active = null
   }
 
   /** Disposes terminals whose session no longer exists. */
@@ -126,29 +124,74 @@ export class TerminalManager {
     for (const id of [...this.entries.keys()]) if (!ids.has(id)) this.dispose(id)
   }
 
-  /** Best-guess size for a session that does not exist yet. */
-  proposeSize(): { cols: number; rows: number } {
-    for (const e of this.entries.values()) {
-      if (e.el.style.display !== 'none') {
-        const d = e.fit.proposeDimensions()
-        if (d && d.cols > 0 && d.rows > 0) return { cols: d.cols, rows: d.rows }
-      }
-    }
-    if (this.host) {
-      const r = this.host.getBoundingClientRect()
-      const cols = Math.floor((r.width - 16) / (FONT_SIZE * 0.602))
-      const rows = Math.floor((r.height - 8) / Math.ceil(FONT_SIZE * 1.2))
-      if (cols > 10 && rows > 3) return { cols, rows }
-    }
+  /** The current size of id's terminal, if it has one. */
+  size(id: string): { cols: number; rows: number } | null {
+    const e = this.entries.get(id)
+    return e ? { cols: e.term.cols, rows: e.term.rows } : null
+  }
+
+  /** Best-guess size for a terminal shown in an area of w×h pixels. */
+  proposeSize(w: number, h: number): { cols: number; rows: number } {
+    const cols = Math.floor((w - 16) / (this.prefs.fontSize * 0.602))
+    const rows = Math.floor((h - 8) / Math.ceil(this.prefs.fontSize * this.prefs.lineHeight))
+    if (cols > 10 && rows > 3) return { cols, rows }
     return { cols: 120, rows: 32 }
   }
 
-  fitActive() {
-    const e = this.active ? this.entries.get(this.active) : undefined
-    if (e) this.fit(e)
+  /** Applies font/cursor/theme settings to every terminal and refits. */
+  setPrefs(p: TermPrefs) {
+    this.prefs = p
+    for (const e of this.entries.values()) {
+      e.term.options.fontFamily = p.fontFamily
+      e.term.options.fontSize = p.fontSize
+      e.term.options.lineHeight = p.lineHeight
+      e.term.options.cursorStyle = p.cursorStyle
+      e.term.options.theme = themeOf(p.theme).colors
+      this.fitSoon(e)
+    }
+  }
+
+  /** Finds the next (or previous) match in id's buffer. */
+  find(id: string, query: string, opts: { caseSensitive: boolean; backwards?: boolean; incremental?: boolean }): boolean {
+    const e = this.entries.get(id)
+    if (!e || !query) return false
+    const light = themeOf(this.prefs.theme).light
+    const o: ISearchOptions = {
+      caseSensitive: opts.caseSensitive,
+      incremental: opts.incremental,
+      decorations: {
+        matchBackground: light ? '#f3e08a' : '#5a4a1c',
+        matchOverviewRuler: '#d7a83b',
+        activeMatchBackground: light ? '#f0a35a' : '#a8632a',
+        activeMatchColorOverviewRuler: '#f0a35a',
+      },
+    }
+    return opts.backwards ? e.search.findPrevious(query, o) : e.search.findNext(query, o)
+  }
+
+  /** Removes search highlights from id's terminal. */
+  clearSearch(id: string) {
+    const e = this.entries.get(id)
+    e?.search.clearDecorations()
+    e?.term.clearSelection()
+  }
+
+  /** Calls cb with id's match count/position whenever they change. */
+  onSearchResults(id: string, cb: (r: SearchResult) => void): () => void {
+    const e = this.entries.get(id)
+    if (!e) return () => {}
+    const d = e.search.onDidChangeResults((r) => cb({ index: r.resultIndex, count: r.resultCount }))
+    return () => d.dispose()
+  }
+
+  private fitSoon(e: Entry) {
+    clearTimeout(e.fitTimer)
+    e.fitTimer = window.setTimeout(() => this.fit(e), 30)
   }
 
   private fit(e: Entry) {
+    // Parked (or not laid out yet): keep the last size.
+    if (e.disposed || !e.el.offsetWidth || !e.el.offsetHeight) return
     try {
       e.fit.fit() // onResize forwards the new size to the PTY
     } catch {
@@ -156,25 +199,29 @@ export class TerminalManager {
     }
   }
 
-  private create(id: string): Entry {
+  private create(id: string, slot: HTMLElement): Entry {
     const el = document.createElement('div')
     el.className = 'term-instance'
-    this.host!.appendChild(el)
+    slot.appendChild(el)
 
+    const p = this.prefs
     const term = new Terminal({
-      fontFamily: FONT_FAMILY,
-      fontSize: FONT_SIZE,
-      lineHeight: 1.15,
-      theme,
+      fontFamily: p.fontFamily,
+      fontSize: p.fontSize,
+      lineHeight: p.lineHeight,
+      cursorStyle: p.cursorStyle,
+      theme: themeOf(p.theme).colors,
       cursorBlink: true,
-      allowProposedApi: true, // unicode11
+      allowProposedApi: true, // unicode11, search decorations
       scrollback: 10000,
       macOptionIsMeta: true,
       macOptionClickForcesSelection: true,
       drawBoldTextInBrightColors: false,
     })
     const fit = new FitAddon()
+    const search = new SearchAddon()
     term.loadAddon(fit)
+    term.loadAddon(search)
     term.loadAddon(new Unicode11Addon())
     term.unicode.activeVersion = '11'
     term.open(el)
@@ -186,8 +233,12 @@ export class TerminalManager {
       /* no WebGL2: the default DOM renderer is used */
     }
 
-    const e: Entry = { id, el, term, fit, offs: [], replaying: true, exited: false, failures: 0, disposed: false, pending: [], sending: false }
+    const e: Entry = {
+      id, el, term, fit, search, offs: [], replaying: true, exited: false, failures: 0, disposed: false,
+      pending: [], sending: false, fitTimer: undefined,
+    }
     this.entries.set(id, e)
+    this.resizeObs?.observe(el)
 
     term.attachCustomKeyEventHandler((ev) => {
       if (ev.type !== 'keydown' || !ev.metaKey) return true
@@ -205,8 +256,14 @@ export class TerminalManager {
     term.onResize(({ cols, rows }) => {
       if (!e.exited) void api.resize(id, cols, rows).catch(() => {})
     })
+    const onFocusIn = () => {
+      this.wanted = id
+      this.onFocus(id)
+    }
+    el.addEventListener('focusin', onFocusIn)
 
     e.offs.push(
+      () => el.removeEventListener('focusin', onFocusIn),
       EventsOn(`pty:${id}`, (b64: string) => term.write(b64ToBytes(b64))),
       EventsOn(`pty-replay-done:${id}`, () => {
         e.replaying = false

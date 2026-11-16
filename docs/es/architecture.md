@@ -70,7 +70,7 @@ JSON delimitado por `\n`. Petición `{"id":1,"method":"session.list","params":{�
 | proyectos | `project.add`, `project.list`, `project.remove`, `project.git` |
 | perfiles | `profile.list`, `profile.catalog`, `profile.save`, `profile.delete`, `profile.reorder`, `profile.rescan` |
 | ajustes | `settings.get`, `settings.save` |
-| sesiones | `session.spawn`, `session.list`, `session.kill`, `session.resize`, `session.notify`, `session.ack`, `session.attach`, `session.tail`, `session.diff`, `session.resume`, `session.discard` |
+| sesiones | `session.spawn`, `session.list`, `session.kill`, `session.resize`, `session.notify`, `session.ack`, `session.rename`, `session.attach`, `session.tail`, `session.diff`, `session.resume`, `session.discard` |
 | worktrees | `worktree.list`, `worktree.diff`, `worktree.remove`, `worktree.merge`, `worktree.open` |
 | daemon | `events.subscribe`, `daemon.ping`, `daemon.shutdown` |
 
@@ -134,6 +134,7 @@ JSON por línea.
 | `session.attention` | cambió la atención sin cambiar el estado (mensaje completado, *ack*) |
 | `session.activity` | línea de actividad, progreso, «¿trabado?» o latido de salida |
 | `session.git` | nuevo resumen de git (`git`) |
+| `session.renamed` | cambió el nombre de la sesión (`sessionName`; ausente: vuelve al del perfil) |
 | `session.removed` | la sesión se quitó de la lista |
 | `worktree.changed` | cambió la lista de worktrees de un proyecto (`projectId`) |
 
@@ -208,7 +209,7 @@ Los procesos viven en el daemon: si se detiene (`agenterm stop --force`, SIGTERM
 reiniciar la computadora) mueren. Lo que el daemon siguiente necesita para traerlos de vuelta se
 guarda en disco, en el directorio de runtime:
 
-- **`sessions.json`**: un registro por sesión — `id`, `projectId`, `profileId`, `mode`,
+- **`sessions.json`**: un registro por sesión — `id`, `projectId`, `profileId`, `name` (el nombre puesto, si lo hay), `mode`,
   `worktreeId`, `cwd`, `cmd`/`args` tal como se lanzaron (se muestran mientras está suspendida),
   `pid`, tamaño, `createdAt`, el último `state`, `suspendedAt` y `resume`
   (`{agent, sessionId, transcriptPath, at}`). El entorno resuelto **nunca** se guarda (los perfiles
