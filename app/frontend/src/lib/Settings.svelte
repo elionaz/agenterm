@@ -5,6 +5,7 @@
     api,
     errorMessage,
     joinArgs,
+    launchable,
     splitArgs,
     type Profile,
     type ProfileEntry,
@@ -63,6 +64,8 @@
   const gitDirty = $derived(git != null && JSON.stringify(git) !== savedGit)
 
   const installedCount = $derived(profiles.filter((p) => p.installed).length)
+  /** What ⌘N launches: the first enabled, installed, valid profile. */
+  const firstId = $derived(launchable(profiles)[0]?.id)
 
   /** ui.language as selected (applied right away, then saved). */
   let language = $state<LangSetting>(langSetting())
@@ -519,7 +522,7 @@
                 <div class="who">
                   <div class="name">
                     {p.name}
-                    {#if i === 0}<span class="tag first">⌘N</span>{/if}
+                    {#if p.id === firstId}<span class="tag first">⌘N</span>{/if}
                     <span class="tag">{sourceLabel(p)}</span>
                   </div>
                   <div class="cmd" title={p.path ?? ''}>
