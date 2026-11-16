@@ -55,11 +55,11 @@ func cmdDiff(ctx context.Context, c *client.Client, args []string) error {
 		fmt.Print(d.Patch())
 		for _, f := range d.Files {
 			if f.Truncated {
-				fmt.Fprintf(os.Stderr, "agenterm: %s: sin contenido (límite de tamaño)\n", f.Path)
+				fmt.Fprintf(os.Stderr, "agenterm: %s: no content (size limit)\n", f.Path)
 			}
 		}
 		if d.Truncated {
-			fmt.Fprintln(os.Stderr, "agenterm: diff truncado (límite de 2 MB); usa git en", d.Dir)
+			fmt.Fprintln(os.Stderr, "agenterm: diff truncated (2 MB limit); use git in", d.Dir)
 		}
 		return nil
 	}
@@ -83,20 +83,20 @@ func cmdDiff(ctx context.Context, c *client.Client, args []string) error {
 		}
 		counts := fmt.Sprintf("+%d -%d", f.Additions, f.Deletions)
 		if f.Binary {
-			counts = "binario"
+			counts = "binary"
 		}
 		extra := ""
 		if f.Untracked {
-			extra = "(sin seguimiento)"
+			extra = "(untracked)"
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", f.Status, name, counts, extra)
 	}
 	if err := w.Flush(); err != nil {
 		return err
 	}
-	fmt.Printf("%d %s, +%d -%d", len(d.Files), plural(len(d.Files), "archivo", "archivos"), d.Additions, d.Deletions)
+	fmt.Printf("%d %s, +%d -%d", len(d.Files), plural(len(d.Files), "file", "files"), d.Additions, d.Deletions)
 	if d.Git.Ahead > 0 {
-		fmt.Printf(", %d %s por delante", d.Git.Ahead, plural(d.Git.Ahead, "commit", "commits"))
+		fmt.Printf(", %d %s ahead", d.Git.Ahead, plural(d.Git.Ahead, "commit", "commits"))
 	}
 	fmt.Println()
 	return nil
@@ -155,13 +155,13 @@ func cmdWorktree(ctx context.Context, c *client.Client, args []string) error {
 		}
 		if *dry {
 			if res.Loss == nil {
-				fmt.Println("no se perdería nada")
+				fmt.Println("nothing would be lost")
 			} else {
 				printLoss(res.Loss)
 			}
 			return nil
 		}
-		fmt.Println("worktree eliminado")
+		fmt.Println("worktree removed")
 		return nil
 	case "merge":
 		if len(args) != 2 {
@@ -171,9 +171,9 @@ func cmdWorktree(ctx context.Context, c *client.Client, args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("%s mergeada en %s (%d %s)\n", res.Branch, res.Base, res.Commits, plural(res.Commits, "commit", "commits"))
+		fmt.Printf("%s merged into %s (%d %s)\n", res.Branch, res.Base, res.Commits, plural(res.Commits, "commit", "commits"))
 		if res.Uncommitted > 0 {
-			fmt.Printf("ojo: %d %s sin commitear en el worktree no se han incluido\n", res.Uncommitted, plural(res.Uncommitted, "cambio", "cambios"))
+			fmt.Printf("note: %d uncommitted %s in the worktree were not included\n", res.Uncommitted, plural(res.Uncommitted, "change", "changes"))
 		}
 		return nil
 	case "open":
@@ -196,13 +196,13 @@ func cmdWorktree(ctx context.Context, c *client.Client, args []string) error {
 
 func printLoss(l *gitx.LossError) {
 	if len(l.Uncommitted) > 0 {
-		fmt.Printf("%d %s sin commitear:\n", len(l.Uncommitted), plural(len(l.Uncommitted), "archivo", "archivos"))
+		fmt.Printf("%d uncommitted %s:\n", len(l.Uncommitted), plural(len(l.Uncommitted), "file", "files"))
 		for _, f := range l.Uncommitted {
 			fmt.Println("  " + f)
 		}
 	}
 	if len(l.Unmerged) > 0 {
-		fmt.Printf("%d %s de %s sin mergear en %s:\n", len(l.Unmerged), plural(len(l.Unmerged), "commit", "commits"), l.Branch, l.Base)
+		fmt.Printf("%d %s on %s not merged into %s:\n", len(l.Unmerged), plural(len(l.Unmerged), "commit", "commits"), l.Branch, l.Base)
 		for _, cm := range l.Unmerged {
 			fmt.Printf("  %s %s\n", cm.Short, cm.Subject)
 		}

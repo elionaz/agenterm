@@ -65,6 +65,7 @@ func TestAppAttentionNotifications(t *testing.T) {
 	t.Cleanup(func() { os.RemoveAll(dir) })
 	p := paths.In(dir)
 	os.WriteFile(p.Profiles(), []byte("- id: cat\n  cmd: /bin/cat\n  status: hooks\n"), 0o600)
+	os.WriteFile(p.Settings(), []byte("ui:\n  language: es\n"), 0o600) // notification texts
 	var daemonNotes sync.Map
 	srv, err := daemon.New(daemon.Config{Paths: p, SearchPath: func() string { return "/usr/bin:/bin" }, IdleAfter: time.Hour, KillGrace: time.Second,
 		Logger:   slog.New(slog.NewTextHandler(io.Discard, nil)),
@@ -146,6 +147,7 @@ func TestAppStallNotificationAndTail(t *testing.T) {
 	t.Cleanup(func() { os.RemoveAll(dir) })
 	p := paths.In(dir)
 	os.WriteFile(p.Profiles(), []byte("- id: cat\n  cmd: /bin/cat\n  status: hooks\n"), 0o600)
+	os.WriteFile(p.Settings(), []byte("ui:\n  language: es\n"), 0o600) // notification texts
 	os.WriteFile(p.Settings(), []byte("activity:\n  stall_seconds: 1\n"), 0o600)
 	srv, err := daemon.New(daemon.Config{Paths: p, SearchPath: func() string { return "/usr/bin:/bin" }, IdleAfter: time.Hour, KillGrace: time.Second,
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), Notifier: func(daemon.Notification) {}})

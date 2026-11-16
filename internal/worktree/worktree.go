@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/elionaz/agenterm/internal/apierr"
 	"github.com/elionaz/agenterm/internal/atomicfile"
 )
 
@@ -41,7 +42,7 @@ type Record struct {
 }
 
 // ErrNotFound is returned for unknown worktree ids.
-var ErrNotFound = errors.New("worktree no encontrado")
+var ErrNotFound = errors.New("worktree not found")
 
 // Store is a concurrency-safe, file-backed list of records.
 type Store struct {
@@ -88,7 +89,7 @@ func (s *Store) Get(id string) (Record, error) {
 			return r, nil
 		}
 	}
-	return Record{}, fmt.Errorf("%w: %s", ErrNotFound, id)
+	return Record{}, apierr.New(apierr.WorktreeNotFound, map[string]any{"id": id}, "%w: %s", ErrNotFound, id)
 }
 
 // Put inserts or replaces (by ID) a record.

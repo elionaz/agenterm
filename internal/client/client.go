@@ -67,10 +67,17 @@ func ResolveSocket() (sock string, fromSession bool, err error) {
 	return p.Socket(), false, nil
 }
 
-// RemoteError is an error reported by the daemon.
-type RemoteError struct{ Msg string }
+// RemoteError is an error reported by the daemon, with its code and data
+// for user-facing refusals (apierr.Coded).
+type RemoteError struct {
+	Msg  string
+	Code string
+	Data json.RawMessage
+}
 
-func (e *RemoteError) Error() string { return e.Msg }
+func (e *RemoteError) Error() string     { return e.Msg }
+func (e *RemoteError) ErrorCode() string { return e.Code }
+func (e *RemoteError) ErrorData() any    { return e.Data }
 
 func (c *Client) dial(ctx context.Context) (net.Conn, error) {
 	conn, err := c.Transport.Dial(ctx, c.Sock)
@@ -123,7 +130,7 @@ func (c *Client) open(ctx context.Context, method string, params, result any) (n
 		return fail(fmt.Errorf("decode response: %w", err))
 	}
 	if resp.Error != "" {
-		return fail(&RemoteError{Msg: resp.Error})
+		return fail(&RemoteError{Msg: resp.Error, Code: resp.ErrorCode, Data: resp.ErrorData})
 	}
 	if result != nil && len(resp.Result) > 0 {
 		if err := json.Unmarshal(resp.Result, result); err != nil {

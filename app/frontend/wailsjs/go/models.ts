@@ -413,6 +413,7 @@ export namespace protocol {
 	    defaultBase?: string;
 	    branches: string[];
 	    error?: string;
+	    errorCode?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ProjectGit(source);
@@ -426,6 +427,7 @@ export namespace protocol {
 	        this.defaultBase = source["defaultBase"];
 	        this.branches = source["branches"];
 	        this.error = source["error"];
+	        this.errorCode = source["errorCode"];
 	    }
 	}
 	export class Progress {
@@ -470,6 +472,8 @@ export namespace protocol {
 	    base?: string;
 	    git?: GitInfo;
 	    activity?: string;
+	    activityKind?: string;
+	    activityTarget?: string;
 	    // Go type: time
 	    activityAt?: any;
 	    activitySource?: string;
@@ -518,6 +522,8 @@ export namespace protocol {
 	        this.base = source["base"];
 	        this.git = this.convertValues(source["git"], GitInfo);
 	        this.activity = source["activity"];
+	        this.activityKind = source["activityKind"];
+	        this.activityTarget = source["activityTarget"];
 	        this.activityAt = this.convertValues(source["activityAt"], null);
 	        this.activitySource = source["activitySource"];
 	        this.turnStartedAt = this.convertValues(source["turnStartedAt"], null);
@@ -681,10 +687,23 @@ export namespace settings {
 	        this.notifyOnStall = source["notifyOnStall"];
 	    }
 	}
+	export class UI {
+	    language: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UI(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.language = source["language"];
+	    }
+	}
 	export class Settings {
 	    notify: Notify;
 	    activity: Activity;
 	    git: Git;
+	    ui: UI;
 	
 	    static createFrom(source: any = {}) {
 	        return new Settings(source);
@@ -695,6 +714,7 @@ export namespace settings {
 	        this.notify = this.convertValues(source["notify"], Notify);
 	        this.activity = this.convertValues(source["activity"], Activity);
 	        this.git = this.convertValues(source["git"], Git);
+	        this.ui = this.convertValues(source["ui"], UI);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

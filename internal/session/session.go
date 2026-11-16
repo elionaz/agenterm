@@ -539,7 +539,7 @@ func (s *Session) Notify(st status.State) error { return s.status.Notify(st) }
 // optional activity.
 func (s *Session) NotifyEvent(ev status.Event) error {
 	if ev.Activity != "" {
-		s.act.setHook(ev.Activity, time.Now())
+		s.act.setHook(ev.Activity, ev.ActivityKind, ev.ActivityTarget, time.Now())
 	}
 	err := s.status.NotifyEvent(ev)
 	if ev.Turn {
@@ -551,8 +551,8 @@ func (s *Session) NotifyEvent(ev status.Event) error {
 
 // SetActivity records activity reported explicitly (hook source) without
 // touching the state.
-func (s *Session) SetActivity(text string) {
-	if text != "" && s.act.setHook(text, time.Now()) {
+func (s *Session) SetActivity(text, kind, target string) {
+	if text != "" && s.act.setHook(text, kind, target, time.Now()) {
 		s.emitActivity(time.Now())
 	}
 }

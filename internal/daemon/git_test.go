@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/elionaz/agenterm/internal/apierr"
 	"github.com/elionaz/agenterm/internal/client"
 	"github.com/elionaz/agenterm/internal/daemon"
 	"github.com/elionaz/agenterm/internal/protocol"
@@ -96,15 +97,15 @@ func TestWorktreeSession(t *testing.T) {
 
 	// A non-repo project cannot use worktrees.
 	plain, _ := c.ProjectAdd(ctx, t.TempDir(), "plain")
-	if pg, _ := c.ProjectGit(ctx, plain.ID); pg.IsRepo || pg.Error == "" {
+	if pg, _ := c.ProjectGit(ctx, plain.ID); pg.IsRepo || pg.Error == "" || pg.ErrorCode != apierr.NotARepo {
 		t.Fatalf("project.git(plain) = %+v", pg)
 	}
 	if _, err := c.Spawn(ctx, protocol.SpawnParams{ProjectID: plain.ID, ProfileID: "shell", Mode: protocol.ModeWorktree}); err == nil ||
-		!strings.Contains(err.Error(), "no es un repositorio git") {
+		!strings.Contains(err.Error(), "not a git repository") || !hasCode(err, apierr.NotARepo) {
 		t.Fatalf("worktree spawn in plain dir: %v", err)
 	}
 	if _, err := c.Spawn(ctx, protocol.SpawnParams{ProjectID: proj.ID, ProfileID: "shell", Mode: protocol.ModeWorktree, Base: "nope"}); err == nil ||
-		!strings.Contains(err.Error(), "no existe") {
+		!strings.Contains(err.Error(), "does not exist") || !hasCode(err, apierr.BaseMissing) {
 		t.Fatalf("missing base: %v", err)
 	}
 
@@ -153,7 +154,7 @@ func TestWorktreeSession(t *testing.T) {
 	if wts := listWorktrees(t, c, proj.ID); len(wts) != 1 || !wts[0].Live || wts[0].Orphan || wts[0].Branch != info.Branch {
 		t.Fatalf("worktree.list (live) = %+v", wts)
 	}
-	if _, err := c.WorktreeRemove(ctx, protocol.WorktreeRemoveParams{ID: info.ID, Force: true}); err == nil || !strings.Contains(err.Error(), "sigue viva") {
+	if _, err := c.WorktreeRemove(ctx, protocol.WorktreeRemoveParams{ID: info.ID, Force: true}); err == nil || !strings.Contains(err.Error(), "still running") || !hasCode(err, apierr.WorktreeLive) {
 		t.Fatalf("remove with a live session: %v", err)
 	}
 
@@ -208,7 +209,7 @@ func TestWorktreeSession(t *testing.T) {
 		t.Fatalf("dry run = %+v, %v", dry, err)
 	}
 	if _, err := c.WorktreeRemove(ctx, protocol.WorktreeRemoveParams{ID: info.ID, DeleteBranch: true}); err == nil ||
-		!strings.Contains(err.Error(), "sin commitear") || !strings.Contains(err.Error(), "sin mergear") {
+		!strings.Contains(err.Error(), "uncommitted") || !strings.Contains(err.Error(), "not merged") || !hasCode(err, apierr.WorktreeDirty) {
 		t.Fatalf("unforced remove: %v", err)
 	}
 	if _, err := os.Stat(wantDir); err != nil {
@@ -243,7 +244,7 @@ func TestWorktreeMergeAndSameMode(t *testing.T) {
 
 	// Refused while the main tree is dirty.
 	os.WriteFile(filepath.Join(repo, "a.txt"), []byte("dirty\n"), 0o644)
-	if _, err := c.WorktreeMerge(ctx, wt.WorktreeID); err == nil || !strings.Contains(err.Error(), "sin commitear") {
+	if _, err := c.WorktreeMerge(ctx, wt.WorktreeID); err == nil || !strings.Contains(err.Error(), "uncommitted") || !hasCode(err, apierr.MergeMainDirty) {
 		t.Fatalf("merge into dirty main: %v", err)
 	}
 	gitT(t, repo, "checkout", "--", "a.txt")
@@ -290,4 +291,10 @@ func TestWorktreeMergeAndSameMode(t *testing.T) {
 	if err != nil || d.Mode != protocol.ModeSame || len(d.Files) != 1 || d.Files[0].Path != "untracked.txt" || !d.Files[0].Untracked || d.Branch != "main" {
 		t.Fatalf("same diff = %+v, %v", d, err)
 	}
+}
+
+// hasCode reports whether a daemon error carries code (protocol errorCode).
+func hasCode(err error, code string) bool {
+	c, _, ok := apierr.Code(err)
+	return ok && c == code
 }

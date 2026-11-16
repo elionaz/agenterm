@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/elionaz/agenterm/internal/apierr"
 	"github.com/elionaz/agenterm/internal/hooks"
 	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/protocol"
@@ -91,6 +92,10 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 		if err := settings.Save(s.cfg.Paths.Settings(), st); err != nil {
 			return nil, err
 		}
+		// What was written, normalized (e.g. an unknown ui.language is auto).
+		if saved, err := settings.Load(s.cfg.Paths.Settings()); err == nil {
+			st = saved
+		}
 		return st, nil
 
 	case protocol.MethodSessionSpawn:
@@ -130,7 +135,7 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 			if err != nil {
 				return nil, err
 			}
-			sess.SetActivity(p.Activity)
+			sess.SetActivity(p.Activity, p.ActivityKind, p.ActivityTarget)
 			return s.sessionInfo(sess), nil
 		}
 		st, err := status.ParseState(p.State)
@@ -145,7 +150,8 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := sess.NotifyEvent(status.Event{State: st, Kind: kind, Message: p.Message, Activity: p.Activity, Turn: p.Turn}); err != nil {
+		if err := sess.NotifyEvent(status.Event{State: st, Kind: kind, Message: p.Message, Activity: p.Activity,
+			ActivityKind: p.ActivityKind, ActivityTarget: p.ActivityTarget, Turn: p.Turn}); err != nil {
 			return nil, err
 		}
 		return s.sessionInfo(sess), nil
@@ -248,7 +254,8 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 		if prof.Install != "" {
 			msg += " (install: " + prof.Install + ")"
 		}
-		return protocol.SessionInfo{}, errors.New(msg)
+		return protocol.SessionInfo{}, &apierr.Error{Code: apierr.ProfileNotInstalled, Msg: msg,
+			Data: map[string]any{"profileId": prof.ID, "cmd": prof.Command(), "install": prof.Install}}
 	}
 	// Detection also searches the login shell's PATH; if this process
 	// cannot find the command itself, launch the detected binary.
@@ -296,10 +303,10 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 			return protocol.SessionInfo{}, err
 		}
 		if rec.ProjectID != proj.ID {
-			return protocol.SessionInfo{}, fmt.Errorf("el worktree %s es de otro proyecto", rec.ID)
+			return protocol.SessionInfo{}, fmt.Errorf("worktree %s belongs to another project", rec.ID)
 		}
 		if _, err := os.Stat(rec.Path); err != nil {
-			return protocol.SessionInfo{}, fmt.Errorf("la carpeta del worktree ya no existe: %s", rec.Path)
+			return protocol.SessionInfo{}, apierr.New(apierr.DirMissing, map[string]any{"dir": rec.Path}, "the worktree folder no longer exists: %s", rec.Path)
 		}
 		cwd, g = recCwd(rec), recGit(rec)
 	case mode == protocol.ModeWorktree:
@@ -310,7 +317,7 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 		created, cwd, g = &rec, dir, recGit(rec)
 	case mode == "" || mode == protocol.ModeSame:
 	default:
-		return protocol.SessionInfo{}, fmt.Errorf("modo desconocido %q (same o worktree)", p.Mode)
+		return protocol.SessionInfo{}, fmt.Errorf("unknown mode %q (same or worktree)", p.Mode)
 	}
 	s.mu.Lock()
 	s.git[id] = g

@@ -79,7 +79,13 @@ type Request struct {
 type Response struct {
 	ID     uint64          `json:"id"`
 	Result json.RawMessage `json:"result,omitempty"`
-	Error  string          `json:"error,omitempty"`
+	// Error is the (English) error message. User-facing refusals also
+	// carry a stable ErrorCode (see package apierr) and structured
+	// ErrorData, so UIs can render them in their language; clients fall
+	// back to Error for codes they do not know.
+	Error     string          `json:"error,omitempty"`
+	ErrorCode string          `json:"errorCode,omitempty"`
+	ErrorData json.RawMessage `json:"errorData,omitempty"`
 }
 
 // Params and results.
@@ -176,8 +182,11 @@ type ProjectGit struct {
 	CurrentBranch string   `json:"currentBranch,omitempty"`
 	DefaultBase   string   `json:"defaultBase,omitempty"`
 	Branches      []string `json:"branches"`
-	// Error explains why worktrees are unavailable (not a repo, no commits).
-	Error string `json:"error,omitempty"`
+	// Error explains why worktrees are unavailable (not a repo, no
+	// commits); ErrorCode is its apierr code (git_missing | not_a_repo |
+	// no_commits).
+	Error     string `json:"error,omitempty"`
+	ErrorCode string `json:"errorCode,omitempty"`
 }
 
 // DiffParams selects a session's or a worktree's diff. Stat skips the
@@ -286,9 +295,12 @@ type NotifyParams struct {
 	State     string `json:"state"`
 	Kind      string `json:"kind,omitempty"`    // permission | question | done | error
 	Message   string `json:"message,omitempty"` // shown in notifications
-	// Activity describes what the agent is doing ("Leyendo main.go"). With
-	// an empty State only the activity is updated.
-	Activity string `json:"activity,omitempty"`
+	// Activity describes what the agent is doing ("Reading main.go"). With
+	// an empty State only the activity is updated. ActivityKind and
+	// ActivityTarget are its structured form (see Live).
+	Activity       string `json:"activity,omitempty"`
+	ActivityKind   string `json:"activityKind,omitempty"`
+	ActivityTarget string `json:"activityTarget,omitempty"`
 	// Turn marks a new turn (prompt submitted): restarts the turn timer.
 	Turn bool `json:"turn,omitempty"`
 }
@@ -316,9 +328,15 @@ type Progress struct {
 // stall flag and progress. It is embedded (flattened) in SessionInfo and in
 // session.activity / session.state events.
 type Live struct {
-	// Activity is a short human description ("Editando main.go", or the
+	// Activity is a short human description ("Editing main.go", or the
 	// last meaningful line of output); ActivitySource is hook | output.
+	// Hook activity is English; ActivityKind (thinking | edit | read |
+	// bash | search | web | subagent | todo | mcp | tool) and
+	// ActivityTarget let UIs render it in their language. Both are empty
+	// for output-derived (verbatim) activity.
 	Activity       string     `json:"activity,omitempty"`
+	ActivityKind   string     `json:"activityKind,omitempty"`
+	ActivityTarget string     `json:"activityTarget,omitempty"`
 	ActivityAt     *time.Time `json:"activityAt,omitempty"`
 	ActivitySource string     `json:"activitySource,omitempty"`
 	// TurnStartedAt is when the current (or last) turn started;

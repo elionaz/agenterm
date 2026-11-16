@@ -17,7 +17,9 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/elionaz/agenterm/internal/daemoncmd"
+	"github.com/elionaz/agenterm/internal/i18n"
 	"github.com/elionaz/agenterm/internal/notifycmd"
+	"github.com/elionaz/agenterm/internal/paths"
 )
 
 // dist/.gitkeep keeps this embed valid (and `go build ./...` green) before
@@ -44,6 +46,10 @@ func main() {
 	}
 
 	app := NewApp()
+	lang := i18n.EN
+	if p, err := paths.Default(); err == nil {
+		lang = uiLang(p)
+	}
 
 	// The Edit menu is what makes ⌘C/⌘V/⌘A reach the webview on macOS.
 	appMenu := menu.NewMenu()
@@ -69,7 +75,8 @@ func main() {
 				runtime.Show(app.ctx)
 			},
 		},
-		Bind: []any{app},
+		Bind:           []any{app},
+		ErrorFormatter: formatError,
 		Mac: &mac.Options{
 			// agenterm://session/<id> (CFBundleURLTypes from wails.json
 			// "protocols"): daemon notification clicks.
@@ -78,7 +85,7 @@ func main() {
 			Appearance: mac.NSAppearanceNameDarkAqua,
 			About: &mac.AboutInfo{
 				Title:   "agenterm",
-				Message: "Workspace de escritorio para agentes de código",
+				Message: i18n.T(lang, i18n.AboutMessage),
 			},
 		},
 	})

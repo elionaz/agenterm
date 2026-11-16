@@ -2,13 +2,14 @@ package gitx
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/elionaz/agenterm/internal/apierr"
 )
 
 // Worktree is an entry of `git worktree list --porcelain`.
@@ -113,10 +114,10 @@ func UniqueBranch(ctx context.Context, dir, name string) string {
 // CheckBranchName validates name with `git check-ref-format --branch`.
 func CheckBranchName(ctx context.Context, dir, name string) error {
 	if name == "" {
-		return errors.New("nombre de rama vacío")
+		return apierr.New(apierr.BranchInvalid, map[string]any{"branch": name}, "empty branch name")
 	}
 	if _, err := git(ctx, dir, "check-ref-format", "--branch", name); err != nil {
-		return fmt.Errorf("nombre de rama no válido: %q", name)
+		return apierr.New(apierr.BranchInvalid, map[string]any{"branch": name}, "invalid branch name: %q", name)
 	}
 	return nil
 }
@@ -126,10 +127,10 @@ func CheckBranchName(ctx context.Context, dir, name string) error {
 // starts from base's commit.
 func AddWorktree(ctx context.Context, repo, path, branch, base string) error {
 	if !IsRepo(ctx, repo) {
-		return fmt.Errorf("%s: %w: el modo worktree no está disponible", repo, ErrNotRepo)
+		return apierr.New(apierr.NotARepo, map[string]any{"dir": repo}, "%s: %w: worktree mode is not available", repo, ErrNotRepo)
 	}
 	if !HasCommits(ctx, repo) {
-		return errors.New("el repositorio no tiene commits todavía: haz un primer commit para usar worktrees")
+		return apierr.New(apierr.NoCommits, map[string]any{"dir": repo}, "the repository has no commits yet: make a first commit to use worktrees")
 	}
 	if _, err := ResolveCommit(ctx, repo, base); err != nil {
 		return err
@@ -138,10 +139,10 @@ func AddWorktree(ctx context.Context, repo, path, branch, base string) error {
 		return err
 	}
 	if BranchExists(ctx, repo, branch) {
-		return fmt.Errorf("la rama %q ya existe", branch)
+		return apierr.New(apierr.BranchExists, map[string]any{"branch": branch}, "branch %q already exists", branch)
 	}
 	if _, err := os.Stat(path); err == nil {
-		return fmt.Errorf("la carpeta del worktree ya existe: %s", path)
+		return fmt.Errorf("the worktree folder already exists: %s", path)
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
@@ -170,19 +171,30 @@ type LossError struct {
 	Unmerged    []Commit `json:"unmerged,omitempty"`
 }
 
+// ErrorCode classifies the refusal (apierr.Coded): uncommitted files win.
+func (e *LossError) ErrorCode() string {
+	if len(e.Uncommitted) > 0 {
+		return apierr.WorktreeDirty
+	}
+	return apierr.WorktreeUnmerged
+}
+
+// ErrorData is the LossError itself (its JSON form).
+func (e *LossError) ErrorData() any { return e }
+
 func (e *LossError) Error() string {
 	var parts []string
 	if n := len(e.Uncommitted); n > 0 {
-		parts = append(parts, fmt.Sprintf("%d %s sin commitear (%s)", n, plural(n, "archivo", "archivos"), preview(e.Uncommitted, 5)))
+		parts = append(parts, fmt.Sprintf("%d uncommitted %s (%s)", n, plural(n, "file", "files"), preview(e.Uncommitted, 5)))
 	}
 	if n := len(e.Unmerged); n > 0 {
 		subjects := make([]string, 0, len(e.Unmerged))
 		for _, c := range e.Unmerged {
 			subjects = append(subjects, c.Short+" "+c.Subject)
 		}
-		parts = append(parts, fmt.Sprintf("%d %s de %s sin mergear en %s (%s)", n, plural(n, "commit", "commits"), e.Branch, e.Base, preview(subjects, 3)))
+		parts = append(parts, fmt.Sprintf("%d %s on %s not merged into %s (%s)", n, plural(n, "commit", "commits"), e.Branch, e.Base, preview(subjects, 3)))
 	}
-	return "no se borra el worktree: se perderían " + strings.Join(parts, " y ") + "; usa force para borrarlo igualmente"
+	return "worktree not removed: it would lose " + strings.Join(parts, " and ") + "; use force to remove it anyway"
 }
 
 func plural(n int, one, many string) string {
@@ -295,21 +307,23 @@ func Merge(ctx context.Context, repo, branch, base, worktree string) (MergeResul
 		return res, err
 	}
 	if cur != base {
-		where := "con HEAD separado"
+		where := "has a detached HEAD"
 		if cur != "" {
-			where = "en la rama " + cur
+			where = "is on branch " + cur
 		}
-		return res, fmt.Errorf("no se puede hacer merge: la carpeta principal (%s) está %s, no en %s; cámbiala a %s y vuelve a intentarlo", main, where, base, base)
+		return res, apierr.New(apierr.MergeWrongBranch, map[string]any{"dir": main, "current": cur, "base": base},
+			"cannot merge: the main folder (%s) %s, not %s; switch it to %s and try again", main, where, base, base)
 	}
 	st, err := GetStatus(ctx, main)
 	if err != nil {
 		return res, err
 	}
 	if n := st.Staged + st.Unstaged + st.Conflicts; n > 0 {
-		return res, fmt.Errorf("no se puede hacer merge: la carpeta principal (%s) tiene %d %s sin commitear; haz commit o stash antes (agenterm no hace stash automático)", main, n, plural(n, "cambio", "cambios"))
+		return res, apierr.New(apierr.MergeMainDirty, map[string]any{"dir": main, "count": n},
+			"cannot merge: the main folder (%s) has %d uncommitted %s; commit or stash first (agenterm does not stash automatically)", main, n, plural(n, "change", "changes"))
 	}
 	if !BranchExists(ctx, main, branch) {
-		return res, fmt.Errorf("la rama %q ya no existe", branch)
+		return res, apierr.New(apierr.BranchMissing, map[string]any{"branch": branch}, "branch %q no longer exists", branch)
 	}
 	n, err := AheadCount(ctx, main, base, "refs/heads/"+branch)
 	if err != nil {
@@ -322,14 +336,16 @@ func Merge(ctx context.Context, repo, branch, base, worktree string) (MergeResul
 		}
 	}
 	if n == 0 {
-		return res, fmt.Errorf("nada que mergear: %s no tiene commits que no estén ya en %s", branch, base)
+		return res, apierr.New(apierr.MergeNothing, map[string]any{"branch": branch, "base": base},
+			"nothing to merge: %s has no commits that are not already in %s", branch, base)
 	}
 	out, err := gitWrite(ctx, main, "merge", "--no-ff", "--no-edit", "-m", fmt.Sprintf("Merge branch '%s' (agenterm)", branch), "--", branch)
 	if err != nil {
 		conflicts, _ := git(ctx, main, "diff", "--name-only", "--diff-filter=U")
 		_, _ = gitWrite(ctx, main, "merge", "--abort")
 		if c := splitLines(conflicts); len(c) > 0 {
-			return res, fmt.Errorf("el merge de %s en %s tiene conflictos (%s): se ha abortado; resuélvelo a mano", branch, base, preview(c, 5))
+			return res, apierr.New(apierr.MergeConflict, map[string]any{"branch": branch, "base": base, "files": c},
+				"merging %s into %s conflicts (%s): the merge was aborted; resolve it by hand", branch, base, preview(c, 5))
 		}
 		return res, err
 	}

@@ -14,6 +14,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elionaz/agenterm/internal/atomicfile"
+	"github.com/elionaz/agenterm/internal/i18n"
 )
 
 // Notify controls attention notifications.
@@ -41,7 +42,7 @@ const DefaultStallSeconds = 180
 
 // Git configures worktree sessions and the diff actions.
 type Git struct {
-	// Editor opens a worktree from "Abrir en editor": a command on PATH
+	// Editor opens a worktree from "Open in editor": a command on PATH
 	// ("code", "cursor -n"), an absolute path or a macOS app name
 	// ("Visual Studio Code"). Empty: `code` if found, else Finder.
 	Editor string `json:"editor"`
@@ -58,11 +59,23 @@ const (
 	ModeWorktree = "worktree"
 )
 
+// UI configures the desktop app (and the texts the daemon renders for it).
+type UI struct {
+	// Language is auto | en | es. auto follows the system's preferred
+	// languages (macOS AppleLanguages, then LC_ALL/LC_MESSAGES/LANG): the
+	// first of en/es found, else English.
+	Language string `json:"language"`
+}
+
+// Lang resolves Language to the language to render in.
+func (u UI) Lang() i18n.Lang { return i18n.Resolve(u.Language) }
+
 // Settings is the parsed file.
 type Settings struct {
 	Notify   Notify   `json:"notify"`
 	Activity Activity `json:"activity"`
 	Git      Git      `json:"git"`
+	UI       UI       `json:"ui"`
 }
 
 type fileNotify struct {
@@ -82,13 +95,18 @@ type fileGit struct {
 	DefaultMode *string `yaml:"default_mode"`
 }
 
+type fileUI struct {
+	Language *string `yaml:"language"`
+}
+
 type file struct {
 	Notify   fileNotify   `yaml:"notify"`
 	Activity fileActivity `yaml:"activity"`
 	Git      fileGit      `yaml:"git"`
+	UI       fileUI       `yaml:"ui"`
 }
 
-const header = "# agenterm: ajustes (ver README)\n"
+const header = "# agenterm settings (see README)\n"
 
 // Save writes s to path atomically (keeping a .bak of the previous file).
 // The existing file is edited in place: unknown keys and comments are kept,
@@ -116,6 +134,7 @@ func Save(path string, s Settings) error {
 	setKey(root, []string{"git", "editor"}, strings.TrimSpace(s.Git.Editor), "!!str")
 	setKey(root, []string{"git", "worktree_dir"}, strings.TrimSpace(s.Git.WorktreeDir), "!!str")
 	setKey(root, []string{"git", "default_mode"}, normMode(s.Git.DefaultMode), "!!str")
+	setKey(root, []string{"ui", "language"}, i18n.NormalizeSetting(s.UI.Language), "!!str")
 	var buf bytes.Buffer
 	enc := yaml.NewEncoder(&buf)
 	enc.SetIndent(2)
@@ -162,6 +181,7 @@ func Defaults() Settings {
 		Notify:   Notify{Enabled: true, Sound: true, OnDone: true, OnStall: true},
 		Activity: Activity{StallSeconds: DefaultStallSeconds},
 		Git:      Git{DefaultMode: ModeSame},
+		UI:       UI{Language: i18n.Auto},
 	}
 }
 
@@ -199,6 +219,9 @@ func Parse(data []byte) (Settings, error) {
 	}
 	if f.Git.DefaultMode != nil {
 		s.Git.DefaultMode = normMode(*f.Git.DefaultMode)
+	}
+	if f.UI.Language != nil {
+		s.UI.Language = i18n.NormalizeSetting(*f.UI.Language)
 	}
 	return s, nil
 }

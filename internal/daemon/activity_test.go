@@ -40,9 +40,9 @@ func TestHookActivityAndTimers(t *testing.T) {
 
 	hook(`{"session_id":"abc","cwd":"/x","hook_event_name":"UserPromptSubmit","prompt":"hola"}`)
 	e := waitEvent(t, evc, "thinking", func(e protocol.Event) bool {
-		return isMine(e) && e.Type == protocol.EventSessionActivity && e.Activity == "Pensando…"
+		return isMine(e) && e.Type == protocol.EventSessionActivity && e.Activity == "Thinking…"
 	})
-	if e.ActivitySource != "hook" || e.TurnStartedAt == nil || e.TurnEndedAt != nil || e.LastEventAt == nil {
+	if e.ActivitySource != "hook" || e.ActivityKind != "thinking" || e.TurnStartedAt == nil || e.TurnEndedAt != nil || e.LastEventAt == nil {
 		t.Fatalf("activity event %+v", e)
 	}
 	// PreToolUse (doc sample): stdout stays empty — no permission decision.
@@ -51,7 +51,7 @@ func TestHookActivityAndTimers(t *testing.T) {
 		return isMine(e) && e.Type == protocol.EventSessionActivity && e.Activity == "Bash: npm test"
 	})
 	info := findSession(t, c, sess.ID)
-	if info.Activity != "Bash: npm test" || info.ActivitySource != "hook" || info.ActivityAt == nil || info.State != "running" {
+	if info.Activity != "Bash: npm test" || info.ActivityKind != "bash" || info.ActivityTarget != "npm test" || info.ActivitySource != "hook" || info.ActivityAt == nil || info.State != "running" {
 		t.Fatalf("session info %+v", info)
 	}
 	// Activity-only notify (no state).
@@ -128,7 +128,7 @@ func TestStallDetection(t *testing.T) {
 	notes := make(chan daemon.Notification, 16)
 	c, p, _ := startDaemonWith(t, func(n daemon.Notification) { notes <- n })
 	ctx := ctxT(t)
-	if err := os.WriteFile(p.Settings(), []byte("activity:\n  stall_seconds: 1\n"), 0o600); err != nil {
+	if err := os.WriteFile(p.Settings(), []byte("activity:\n  stall_seconds: 1\nui:\n  language: es\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	proj, err := c.ProjectAdd(ctx, t.TempDir(), "demo")
@@ -146,7 +146,8 @@ func TestStallDetection(t *testing.T) {
 	if findSession(t, c, sess.ID).Stalled {
 		t.Fatal("stalled without an open turn")
 	}
-	if _, err := c.NotifyEvent(ctx, protocol.NotifyParams{SessionID: sess.ID, State: "running", Activity: "Bash: sleep 999"}); err != nil {
+	if _, err := c.NotifyEvent(ctx, protocol.NotifyParams{SessionID: sess.ID, State: "running",
+		Activity: "Reading go.mod", ActivityKind: "read", ActivityTarget: "go.mod"}); err != nil {
 		t.Fatal(err)
 	}
 	e := waitEvent(t, evc, "stall", func(e protocol.Event) bool { return isMine(e) && e.StallRaised })
@@ -155,7 +156,7 @@ func TestStallDetection(t *testing.T) {
 	}
 	select {
 	case n := <-notes:
-		if n.Kind != "stall" || n.Sound || !strings.HasPrefix(n.Body, "¿Trabado? Sin actividad") || !strings.Contains(n.Body, "Bash: sleep 999") {
+		if n.Kind != "stall" || n.Sound || !strings.HasPrefix(n.Body, "¿Trabado? Sin actividad hace") || !strings.HasSuffix(n.Body, " · Leyendo go.mod") {
 			t.Fatalf("stall notification %+v", n)
 		}
 	case <-time.After(3 * time.Second):

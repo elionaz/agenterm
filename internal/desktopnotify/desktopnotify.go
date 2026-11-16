@@ -9,6 +9,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/elionaz/agenterm/internal/i18n"
+	"github.com/elionaz/agenterm/internal/protocol"
 )
 
 // Title is "<project> · <profile>" (either part may be missing).
@@ -24,24 +27,25 @@ func Title(projectName, profileID string) string {
 	return "agenterm"
 }
 
-// Body is the attention message, or a Spanish fallback per kind.
-func Body(kind, message string) string {
+// Body is the attention message (kept verbatim: it comes from the agent),
+// or a fallback per kind in lang.
+func Body(lang i18n.Lang, kind, message string) string {
 	if message != "" {
 		return message
 	}
 	switch kind {
 	case "permission":
-		return "Necesita tu aprobación"
+		return i18n.T(lang, i18n.NotifyPermission)
 	case "question":
-		return "Está esperando tu respuesta"
+		return i18n.T(lang, i18n.NotifyQuestion)
 	case "done":
-		return "Terminó"
+		return i18n.T(lang, i18n.NotifyDone)
 	case "error":
-		return "Terminó con un error"
+		return i18n.T(lang, i18n.NotifyError)
 	case "stall":
-		return "¿Trabado? Sin actividad"
+		return i18n.T(lang, i18n.NotifyStall)
 	}
-	return "Necesita tu atención"
+	return i18n.T(lang, i18n.NotifyAttention)
 }
 
 // Osascript posts a notification through AppleScript. macOS attributes it
@@ -70,10 +74,10 @@ func appleScriptString(s string) string {
 	return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(s) + `"`
 }
 
-// StallBody describes a stalled turn: "¿Trabado? Sin actividad hace 5m ·
+// StallBody describes a stalled turn: "Stalled? No activity for 5m ·
 // <activity>". The quiet period counts from the last output or event.
-func StallBody(activity string, lastOutput, lastEvent, stalledAt *time.Time) string {
-	msg := "¿Trabado? Sin actividad"
+func StallBody(lang i18n.Lang, activity string, lastOutput, lastEvent, stalledAt *time.Time) string {
+	msg := i18n.T(lang, i18n.NotifyStall)
 	if stalledAt != nil {
 		var last time.Time
 		for _, t := range []*time.Time{lastOutput, lastEvent} {
@@ -82,13 +86,27 @@ func StallBody(activity string, lastOutput, lastEvent, stalledAt *time.Time) str
 			}
 		}
 		if !last.IsZero() {
-			msg += " hace " + ShortDuration(stalledAt.Sub(last))
+			msg += " " + i18n.T(lang, i18n.NotifyStallAgo, ShortDuration(stalledAt.Sub(last)))
 		}
 	}
 	if activity != "" {
 		msg += " · " + activity
 	}
 	return msg
+}
+
+// StallEventBody is StallBody for a session.activity event, with its
+// activity rendered in lang (hook activity) or verbatim (output).
+func StallEventBody(lang i18n.Lang, ev protocol.Event) string {
+	return StallBody(lang, ActivityText(lang, ev.Live), ev.LastOutputAt, ev.LastEventAt, ev.StalledAt)
+}
+
+// ActivityText is a session's activity line in lang.
+func ActivityText(lang i18n.Lang, l protocol.Live) string {
+	if l.ActivityKind != "" {
+		return i18n.ActivityText(lang, l.ActivityKind, l.ActivityTarget)
+	}
+	return l.Activity
 }
 
 // ShortDuration renders 45s, 5m, 1h 20m.

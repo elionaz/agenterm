@@ -185,10 +185,10 @@ func (s *Store) write(es []Entry, order []string) ([]Profile, error) {
 	return Resolve(out, s.Look), nil
 }
 
-const fileHeader = `# agenterm: perfiles de agentes. Cada entrada sobreescribe el agente del
-# catálogo con el mismo id (los campos ausentes se heredan) o define uno propio
-# (cmd obligatorio, o extends: <id>). El orden de la lista es el del menú; el
-# primero es el de ⌘N. "enabled: false" lo oculta. Ver README.
+const fileHeader = `# agenterm agent profiles. Each entry overrides the catalog agent with the
+# same id (missing fields are inherited) or defines a new one (cmd required,
+# or extends: <id>). The list order is the menu order; the first one is ⌘N's.
+# "enabled: false" hides it. See README.
 `
 
 // Marshal encodes entries in the canonical file format.
