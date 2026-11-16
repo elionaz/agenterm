@@ -5,11 +5,13 @@
 ```sh
 go build -o agenterm ./cmd/agenterm
 agenterm help            # also -h / --help
+agenterm version         # also --version: "agenterm 0.1.0 (abc1234)"; "dev" for local builds
 ```
 
 A single binary acts as the CLI, the daemon (`agenterm daemon`) and the callback for agent hooks
 (`agenterm notify`). The app's executable (`agenterm.app/Contents/MacOS/agenterm`) also implements
-`daemon` and `notify`, so the app doesn't depend on the CLI.
+`daemon`, `notify` and `version`, so the app doesn't depend on the CLI. Release builds also ship the
+CLI inside the app at `agenterm.app/Contents/Helpers/agenterm` (Homebrew links it onto the `PATH`).
 
 General rules:
 

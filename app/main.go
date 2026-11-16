@@ -20,6 +20,7 @@ import (
 	"github.com/elionaz/agenterm/internal/i18n"
 	"github.com/elionaz/agenterm/internal/notifycmd"
 	"github.com/elionaz/agenterm/internal/paths"
+	"github.com/elionaz/agenterm/internal/version"
 )
 
 // dist/.gitkeep keeps this embed valid (and `go build ./...` green) before
@@ -42,6 +43,10 @@ func main() {
 			fmt.Fprintln(os.Stderr, "agenterm notify:", err)
 			os.Exit(1)
 		}
+		return
+	}
+	if len(os.Args) > 1 && (os.Args[1] == "version" || os.Args[1] == "--version") {
+		fmt.Println("agenterm", version.String())
 		return
 	}
 
@@ -85,7 +90,7 @@ func main() {
 			Appearance: mac.NSAppearanceNameDarkAqua,
 			About: &mac.AboutInfo{
 				Title:   "agenterm",
-				Message: i18n.T(lang, i18n.AboutMessage),
+				Message: i18n.T(lang, i18n.AboutMessage) + "\n" + version.String(),
 			},
 		},
 	})

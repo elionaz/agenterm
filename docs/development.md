@@ -2,7 +2,7 @@
 
 **English** · [Español](es/development.md)
 
-Requirements: those in [README.md](../README.md#status-and-requirements) (Go, Node 24+ with npm and
+Requirements: those in [README.md](../README.md#build-from-source) (Go, Node 24+ with npm and
 the Wails v2 CLI). The rules for opening a pull request are in [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## App in development mode
@@ -73,6 +73,116 @@ signature and only want the bindings:
 cd app && wails generate module
 ```
 
+## Releasing
+
+The version has a single source of truth: the git tag `vX.Y.Z`. Release builds inject it with
+`-ldflags -X` into `internal/version` (what `agenterm version` and the app's About panel show) and
+write it into the bundle's `Info.plist` (`CFBundleShortVersionString` and `CFBundleVersion`).
+`productVersion` in `app/wails.json` is only what plain `wails build` uses; builds without ldflags
+report `dev`.
+
+1. Move the `[Unreleased]` entries of [CHANGELOG.md](../CHANGELOG.md) into a `## [X.Y.Z] - date`
+   section (and update the links at the bottom), and merge that to `main`.
+2. Tag `main` and push the tag:
+
+   ```sh
+   git switch main && git pull
+   git tag -a v0.1.0 -m "agenterm 0.1.0"
+   git push origin v0.1.0
+   ```
+
+3. `.github/workflows/release.yml` runs on the tag (macOS runner) and:
+   - builds everything with `scripts/release-local.sh <version>` (the same script you run locally):
+     the universal app (`wails build -platform darwin/universal`), the universal CLI (cgo, `lipo`)
+     bundled at `agenterm.app/Contents/Helpers/agenterm`, and the Linux CLI (`CGO_ENABLED=0`);
+   - signs the CLI and then the app with the Developer ID, hardened runtime, a secure timestamp and
+     `app/build/darwin/entitlements.plist`, if the certificate secrets exist; otherwise it keeps an
+     ad-hoc signature, warns, and the release notes say it's an unsigned build;
+   - notarizes the zip and then the dmg with `notarytool` and staples both, if the App Store Connect
+     secrets exist too; a rejected submission fails the job and prints the `notarytool log`;
+   - packages `agenterm-<v>-macos-universal.{zip,dmg}`, `agenterm-<v>-darwin-universal.tar.gz`,
+     `agenterm-<v>-linux-{amd64,arm64}.tar.gz` and `checksums.txt`, and uploads them to the run;
+   - creates the GitHub release `vX.Y.Z` with the CHANGELOG section as notes (or generated notes if
+     there's none) and every artifact attached;
+   - if `HOMEBREW_TAP_TOKEN` exists, renders `packaging/homebrew/agenterm.rb.tmpl` with the version
+     and the zip's sha256 (`scripts/render-cask.sh`) and pushes it to `Casks/agenterm.rb` in
+     [elionaz/homebrew-tap](https://github.com/elionaz/homebrew-tap) as "agenterm X.Y.Z".
+
+### Secrets
+
+Set them in the repo's *Settings → Secrets and variables → Actions*, or with `gh secret set`. All of
+them are optional: without them the release is still published, unsigned, and the cask isn't
+updated.
+
+| secret | used for |
+|---|---|
+| `MACOS_CERT_P12_BASE64` | the Developer ID Application certificate and its private key (`.p12`), base64 |
+| `MACOS_CERT_PASSWORD` | the `.p12`'s password |
+| `MACOS_SIGN_IDENTITY` | optional: the identity name, e.g. `Developer ID Application: Jane Doe (TEAMID)`; by default the first Developer ID Application identity in the `.p12` |
+| `APPLE_API_KEY_ID` | App Store Connect API key id (notarization) |
+| `APPLE_API_ISSUER_ID` | App Store Connect issuer id (notarization) |
+| `APPLE_API_KEY_P8_BASE64` | the API key's `.p8` file, base64 (notarization) |
+| `HOMEBREW_TAP_TOKEN` | a GitHub token that can push to `elionaz/homebrew-tap` |
+
+**Developer ID Application certificate** (needs the Account Holder role in the Apple Developer
+program):
+
+1. In *Keychain Access → Certificate Assistant → Request a Certificate From a Certificate
+   Authority…*, enter your email, choose "Saved to disk" and save the `.certSigningRequest`.
+2. In [developer.apple.com → Certificates](https://developer.apple.com/account/resources/certificates/list),
+   click **+**, choose **Developer ID Application** (the G2 Sub-CA), upload the request and download
+   the `.cer`. Double-click it to add it to your login keychain.
+3. In Keychain Access → *My Certificates*, right-click "Developer ID Application: … (TEAMID)" (it
+   must show its private key) → **Export…** → `.p12` with a strong password.
+4. Store it:
+
+   ```sh
+   base64 -i DeveloperID.p12 | gh secret set MACOS_CERT_P12_BASE64
+   gh secret set MACOS_CERT_PASSWORD          # paste the password
+   security find-identity -v -p codesigning   # the exact name, for MACOS_SIGN_IDENTITY
+   ```
+
+   Then delete the exported `.p12`.
+
+**App Store Connect API key** (notarization):
+
+1. In [App Store Connect](https://appstoreconnect.apple.com/access/integrations/api) → *Users and
+   Access → Integrations → App Store Connect API → Team Keys*, generate a key with the
+   **Developer** role.
+2. Download `AuthKey_<KEYID>.p8` (Apple only lets you download it once) and note the **Key ID** and
+   the **Issuer ID** shown above the list.
+3. Store them:
+
+   ```sh
+   base64 -i AuthKey_XXXXXXXXXX.p8 | gh secret set APPLE_API_KEY_P8_BASE64
+   gh secret set APPLE_API_KEY_ID --body XXXXXXXXXX
+   gh secret set APPLE_API_ISSUER_ID --body 00000000-0000-0000-0000-000000000000
+   ```
+
+**`HOMEBREW_TAP_TOKEN`**: a
+[fine-grained personal access token](https://github.com/settings/personal-access-tokens/new) with
+*Repository access → Only select repositories → elionaz/homebrew-tap* and the permission
+*Contents: Read and write* (nothing else). Store it with `gh secret set HOMEBREW_TAP_TOKEN` and
+renew it before it expires.
+
+### Dry runs
+
+Locally (macOS, with the requirements in the README):
+
+```sh
+scripts/release-local.sh 0.1.0        # -> dist/ (gitignored), ad-hoc signed
+codesign --verify --deep --strict --verbose=2 dist/work/agenterm.app
+lipo -info dist/work/agenterm.app/Contents/MacOS/agenterm
+scripts/render-cask.sh 0.1.0 "$(shasum -a 256 dist/agenterm-0.1.0-macos-universal.zip | cut -d' ' -f1)"
+```
+
+To try the signing path, pass an identity from your keychain: `SIGN_IDENTITY="Developer ID
+Application: …" scripts/release-local.sh 0.1.0`. Notarization also needs `NOTARY_KEY_PATH` (the
+`.p8`), `NOTARY_KEY_ID` and `NOTARY_ISSUER_ID`.
+
+On GitHub: *Actions → Release → Run workflow* with a version. It builds, signs and notarizes (if the
+secrets exist) and uploads the artifacts to the run, but doesn't create a release or touch the tap.
+
 ## Icon
 
 The sources are in `assets/icon/`:
@@ -97,7 +207,9 @@ On macOS the Inkscape CLI isn't on the `PATH`; it's at
 
 - **macOS only.** The app, notifications and the Dock are macOS-only, and it's only tested on macOS
   (Apple Silicon). The transport is a unix socket; Windows isn't supported.
-- **No signed releases** yet: you have to build from source.
+- **Upgrading doesn't restart the daemon**: after installing a new version, a daemon that was
+  already running keeps the old code until `agenterm stop` (or a computer restart).
+- The **Linux CLI** builds and is published, but is untested; there's no app or notifications there.
 - **A daemon restart (or a computer restart) kills the processes.** Sessions come back as
   `suspended`, with their scrollback, and are respawned on resume: Claude Code and codex continue
   their conversation by id, opencode with `--continue` (the project's *last* session, which may not
