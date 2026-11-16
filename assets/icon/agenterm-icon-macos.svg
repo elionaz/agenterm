@@ -2,8 +2,8 @@
 <g transform="translate(100 100) scale(0.8047)">
 <rect width="1024" height="1024" rx="230" fill="#0A0A0B"/>
 <g stroke-width="34" stroke-linejoin="round">
-<rect x="324" y="196" width="520" height="400" rx="60" fill="#0A0A0B" stroke="#FFFFFF" stroke-opacity="0.25"/>
-<rect x="252" y="300" width="540" height="410" rx="60" fill="#0A0A0B" stroke="#FFFFFF" stroke-opacity="0.55"/>
+<rect x="324" y="196" width="520" height="400" rx="60" fill="#0A0A0B" stroke="#474748"/>
+<rect x="252" y="300" width="540" height="410" rx="60" fill="#0A0A0B" stroke="#919191"/>
 <rect x="180" y="404" width="560" height="420" rx="60" fill="#0A0A0B" stroke="#FFFFFF"/>
 </g>
 <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="48">
