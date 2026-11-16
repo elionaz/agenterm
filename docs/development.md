@@ -83,6 +83,10 @@ inkscape assets/icon/agenterm-icon-macos.svg \
   --export-type=png --export-filename=app/build/appicon.png -w 1024 -h 1024
 ```
 
+En macOS la CLI de Inkscape no queda en el `PATH`; está en
+`/Applications/Inkscape.app/Contents/MacOS/inkscape`. Usa colores sólidos en los bordes (no
+`stroke-opacity`): los trazos semitransparentes se suman donde se cruzan.
+
 ## Limitaciones conocidas
 
 - **Solo macOS.** La app, las notificaciones y el Dock son exclusivos de macOS y solo se prueba en
@@ -90,9 +94,6 @@ inkscape assets/icon/agenterm-icon-macos.svg \
 - **Sin releases firmadas** todavía: hay que compilar desde el código fuente.
 - **Las sesiones no sobreviven a un reinicio del daemon** (ni de la computadora): sus procesos
   mueren y el scrollback se pierde. Los worktrees sí se conservan, como huérfanos.
-- **La pestaña Git de Ajustes no es accesible**: el panel existe en el código, pero la barra de
-  pestañas solo muestra *Agentes* y *Notificaciones*. Mientras tanto, edita `git.editor`,
-  `git.worktree_dir` y `git.default_mode` en `settings.yaml`.
 - **Notificaciones con la app cerrada**: si el daemon lo arrancó la CLI (no está dentro del `.app`)
   o el bundle no tiene permiso, se usa `osascript`: la notificación aparece como *Script Editor* y
   pulsarla no abre agenterm.

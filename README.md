@@ -28,7 +28,7 @@ vivos aunque cierres la app y te avisa cuando alguno te necesita.
 - **Worktrees de git por sesión**: cada agente puede trabajar en su propia rama y carpeta; la
   pestaña **Cambios** muestra el diff y permite hacer merge a la base o eliminar el worktree de forma
   segura.
-- **Ajustes en la app**: activar, ordenar y editar agentes, y configurar las notificaciones.
+- **Ajustes en la app**: activar, ordenar y editar agentes, y configurar las notificaciones y git.
 
 ## Estado y requisitos
 
@@ -60,7 +60,7 @@ La primera vez que abras la app, macOS pregunta si permites notificaciones. Si l
 
 ## Inicio rápido
 
-**App.** Pulsa **+ Proyecto** y elige una carpeta. Con el **+** junto al proyecto eliges un agente
+**App.** Haz clic en **+ Proyecto** y elige una carpeta. Con el **+** junto al proyecto eliges un agente
 y si corre en la misma carpeta o en un worktree nuevo; **⌘N** lanza el primer agente de la lista.
 Cuando un agente te necesita verás un punto ámbar en la sidebar y una notificación.
 
@@ -101,7 +101,7 @@ Detalles (estados, *ack*, «¿trabado?», progreso, notificaciones con la app ce
 | `profiles.yaml`, `settings.yaml`, `projects.json` | `~/.config/agenterm/` | `/x/` |
 | hooks generados, worktrees, `worktrees.json` | `~/.agenterm/{hooks,worktrees,worktrees.json}` | `/x/…` |
 
-Los dos archivos son opcionales y la app los edita desde **Ajustes** (⌘,).
+`profiles.yaml` y `settings.yaml` son opcionales y la app los edita desde **Ajustes** (⌘,).
 
 **`profiles.yaml`** se superpone al catálogo por `id`: cambias solo los campos que pongas, creas
 variantes con `extends`, ocultas agentes con `enabled: false` y el orden de la lista es el del menú

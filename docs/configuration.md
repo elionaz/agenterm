@@ -155,10 +155,9 @@ Cuándo se lee:
 - `git.editor` se lee en cada «Abrir en editor».
 
 *Ajustes → Notificaciones* edita las claves `notify.*` y `activity.stall_seconds` (RPC
-`settings.save`). Al guardar, el archivo se edita en su sitio: **se conservan** las claves
+`settings.save`). Al guardar, el archivo se edita directamente: **se conservan** las claves
 desconocidas y los comentarios, y los campos que un cliente no envía mantienen su valor. Si el
 archivo no se puede interpretar se usan los valores por defecto (y se anota en el log); al guardar
 se reemplaza.
 
-> Las claves `git.*` todavía no se pueden editar desde la app (ver
-> [limitaciones conocidas](development.md#limitaciones-conocidas)): edítalas en el archivo.
+*Ajustes → Git* edita `git.editor`, `git.worktree_dir` y `git.default_mode`.
