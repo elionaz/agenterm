@@ -269,7 +269,13 @@ func (s *Session) emitActivity(now time.Time) {
 func (s *Session) appendTail(b []byte) {
 	s.tailMu.Lock()
 	defer s.tailMu.Unlock()
-	s.tail = append(s.tail, b...)
+	for _, c := range b {
+		if c == '\b' {
+			s.tail = eraseLast(s.tail)
+		} else {
+			s.tail = append(s.tail, c)
+		}
+	}
 	if over := len(s.tail) - tailSize; over > 0 {
 		s.tail = append(s.tail[:0], s.tail[over:]...)
 	}

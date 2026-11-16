@@ -157,6 +157,8 @@ func (l *lineTracker) feed(b []byte) {
 		switch c {
 		case '\r', '\n':
 			l.commit()
+		case '\b':
+			l.cur = eraseLast(l.cur)
 		default:
 			if len(l.cur) < maxLineBytes {
 				l.cur = append(l.cur, c)
@@ -164,6 +166,16 @@ func (l *lineTracker) feed(b []byte) {
 		}
 	}
 	l.dirty = true
+}
+
+// eraseLast applies a backspace to plain text: it drops the last rune of b
+// (none after a line break).
+func eraseLast(b []byte) []byte {
+	if len(b) == 0 || b[len(b)-1] == '\n' {
+		return b
+	}
+	_, size := utf8.DecodeLastRune(b)
+	return b[:len(b)-size]
 }
 
 func (l *lineTracker) commit() {
@@ -335,6 +347,8 @@ func TailLines(data []byte, n int) []string {
 			push()
 		case '\r':
 			col = 0
+		case '\b':
+			col = max(col-1, 0)
 		case '\t':
 			for range 4 - col%4 {
 				cur, col = put(cur, col, ' ')

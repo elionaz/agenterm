@@ -28,6 +28,8 @@ func TestOutputActivityLine(t *testing.T) {
 		want   string
 	}{
 		{"plain", []string{"compiling\nrunning tests\n"}, "running tests"},
+		{"backspace redraw", []string{"% f\bfor i in 1 2", "\r\n"}, "% for i in 1 2"}, // zsh highlighting
+		{"backspace split", []string{"ab", "\b\bxy\n"}, "xy"},
 		{"partial line wins", []string{"done\nDownloading pkg"}, "Downloading pkg"},
 		{"ansi stripped", []string{"\x1b[1;32m✓\x1b[0m \x1b[2mBuilt\x1b[0m in 2s\r\n"}, "Built in 2s"},
 		{"cr overwrite", []string{"Progress 10%\rProgress 55%"}, "Progress 55%"},
@@ -202,6 +204,9 @@ func TestTailLines(t *testing.T) {
 		t.Fatalf("empty: %#v", got)
 	}
 	// CR overwrite keeps the longer tail of the old line (like a terminal).
+	if got := TailLines([]byte("$ f\bfor x\n"), 8); !reflect.DeepEqual(got, []string{"$ for x"}) {
+		t.Fatalf("backspace: %q", got)
+	}
 	if got := TailLines([]byte("abcdef\rXY\n"), 8); !reflect.DeepEqual(got, []string{"XYcdef"}) {
 		t.Fatalf("overwrite: %q", got)
 	}
