@@ -236,9 +236,11 @@ func (s *Server) Run(ctx context.Context) error {
 		attrs = append([]any{"reason", "daemon.shutdown RPC"}, s.stopAttrs...)
 	}
 	s.log.Info("daemon shutting down", attrs...)
+	// Records are final before the socket stops answering: `stop` returns
+	// then, and a new daemon may read sessions.json right away.
+	s.suspendAll()
 	ln.Close()
 	<-acceptDone
-	s.suspendAll()
 	s.killAll()
 	s.stopGit()
 	s.bus.closeAll()
