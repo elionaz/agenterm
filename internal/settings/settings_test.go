@@ -57,8 +57,9 @@ func TestSaveRoundTrip(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "settings.yaml")
 	os.WriteFile(p, []byte("notify:\n  sound: false\n"), 0o600)
 	want := Settings{Notify: Notify{Enabled: true, Sound: true, OnDone: false}, Activity: Activity{StallSeconds: 60},
-		Git: Git{Editor: "cursor -n", WorktreeDir: "~/wt", DefaultMode: ModeWorktree}, UI: UI{Language: "es"},
-		Sessions: Sessions{Restore: RestoreAlways}}
+		Git: Git{Editor: "cursor -n", WorktreeDir: "~/wt", DefaultMode: ModeWorktree}, UI: UI{Language: "es", Appearance: AppearanceLight},
+		Sessions: Sessions{Restore: RestoreAlways},
+		Terminal: Terminal{FontFamily: "Menlo", FontSize: 14, LineHeight: 1.2, CursorStyle: "bar", Theme: "nord"}}
 	if err := Save(p, want); err != nil {
 		t.Fatal(err)
 	}
