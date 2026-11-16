@@ -194,6 +194,7 @@ jobs:
           VERSION: ${{ steps.ver.outputs.version }}
           APPCAST: ${{ steps.build.outputs.appcast }}
           NOTARIZED: ${{ steps.build.outputs.notarized }}
+          SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY || secrets.SPARKLE_PUBLIC_ED_KEY }}
         run: |
           gen=()
           if [ "$GENERATE_NOTES" = true ]; then gen=(--generate-notes); fi
@@ -202,8 +203,10 @@ jobs:
           # builds are offered to existing installs: Sparkle would install
           # an unnotarized one that Gatekeeper then refuses to open.
           #
-          # A release without appcast.xml must not become "Latest": the
-          # feed URL would 404 for every installed app until the next one.
+          # Once in-app updates are on (SUPublicEDKey set), a release without
+          # appcast.xml must not become "Latest": the feed URL would 404 for
+          # every installed app until the next one. Without a key no app
+          # polls the feed, and Latest still matters (cask livecheck).
           # Pre-releases (X.Y.Z-suffix) are never Latest nor offered in-app.
           feed=() flags=()
           if [[ "$VERSION" == *-* ]]; then
@@ -211,9 +214,9 @@ jobs:
             echo "::notice::pre-release: not offered in-app, not Latest, Homebrew cask untouched"
           elif [ "$APPCAST" = true ] && [ "$NOTARIZED" = true ]; then
             feed=(dist/appcast.xml)
-          else
+          elif [ -n "$SPARKLE_PUBLIC_ED_KEY" ]; then
             flags=(--latest=false)
-            echo "::warning::no appcast.xml (not notarized or no Sparkle key): this release is not marked Latest and not offered in-app"
+            echo "::warning::no appcast.xml (not notarized or no private Sparkle key): this release is not marked Latest and not offered in-app"
           fi
           gh release create "v$VERSION" --verify-tag --title "agenterm $VERSION" \
             --notes-file "$RUNNER_TEMP/notes.md" "${gen[@]}" "${flags[@]}" \

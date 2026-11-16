@@ -22,7 +22,8 @@ releases may include breaking changes.
 - Release tooling: Sparkle is embedded and signed inside-out, and releases publish a signed
   `appcast.xml` (new optional `SPARKLE_PRIVATE_ED_KEY` secret and `SPARKLE_PUBLIC_ED_KEY`
   variable). Pre-release tags (`vX.Y.Z-suffix`) become GitHub pre-releases, not offered in-app nor
-  to Homebrew, and a release without `appcast.xml` is not marked *Latest*.
+  to Homebrew, and, once in-app updates are on, a release without `appcast.xml` is not marked
+  *Latest*.
 
 ## [0.1.1] - 2026-11-16
 
