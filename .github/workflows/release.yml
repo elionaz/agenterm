@@ -201,18 +201,26 @@ jobs:
           # (releases/latest/download/appcast.xml) serves. Only notarized
           # builds are offered to existing installs: Sparkle would install
           # an unnotarized one that Gatekeeper then refuses to open.
-          feed=()
-          if [ "$APPCAST" = true ] && [ "$NOTARIZED" = true ]; then
+          #
+          # A release without appcast.xml must not become "Latest": the
+          # feed URL would 404 for every installed app until the next one.
+          # Pre-releases (X.Y.Z-suffix) are never Latest nor offered in-app.
+          feed=() flags=()
+          if [[ "$VERSION" == *-* ]]; then
+            flags=(--prerelease --latest=false)
+            echo "::notice::pre-release: not offered in-app, not Latest, Homebrew cask untouched"
+          elif [ "$APPCAST" = true ] && [ "$NOTARIZED" = true ]; then
             feed=(dist/appcast.xml)
-          elif [ "$APPCAST" = true ]; then
-            echo "::warning::build not notarized: appcast.xml is not published (no in-app update for this release)"
+          else
+            flags=(--latest=false)
+            echo "::warning::no appcast.xml (not notarized or no Sparkle key): this release is not marked Latest and not offered in-app"
           fi
           gh release create "v$VERSION" --verify-tag --title "agenterm $VERSION" \
-            --notes-file "$RUNNER_TEMP/notes.md" "${gen[@]}" \
+            --notes-file "$RUNNER_TEMP/notes.md" "${gen[@]}" "${flags[@]}" \
             dist/*.zip dist/*.dmg dist/*.tar.gz dist/checksums.txt "${feed[@]}"
 
       - name: Update Homebrew cask
-        if: env.PUBLISH == 'true' && steps.secrets.outputs.tap == 'true'
+        if: env.PUBLISH == 'true' && steps.secrets.outputs.tap == 'true' && !contains(steps.ver.outputs.version, '-')
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           VERSION: ${{ steps.ver.outputs.version }}

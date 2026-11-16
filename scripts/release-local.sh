@@ -210,7 +210,8 @@ APPCAST=$DIST/appcast.xml
 if [[ -n $SPARKLE_PRIVATE_ED_KEY ]]; then
 	step "appcast: EdDSA-sign the zip"
 	KEYFILE=$(mktemp "${TMPDIR:-/tmp}/agenterm-ed.XXXXXX")
-	trap 'rm -f "$KEYFILE"' EXIT
+	KDIR=
+	trap 'rm -f "$KEYFILE"; [[ -z $KDIR ]] || rm -rf "$KDIR"' EXIT
 	chmod 600 "$KEYFILE"
 	printf '%s' "$SPARKLE_PRIVATE_ED_KEY" >"$KEYFILE" # builtin: never in argv or the log
 	ED_SIG=$("$SPARKLE_DIR/bin/sign_update" --ed-key-file "$KEYFILE" -p "$ZIP")
@@ -303,6 +304,7 @@ if [[ -n ${GITHUB_OUTPUT:-} ]]; then
 fi
 
 lipo -info "$APP/Contents/MacOS/agenterm" "$APP/Contents/Helpers/agenterm"
-otool -L "$APP/Contents/MacOS/agenterm" | grep -q '@rpath/Sparkle.framework' || die "app binary does not link Sparkle"
+LINKS=$(otool -L "$APP/Contents/MacOS/agenterm") # not piped into grep -q: SIGPIPE under pipefail
+[[ $LINKS == *'@rpath/Sparkle.framework'* ]] || die "app binary does not link Sparkle"
 "$APP/Contents/Helpers/agenterm" --version
 echo "release: $VERSION done (signed=$SIGNED notarized=$NOTARIZE) -> $DIST"
