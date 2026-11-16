@@ -417,6 +417,7 @@
     <nav class="tabs">
       <button class:active={tab === 'agents'} onclick={() => (tab = 'agents')}>Agentes</button>
       <button class:active={tab === 'notify'} onclick={() => (tab = 'notify')}>Notificaciones</button>
+      <button class:active={tab === 'git'} onclick={() => (tab = 'git')}>Git</button>
     </nav>
     <button class="close" title="Cerrar (Esc)" onclick={onClose}>×</button>
   </header>
