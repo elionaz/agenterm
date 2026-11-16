@@ -501,3 +501,8 @@ shell en modo worktree sobre un repo temporal, hace cambios escribiendo en ella,
 merge y `worktree.remove` (rechazo y force). Los tests de `internal/gitx` usan repos reales en
 directorios temporales con la configuración de git aislada (`GIT_CONFIG_NOSYSTEM=1`,
 `GIT_CONFIG_GLOBAL` vacío, `HOME` temporal).
+
+## Contribuir
+
+Las contribuciones son bienvenidas vía pull request; lee [CONTRIBUTING.md](CONTRIBUTING.md).
+Licencia: [MIT](LICENSE).
