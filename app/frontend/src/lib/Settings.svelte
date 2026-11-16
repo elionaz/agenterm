@@ -114,6 +114,8 @@
   async function loadUpdater() {
     try {
       updater = await api.updaterState()
+      // Settings opened while the updater is still starting: ask again.
+      if (updater.reason === 'starting') setTimeout(loadUpdater, 500)
     } catch (e) {
       updaterError = errorMessage(e)
     }
@@ -650,7 +652,7 @@
                 <em>{t('settings.updates.downloadHelp')}</em>
               </span>
             </label>
-          {:else}
+          {:else if updater.reason !== 'starting'}
             <p class="hint updates">{@html th(updaterHintKey)}</p>
           {/if}
         {/if}

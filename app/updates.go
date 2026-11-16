@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/elionaz/agenterm/internal/i18n"
+	"github.com/elionaz/agenterm/internal/paths"
 	"github.com/elionaz/agenterm/internal/version"
 )
 
@@ -62,7 +63,7 @@ const updStarting = "starting"
 // startUpdater decides whether Sparkle may run and starts it; it must be
 // called once, after the Wails app is up. It also installs the "Check for
 // Updates…" menu item, which shows a hint instead when the updater is off.
-func (a *App) startUpdater(lang i18n.Lang) {
+func (a *App) startUpdater(p paths.Paths) {
 	b := sparkleBundle()
 	reason := decideUpdater(sparkleBuilt, b, homebrewPrefixes(), dirExists)
 	if reason == updNone {
@@ -76,7 +77,9 @@ func (a *App) startUpdater(lang i18n.Lang) {
 	a.upd.mu.Lock()
 	a.upd.reason = reason
 	a.upd.mu.Unlock()
-	title, hint := updatesMenuText(lang, reason)
+	// The language is read now, not at launch: a change made meanwhile
+	// skipped the menu (reason was still "starting").
+	title, hint := updatesMenuText(uiLang(p), reason)
 	installUpdatesMenu(title, hint)
 }
 

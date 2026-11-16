@@ -101,7 +101,7 @@ func (a *App) startup(ctx context.Context) {
 	installPreferencesMenu(i18n.T(lang, i18n.MenuPreferences), func() { a.emit(evOpenSettings) })
 	// Off the startup callback: Sparkle is set up on the main thread, which
 	// may be waiting for startup to return.
-	go a.startUpdater(lang)
+	go a.startUpdater(p)
 	a.start(ctx, p)
 	a.focusMu.Lock()
 	a.started = true
