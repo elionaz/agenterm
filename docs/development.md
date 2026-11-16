@@ -44,20 +44,30 @@ This is what CI runs (plus the frontend's `npm run check` and `npm run build`).
   corrupt `sessions.json`. No real agent is ever launched.
 - The `internal/gitx` tests use real repos in temporary directories with isolated git configuration
   (`GIT_CONFIG_NOSYSTEM=1`, empty `GIT_CONFIG_GLOBAL`, temporary `HOME`).
+- `go test` never posts real notifications: test daemons get a no-op or recording notifier (a
+  `daemon.Config` without one posts nothing), the app tests use a fake desktop, and the `app`,
+  `internal/daemon` and `internal/daemoncmd` tests set `AGENTERM_NOTIFY=off` in `TestMain`. Keep it
+  that way in new tests.
 
 ## Testing without touching your installation
 
-Use your own `AGENTERM_HOME`. It must be a **short** path (`/tmp/…`): on macOS a unix socket path is
-limited to about 104 bytes and the temporary folders under `/var/folders/…` go over it.
+Use your own `AGENTERM_HOME`, and set `AGENTERM_NOTIFY=off`. That's the rule for **any** test or
+demo instance (daemon, app or CLI that may auto-start a daemon):
+
+- `AGENTERM_HOME` must be a **short** path (`/tmp/…`): on macOS a unix socket path is limited to
+  about 104 bytes and the temporary folders under `/var/folders/…` go over it.
+- `AGENTERM_NOTIFY=off` disables every desktop notification of that app and daemon (native and the
+  `osascript` fallback), whatever its `settings.yaml` says, so test sessions don't pop up
+  notifications (or Script Editor) on your desktop. The daemon inherits it from whoever starts it.
 
 ```sh
-export AGENTERM_HOME=/tmp/agt
+export AGENTERM_HOME=/tmp/agt AGENTERM_NOTIFY=off
 go run ./cmd/agenterm project add .
 go run ./cmd/agenterm spawn agenterm shell
 go run ./cmd/agenterm ls
 go run ./cmd/agenterm stop --force      # stops only the /tmp/agt daemon
 
-cd app && AGENTERM_HOME=/tmp/agt wails dev   # the app against that same daemon
+cd app && AGENTERM_HOME=/tmp/agt AGENTERM_NOTIFY=off wails dev   # the app against that same daemon
 ```
 
 Since `AGENTERM_HOME` takes precedence over `AGENTERM_SOCK`, this is also safe inside an agenterm
@@ -218,9 +228,10 @@ On macOS the Inkscape CLI isn't on the `PATH`; it's at
   thread id after the first turn, so a codex session that never finished a turn starts fresh.
 - **Scrollback persistence costs disk writes**: the whole ring (up to 8 MiB) is rewritten at most
   every 2 s per session while it produces output.
-- **Notifications with the app closed**: if the CLI started the daemon (it isn't inside the `.app`)
-  or the bundle has no permission, `osascript` is used: the notification shows up as *Script Editor*
-  and clicking it doesn't open agenterm.
+- **Notifications with the app closed**: if the daemon isn't inside the `.app` (a CLI installed
+  outside the bundle started it) or the bundle has no permission, notifications are not shown
+  (`daemon.log` says why). With `notify.fallback: osascript` they are sent through `osascript`
+  instead: they show up as *Script Editor*, and clicking one opens Script Editor, not agenterm.
 - **codex** doesn't report when it starts working: "working" is decided by the heuristic and there's
   no "stalled?" warning.
 - **"Stalled?"** only exists in sessions with hooks (Claude Code), and since Claude's spinner

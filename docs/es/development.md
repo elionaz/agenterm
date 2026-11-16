@@ -44,21 +44,31 @@ Es lo mismo que corre el CI (más `npm run check` y `npm run build` del frontend
   `--settings`; reanudaciones fallidas y un `sessions.json` corrupto. Nunca se lanza un agente real.
 - Los tests de `internal/gitx` usan repos reales en directorios temporales con la configuración de
   git aislada (`GIT_CONFIG_NOSYSTEM=1`, `GIT_CONFIG_GLOBAL` vacío, `HOME` temporal).
+- `go test` nunca envía notificaciones reales: los daemons de prueba reciben un notificador vacío o
+  que solo registra (un `daemon.Config` sin él no envía nada), los tests de la app usan un
+  escritorio falso, y los tests de `app`, `internal/daemon` e `internal/daemoncmd` ponen
+  `AGENTERM_NOTIFY=off` en `TestMain`. Mantenlo así en los tests nuevos.
 
 ## Probar sin tocar tu instalación
 
-Usa un `AGENTERM_HOME` propio. Tiene que ser una ruta **corta** (`/tmp/…`): en macOS la ruta de un
-socket unix tiene un límite de unos 104 bytes y las carpetas temporales de `/var/folders/…` se
-pasan.
+Usa un `AGENTERM_HOME` propio y define `AGENTERM_NOTIFY=off`. Es la regla para **cualquier**
+instancia de prueba o demo (daemon, app o CLI que pueda arrancar un daemon):
+
+- `AGENTERM_HOME` tiene que ser una ruta **corta** (`/tmp/…`): en macOS la ruta de un socket unix
+  tiene un límite de unos 104 bytes y las carpetas temporales de `/var/folders/…` se pasan.
+- `AGENTERM_NOTIFY=off` desactiva todas las notificaciones de escritorio de esa app y ese daemon
+  (nativas y la alternativa con `osascript`), diga lo que diga su `settings.yaml`, para que las
+  sesiones de prueba no te llenen el escritorio de avisos (ni de Editor de Scripts). El daemon lo
+  hereda de quien lo arranca.
 
 ```sh
-export AGENTERM_HOME=/tmp/agt
+export AGENTERM_HOME=/tmp/agt AGENTERM_NOTIFY=off
 go run ./cmd/agenterm project add .
 go run ./cmd/agenterm spawn agenterm shell
 go run ./cmd/agenterm ls
 go run ./cmd/agenterm stop --force      # apaga solo el daemon de /tmp/agt
 
-cd app && AGENTERM_HOME=/tmp/agt wails dev   # la app contra ese mismo daemon
+cd app && AGENTERM_HOME=/tmp/agt AGENTERM_NOTIFY=off wails dev   # la app contra ese mismo daemon
 ```
 
 Como `AGENTERM_HOME` manda sobre `AGENTERM_SOCK`, esto también es seguro dentro de una sesión de
@@ -222,9 +232,10 @@ En macOS la CLI de Inkscape no queda en el `PATH`; está en
   tras el primer turno, así que una sesión de codex que nunca terminó un turno empieza de cero.
 - **Persistir el scrollback cuesta escrituras en disco**: se reescribe el ring entero (hasta 8 MiB)
   como mucho cada 2 s por sesión mientras produce salida.
-- **Notificaciones con la app cerrada**: si el daemon lo arrancó la CLI (no está dentro del `.app`)
-  o el bundle no tiene permiso, se usa `osascript`: la notificación aparece como *Script Editor* y
-  pulsarla no abre agenterm.
+- **Notificaciones con la app cerrada**: si el daemon no está dentro del `.app` (lo arrancó una CLI
+  instalada fuera del bundle) o el bundle no tiene permiso, las notificaciones no se muestran
+  (`daemon.log` dice por qué). Con `notify.fallback: osascript` se envían con `osascript`: aparecen
+  como *Editor de Scripts* y al pulsarlas se abre Editor de Scripts, no agenterm.
 - **codex** no avisa cuando empieza a trabajar: "trabajando" lo decide la heurística y no hay
   aviso de «¿trabado?».
 - **«¿Trabado?»** solo existe en sesiones con hooks (Claude Code), y como el spinner de Claude

@@ -136,6 +136,7 @@ Every key is optional; missing ones take the default value.
 | `notify.sound` | `true` | sound, only for approvals and questions |
 | `notify.notify_on_done` | `true` | also notify when an agent finishes its turn (errors always notify) |
 | `notify.notify_on_stall` | `true` | low-key notice when a turn looks stalled |
+| `notify.fallback` | `none` | when native notifications can't be used (no `.app` bundle, no permission): `none` doesn't show them (`daemon.log` says why, once) and `osascript` sends them through AppleScript, which macOS shows as *Script Editor* (clicking opens Script Editor, not agenterm). `AGENTERM_NOTIFY=off` in the environment disables all notifications regardless. See [attention-and-activity.md](attention-and-activity.md#while-the-app-is-closed) |
 | `activity.stall_seconds` | `180` | seconds without output or events before marking "stalled?"; `0` disables it |
 | `git.editor` | `""` | for "Open in editor": a command on the `PATH` (`code`, `cursor -n`, `zed`), an absolute path or the name of a macOS app (`Visual Studio Code`, `Cursor.app`). Empty: `code` if it's on the `PATH`, otherwise Finder |
 | `git.worktree_dir` | `""` | where to create worktrees (absolute path or `~/…`). Empty: `~/.agenterm/worktrees` (or `$AGENTERM_HOME/worktrees`) |
@@ -151,6 +152,7 @@ notify:
   sound: true
   notify_on_done: true
   notify_on_stall: true
+  fallback: none
 activity:
   stall_seconds: 180
 git:

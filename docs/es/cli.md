@@ -194,6 +194,7 @@ Con `--from-hook` no imprime nada y **siempre** sale con 0 (timeout de 2 s, payl
 | variable | |
 |---|---|
 | `AGENTERM_HOME` | un solo directorio que sustituye a `~/.agenterm` y `~/.config/agenterm` (útil para pruebas) |
+| `AGENTERM_NOTIFY` | `off` desactiva todas las notificaciones de escritorio de la app y del daemon (nativas y alternativa), diga lo que diga `settings.yaml`. Defínela, junto con `AGENTERM_HOME`, en cualquier instancia de prueba o demo |
 | `AGENTERM_SESSION` | id de la sesión; el daemon lo inyecta en cada sesión y `notify` lo usa por defecto |
 | `AGENTERM_SOCK` | socket del daemon; inyectado en cada sesión. Se ignora si `AGENTERM_HOME` está definido |
 
