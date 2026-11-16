@@ -34,8 +34,17 @@ func TestNotifyReportsSender(t *testing.T) {
 		t.Fatal(err)
 	}
 	ev = recv(t, ch)
-	if ev.PID == os.Getpid() || ev.PID != cmd.Process.Pid {
-		t.Fatalf("external: got pid %d, want kill's pid %d", ev.PID, cmd.Process.Pid)
+	switch ev.PID {
+	case cmd.Process.Pid:
+	case 0:
+		// Some kernels/sandboxes (e.g. GitHub's macOS runners) don't report
+		// the sender of a cross-process signal; callers must cope with it.
+		t.Logf("external: kernel did not report the sender (si_pid=0)")
+	default:
+		t.Fatalf("external: got pid %d, want kill's pid %d (or 0)", ev.PID, cmd.Process.Pid)
+	}
+	if ev.Signal != syscall.SIGUSR2 {
+		t.Fatalf("external: got signal %d", ev.Signal)
 	}
 }
 

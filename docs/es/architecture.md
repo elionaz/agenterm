@@ -205,7 +205,8 @@ reabrir la app, el daemon nuevo empieza sin sesiones; los worktrees siguen ahí 
 - SIGTERM/SIGINT se capturan con un manejador `SA_SIGINFO` (`internal/sigsender`, cgo en macOS y
   Linux), así que una línea `termination signal received` registra también **quién la envió**:
   `sender_pid`, `sender_uid`, `sender_cmd`, `sender_ppid` y `sender_parent_cmd` (se consultan al
-  momento; si el remitente ya terminó, solo queda su PID). Sin cgo, el daemon usa `os/signal`.
+  momento; si el remitente ya terminó, solo queda su PID; algunos kernels o sandboxes no reportan el
+  remitente y queda `sender_pid=0`). Sin cgo, el daemon usa `os/signal`.
 - `AGENTERM_HOME` manda sobre `AGENTERM_SOCK`: `AGENTERM_HOME=/tmp/x agenterm stop` lanzado desde
   dentro de una sesión va a `/tmp/x`, no al daemon real.
 - Al apagarse, el daemon mata todas las sesiones y borra el socket y el pid file. Un socket huérfano

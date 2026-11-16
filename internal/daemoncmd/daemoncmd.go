@@ -98,7 +98,10 @@ func watchTermination(logger *slog.Logger, cancel context.CancelCauseFunc) {
 			ev := <-evs
 			attrs := []any{"signal", ev.Signal.String(), "sender_pid", ev.PID, "sender_uid", ev.UID}
 			reason := fmt.Sprintf("received signal %s from pid %d", ev.Signal, ev.PID)
-			if p, err := peercred.Lookup(ev.PID); err == nil {
+			if ev.PID == 0 {
+				attrs = append(attrs, "sender_cmd", "(sender not reported by the kernel)")
+				reason = fmt.Sprintf("received signal %s (sender unknown)", ev.Signal)
+			} else if p, err := peercred.Lookup(ev.PID); err == nil {
 				attrs = append(attrs, "sender_cmd", clip(p.Command), "sender_ppid", p.PPID)
 				reason += " (" + clip(p.Command) + ")"
 				if pp, err := peercred.Lookup(p.PPID); err == nil {

@@ -206,7 +206,8 @@ the app, the new daemon starts with no sessions; the worktrees are still there t
 - SIGTERM/SIGINT are caught with a `SA_SIGINFO` handler (`internal/sigsender`, cgo on macOS and
   Linux), so a `termination signal received` line records the **sender** as well: `sender_pid`,
   `sender_uid`, `sender_cmd`, `sender_ppid` and `sender_parent_cmd` (looked up right away; a sender
-  that already exited shows only its PID). Without cgo the daemon falls back to `os/signal`.
+  that already exited shows only its PID; some kernels or sandboxes report no sender at all, logged
+  as `sender_pid=0`). Without cgo the daemon falls back to `os/signal`.
 - `AGENTERM_HOME` takes precedence over `AGENTERM_SOCK`: `AGENTERM_HOME=/tmp/x agenterm stop` run
   from inside a session goes to `/tmp/x`, not to the real daemon.
 - On shutdown, the daemon kills every session and removes the socket and the pid file. A stale
