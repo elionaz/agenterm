@@ -53,7 +53,7 @@ export function Resize(arg1:string,arg2:number,arg3:number):Promise<void>;
 
 export function SaveProfile(arg1:profile.Entry):Promise<Array<profile.Profile>>;
 
-export function SaveSettings(arg1:settings.Settings):Promise<settings.Settings>;
+export function SaveSettings(arg1:main.SettingsPatch):Promise<settings.Settings>;
 
 export function SessionDiff(arg1:string):Promise<protocol.DiffResult>;
 

@@ -110,7 +110,7 @@ export const api = {
   rescanProfiles: (): Promise<Profile[]> => App.RescanProfiles(),
   getSettings: (): Promise<Settings> => App.GetSettings(),
   /** Fields left out keep their saved values. */
-  saveSettings: (s: Partial<Settings>): Promise<Settings> => App.SaveSettings(s as settings.Settings),
+  saveSettings: (s: Partial<Settings>): Promise<Settings> => App.SaveSettings(s as main.SettingsPatch),
   listSessions: (): Promise<Session[]> => App.ListSessions(),
   spawn: (projectId: string, profileId: string, cols: number, rows: number, opts?: Partial<SpawnOptions>) =>
     App.SpawnIn(projectId, profileId, cols, rows, {

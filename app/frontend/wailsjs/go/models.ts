@@ -130,6 +130,42 @@ export namespace gitx {
 
 export namespace main {
 	
+	export class SettingsPatch {
+	    notify?: settings.Notify;
+	    activity?: settings.Activity;
+	    git?: settings.Git;
+	    ui?: settings.UI;
+	
+	    static createFrom(source: any = {}) {
+	        return new SettingsPatch(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.notify = this.convertValues(source["notify"], settings.Notify);
+	        this.activity = this.convertValues(source["activity"], settings.Activity);
+	        this.git = this.convertValues(source["git"], settings.Git);
+	        this.ui = this.convertValues(source["ui"], settings.UI);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class SpawnOptions {
 	    mode: string;
 	    branch: string;

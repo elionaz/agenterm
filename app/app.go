@@ -293,11 +293,20 @@ func (a *App) GetSettings() (settings.Settings, error) {
 	return out, err
 }
 
-func (a *App) SaveSettings(s settings.Settings) (settings.Settings, error) {
+// SettingsPatch is what a Settings tab saves: only the sections it sets
+// are sent, so the daemon keeps the others (a full settings.Settings would
+// overwrite them with zero values).
+type SettingsPatch struct {
+	Notify   *settings.Notify   `json:"notify,omitempty"`
+	Activity *settings.Activity `json:"activity,omitempty"`
+	Git      *settings.Git      `json:"git,omitempty"`
+	UI       *settings.UI       `json:"ui,omitempty"`
+}
+
+func (a *App) SaveSettings(s SettingsPatch) (settings.Settings, error) {
 	var out settings.Settings
-	err := a.call(func(ctx context.Context) (err error) {
-		out, err = a.client.SaveSettings(ctx, s)
-		return err
+	err := a.call(func(ctx context.Context) error {
+		return a.client.Call(ctx, protocol.MethodSettingsSave, s, &out)
 	})
 	if err == nil {
 		a.applyLanguage(out.UI)
