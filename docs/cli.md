@@ -92,8 +92,9 @@ command isn't installed (the message includes the catalog's install hint). See
 
 ### `agenterm ls`
 
-Table with `ID PROJECT PROFILE STATE ATTENTION PID SIZE AGE TURN GIT ACTIVITY CWD`:
+Table with `ID NAME PROJECT PROFILE STATE ATTENTION PID SIZE AGE TURN GIT ACTIVITY CWD`:
 
+- `NAME`: the name given with `rename` (or in the app), `-` if none.
 - `STATE`: `running`, `waiting_input`, `idle`, `exited(<code>)` or `suspended[<mode>]` (restored
   after a daemon restart; `<mode>` is how `resume` would restart it: `agent`, `args` or `fresh`,
   followed by `!<errorCode>` if the last resume failed).
@@ -120,6 +121,14 @@ Terminates the session (SIGHUP + SIGTERM to the process group, SIGKILL after 2 s
 `<id> <state>`. On a session that has already exited, it **removes it from the list**; on a
 `suspended` one it discards it. It never deletes the session's worktree. A killed session is not
 restored after a daemon restart.
+
+### `agenterm rename <sessionId> <name>`
+
+Gives the session a display name (shown in the app's sidebar, pane headers, overview and
+notifications, which read `<project> · <name>`) and prints `<id> <name>`. The remaining words are
+joined with spaces (`agenterm rename ab12 api server`); use `--` before a name that starts with
+`-`. `--reset` (or renaming to an empty name in the app) goes back to the profile's name. Names are
+trimmed and capped at 80 characters, and survive daemon restarts and resumes (RPC `session.rename`).
 
 ### `agenterm resume <sessionId>|--all`
 

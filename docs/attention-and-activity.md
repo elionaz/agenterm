@@ -33,7 +33,8 @@ There are two sources:
 | `attentionAt` | when it was raised |
 | `unread` | you haven't seen it yet |
 
-- `unread` is cleared when you **select the session** in the app (RPC `session.ack`), when you
+- `unread` is cleared when the session is **on screen** in the app, selected or in any split pane,
+  while the window is active (RPC `session.ack`), when you
   **type into it** or with `agenterm ack <id>`.
 - An explicit `idle` after a turn (Claude Code's `Stop` hook, codex's `agent-turn-complete`) is a
   `done`. A heuristic `idle` does **not** notify: no output doesn't mean it's finished.
@@ -104,8 +105,8 @@ waits and turn ends); if there's already an unread attention, a signal only fill
 
 The app subscribes to the daemon as a `ui` client and handles notifications itself:
 
-- A native notification if the window isn't active or the session isn't the one on screen. Title
-  `<project> · <profile>`; the body is the message, or a generic text for the kind (needs your
+- A native notification if the window isn't active or the session isn't on screen (in any split
+  pane). Title `<project> · <name>` (the session's name, or its profile); the body is the message, or a generic text for the kind (needs your
   approval, waiting for your reply, finished, finished with an error) in the app language
   (`ui.language`). Clicking it activates the app and selects the session.
 - Sound only for approvals and questions (`notify.sound`).

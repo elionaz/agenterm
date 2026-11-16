@@ -71,7 +71,7 @@ internal/paths          directory resolution (AGENTERM_HOME)
 | projects | `project.add`, `project.list`, `project.remove`, `project.git` |
 | profiles | `profile.list`, `profile.catalog`, `profile.save`, `profile.delete`, `profile.reorder`, `profile.rescan` |
 | settings | `settings.get`, `settings.save` |
-| sessions | `session.spawn`, `session.list`, `session.kill`, `session.resize`, `session.notify`, `session.ack`, `session.attach`, `session.tail`, `session.diff`, `session.resume`, `session.discard` |
+| sessions | `session.spawn`, `session.list`, `session.kill`, `session.resize`, `session.notify`, `session.ack`, `session.rename`, `session.attach`, `session.tail`, `session.diff`, `session.resume`, `session.discard` |
 | worktrees | `worktree.list`, `worktree.diff`, `worktree.remove`, `worktree.merge`, `worktree.open` |
 | daemon | `events.subscribe`, `daemon.ping`, `daemon.shutdown` |
 
@@ -134,6 +134,7 @@ JSON event per line.
 | `session.attention` | attention changed without a state change (message filled in, *ack*) |
 | `session.activity` | activity line, progress, "stalled?" or output heartbeat |
 | `session.git` | new git summary (`git`) |
+| `session.renamed` | the session's display name changed (`sessionName`; absent: back to the profile's) |
 | `session.removed` | the session was removed from the list |
 | `worktree.changed` | a project's worktree list changed (`projectId`) |
 
@@ -208,7 +209,7 @@ Processes live in the daemon: if it stops (`agenterm stop --force`, SIGTERM, a c
 computer) they die. What the next daemon needs to bring them back is kept on disk, in the runtime
 dir:
 
-- **`sessions.json`**: one record per session — `id`, `projectId`, `profileId`, `mode`,
+- **`sessions.json`**: one record per session — `id`, `projectId`, `profileId`, `name` (the display name, if any), `mode`,
   `worktreeId`, `cwd`, `cmd`/`args` as launched (shown while suspended), `pid`, size, `createdAt`,
   the last `state`, `suspendedAt` and `resume` (`{agent, sessionId, transcriptPath, at}`). The
   resolved environment is **never** stored (profiles may put secrets in `env`): a resume

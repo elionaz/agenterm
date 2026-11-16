@@ -33,7 +33,8 @@ Hay dos fuentes:
 | `attentionAt` | cuándo se levantó |
 | `unread` | no la has visto todavía |
 
-- `unread` se borra al **seleccionar la sesión** en la app (RPC `session.ack`), al **escribir en
+- `unread` se borra cuando la sesión está **a la vista** en la app, seleccionada o en cualquier
+  panel, con la ventana activa (RPC `session.ack`), al **escribir en
   ella** o con `agenterm ack <id>`.
 - Un `idle` explícito tras un turno (hook `Stop` de Claude Code, `agent-turn-complete` de codex) es
   un `done`. El `idle` heurístico **no** avisa: que no haya salida no significa que terminó.
@@ -104,8 +105,8 @@ completa su mensaje.
 
 La app se suscribe al daemon como cliente `ui` y es ella quien notifica:
 
-- Notificación nativa si la ventana no está activa o la sesión no es la visible. Título
-  `<proyecto> · <perfil>`; cuerpo, el mensaje o "Necesita tu aprobación", "Está esperando tu
+- Notificación nativa si la ventana no está activa o la sesión no está a la vista (en ningún
+  panel). Título `<proyecto> · <nombre>` (el nombre de la sesión, o su perfil); cuerpo, el mensaje o "Necesita tu aprobación", "Está esperando tu
   respuesta", "Terminó", "Terminó con un error" (en el idioma de la app, `ui.language`). Al pulsarla
   se activa la app y se selecciona la sesión.
 - Sonido solo en aprobaciones y preguntas (`notify.sound`).
