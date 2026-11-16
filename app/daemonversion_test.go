@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -85,10 +86,16 @@ func TestRestartDaemon(t *testing.T) {
 			return err
 		}
 		// Also called from the event loop's goroutine: no t.Fatal here.
+		mu.Lock()
+		done := runs[len(runs)-1]
+		mu.Unlock()
 		for a.client.Ping(ctx) != nil {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
+			case err := <-done:
+				done <- err // for the cleanup
+				return fmt.Errorf("daemon exited: %v", err)
 			case <-time.After(10 * time.Millisecond):
 			}
 		}

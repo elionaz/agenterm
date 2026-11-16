@@ -12,18 +12,12 @@ import (
 	"time"
 
 	"github.com/elionaz/agenterm/internal/daemon"
-	"github.com/elionaz/agenterm/internal/desktopnotify"
 	"github.com/elionaz/agenterm/internal/paths"
 	"github.com/elionaz/agenterm/internal/settings"
 )
 
 // TestMain: whatever a test wires up (a real desktop, a daemon's default
 // notifier), it never posts real desktop notifications.
-func TestMain(m *testing.M) {
-	os.Setenv(desktopnotify.EnvNotify, "off")
-	os.Exit(m.Run())
-}
-
 type recorder struct {
 	mu  sync.Mutex
 	evs []recorded

@@ -128,6 +128,9 @@ func (a *App) shutdown(context.Context) {
 	}
 }
 
+// noSelfLaunch is set by TestMain: a test App must set launch.
+var noSelfLaunch bool
+
 // ensureDaemon starts the daemon from this very executable if it is not
 // reachable, so the .app does not need a separately installed CLI.
 func (a *App) ensureDaemon(ctx context.Context) error {
@@ -142,6 +145,12 @@ func (a *App) ensureDaemonLocked(ctx context.Context) error {
 	}
 	if a.launch != nil {
 		return a.launch(ctx)
+	}
+	if noSelfLaunch {
+		// Under `go test` this executable is app.test: `app.test daemon`
+		// would rerun the whole suite, which launches another one… (a fork
+		// bomb that took the machine down once).
+		return errors.New("test App without launch tried to start a daemon")
 	}
 	exe, err := os.Executable()
 	if err != nil {
