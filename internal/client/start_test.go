@@ -91,11 +91,19 @@ func TestStartupError(t *testing.T) {
 		if err := os.WriteFile(log, []byte(in), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		if got := startupError(log); got != want {
+		if got := startupError(log, 0); got != want {
 			t.Errorf("%q: got %q, want %q", in, got, want)
 		}
 	}
-	if got := startupError(filepath.Join(dir, "missing.log")); got != "" {
+	if got := startupError(filepath.Join(dir, "missing.log"), 0); got != "" {
 		t.Errorf("missing log: %q", got)
+	}
+	// An earlier run's error is not this one's.
+	old := "agenterm daemon: an old failure\n"
+	if err := os.WriteFile(log, []byte(old), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := startupError(log, int64(len(old))); got != "" {
+		t.Errorf("stale reason: %q", got)
 	}
 }

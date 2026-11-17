@@ -36,12 +36,12 @@ Every file agenterm writes says which format it uses:
   (for example, after going back to an older version). agenterm refuses it with an error that says
   so (`… was written by a newer agenterm (format 2; this build reads up to 1): update agenterm`) and
   **never overwrites it**, so no data is lost. `settings.yaml` is the exception on reading: what this
-  build understands is still applied, but it isn't saved over either.
+  build understands is still applied as far as it can be read, but it isn't saved over either.
 - A format version only goes up when an older agenterm would misread the file. Adding an optional
   key doesn't change it. An older agenterm ignores keys it doesn't know; `settings.yaml` keeps them
   when it's saved, but the other files are rewritten from what that version understands, so it drops
   them on its next save (the newer version then uses their defaults).
-- A version that isn't a whole number is treated like a newer one: the file is refused and left alone.
+- A version that isn't a positive whole number is treated like a newer one: the file is refused and left alone.
 
 ### Going back to an older version
 

@@ -37,13 +37,13 @@ Cada archivo que escribe agenterm dice qué formato usa:
   agenterm más nuevo (por ejemplo, después de volver a una versión anterior). agenterm lo rechaza
   con un error que lo dice (`… was written by a newer agenterm (format 2; this build reads up to 1):
   update agenterm`) y **nunca lo sobrescribe**, así que no se pierde nada. `settings.yaml` es la
-  excepción al leer: se aplica lo que esta versión entiende, pero tampoco se guarda encima.
+  excepción al leer: se aplica lo que esta versión entiende, en la medida en que puede leerlo, pero tampoco se guarda encima.
 - La versión de un formato solo sube cuando un agenterm anterior leería mal el archivo. Añadir una
   clave opcional no la cambia. Un agenterm anterior ignora las claves que no conoce; `settings.yaml`
   las conserva al guardarse, pero los demás archivos se reescriben con lo que esa versión entiende,
   así que las pierde en su siguiente guardado (y la versión más nueva usa entonces sus valores por
   defecto).
-- Una versión que no es un número entero se trata como una más nueva: el archivo se rechaza y no se
+- Una versión que no es un número entero positivo se trata como una más nueva: el archivo se rechaza y no se
   toca.
 
 ### Volver a una versión anterior
