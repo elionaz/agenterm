@@ -29,6 +29,10 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+// aboutCredits ends the About panel (plain text: the panel has no links;
+// Settings → General → About has clickable ones).
+const aboutCredits = "@elionaz · github.com/elionaz/agenterm"
+
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == daemoncmd.Name {
 		if err := daemoncmd.Run(os.Args[2:]); err != nil {
@@ -90,7 +94,7 @@ func main() {
 			Appearance: mac.NSAppearanceNameDarkAqua,
 			About: &mac.AboutInfo{
 				Title:   "agenterm",
-				Message: i18n.T(lang, i18n.AboutMessage) + "\n" + version.String(),
+				Message: i18n.T(lang, i18n.AboutMessage) + "\n" + version.String() + "\n\n" + aboutCredits,
 			},
 		},
 	})

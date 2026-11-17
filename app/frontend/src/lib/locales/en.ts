@@ -293,6 +293,8 @@ export const en = {
   'settings.restore.never': 'Discard them',
   'settings.updates': 'Updates',
   'settings.updates.version': 'agenterm {version}',
+  'settings.about': 'About',
+  'settings.about.by': 'Made by',
   'settings.updates.lastCheck': 'Last checked {when}',
   'settings.updates.neverChecked': 'Not checked yet',
   'settings.updates.check': 'Check now',

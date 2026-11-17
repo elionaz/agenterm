@@ -18,6 +18,8 @@ releases may include breaking changes.
   get the push only. It doesn't need `gh`.
 - After a successful **Merge into base**, the Changes view offers to remove the worktree and its
   branch.
+- Credits in **About agenterm** (with the version) and a new *About* group in **Settings → General**
+  with links to the author's GitHub profile and the repository.
 
 ## [0.2.1] - 2026-11-16
 

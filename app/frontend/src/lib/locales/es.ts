@@ -264,6 +264,8 @@ export const es: Dict = {
   'settings.restore.never': 'Descartarlas',
   'settings.updates': 'Actualizaciones',
   'settings.updates.version': 'agenterm {version}',
+  'settings.about': 'Acerca de',
+  'settings.about.by': 'Hecho por',
   'settings.updates.lastCheck': 'Última comprobación: {when}',
   'settings.updates.neverChecked': 'Aún no se ha comprobado',
   'settings.updates.check': 'Buscar ahora',
