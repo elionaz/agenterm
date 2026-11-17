@@ -7,11 +7,75 @@
 #import <Sparkle/Sparkle.h>
 #include <stdlib.h>
 #include <string.h>
+#include "_cgo_export.h"
 
 extern int (*agtUpdatesCanCheck)(void);
 
 // Only touched on the main thread (Sparkle's API is main-thread only).
 static SPUStandardUpdaterController *agtUpdater;
+
+// The update Sparkle downloaded and will install on quit: running this
+// installs it now and relaunches the app (Sparkle ≥ 2.3 allows repeated calls).
+static void (^agtInstallNowBlock)(void);
+
+// agtReport tells Go about the update found (nil: none any more).
+static void agtReport(SUAppcastItem *item) {
+	NSString *v = item.displayVersionString.length > 0 ? item.displayVersionString : item.versionString;
+	agtSparkleUpdate(v.length > 0 ? (char *)v.UTF8String : NULL, agtInstallNowBlock != nil ? 1 : 0);
+}
+
+// Feeds the in-app banner (updates.available) and implements gentle
+// reminders: a scheduled update shows Sparkle's window only when it would be
+// in immediate focus (just launched, or idle); otherwise the banner is the
+// reminder and its button brings that window up (checkForUpdates).
+@interface AgtSparkleDelegate : NSObject <SPUUpdaterDelegate, SPUStandardUserDriverDelegate>
+@end
+
+@implementation AgtSparkleDelegate
+
+- (void)updater:(SPUUpdater *)updater didFindValidUpdate:(SUAppcastItem *)item {
+	agtReport(item);
+}
+
+- (void)updaterDidNotFindUpdate:(SPUUpdater *)updater {
+	// A downloaded update is still installed on quit.
+	if (agtInstallNowBlock == nil) {
+		agtReport(nil);
+	}
+}
+
+// Automatic downloads: the update is ready. Returning YES keeps the block
+// usable ("Restart to update"); Sparkle still installs it on quit.
+- (BOOL)updater:(SPUUpdater *)updater willInstallUpdateOnQuit:(SUAppcastItem *)item immediateInstallationBlock:(void (^)(void))immediateInstallHandler {
+	agtInstallNowBlock = [immediateInstallHandler copy];
+	agtReport(item);
+	return YES;
+}
+
+- (void)updater:(SPUUpdater *)updater userDidMakeChoice:(SPUUserUpdateChoice)choice forUpdate:(SUAppcastItem *)updateItem state:(SPUUserUpdateState *)state {
+	if (choice == SPUUserUpdateChoiceSkip) {
+		agtReport(nil);
+	}
+}
+
+- (BOOL)supportsGentleScheduledUpdateReminders {
+	return YES;
+}
+
+- (BOOL)standardUserDriverShouldHandleShowingScheduledUpdate:(SUAppcastItem *)update andInImmediateFocus:(BOOL)immediateFocus {
+	return immediateFocus;
+}
+
+- (void)standardUserDriverWillHandleShowingUpdate:(BOOL)handleShowingUpdate forUpdate:(SUAppcastItem *)update state:(SPUUserUpdateState *)state {
+	if (!handleShowingUpdate) {
+		agtReport(update);
+	}
+}
+
+@end
+
+// Sparkle references its delegates weakly.
+static AgtSparkleDelegate *agtDelegate;
 
 static void agtOnMain(dispatch_block_t b) {
 	if ([NSThread isMainThread]) {
@@ -60,7 +124,8 @@ char *agtSparkleStart(void) {
 			msg = @"Sparkle.framework not loaded";
 			return;
 		}
-		SPUStandardUpdaterController *c = [[cls alloc] initWithStartingUpdater:NO updaterDelegate:nil userDriverDelegate:nil];
+		agtDelegate = [AgtSparkleDelegate new];
+		SPUStandardUpdaterController *c = [[cls alloc] initWithStartingUpdater:NO updaterDelegate:agtDelegate userDriverDelegate:agtDelegate];
 		NSError *err = nil;
 		if (![c.updater startUpdater:&err]) {
 			msg = err.localizedDescription ?: @"startUpdater failed";
@@ -91,6 +156,21 @@ void agtSparkleState(int *autoChecks, int *autoDownloads, int *canCheck, double 
 
 void agtSparkleCheck(void) {
 	dispatch_async(dispatch_get_main_queue(), ^{
+		if (agtUpdater != nil) {
+			[NSApp activateIgnoringOtherApps:YES];
+			[agtUpdater checkForUpdates:nil];
+		}
+	});
+}
+
+// agtSparkleInstallNow installs the downloaded update and relaunches, or
+// else shows Sparkle's window for the update found (or a fresh check).
+void agtSparkleInstallNow(void) {
+	dispatch_async(dispatch_get_main_queue(), ^{
+		if (agtInstallNowBlock != nil) {
+			agtInstallNowBlock();
+			return;
+		}
 		if (agtUpdater != nil) {
 			[NSApp activateIgnoringOtherApps:YES];
 			[agtUpdater checkForUpdates:nil];

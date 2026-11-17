@@ -253,6 +253,23 @@ and keeps that folder as its record), for the prefixes `$HOMEBREW_PREFIX`, `/opt
 `/usr/local`. That's also why the cask doesn't declare `auto_updates true`: brew remains the only
 updater for brew installs and `brew outdated` keeps reporting new versions.
 
+**The update banner.** Sparkle is created with an updater delegate and a standard user driver
+delegate (`AgtSparkleDelegate` in `updater_sparkle_darwin.m`) that report to Go
+(`agtSparkleUpdate` → Wails event `updates.available` `{version, ready, brew}`, also in
+`UpdaterState().available`): `updater:didFindValidUpdate:` records the version,
+`updaterDidNotFindUpdate:` and a *Skip this version* choice (`updater:userDidMakeChoice:…`) clear
+it, and `updater:willInstallUpdateOnQuit:immediateInstallationBlock:` marks it ready and keeps the
+block (it returns `YES`, so Sparkle stops scheduling checks until the app quits, when it installs
+the update anyway). It implements [gentle reminders](https://sparkle-project.org/documentation/gentle-reminders):
+a scheduled update shows Sparkle's window only when Sparkle would put it in immediate focus (just
+launched, or the Mac was idle); otherwise the banner is the reminder. `InstallUpdateNow` runs the
+kept block (install and relaunch; the daemon is untouched) or else calls `checkForUpdates`, which
+brings the window with the update found. Homebrew installs, with Sparkle off, fetch the appcast
+themselves (`app/appcast.go`: 10 s after launch, then every 24 h, 15 s timeout, failures only
+logged; development builds don't check) and offer to copy `brew upgrade --cask agenterm`. "Later"
+is remembered per version in the webview's `localStorage`. The banner yields to the reconnecting
+and daemon-restart ones.
+
 **Generating the key pair** (once, on your Mac; the private key never goes into the repo):
 
 ```sh

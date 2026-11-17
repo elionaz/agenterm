@@ -92,4 +92,7 @@ func TestUpdatesMenuText(t *testing.T) {
 	if err := a.CheckForUpdates(); err == nil {
 		t.Error("CheckForUpdates without Sparkle should fail")
 	}
+	if err := a.InstallUpdateNow(); err == nil {
+		t.Error("InstallUpdateNow without Sparkle should fail")
+	}
 }

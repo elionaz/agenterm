@@ -29,7 +29,9 @@ export type MergeResult = gitx.MergeResult
 /** url '' = a host we cannot build a pull request page for (pushed only). */
 export type PRResult = gitx.PRResult
 /** In-app updates (Sparkle). reason: '' (enabled) | homebrew | unsupported | nobundle | nokey | error | starting. */
-export type UpdaterState = main.UpdaterState
+export type UpdaterState = Omit<main.UpdaterState, 'convertValues'>
+/** A newer release: ready = downloaded (installs on quit or via installUpdateNow); brew = Homebrew install. */
+export type UpdateInfo = main.UpdateInfo
 /** daemonVersion '' = a daemon older than 0.2.0. */
 export type DaemonStatus = main.DaemonStatus
 
@@ -177,6 +179,8 @@ export const api = {
   updaterState: (): Promise<UpdaterState> => App.UpdaterState(),
   /** User-initiated check: Sparkle's own window shows the outcome. */
   checkForUpdates: () => App.CheckForUpdates(),
+  /** Installs a downloaded update and relaunches (the daemon keeps running), else shows Sparkle's window. */
+  installUpdateNow: () => App.InstallUpdateNow(),
   setAutomaticChecks: (on: boolean): Promise<UpdaterState> => App.SetAutomaticChecks(on),
   setAutomaticDownloads: (on: boolean): Promise<UpdaterState> => App.SetAutomaticDownloads(on),
   /** Whether the daemon runs another version than the app (after an update). */

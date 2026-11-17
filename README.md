@@ -109,12 +109,17 @@ notifications too.
 
 - **Homebrew**: `brew upgrade --cask agenterm`. The app notices it was installed by Homebrew and
   turns its own updater off (Settings and **Check for Updates…** say so), so brew stays in charge
-  and `brew outdated` keeps working.
+  and `brew outdated` keeps working. It still checks once a day whether a newer release exists and
+  then shows a banner with **Copy command** (copies `brew upgrade --cask agenterm`).
 - **Downloaded app** (dmg/zip): agenterm checks for a new release once a day and offers to install
-  it; **agenterm → Check for Updates…** checks right away. In **Settings → General → Updates** you
-  can turn the daily check off or let updates download and install by themselves (on quit). Updates
-  are checked against an EdDSA signature and the app's Developer ID code signature before they're
-  installed (releases offered in-app are always notarized).
+  it; **agenterm → Check for Updates…** checks right away. When a new version is found while you're
+  working, a banner says so (**Update**, or **Restart to update** once it's downloaded; **Later**
+  hides it until the next version) and **Settings → General → Updates** shows it too. Restarting to
+  update only relaunches the window: the background daemon and your sessions keep running. In
+  **Settings → General → Updates** you can turn the daily check off or let updates download and
+  install by themselves (on quit). Updates are checked against an EdDSA signature and the app's
+  Developer ID code signature before they're installed (releases offered in-app are always
+  notarized).
 - Builds from source (`wails build`) don't include the updater.
 
 Sessions run in a background daemon that survives the app, so right after an update the daemon is

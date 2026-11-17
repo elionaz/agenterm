@@ -65,6 +65,15 @@ export const es: Dict = {
   'banner.restartAnyway': 'Reiniciar',
   'banner.cancel': 'Ahora no',
   'banner.restarting': 'Reiniciando…',
+  'banner.updateAvailable': 'Ya está disponible agenterm {version}.',
+  'banner.updateReady':
+    'agenterm {version} está listo para instalarse. El servicio en segundo plano sigue funcionando — tus sesiones no se ven afectadas.',
+  'banner.updateBrew': 'Ya está disponible agenterm {version} — ejecuta brew upgrade --cask agenterm.',
+  'banner.update': 'Actualizar',
+  'banner.updateRestart': 'Reiniciar para actualizar',
+  'banner.updateCopy': 'Copiar comando',
+  'banner.updateCopied': 'Copiado',
+  'banner.later': 'Más tarde',
   'banner.reconnecting': 'Reconectando con el daemon…',
 
   'term.exited': '[proceso terminado · código {code}]',
@@ -269,6 +278,11 @@ export const es: Dict = {
   'settings.updates.lastCheck': 'Última comprobación: {when}',
   'settings.updates.neverChecked': 'Aún no se ha comprobado',
   'settings.updates.check': 'Buscar ahora',
+  'settings.updates.available': 'Versión {version} disponible',
+  'settings.updates.availableHelp': 'Abre la ventana de actualización para descargarla e instalarla.',
+  'settings.updates.availableReady':
+    'Ya se descargó: al reiniciar agenterm se instala. El servicio en segundo plano sigue funcionando, así que las sesiones no se ven afectadas.',
+  'settings.updates.availableBrew': 'Actualízala con brew upgrade --cask agenterm.',
   'settings.updates.auto': 'Buscar actualizaciones automáticamente',
   'settings.updates.autoHelp': 'Una vez al día, en segundo plano.',
   'settings.updates.download': 'Descargar e instalar actualizaciones automáticamente',

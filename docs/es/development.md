@@ -256,6 +256,25 @@ y conserva esa carpeta como registro), para los prefijos `$HOMEBREW_PREFIX`, `/o
 `/usr/local`. Por eso el cask tampoco declara `auto_updates true`: brew sigue siendo el único
 actualizador de las instalaciones con brew y `brew outdated` sigue avisando de versiones nuevas.
 
+**El aviso de actualización.** Sparkle se crea con un delegado del updater y otro del *user driver*
+estándar (`AgtSparkleDelegate` en `updater_sparkle_darwin.m`) que informan a Go (`agtSparkleUpdate`
+→ evento de Wails `updates.available` `{version, ready, brew}`, también en
+`UpdaterState().available`): `updater:didFindValidUpdate:` guarda la versión,
+`updaterDidNotFindUpdate:` y la opción *Omitir esta versión* (`updater:userDidMakeChoice:…`) la
+borran, y `updater:willInstallUpdateOnQuit:immediateInstallationBlock:` la marca como lista y guarda
+el bloque (devuelve `YES`, así que Sparkle deja de programar comprobaciones hasta que la app se
+cierra, momento en que instala la actualización de todos modos). Implementa los
+[recordatorios suaves](https://sparkle-project.org/documentation/gentle-reminders): una
+actualización programada muestra la ventana de Sparkle solo cuando Sparkle la pondría en primer
+plano de inmediato (recién abierta la app, o tras un rato de inactividad del Mac); si no, el aviso
+hace de recordatorio. `InstallUpdateNow` ejecuta el bloque guardado (instala y relanza; el daemon no
+se toca) o, si no hay, llama a `checkForUpdates`, que trae la ventana con la actualización
+encontrada. Las instalaciones con Homebrew, con Sparkle desactivado, descargan el appcast por su
+cuenta (`app/appcast.go`: 10 s después de abrir y luego cada 24 h, timeout de 15 s, los fallos solo
+se registran en el log; los builds de desarrollo no comprueban) y ofrecen copiar
+`brew upgrade --cask agenterm`. "Más tarde" se recuerda por versión en el `localStorage` del
+webview. El aviso cede el sitio a los de reconexión y de reinicio del daemon.
+
 **Generar el par de claves** (una vez, en tu Mac; la clave privada nunca va al repositorio):
 
 ```sh

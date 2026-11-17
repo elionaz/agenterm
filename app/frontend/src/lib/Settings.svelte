@@ -15,6 +15,7 @@
   import { langSetting, locale, setLangSetting, systemLang, t, th, type LangSetting } from './i18n.svelte'
   import { appearance, setAppearance, setTermPrefs, termPrefs, type Appearance } from './prefs.svelte'
   import { MAX_FONT_SIZE, MIN_FONT_SIZE, defaultPrefs, themeLabels, themeNames, themeOf, type TermPrefs } from './themes'
+  import { availableUpdate, setAvailableUpdate, updateNow, upgradeCopied } from './updates.svelte'
 
   interface Props {
     profiles: Profile[]
@@ -114,6 +115,7 @@
   async function loadUpdater() {
     try {
       updater = await api.updaterState()
+      if (updater.available) setAvailableUpdate(updater.available)
       // Settings opened while the updater is still starting: ask again.
       if (updater.reason === 'starting') setTimeout(loadUpdater, 500)
     } catch (e) {
@@ -139,6 +141,15 @@
     }
     // The check runs in Sparkle's window; refresh "last checked" later.
     setTimeout(() => void loadUpdater(), 3000)
+  }
+
+  async function installUpdate() {
+    updaterError = null
+    try {
+      await updateNow()
+    } catch (e) {
+      updaterError = errorMessage(e)
+    }
   }
 
   const updaterHintKey = $derived(
@@ -622,6 +633,30 @@
               <button class="btn" disabled={!updater.canCheck} onclick={checkNow}>{t('settings.updates.check')}</button>
             {/if}
           </div>
+          {#if availableUpdate()}
+            {@const u = availableUpdate()!}
+            <div class="field">
+              <span>
+                <b>{t('settings.updates.available', { version: u.version })}</b>
+                <em>
+                  {u.brew
+                    ? t('settings.updates.availableBrew')
+                    : u.ready
+                      ? t('settings.updates.availableReady')
+                      : t('settings.updates.availableHelp')}
+                </em>
+              </span>
+              <button class="btn" onclick={installUpdate}>
+                {u.brew
+                  ? upgradeCopied()
+                    ? t('banner.updateCopied')
+                    : t('banner.updateCopy')
+                  : u.ready
+                    ? t('banner.updateRestart')
+                    : t('banner.update')}
+              </button>
+            </div>
+          {/if}
           {#if updater.enabled}
             <label class="check">
               <input

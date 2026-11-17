@@ -50,6 +50,10 @@ export function InputBase64(arg1, arg2) {
   return window['go']['main']['App']['InputBase64'](arg1, arg2);
 }
 
+export function InstallUpdateNow() {
+  return window['go']['main']['App']['InstallUpdateNow']();
+}
+
 export function Kill(arg1) {
   return window['go']['main']['App']['Kill'](arg1);
 }
