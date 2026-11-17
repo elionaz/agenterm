@@ -9,6 +9,12 @@ releases may include breaking changes.
 
 ### Added
 
+- **Terminal themes named after indie albums**: *Turn On the Bright Lights* (Interpol, the new
+  default), *Room on Fire* (The Strokes), *It Still Moves* (My Morning Jacket) and *Alphabetical*
+  (Phoenix), with palettes taken from their covers; Settings shows the artist and year. They
+  replace agenterm Dark and agenterm Light: `agenterm-dark` and `agenterm-light` in
+  `settings.yaml` keep working as `bright-lights` and `alphabetical`.
+
 - **Reorder by drag & drop**: drag projects in the sidebar, and sessions within their project
   (or move the selected one with ⌘⇧↑ / ⌘⇧↓). The order is kept by the daemon, so the CLI
   (`agenterm ls`, `project list`), ⌘1…⌘9 and restored sessions follow it.

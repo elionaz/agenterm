@@ -23,8 +23,9 @@ tells you when one of them needs you.
   and sessions to reorder them.
 - **Split panes**: show several sessions side by side or stacked (⌘D / ⌘⇧D), with draggable
   dividers; the layout is kept per project.
-- **Terminal comforts**: search the scrollback (⌘F), ⌘-click to open URLs, built-in themes (agenterm, Solarized,
-  Dracula, Gruvbox, Nord), font, size, line height and cursor, plus a light or dark app (or follow
+- **Terminal comforts**: search the scrollback (⌘F), ⌘-click to open URLs, built-in themes (four named after
+  indie albums: *Turn On the Bright Lights*, *Room on Fire*, *It Still Moves* and *Alphabetical*;
+  plus Solarized, Dracula, Gruvbox and Nord), font, size, line height and cursor, plus a light or dark app (or follow
   macOS).
 - **Any agent CLI**: a built-in catalog (Claude Code, codex, opencode, Gemini, Cursor, Copilot,
   aider, Amp, goose, Qwen, Crush, Kiro, shell) that detects which ones are installed, plus your own
@@ -209,8 +210,8 @@ terminal:
   font_size: 13          # 8-32 (⌘= / ⌘- / ⌘⌥0 change it too)
   line_height: 1.15      # 1.0-2.0
   cursor_style: block    # block | bar | underline
-  theme: agenterm-dark   # agenterm-dark | agenterm-light | solarized-dark | solarized-light |
-                         # dracula | gruvbox-dark | nord
+  theme: bright-lights   # bright-lights | room-on-fire | it-still-moves | alphabetical |
+                         # solarized-dark | solarized-light | dracula | gruvbox-dark | nord
 notify:
   enabled: true          # notifications (app and daemon)
   sound: true            # sound on approval/question

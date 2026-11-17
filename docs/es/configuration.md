@@ -138,7 +138,7 @@ Todas las claves son opcionales; las que faltan toman el valor por defecto.
 | `terminal.font_size` | `13` | puntos, entre 8 y 32. ⌘= / ⌘- / ⌘⌥0 lo cambian (y lo guardan) desde cualquier parte de la app |
 | `terminal.line_height` | `1.15` | múltiplo del tamaño de fuente, entre 1.0 y 2.0 |
 | `terminal.cursor_style` | `block` | `block`, `bar` o `underline` |
-| `terminal.theme` | `agenterm-dark` | paleta integrada: `agenterm-dark`, `agenterm-light`, `solarized-dark`, `solarized-light`, `dracula`, `gruvbox-dark` o `nord`. Un nombre desconocido vuelve a `agenterm-dark` |
+| `terminal.theme` | `bright-lights` | paleta integrada: `bright-lights` (*Turn On the Bright Lights*, Interpol), `room-on-fire` (*Room on Fire*, The Strokes), `it-still-moves` (*It Still Moves*, My Morning Jacket, clara), `alphabetical` (*Alphabetical*, Phoenix, clara), `solarized-dark`, `solarized-light`, `dracula`, `gruvbox-dark` o `nord`. Los nombres de antes de la 0.4.0 siguen funcionando: `agenterm-dark` es `bright-lights` y `agenterm-light` es `alphabetical`. Un nombre desconocido vuelve a `bright-lights` |
 | `notify.enabled` | `true` | notificaciones (de la app y del daemon) |
 | `notify.sound` | `true` | sonido, solo en aprobaciones y preguntas |
 | `notify.notify_on_done` | `true` | avisar también cuando un agente termina su turno (los errores avisan siempre) |
@@ -174,7 +174,7 @@ terminal:
   font_size: 13
   line_height: 1.15
   cursor_style: block
-  theme: agenterm-dark
+  theme: bright-lights
 ```
 
 Cuándo se lee:
