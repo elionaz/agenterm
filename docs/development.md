@@ -258,17 +258,23 @@ delegate (`AgtSparkleDelegate` in `updater_sparkle_darwin.m`) that report to Go
 (`agtSparkleUpdate` → Wails event `updates.available` `{version, ready, brew}`, also in
 `UpdaterState().available`): `updater:didFindValidUpdate:` records the version,
 `updaterDidNotFindUpdate:` and a *Skip this version* choice (`updater:userDidMakeChoice:…`) clear
-it, and `updater:willInstallUpdateOnQuit:immediateInstallationBlock:` marks it ready and keeps the
-block (it returns `YES`, so Sparkle stops scheduling checks until the app quits, when it installs
-the update anyway). It implements [gentle reminders](https://sparkle-project.org/documentation/gentle-reminders):
-a scheduled update shows Sparkle's window only when Sparkle would put it in immediate focus (just
-launched, or the Mac was idle); otherwise the banner is the reminder. `InstallUpdateNow` runs the
-kept block (install and relaunch; the daemon is untouched) or else calls `checkForUpdates`, which
-brings the window with the update found. Homebrew installs, with Sparkle off, fetch the appcast
-themselves (`app/appcast.go`: 10 s after launch, then every 24 h, 15 s timeout, failures only
-logged; development builds don't check) and offer to copy `brew upgrade --cask agenterm`. "Later"
-is remembered per version in the webview's `localStorage`. The banner yields to the reconnecting
-and daemon-restart ones.
+it, and `updater:willInstallUpdateOnQuit:immediateInstallationBlock:` marks it ready. That one
+returns `NO`: `YES` would make the immediate installation block usable but stalls Sparkle's update
+cycle until the app quits (no later or critical release found, no impatient reminders). With `NO`
+the cycle goes on and Sparkle still installs the update on quit. It implements
+[gentle reminders](https://sparkle-project.org/documentation/gentle-reminders): a scheduled update
+shows Sparkle's window only when Sparkle would put it in immediate focus (just launched, or the Mac
+was idle); otherwise the banner is the reminder. `InstallUpdateNow` (both **Update** and **Restart
+to update**) calls `checkForUpdates`, which brings the window with the update found — for a
+downloaded one, its *Install and Relaunch* prompt (the daemon is untouched). While Sparkle is still
+downloading in the background `canCheckForUpdates` is `NO` and that call would do nothing, so
+`InstallUpdateNow` returns `false` and the button shows *Downloading…* until the update is ready.
+Homebrew installs, with Sparkle off, fetch the appcast themselves (`app/appcast.go`: 10 s after
+launch, then hourly ticks that check once 24 h have passed on the wall clock since the last
+successful check — monotonic timers stop while the Mac sleeps; 15 s timeout, failures only logged
+and retried at the next tick; development builds don't check) and offer to copy
+`brew upgrade --cask agenterm`. "Later" is remembered per version and stage (available / ready) in
+the webview's `localStorage`. The banner yields to the reconnecting and daemon-restart ones.
 
 **Generating the key pair** (once, on your Mac; the private key never goes into the repo):
 

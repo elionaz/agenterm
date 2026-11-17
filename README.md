@@ -114,8 +114,9 @@ notifications too.
 - **Downloaded app** (dmg/zip): agenterm checks for a new release once a day and offers to install
   it; **agenterm → Check for Updates…** checks right away. When a new version is found while you're
   working, a banner says so (**Update**, or **Restart to update** once it's downloaded; **Later**
-  hides it until the next version) and **Settings → General → Updates** shows it too. Restarting to
-  update only relaunches the window: the background daemon and your sessions keep running. In
+  hides it for that version until it is downloaded) and **Settings → General → Updates** shows it
+  too. Restarting to update only relaunches the window: the background daemon and your sessions
+  keep running. In
   **Settings → General → Updates** you can turn the daily check off or let updates download and
   install by themselves (on quit). Updates are checked against an EdDSA signature and the app's
   Developer ID code signature before they're installed (releases offered in-app are always

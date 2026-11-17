@@ -69,6 +69,8 @@ export const es: Dict = {
   'banner.updateReady':
     'agenterm {version} está listo para instalarse. El servicio en segundo plano sigue funcionando — tus sesiones no se ven afectadas.',
   'banner.updateBrew': 'Ya está disponible agenterm {version} — ejecuta brew upgrade --cask agenterm.',
+  'banner.updateDownloading': 'agenterm {version} se está descargando en segundo plano; en un momento estará listo para instalarse.',
+  'banner.updateDownloadingButton': 'Descargando…',
   'banner.update': 'Actualizar',
   'banner.updateRestart': 'Reiniciar para actualizar',
   'banner.updateCopy': 'Copiar comando',

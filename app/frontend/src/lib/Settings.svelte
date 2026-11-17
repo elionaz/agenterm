@@ -15,7 +15,7 @@
   import { langSetting, locale, setLangSetting, systemLang, t, th, type LangSetting } from './i18n.svelte'
   import { appearance, setAppearance, setTermPrefs, termPrefs, type Appearance } from './prefs.svelte'
   import { MAX_FONT_SIZE, MIN_FONT_SIZE, defaultPrefs, themeLabels, themeNames, themeOf, type TermPrefs } from './themes'
-  import { availableUpdate, setAvailableUpdate, updateNow, upgradeCopied } from './updates.svelte'
+  import { availableUpdate, setAvailableUpdate, updateDownloading, updateNow, upgradeCopied } from './updates.svelte'
 
   interface Props {
     profiles: Profile[]
@@ -646,14 +646,16 @@
                       : t('settings.updates.availableHelp')}
                 </em>
               </span>
-              <button class="btn" onclick={installUpdate}>
+              <button class="btn" disabled={!u.brew && updateDownloading()} onclick={installUpdate}>
                 {u.brew
                   ? upgradeCopied()
                     ? t('banner.updateCopied')
                     : t('banner.updateCopy')
-                  : u.ready
-                    ? t('banner.updateRestart')
-                    : t('banner.update')}
+                  : updateDownloading()
+                    ? t('banner.updateDownloadingButton')
+                    : u.ready
+                      ? t('banner.updateRestart')
+                      : t('banner.update')}
               </button>
             </div>
           {/if}

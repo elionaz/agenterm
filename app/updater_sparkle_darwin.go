@@ -15,7 +15,7 @@ char *agtBundlePath(void);
 char *agtSparkleStart(void);
 void agtSparkleState(int *autoChecks, int *autoDownloads, int *canCheck, double *lastCheck);
 void agtSparkleCheck(void);
-void agtSparkleInstallNow(void);
+int agtSparkleInstallNow(void);
 void agtSparkleSetAutomaticChecks(int on);
 void agtSparkleSetAutomaticDownloads(int on);
 */
@@ -75,8 +75,8 @@ func agtSparkleUpdate(version *C.char, ready C.int) {
 	sparkleUpdatesOnce.Do(func() {
 		go func() {
 			for u := range sparkleUpdates {
-				if f := onSparkleUpdate; f != nil {
-					f(u)
+				if f := onSparkleUpdate.Load(); f != nil {
+					(*f)(u)
 				}
 			}
 		}()
@@ -109,7 +109,8 @@ func sparkleState() sparkleStatus {
 
 func sparkleCheck() { C.agtSparkleCheck() }
 
-func sparkleInstallNow() { C.agtSparkleInstallNow() }
+// sparkleInstallNow is false while Sparkle is busy downloading.
+func sparkleInstallNow() bool { return C.agtSparkleInstallNow() != 0 }
 
 func sparkleSetAutomaticChecks(on bool)    { C.agtSparkleSetAutomaticChecks(cBool(on)) }
 func sparkleSetAutomaticDownloads(on bool) { C.agtSparkleSetAutomaticDownloads(cBool(on)) }

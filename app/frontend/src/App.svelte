@@ -38,6 +38,7 @@
     dismissUpdate,
     setAvailableUpdate,
     updateBannerVisible,
+    updateDownloading,
     updateNow,
     upgradeCopied,
   } from './lib/updates.svelte'
@@ -1079,10 +1080,16 @@
           </button>
         {:else if u.ready}
           {t('banner.updateReady', { version: u.version })}
-          <button onclick={() => void guard(updateNow())}>{t('banner.updateRestart')}</button>
+          <button disabled={updateDownloading()} onclick={() => void guard(updateNow())}>
+            {updateDownloading() ? t('banner.updateDownloadingButton') : t('banner.updateRestart')}
+          </button>
         {:else}
-          {t('banner.updateAvailable', { version: u.version })}
-          <button onclick={() => void guard(updateNow())}>{t('banner.update')}</button>
+          {updateDownloading()
+            ? t('banner.updateDownloading', { version: u.version })
+            : t('banner.updateAvailable', { version: u.version })}
+          <button disabled={updateDownloading()} onclick={() => void guard(updateNow())}>
+            {updateDownloading() ? t('banner.updateDownloadingButton') : t('banner.update')}
+          </button>
         {/if}
         <button onclick={dismissUpdate}>{t('banner.later')}</button>
       </div>

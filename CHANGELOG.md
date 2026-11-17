@@ -22,8 +22,8 @@ releases may include breaking changes.
   with links to the author's GitHub profile and the repository.
 - **Update banner**: when a new version is found, the window says so with **Update** (or
   **Restart to update** once it's downloaded — the daemon and its sessions keep running) and
-  **Later**, which hides it until the next version; **Settings → General → Updates** shows it too.
-  Scheduled checks use Sparkle's gentle reminders instead of popping its window while you work.
+  **Later**, which hides it for that version until it is downloaded; **Settings → General →
+  Updates** shows it too. Scheduled checks use Sparkle's gentle reminders instead of popping its window while you work.
   Homebrew installs check the appcast daily and offer to copy `brew upgrade --cask agenterm`.
 
 ## [0.2.1] - 2026-11-16

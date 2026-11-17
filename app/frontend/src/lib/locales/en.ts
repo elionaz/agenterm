@@ -88,6 +88,8 @@ export const en = {
   'banner.updateReady':
     'agenterm {version} is ready to install. The background service keeps running — your sessions are not affected.',
   'banner.updateBrew': 'agenterm {version} is available — run brew upgrade --cask agenterm.',
+  'banner.updateDownloading': 'agenterm {version} is downloading in the background; it will be ready to install shortly.',
+  'banner.updateDownloadingButton': 'Downloading…',
   'banner.update': 'Update',
   'banner.updateRestart': 'Restart to update',
   'banner.updateCopy': 'Copy command',

@@ -20,6 +20,7 @@ const (
 	defaultFeedURL = "https://github.com/elionaz/agenterm/releases/latest/download/appcast.xml"
 	feedFirstCheck = 10 * time.Second
 	feedInterval   = 24 * time.Hour
+	feedTick       = time.Hour
 	feedTimeout    = 15 * time.Second
 )
 
@@ -90,32 +91,48 @@ func newerRelease(latest, current string) bool {
 	return ok && c > 0
 }
 
-// watchFeed checks the appcast after first, then every interval, until ctx
-// ends; a newer release is reported as a Homebrew update. Failures are only
-// logged (the next check is a day later).
-func (a *App) watchFeed(ctx context.Context, url string, first, every time.Duration) {
+// feedSchedule: the first check after first, then one whenever every has
+// passed on the wall clock since the last successful one, looked at each
+// tick (monotonic timers stop while the Mac sleeps, so a plain 24 h timer
+// could take days).
+type feedSchedule struct {
+	first, tick, every time.Duration
+	now                func() time.Time
+}
+
+var defaultFeedSchedule = feedSchedule{first: feedFirstCheck, tick: feedTick, every: feedInterval, now: time.Now}
+
+// watchFeed checks the appcast on schedule s until ctx ends; a newer release
+// is reported as a Homebrew update. Failures are only logged and retried at
+// the next tick (an hour later).
+func (a *App) watchFeed(ctx context.Context, url string, s feedSchedule) {
 	current := version.Version
 	if current == "dev" {
 		return
 	}
 	c := &http.Client{}
-	t := time.NewTimer(first)
+	t := time.NewTimer(s.first)
 	defer t.Stop()
+	var last time.Time // wall clock (Round(0) drops the monotonic reading)
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-t.C:
 		}
-		latest, err := latestRelease(ctx, c, url)
-		switch {
-		case err != nil:
-			log.Printf("agenterm: update check: %v", err)
-		case newerRelease(latest, current):
-			a.setAvailable(&UpdateInfo{Version: latest, Brew: true})
-		default:
-			a.setAvailable(nil)
+		if now := s.now().Round(0); last.IsZero() || now.Sub(last) >= s.every {
+			latest, err := latestRelease(ctx, c, url)
+			switch {
+			case err != nil:
+				log.Printf("agenterm: update check: %v", err)
+			case newerRelease(latest, current):
+				last = now
+				a.setAvailable(&UpdateInfo{Version: latest, Brew: true})
+			default:
+				last = now
+				a.setAvailable(nil)
+			}
 		}
-		t.Reset(every)
+		t.Reset(s.tick)
 	}
 }

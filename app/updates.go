@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/elionaz/agenterm/internal/i18n"
@@ -48,7 +49,8 @@ const evUpdateAvailable = "updates.available"
 // UpdateInfo is a newer release than the running one.
 type UpdateInfo struct {
 	Version string `json:"version"`
-	// Downloaded by Sparkle: installed on quit, or now by InstallUpdateNow.
+	// Downloaded by Sparkle: installed on quit, or now from the prompt
+	// InstallUpdateNow brings up.
 	Ready bool `json:"ready"`
 	// Homebrew install: `brew upgrade --cask agenterm` updates it.
 	Brew bool `json:"brew"`
@@ -84,7 +86,8 @@ func (a *App) startUpdater(p paths.Paths) {
 	b := sparkleBundle()
 	reason := decideUpdater(sparkleBuilt, b, homebrewPrefixes(), dirExists)
 	if reason == updNone {
-		onSparkleUpdate = a.setAvailable
+		f := a.setAvailable
+		onSparkleUpdate.Store(&f)
 		if err := sparkleStart(); err != nil {
 			log.Printf("agenterm: updater: %v", err)
 			reason = updError
@@ -96,7 +99,7 @@ func (a *App) startUpdater(p paths.Paths) {
 	a.upd.reason = reason
 	a.upd.mu.Unlock()
 	if reason == updHomebrew && a.wailsCtx != nil {
-		go a.watchFeed(a.wailsCtx, feedURL(b), feedFirstCheck, feedInterval)
+		go a.watchFeed(a.wailsCtx, feedURL(b), defaultFeedSchedule)
 	}
 	// The language is read now, not at launch: a change made meanwhile
 	// skipped the menu (reason was still "starting").
@@ -116,8 +119,8 @@ func updatesMenuText(lang i18n.Lang, reason string) (title, hint string) {
 }
 
 // onSparkleUpdate is called by Sparkle's delegate (updater_sparkle_darwin.m)
-// with the update found (nil: none any more).
-var onSparkleUpdate func(*UpdateInfo)
+// with the update found (nil: none any more), from another goroutine.
+var onSparkleUpdate atomic.Pointer[func(*UpdateInfo)]
 
 // setAvailable records the update found (nil: none) and tells the UI when
 // it changed.
@@ -228,16 +231,16 @@ func (a *App) CheckForUpdates() error {
 	return nil
 }
 
-// InstallUpdateNow installs a downloaded update and relaunches the app (the
-// daemon keeps running); otherwise it brings Sparkle's window with the
-// update found to the front (or checks again).
-func (a *App) InstallUpdateNow() error {
+// InstallUpdateNow brings Sparkle's window with the update found to the
+// front: for a downloaded update, its "Install and Relaunch" prompt (the
+// daemon keeps running). It is false, and does nothing, while Sparkle is
+// still downloading the update in the background (canCheckForUpdates NO).
+func (a *App) InstallUpdateNow() (bool, error) {
 	if r := a.updaterReason(); r != updNone {
 		_, hint := updatesMenuText(uiLang(a.paths), r)
-		return errors.New(hint)
+		return false, errors.New(hint)
 	}
-	sparkleInstallNow()
-	return nil
+	return sparkleInstallNow(), nil
 }
 
 // SetAutomaticChecks turns Sparkle's daily background check on or off.

@@ -179,8 +179,9 @@ export const api = {
   updaterState: (): Promise<UpdaterState> => App.UpdaterState(),
   /** User-initiated check: Sparkle's own window shows the outcome. */
   checkForUpdates: () => App.CheckForUpdates(),
-  /** Installs a downloaded update and relaunches (the daemon keeps running), else shows Sparkle's window. */
-  installUpdateNow: () => App.InstallUpdateNow(),
+  /** Shows Sparkle's window for the update ("Install and Relaunch" once downloaded; the daemon keeps
+   * running). false: still downloading in the background, nothing shown. */
+  installUpdateNow: (): Promise<boolean> => App.InstallUpdateNow(),
   setAutomaticChecks: (on: boolean): Promise<UpdaterState> => App.SetAutomaticChecks(on),
   setAutomaticDownloads: (on: boolean): Promise<UpdaterState> => App.SetAutomaticDownloads(on),
   /** Whether the daemon runs another version than the app (after an update). */

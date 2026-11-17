@@ -101,21 +101,46 @@ func TestWatchFeed(t *testing.T) {
 	a.upd.reason = updHomebrew
 	rec := &recorder{}
 	a.emit = rec.emit
+	// A fake wall clock: ticks come every millisecond, but a check is only
+	// due once 24 h have passed on it (as after a night of sleep).
+	var clock atomic.Int64
+	clock.Store(time.Date(2026, 11, 16, 9, 0, 0, 0, time.UTC).UnixNano())
+	s := feedSchedule{
+		first: time.Millisecond,
+		tick:  time.Millisecond,
+		every: 24 * time.Hour,
+		now:   func() time.Time { return time.Unix(0, clock.Load()) },
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() {
-		a.watchFeed(ctx, srv.URL, time.Millisecond, 20*time.Millisecond)
+		a.watchFeed(ctx, srv.URL, s)
 		close(done)
 	}()
-	deadline := time.Now().Add(5 * time.Second)
-	for hits.Load() < 2 && time.Now().Before(deadline) {
-		time.Sleep(5 * time.Millisecond)
+	waitHits := func(n int32) {
+		t.Helper()
+		deadline := time.Now().Add(5 * time.Second)
+		for hits.Load() < n && time.Now().Before(deadline) {
+			time.Sleep(2 * time.Millisecond)
+		}
+		if hits.Load() < n {
+			t.Fatalf("appcast fetched %d times, want %d", hits.Load(), n)
+		}
 	}
+	waitHits(1)
+	time.Sleep(50 * time.Millisecond) // many ticks, no time passed
+	if h := hits.Load(); h != 1 {
+		t.Fatalf("fetched %d times before 24 h passed", h)
+	}
+	clock.Add(int64(23 * time.Hour))
+	time.Sleep(20 * time.Millisecond)
+	if h := hits.Load(); h != 1 {
+		t.Fatalf("fetched %d times after 23 h", h)
+	}
+	clock.Add(int64(time.Hour))
+	waitHits(2)
 	cancel()
 	<-done
-	if hits.Load() < 2 {
-		t.Fatalf("appcast fetched %d times, want periodic checks", hits.Load())
-	}
 	st := a.UpdaterState()
 	if st.Available == nil || *st.Available != (UpdateInfo{Version: "0.3.0", Brew: true}) {
 		t.Fatalf("Available = %+v", st.Available)
@@ -138,7 +163,7 @@ func TestWatchFeed(t *testing.T) {
 	devSrv, devHits := serveAppcast(t, testAppcast, http.StatusOK)
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel2()
-	NewApp().watchFeed(ctx2, devSrv.URL, time.Millisecond, time.Millisecond)
+	NewApp().watchFeed(ctx2, devSrv.URL, feedSchedule{first: time.Millisecond, tick: time.Millisecond, every: time.Millisecond, now: time.Now})
 	if devHits.Load() != 0 {
 		t.Errorf("dev build checked the appcast")
 	}
