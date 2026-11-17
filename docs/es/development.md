@@ -251,13 +251,14 @@ app que Gatekeeper luego se niega a abrir.
 
 La app desactiva su actualizador, y lo explica en *Ajustes → General → Actualizaciones* y en
 **Buscar actualizaciones…**, cuando es un build de desarrollo y cuando no tiene `SUPublicEDKey`.
-Las instalaciones con Homebrew se actualizan con Sparkle como cualquier otra. El cask todavía no
-declara `auto_updates true`: brew lo lee del cask del tap, no de la app instalada, así que espera a
-que las instalaciones de la 0.4.1 y anteriores (con Sparkle desactivado) hayan tenido una release a
-la que pasar con un simple `brew upgrade`. Cuando lo declare, el registro de brew
-(`Caskroom/agenterm/<versión>`) se queda en la versión que instaló brew después de que Sparkle
-actualice la app; es lo normal en los casks con `auto_updates`, y el enlace de la CLI apunta a una
-ruta fija.
+Las instalaciones con Homebrew se actualizan con Sparkle como cualquier otra, y el cask declara
+`auto_updates true` (desde la 0.4.3), así que un simple `brew upgrade` se la salta; `--greedy` o
+nombrar el cask sí la actualizan. Llegó una release después de activar Sparkle en Homebrew porque
+brew lo lee del cask del tap, no de la app instalada: las instalaciones de la 0.4.1 y anteriores
+(con Sparkle desactivado) necesitaban una release a la que pasar con un simple `brew upgrade`. El
+registro de brew (`Caskroom/agenterm/<versión>`) se queda en la versión que instaló brew después de
+que Sparkle actualice la app; es lo normal en los casks con `auto_updates`, y el enlace de la CLI
+apunta a una ruta fija.
 
 **El aviso de actualización.** Sparkle se crea con un delegado del updater y otro del *user driver*
 estándar (`AgtSparkleDelegate` en `updater_sparkle_darwin.m`) que informan a Go (`agtSparkleUpdate`

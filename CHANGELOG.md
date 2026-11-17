@@ -7,6 +7,11 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Changed
+
+- The Homebrew cask declares `auto_updates true`: the app updates itself, so a plain
+  `brew upgrade` leaves it alone. `brew upgrade --cask agenterm` (or `--greedy`) still upgrades it.
+
 ## [0.4.2] - 2026-11-17
 
 ### Changed
