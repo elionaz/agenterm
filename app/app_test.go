@@ -169,7 +169,7 @@ func TestAppAgainstDaemon(t *testing.T) {
 	if _, err := a.SaveSettings(SettingsPatch{Sessions: &settings.Sessions{Restore: settings.RestoreNever}}); err != nil {
 		t.Fatal(err)
 	}
-	term := settings.Terminal{FontFamily: "Menlo", FontSize: 15, LineHeight: 1.3, CursorStyle: "bar", Theme: "dracula"}
+	term := settings.Terminal{FontFamily: "Menlo", FontSize: 15, LineHeight: 1.3, CursorStyle: "bar", Theme: "funeral"}
 	if _, err := a.SaveSettings(SettingsPatch{Terminal: &term}); err != nil {
 		t.Fatal(err)
 	}

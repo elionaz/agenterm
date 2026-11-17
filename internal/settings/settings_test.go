@@ -97,7 +97,7 @@ func TestSaveRoundTrip(t *testing.T) {
 	want := Settings{Notify: Notify{Enabled: true, Sound: true, OnDone: false, Fallback: FallbackOsascript}, Activity: Activity{StallSeconds: 60},
 		Git: Git{Editor: "cursor -n", WorktreeDir: "~/wt", DefaultMode: ModeWorktree}, UI: UI{Language: "es", Appearance: AppearanceLight},
 		Sessions: Sessions{Restore: RestoreAlways},
-		Terminal: Terminal{FontFamily: "Menlo", FontSize: 14, LineHeight: 1.2, CursorStyle: "bar", Theme: "nord"}}
+		Terminal: Terminal{FontFamily: "Menlo", FontSize: 14, LineHeight: 1.2, CursorStyle: "bar", Theme: "silent-alarm"}}
 	if err := Save(p, want); err != nil {
 		t.Fatal(err)
 	}
