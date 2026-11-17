@@ -40,14 +40,14 @@ const (
 	MethodProjectRemove = "project.remove"
 	// MethodProjectReorder sets the project order (the sidebar's).
 	MethodProjectReorder = "project.reorder"
-	MethodSessionSpawn  = "session.spawn"
-	MethodSessionList   = "session.list"
-	MethodSessionKill   = "session.kill"
-	MethodSessionResize = "session.resize"
-	MethodSessionNotify = "session.notify"
-	MethodSessionAck    = "session.ack"
-	MethodSessionAttach = "session.attach"
-	MethodSessionTail   = "session.tail"
+	MethodSessionSpawn   = "session.spawn"
+	MethodSessionList    = "session.list"
+	MethodSessionKill    = "session.kill"
+	MethodSessionResize  = "session.resize"
+	MethodSessionNotify  = "session.notify"
+	MethodSessionAck     = "session.ack"
+	MethodSessionAttach  = "session.attach"
+	MethodSessionTail    = "session.tail"
 	// MethodSessionRename sets (or, with an empty name, clears) a
 	// session's display name.
 	MethodSessionRename = "session.rename"
