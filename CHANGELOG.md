@@ -7,6 +7,8 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-16
+
 ### Added
 
 - **Clickable URLs** in the terminal: ⌘-click opens a URL in the browser, both plain-text URLs
@@ -21,10 +23,16 @@ releases may include breaking changes.
 - Credits in **About agenterm** (with the version) and a new *About* group in **Settings → General**
   with links to the author's GitHub profile and the repository.
 - **Update banner**: when a new version is found, the window says so with **Update** (or
-  **Restart to update** once it's downloaded — the daemon and its sessions keep running) and
-  **Later**, which hides it for that version until it is downloaded; **Settings → General →
-  Updates** shows it too. Scheduled checks use Sparkle's gentle reminders instead of popping its window while you work.
-  Homebrew installs check the appcast daily and offer to copy `brew upgrade --cask agenterm`.
+  **Restart to update** once it's downloaded; the daemon and its sessions keep running) and
+  **Later**, which hides it for that version until it is downloaded. **Settings → General →
+  Updates** shows it too. Scheduled checks use Sparkle's gentle reminders instead of popping its
+  window while you work. Homebrew installs check the appcast daily and offer to copy
+  `brew upgrade --cask agenterm`.
+
+### Fixed
+
+- Release notes in the update window: **bold**, links and `code` that wrap across lines of the
+  changelog are now formatted too.
 
 ## [0.2.1] - 2026-11-16
 
@@ -113,7 +121,8 @@ First public release: a macOS desktop app (universal: Apple Silicon and Intel, m
   `.zip` downloads, CLI archives for macOS and Linux, and a Homebrew cask
   (`brew install --cask elionaz/tap/agenterm`).
 
-[Unreleased]: https://github.com/elionaz/agenterm/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/elionaz/agenterm/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/elionaz/agenterm/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/elionaz/agenterm/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/elionaz/agenterm/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/elionaz/agenterm/compare/v0.1.0...v0.1.1

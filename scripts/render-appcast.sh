@@ -49,18 +49,20 @@ NOTES=$(awk -v v="$VERSION" '
 		for (i = 1; i <= n; i++) { while (match(s, "\001" i "\002")) s = substr(s, 1, RSTART - 1) code[i] substr(s, RSTART + RLENGTH) }
 		return s
 	}
-	function endp() { if (p) { printf "</p>\n"; p = 0 } }
-	function endli() { if (li) { printf "</li>\n"; li = 0 } }
+	# A list item or paragraph is formatted whole, so **bold** or a link may
+	# wrap across lines.
+	function endp() { if (p) { printf "<p>%s</p>\n", inl(buf); p = 0 } }
+	function endli() { if (li) { printf "<li>%s</li>\n", inl(buf); li = 0 } }
 	function endul() { endli(); if (ul) { print "</ul>"; ul = 0 } }
 	/^## \[/ { if (on) exit; on = index($0, "## [" v "]") == 1; next }
 	!on { next }
 	/^\[[^]]+\]: / { next }
 	/^### / { endp(); endul(); print "<h3>" inl(substr($0, 5)) "</h3>"; next }
-	/^[-*] / { endp(); if (!ul) { print "<ul>"; ul = 1 }; endli(); printf "<li>%s", inl(substr($0, 3)); li = 1; next }
-	/^[ \t]+[^ \t]/ && li { sub(/^[ \t]+/, ""); printf " %s", inl($0); next }
+	/^[-*] / { endp(); if (!ul) { print "<ul>"; ul = 1 }; endli(); buf = substr($0, 3); li = 1; next }
+	/^[ \t]+[^ \t]/ && li { sub(/^[ \t]+/, ""); buf = buf " " $0; next }
 	/^[ \t]*$/ { endp(); next }
-	p { printf " %s", inl($0); next }
-	{ endul(); printf "<p>%s", inl($0); p = 1 }
+	p { buf = buf " " $0; next }
+	{ endul(); buf = $0; p = 1 }
 	END { endp(); endul() }
 ' "$ROOT/CHANGELOG.md")
 NOTES=${NOTES//]]>/]]&gt;}
