@@ -109,9 +109,10 @@ notifications too.
 
 ## Updating
 
-- **Homebrew**: the app updates itself, like a downloaded one (below); `brew upgrade --cask
-  agenterm` works too. Installs from before 0.4.2 need one last `brew upgrade --cask agenterm`
-  to get there.
+- **Homebrew**: the app updates itself, like a downloaded one (below). A plain `brew upgrade`
+  leaves it alone, as with any cask that updates itself; `brew upgrade --cask agenterm` (or
+  `--greedy`) still upgrades it. Installs from before 0.4.2 need one last
+  `brew upgrade --cask agenterm` to get there.
 - **Downloaded app** (dmg/zip): agenterm checks for a new release once a day and offers to install
   it; **agenterm → Check for Updates…** checks right away. When a new version is found while you're
   working, a banner says so (**Update**, or **Restart to update** once it's downloaded; **Later**

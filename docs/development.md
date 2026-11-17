@@ -248,11 +248,13 @@ Gatekeeper then refuses to open.
 
 The app turns its updater off, and says why in **Settings → General → Updates** and in **Check for
 Updates…**, when it's a development build and when it has no `SUPublicEDKey`. Homebrew installs
-update through Sparkle like any other. The cask doesn't declare `auto_updates true` yet: brew reads
-it from the tap's cask, not from the installed app, so it waits until installs from 0.4.1 and
-earlier (Sparkle off) have had a release to move to with plain `brew upgrade`. Once it does, brew's
-record (`Caskroom/agenterm/<version>`) stays at the version brew installed after Sparkle updates
-the app; that is expected for `auto_updates` casks, and the CLI symlink points at a fixed path.
+update through Sparkle like any other, and the cask declares `auto_updates true` (since 0.4.3), so
+plain `brew upgrade` skips it; `--greedy` or naming the cask still upgrades it. It came one release
+after Sparkle was turned on for Homebrew because brew reads it from the tap's cask, not from the
+installed app: installs from 0.4.1 and earlier (Sparkle off) needed a release to move to with plain
+`brew upgrade`. brew's record (`Caskroom/agenterm/<version>`) stays at the version brew installed
+after Sparkle updates the app; that is expected for `auto_updates` casks, and the CLI symlink
+points at a fixed path.
 
 **The update banner.** Sparkle is created with an updater delegate and a standard user driver
 delegate (`AgtSparkleDelegate` in `updater_sparkle_darwin.m`) that report to Go
