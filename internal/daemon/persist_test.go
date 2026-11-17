@@ -386,7 +386,8 @@ func TestCorruptSessionsFileStartsEmpty(t *testing.T) {
 
 // A stream attached while the daemon stops must not see an exit frame: the
 // session is suspended, not gone, and the next daemon resumes it under the
-// same id. An exit frame made the app give the terminal up for good.
+// same id. An exit frame made the app give the terminal up for good; an
+// error frame or a dropped stream make it reattach.
 func TestStopTellsAttachedClientsToReattach(t *testing.T) {
 	c, _, stop := startDaemon(t)
 	defer stop()
@@ -404,7 +405,10 @@ func TestStopTellsAttachedClientsToReattach(t *testing.T) {
 	for time.Now().Before(deadline) {
 		f, err := st.Recv()
 		if err != nil {
-			t.Fatalf("stream ended without a terminal frame: %v", err)
+			// The daemon closes every connection once its sessions are
+			// dead, which can beat the error frame: a dropped stream also
+			// makes the client reattach.
+			return
 		}
 		switch f.Type {
 		case protocol.FrameExit:
