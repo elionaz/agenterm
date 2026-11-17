@@ -18,7 +18,8 @@ Frontend only:
 ```sh
 cd app/frontend
 npm ci
-npm run check   # svelte-check + scripts/check-i18n.ts (needs Node 22.18+)
+npm run check   # svelte-check (types)
+npm test        # Vitest unit tests (src/**/*.test.ts)
 npm run build   # vite build
 ```
 
@@ -29,7 +30,7 @@ gofmt -l .                       # must print nothing
 go vet ./... && go test -race ./...
 ```
 
-This is what CI runs (plus the frontend's `npm run check` and `npm run build`).
+This is what CI runs (plus the frontend's `npm run check`, `npm test` and `npm run build`).
 
 - One integration test brings up the daemon in a temporary `AGENTERM_HOME` and exercises spawn,
   attach/detach/reattach with scrollback, notify, events, kill and shutdown; another launches a

@@ -11,7 +11,7 @@
 ## Checklist
 
 - [ ] `go vet ./... && go test -race ./...` pass
-- [ ] Frontend: `npm run check && npm run build` pass (if applicable)
+- [ ] Frontend: `npm run check && npm test && npm run build` pass (if applicable)
 - [ ] Tests added/updated
 - [ ] Docs updated in English and Spanish (if commands, flags or configuration change)
 - [ ] PR title follows Conventional Commits
