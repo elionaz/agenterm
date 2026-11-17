@@ -657,6 +657,14 @@
           {/if}
         {/if}
         {#if updaterError}<div class="error">{updaterError}</div>{/if}
+
+        <h3 class="group">{t('settings.about')}</h3>
+        <p class="hint">
+          {t('settings.about.by')}
+          <button class="link" onclick={() => BrowserOpenURL('https://github.com/elionaz')}>@elionaz</button>
+          ·
+          <button class="link" onclick={() => BrowserOpenURL('https://github.com/elionaz/agenterm')}>github.com/elionaz/agenterm</button>
+        </p>
       </section>
     {:else if tab === 'appearance'}
       <section class="pane narrow">
