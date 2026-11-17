@@ -71,3 +71,30 @@ func TestOpenCorrupt(t *testing.T) {
 		t.Fatal("expected parse error")
 	}
 }
+
+func TestRegistryReorder(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "projects.json")
+	r, err := Open(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ids []string
+	for _, n := range []string{"a", "b", "c"} {
+		p, err := r.Add(t.TempDir(), n)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, p.ID)
+	}
+	got, err := r.Reorder([]string{ids[2]})
+	if err != nil || got[0].Name != "c" || got[1].Name != "a" || got[2].Name != "b" {
+		t.Fatalf("reorder: %v %v", got, err)
+	}
+	r2, _ := Open(file)
+	if l := r2.List(); l[0].Name != "c" || l[2].Name != "b" {
+		t.Fatalf("not persisted: %v", l)
+	}
+	if _, err := r.Reorder([]string{"nope"}); err == nil {
+		t.Fatal("unknown id must fail")
+	}
+}

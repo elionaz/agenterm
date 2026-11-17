@@ -67,10 +67,10 @@ JSON delimitado por `\n`. Petición `{"id":1,"method":"session.list","params":{�
 
 | grupo | métodos |
 |---|---|
-| proyectos | `project.add`, `project.list`, `project.remove`, `project.git` |
+| proyectos | `project.add`, `project.list`, `project.remove`, `project.reorder`, `project.git` |
 | perfiles | `profile.list`, `profile.catalog`, `profile.save`, `profile.delete`, `profile.reorder`, `profile.rescan` |
 | ajustes | `settings.get`, `settings.save` |
-| sesiones | `session.spawn`, `session.list`, `session.kill`, `session.resize`, `session.notify`, `session.ack`, `session.rename`, `session.attach`, `session.tail`, `session.diff`, `session.resume`, `session.discard` |
+| sesiones | `session.spawn`, `session.list`, `session.kill`, `session.resize`, `session.notify`, `session.ack`, `session.rename`, `session.reorder`, `session.attach`, `session.tail`, `session.diff`, `session.resume`, `session.discard` |
 | worktrees | `worktree.list`, `worktree.diff`, `worktree.remove`, `worktree.merge`, `worktree.pr`, `worktree.open` |
 | daemon | `events.subscribe`, `daemon.ping`, `daemon.shutdown` |
 
@@ -140,6 +140,8 @@ JSON por línea.
 | `session.renamed` | cambió el nombre de la sesión (`sessionName`; ausente: vuelve al del perfil) |
 | `session.removed` | la sesión se quitó de la lista |
 | `worktree.changed` | cambió la lista de worktrees de un proyecto (`projectId`) |
+| `session.reordered` | se reordenaron las sesiones de `projectId` (`session.list` trae el orden nuevo) |
+| `project.changed` | cambió la lista de proyectos: se añadió, quitó o reordenó uno |
 
 `raised: true` marca una atención nueva (la que merece notificación); `stallRaised: true` (en
 `session.activity`), una sesión que acaba de quedarse «¿trabada?». Si un suscriptor se retrasa, se

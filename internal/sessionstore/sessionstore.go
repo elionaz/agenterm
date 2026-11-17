@@ -173,6 +173,36 @@ func (s *Store) Delete(ids ...string) error {
 	return s.commitLocked(next)
 }
 
+// Reorder rearranges the records to follow ids (the daemon's session
+// order); records not listed keep their relative order after them. Ids
+// without a record are ignored. Restores follow this order.
+func (s *Store) Reorder(ids []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	pos := make(map[string]int, len(ids))
+	for i, id := range ids {
+		pos[id] = i
+	}
+	next := slices.Clone(s.recs)
+	slices.SortStableFunc(next, func(a, b Record) int {
+		pa, oka := pos[a.ID]
+		pb, okb := pos[b.ID]
+		switch {
+		case oka && okb:
+			return pa - pb
+		case oka:
+			return -1
+		case okb:
+			return 1
+		}
+		return 0
+	})
+	if slices.EqualFunc(next, s.recs, func(a, b Record) bool { return a.ID == b.ID }) {
+		return nil
+	}
+	return s.commitLocked(next)
+}
+
 func (s *Store) commitLocked(next []Record) error {
 	data, err := fileformat.EncodeList("sessions", Format, next)
 	if err != nil {

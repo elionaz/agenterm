@@ -133,3 +133,27 @@ func TestScrollbackSaveLoadCap(t *testing.T) {
 		t.Fatal("second remove:", err)
 	}
 }
+
+func TestStoreReorder(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sessions.json")
+	s, _, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"a1", "b2", "c3"} {
+		if err := s.Put(Record{ID: id, ProjectID: "p", ProfileID: "shell", Cwd: "/", Cmd: "sh"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.Reorder([]string{"c3", "zz", "a1"}); err != nil {
+		t.Fatal(err)
+	}
+	s2, _, _ := Open(path)
+	var got []string
+	for _, r := range s2.List() {
+		got = append(got, r.ID)
+	}
+	if strings.Join(got, ",") != "c3,a1,b2" {
+		t.Fatalf("order after reopen: %v", got)
+	}
+}

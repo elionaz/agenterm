@@ -31,6 +31,7 @@
     type Rect,
   } from './lib/panes'
   import { setAppearance, setTermPrefs, termPrefs } from './lib/prefs.svelte'
+  import { arrangeWithin, moveBy } from './lib/reorder'
   import { shortcutOf, type Toward } from './lib/shortcuts'
   import { DEFAULT_FONT_SIZE, MAX_FONT_SIZE, MIN_FONT_SIZE, themeOf } from './lib/themes'
   import {
@@ -658,6 +659,39 @@
     if (currentProjectId === id) currentProjectId = projects[0]?.id ?? null
   }
 
+  /** Drag & drop in the sidebar: shown at once, then confirmed by the daemon
+   * (which tells other windows and the CLI). */
+  async function reorderProjects(ids: string[]) {
+    const prev = projects
+    const byId = new Map(projects.map((p) => [p.id, p]))
+    projects = ids.flatMap((id) => byId.get(id) ?? [])
+    try {
+      projects = await api.reorderProjects(ids)
+    } catch (e) {
+      projects = prev
+      showError(errorMessage(e))
+    }
+  }
+
+  async function reorderSessions(projectId: string, ids: string[]) {
+    sessions = arrangeWithin(sessions, (s) => s.projectId === projectId, ids)
+    try {
+      await api.reorderSessions(projectId, ids)
+    } catch (e) {
+      showError(errorMessage(e))
+      void refreshSessions()
+    }
+  }
+
+  /** ⌘⇧↑ / ⌘⇧↓: moves the selected session within its project. */
+  function moveSelected(delta: -1 | 1) {
+    const sel = sessions.find((s) => s.id === selectedId)
+    if (!sel) return
+    const ids = sessions.filter((s) => s.projectId === sel.projectId).map((s) => s.id)
+    const next = moveBy(ids, sel.id, delta)
+    if (next) void reorderSessions(sel.projectId, next)
+  }
+
   function onDaemonEvent(ev: DaemonEvent) {
     switch (ev.type) {
       case 'session.state':
@@ -692,6 +726,12 @@
         break
       case 'worktree.changed':
         if (ev.projectId) void refreshWorktrees(ev.projectId)
+        break
+      case 'project.changed':
+        void guard(api.listProjects()).then((ps) => ps && (projects = ps))
+        break
+      case 'session.reordered':
+        void refreshSessions()
         break
       case 'session.spawned':
         void refreshSessions()
@@ -735,6 +775,9 @@
         if (list[sc.n - 1]) select(list[sc.n - 1].id)
         return
       }
+      case 'moveSession':
+        moveSelected(sc.delta)
+        return
       case 'new': {
         // ⌘N: new session in the current project with the first profile.
         const pid = currentProjectId ?? projects[0]?.id
@@ -854,6 +897,8 @@
     onDiscardAll={discardAll}
     onAddProject={addProject}
     onRemoveProject={removeProject}
+    onReorderProjects={reorderProjects}
+    onReorderSessions={reorderSessions}
     onOpenSettings={openSettings}
     onOpenGrid={openGrid}
     {now}

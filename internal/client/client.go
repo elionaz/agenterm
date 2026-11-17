@@ -206,6 +206,20 @@ func (c *Client) ProjectRemove(ctx context.Context, id string) error {
 	return c.Call(ctx, protocol.MethodProjectRemove, protocol.ProjectRef{ID: id}, nil)
 }
 
+// ReorderProjects moves ids to the front of the project list, in order.
+func (c *Client) ReorderProjects(ctx context.Context, ids []string) ([]project.Project, error) {
+	var r protocol.ProjectList
+	err := c.Call(ctx, protocol.MethodProjectReorder, protocol.ProjectReorderParams{IDs: ids}, &r)
+	return r.Projects, err
+}
+
+// ReorderSessions moves ids to the front of projectID's sessions, in order.
+func (c *Client) ReorderSessions(ctx context.Context, projectID string, ids []string) ([]protocol.SessionInfo, error) {
+	var r protocol.SessionList
+	err := c.Call(ctx, protocol.MethodSessionReorder, protocol.SessionReorderParams{ProjectID: projectID, IDs: ids}, &r)
+	return r.Sessions, err
+}
+
 func (c *Client) Profiles(ctx context.Context) ([]profile.Profile, error) {
 	var r protocol.ProfileList
 	err := c.Call(ctx, protocol.MethodProfileList, nil, &r)

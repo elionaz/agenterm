@@ -110,6 +110,14 @@ export function ReorderProfiles(arg1) {
   return window['go']['main']['App']['ReorderProfiles'](arg1);
 }
 
+export function ReorderProjects(arg1) {
+  return window['go']['main']['App']['ReorderProjects'](arg1);
+}
+
+export function ReorderSessions(arg1, arg2) {
+  return window['go']['main']['App']['ReorderSessions'](arg1, arg2);
+}
+
 export function RescanProfiles() {
   return window['go']['main']['App']['RescanProfiles']();
 }

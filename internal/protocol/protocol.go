@@ -38,6 +38,8 @@ const (
 	MethodProjectAdd    = "project.add"
 	MethodProjectList   = "project.list"
 	MethodProjectRemove = "project.remove"
+	// MethodProjectReorder sets the project order (the sidebar's).
+	MethodProjectReorder = "project.reorder"
 	MethodSessionSpawn  = "session.spawn"
 	MethodSessionList   = "session.list"
 	MethodSessionKill   = "session.kill"
@@ -49,6 +51,8 @@ const (
 	// MethodSessionRename sets (or, with an empty name, clears) a
 	// session's display name.
 	MethodSessionRename = "session.rename"
+	// MethodSessionReorder sets the order of one project's sessions.
+	MethodSessionReorder = "session.reorder"
 	// Sessions restored from a previous daemon run (state suspended).
 	MethodSessionResume   = "session.resume"
 	MethodSessionDiscard  = "session.discard"
@@ -149,6 +153,19 @@ type ProfileRef struct {
 // ProfileReorderParams moves IDs to the front, in order.
 type ProfileReorderParams struct {
 	IDs []string `json:"ids"`
+}
+
+// ProjectReorderParams moves project IDs to the front, in order.
+type ProjectReorderParams struct {
+	IDs []string `json:"ids"`
+}
+
+// SessionReorderParams moves session IDs (all of ProjectID) to the front
+// of that project's sessions, in order. Sessions of other projects keep
+// their positions.
+type SessionReorderParams struct {
+	ProjectID string   `json:"projectId"`
+	IDs       []string `json:"ids"`
 }
 
 type SpawnParams struct {
@@ -525,6 +542,11 @@ const (
 	// EventWorktrees: a project's worktree list changed (ProjectID):
 	// created, removed, orphaned or reopened.
 	EventWorktrees = "worktree.changed"
+	// EventProjects: the project list changed (added, removed, reordered).
+	EventProjects = "project.changed"
+	// EventSessionsReordered: the sessions of ProjectID were reordered;
+	// session.list has the new order.
+	EventSessionsReordered = "session.reordered"
 )
 
 // Event is pushed to events.subscribe streams.

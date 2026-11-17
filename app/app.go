@@ -253,6 +253,26 @@ func (a *App) AddProject() (*project.Project, error) {
 	return &p, nil
 }
 
+// ReorderProjects sets the sidebar's project order (ids first, in order).
+func (a *App) ReorderProjects(ids []string) ([]project.Project, error) {
+	var out []project.Project
+	err := a.call(func(ctx context.Context) (err error) {
+		out, err = a.client.ReorderProjects(ctx, ids)
+		return err
+	})
+	return nonNil(out), err
+}
+
+// ReorderSessions sets the order of a project's sessions (ids first).
+func (a *App) ReorderSessions(projectID string, ids []string) ([]protocol.SessionInfo, error) {
+	var out []protocol.SessionInfo
+	err := a.call(func(ctx context.Context) (err error) {
+		out, err = a.client.ReorderSessions(ctx, projectID, ids)
+		return err
+	})
+	return nonNil(out), err
+}
+
 func (a *App) RemoveProject(id string) error {
 	return a.call(func(ctx context.Context) error { return a.client.ProjectRemove(ctx, id) })
 }

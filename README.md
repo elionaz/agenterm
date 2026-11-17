@@ -19,7 +19,8 @@ tells you when one of them needs you.
 ## Features
 
 - **Projects and sessions** in a sidebar: each project is a folder and each session is a terminal
-  (xterm.js) running an agent or a shell. Double-click a session to give it a name.
+  (xterm.js) running an agent or a shell. Double-click a session to give it a name; drag projects
+  and sessions to reorder them.
 - **Split panes**: show several sessions side by side or stacked (⌘D / ⌘⇧D), with draggable
   dividers; the layout is kept per project.
 - **Terminal comforts**: search the scrollback (⌘F), ⌘-click to open URLs, built-in themes (agenterm, Solarized,
@@ -234,6 +235,7 @@ diffs: [docs/worktrees.md](docs/worktrees.md).
 |---|---|
 | ⌘N | new session in the current project with the first enabled, installed agent |
 | ⌘1 … ⌘9 | select session n of the current project |
+| ⌘⇧↑ / ⌘⇧↓ | move the selected session up / down in its project (or drag it in the sidebar) |
 | ⌘0 | open/close the overview |
 | ⌘, | open Settings |
 | ⌘D / ⌘⇧D | split the focused pane right / down with a new session of the same agent and mode |
