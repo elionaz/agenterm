@@ -16,6 +16,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elionaz/agenterm/internal/atomicfile"
+	"github.com/elionaz/agenterm/internal/fileformat"
 	"github.com/elionaz/agenterm/internal/i18n"
 )
 
@@ -239,7 +240,12 @@ type fileTerminal struct {
 	Theme       *string  `yaml:"theme"`
 }
 
+// Format is the settings.yaml format version (see internal/fileformat).
+// Files from before 0.4.0 have no version key: they are format 1.
+const Format = 1
+
 type file struct {
+	Version  int          `yaml:"version"`
 	Notify   fileNotify   `yaml:"notify"`
 	Activity fileActivity `yaml:"activity"`
 	Git      fileGit      `yaml:"git"`
@@ -252,12 +258,15 @@ const header = "# agenterm settings (see README)\n"
 
 // Save writes s to path atomically (keeping a .bak of the previous file).
 // The existing file is edited in place: unknown keys and comments are kept,
-// only the known keys are set. A file that does not parse is replaced.
+// only the known keys are set. A file that does not parse is replaced; one
+// written by a newer agenterm is left alone (fileformat.TooNewError).
 func Save(path string, s Settings) error {
 	var doc yaml.Node
 	if old, err := os.ReadFile(path); err == nil {
 		if yaml.Unmarshal(old, &doc) != nil || doc.Kind != yaml.DocumentNode || len(doc.Content) != 1 || doc.Content[0].Kind != yaml.MappingNode {
 			doc = yaml.Node{}
+		} else if _, err := Parse(old); fileformat.IsTooNew(err) {
+			return err
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
@@ -267,6 +276,7 @@ func Save(path string, s Settings) error {
 			Content: []*yaml.Node{{Kind: yaml.MappingNode}}}
 	}
 	root := doc.Content[0]
+	setVersion(root)
 	b := strconv.FormatBool
 	setKey(root, []string{"notify", "enabled"}, b(s.Notify.Enabled), "!!bool")
 	setKey(root, []string{"notify", "sound"}, b(s.Notify.Sound), "!!bool")
@@ -300,6 +310,22 @@ func Save(path string, s Settings) error {
 
 // setKey sets the scalar at path inside mapping m, creating (or replacing
 // non-mapping) intermediate nodes as needed.
+// setVersion sets the top-level version key, adding it first in the file.
+func setVersion(m *yaml.Node) {
+	for i := 0; i+1 < len(m.Content); i += 2 {
+		if m.Content[i].Value == "version" {
+			setKey(m, []string{"version"}, strconv.Itoa(Format), "!!int")
+			return
+		}
+	}
+	k := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "version"}
+	v := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!int", Value: strconv.Itoa(Format)}
+	if len(m.Content) > 0 { // the file's leading comment stays on top
+		k.HeadComment, m.Content[0].HeadComment = m.Content[0].HeadComment, ""
+	}
+	m.Content = append([]*yaml.Node{k, v}, m.Content...)
+}
+
 func setKey(m *yaml.Node, path []string, value, tag string) {
 	for i := 0; i+1 < len(m.Content); i += 2 {
 		k, v := m.Content[i], m.Content[i+1]
@@ -345,12 +371,15 @@ func normMode(m string) string {
 	return ModeSame
 }
 
-// Parse decodes YAML, filling missing keys with defaults.
+// Parse decodes YAML, filling missing keys with defaults. A file written by
+// a newer agenterm is still read as far as this build understands it, and
+// returned with a fileformat.TooNewError.
 func Parse(data []byte) (Settings, error) {
 	var f file
 	if err := yaml.Unmarshal(data, &f); err != nil {
 		return Defaults(), fmt.Errorf("parse settings: %w", err)
 	}
+	vErr := fileformat.Check("settings.yaml", f.Version, Format)
 	s := Defaults()
 	set := func(dst *bool, v *bool) {
 		if v != nil {
@@ -402,7 +431,7 @@ func Parse(data []byte) (Settings, error) {
 		s.Terminal.Theme = *ft.Theme
 	}
 	s.Terminal = normTerminal(s.Terminal)
-	return s, nil
+	return s, vErr
 }
 
 // Load reads path. A missing file yields Defaults(); a broken one yields

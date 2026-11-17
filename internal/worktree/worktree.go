@@ -5,9 +5,7 @@
 package worktree
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"regexp"
 	"strings"
@@ -16,7 +14,11 @@ import (
 
 	"github.com/elionaz/agenterm/internal/apierr"
 	"github.com/elionaz/agenterm/internal/atomicfile"
+	"github.com/elionaz/agenterm/internal/fileformat"
 )
+
+// Format is the worktrees.json format version (see internal/fileformat).
+const Format = 1
 
 // Record is one agenterm-managed worktree.
 type Record struct {
@@ -61,8 +63,8 @@ func Open(path string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := json.Unmarshal(data, &s.recs); err != nil {
-		return nil, fmt.Errorf("parse %s: %w", path, err)
+	if s.recs, _, err = fileformat.DecodeList[Record](path, data, "worktrees", Format); err != nil {
+		return nil, err
 	}
 	return s, nil
 }
@@ -139,15 +141,11 @@ func (s *Store) Delete(id string) error {
 }
 
 func (s *Store) saveLocked() error {
-	list := s.recs
-	if list == nil {
-		list = []Record{}
-	}
-	data, err := json.MarshalIndent(list, "", "  ")
+	data, err := fileformat.EncodeList("worktrees", Format, s.recs)
 	if err != nil {
 		return err
 	}
-	return atomicfile.Write(s.path, append(data, '\n'), 0o600)
+	return atomicfile.Write(s.path, data, 0o600)
 }
 
 var nonSlug = regexp.MustCompile(`[^a-z0-9]+`)

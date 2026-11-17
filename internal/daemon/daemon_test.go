@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/elionaz/agenterm/internal/apierr"
 	"github.com/elionaz/agenterm/internal/client"
 	"github.com/elionaz/agenterm/internal/daemon"
 	"github.com/elionaz/agenterm/internal/paths"
@@ -424,8 +425,15 @@ func TestDaemonRejectsSecondInstanceAndStaleSocket(t *testing.T) {
 func TestUnknownMethodAndBadParams(t *testing.T) {
 	c, _, _ := startDaemon(t)
 	ctx := ctxT(t)
-	if err := c.Call(ctx, "nope", nil, nil); err == nil || !client.IsRemote(err) {
+	err := c.Call(ctx, "nope", nil, nil)
+	if err == nil || !client.IsRemote(err) {
 		t.Fatalf("got %v", err)
+	}
+	if code, _, _ := apierr.Code(err); code != apierr.UnknownMethod || !strings.Contains(err.Error(), "does not support nope") {
+		t.Fatalf("unknown method: %q %v", code, err)
+	}
+	if r, err := c.PingInfo(ctx); err != nil || r.Protocol != protocol.Version {
+		t.Fatalf("ping: %+v %v", r, err)
 	}
 	if _, err := c.Spawn(ctx, protocol.SpawnParams{ProjectID: "x", ProfileID: "cat"}); err == nil {
 		t.Fatal("spawn with unknown project should fail")

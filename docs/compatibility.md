@@ -1,0 +1,65 @@
+# Compatibility and versioning
+
+agenterm follows [Semantic Versioning](https://semver.org/). While the version is 0.x a minor
+release may still break things, and the [CHANGELOG](../CHANGELOG.md) says so when it does. From 1.0
+on, the surfaces below only change in a backward-compatible way within a major version.
+
+## What is stable
+
+| Surface | What is promised |
+| --- | --- |
+| **CLI** | The commands and flags in [cli.md](cli.md) keep their names and meaning. New commands and flags may appear. The human-readable output (`ls`, `profiles`, `worktrees`…) may change: don't parse it. A non-zero exit status always means failure. |
+| **Environment variables** | `AGENTERM_HOME`, `AGENTERM_NOTIFY`, `AGENTERM_SESSION` and `AGENTERM_SOCK`, as documented in [cli.md](cli.md#environment-variables). |
+| **Configuration files** | `profiles.yaml` and `settings.yaml` (see [configuration.md](configuration.md)): keys keep their meaning, and new keys are optional with a default. Each file says its format version (below). |
+| **Hooks** | The command agenterm installs in an agent's hooks (`<agenterm> notify --sock … --from-hook …`, see [attention-and-activity.md](attention-and-activity.md)) keeps working, so hooks installed by an older version don't need reinstalling. |
+| **Daemon protocol** | Versioned (below). It's how the app, the CLI and the daemon talk; it isn't a public API, but versions of agenterm that disagree detect it and say what to do. |
+
+Not covered: `daemon.log` (its content changes freely), the runtime files `restart.json`, `d.pid`
+and `scrollback/`, the `.bak` and `.corrupt-*` copies, and anything under `internal/` in the code.
+
+## File formats
+
+Every file agenterm writes says which format it uses:
+
+| File | Where | How the version is written | Current |
+| --- | --- | --- | --- |
+| `settings.yaml` | `~/.config/agenterm/` | top-level `version:` key | 1 |
+| `profiles.yaml` | `~/.config/agenterm/` | `version:` next to the `profiles:` list | 1 |
+| `projects.json` | `~/.config/agenterm/` | `{"version": 1, "projects": [...]}` | 1 |
+| `worktrees.json` | `~/.agenterm/` | `{"version": 1, "worktrees": [...]}` | 1 |
+| `sessions.json` | `~/.agenterm/` | `{"version": 1, "sessions": [...]}` | 1 |
+
+- **Files from before 0.4.0** have no version: they are format 1 and are read as they are
+  (`profiles.yaml` as a bare list, the JSON files as bare arrays). agenterm adds the version the
+  next time it saves the file. You don't need to change anything by hand.
+- **A newer format than this build understands** means the file was written by a newer agenterm
+  (for example, after going back to an older version). agenterm refuses it with an error that says
+  so (`… was written by a newer agenterm (format 2; this build reads up to 1): update agenterm`) and
+  **never overwrites it**, so no data is lost. `settings.yaml` is the exception on reading: what this
+  build understands is still applied, but it isn't saved over either.
+- A format version only goes up when an older agenterm would misread the file. Adding an optional
+  key doesn't change it.
+
+### Going back to an older version
+
+0.3.x and older don't know the versioned formats: once 0.4.0 has saved `profiles.yaml` or one of
+the JSON files, an older agenterm can't read it. If you need to go back, restore the previous
+copies: `profiles.yaml.bak`, `settings.yaml.bak` and `worktrees.json.bak` hold the content before
+the last save (`settings.yaml` itself stays readable). For `projects.json` and `sessions.json`,
+turn the file back into a bare array: keep only the list inside `"projects"` / `"sessions"`.
+
+## Daemon protocol
+
+The app and the CLI talk to the daemon over its socket with newline-delimited JSON (see
+[architecture.md](architecture.md)). `daemon.ping` reports the daemon's version and its protocol
+version (`protocol`, currently 1; daemons before 0.4.0 don't send it and speak version 1).
+
+- Adding methods, optional fields or event types keeps the protocol version. Removing or renaming
+  them, or changing what they mean or the binary frames of `session.attach`, bumps it.
+- After an update the window runs the new build while the daemon, which outlives the window, may
+  still be the old one: the app says so and offers **Restart now**, which suspends and resumes the
+  sessions.
+- If the daemon is **newer** than the app (a newer protocol), restarting it from the app would
+  downgrade it, so the app asks you to update agenterm instead.
+- A command the daemon doesn't know (an older daemon) fails with a clear message (code
+  `unknown_method`): restart the daemon, from the app or with `agenterm stop`.

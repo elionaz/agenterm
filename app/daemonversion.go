@@ -29,6 +29,10 @@ type DaemonStatus struct {
 	// DaemonVersion is "" for daemons older than 0.2.0 (they do not say).
 	DaemonVersion string `json:"daemonVersion"`
 	Mismatch      bool   `json:"mismatch"`
+	// Newer: the daemon speaks a newer protocol than this app (an older app
+	// was started against a newer daemon). Restarting would downgrade the
+	// daemon, so the app asks to be updated instead.
+	Newer bool `json:"newer"`
 }
 
 // daemonMismatch: the daemon is older than the app (an update installed a
@@ -123,8 +127,14 @@ func (a *App) DaemonStatus() (DaemonStatus, error) {
 	if err != nil {
 		return DaemonStatus{AppVersion: version.Version}, err
 	}
-	return DaemonStatus{AppVersion: version.Version, DaemonVersion: r.Version,
-		Mismatch: daemonMismatch(version.Version, r.Version)}, nil
+	return daemonStatus(version.Version, r), nil
+}
+
+// daemonStatus compares a daemon's ping with this app (version app).
+func daemonStatus(app string, r protocol.PingResult) DaemonStatus {
+	newer := r.ProtocolOf() > protocol.Version
+	return DaemonStatus{AppVersion: app, DaemonVersion: r.Version,
+		Mismatch: !newer && daemonMismatch(app, r.Version), Newer: newer}
 }
 
 // RestartDaemon replaces the running daemon with one from this executable.

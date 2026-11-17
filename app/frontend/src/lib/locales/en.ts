@@ -76,6 +76,8 @@ export const en = {
     'The background service is from an older version ({version}). Restart it to finish updating — sessions will be suspended and resumed.',
   'banner.daemonOldUnknown':
     'The background service is from an older version. Restart it to finish updating — sessions will be suspended and resumed.',
+  'banner.daemonNewer':
+    'The background service is from a newer version ({version}) that this app cannot talk to. Update agenterm.',
   'banner.restartNow': 'Restart now',
   'banner.restartBusy': {
     one: 'An agent is working: restarting interrupts it (it is resumed afterwards). Restart anyway?',
@@ -472,6 +474,7 @@ export const en = {
   'err.base_missing': 'Base "{base}" does not exist in the repository.',
   'err.base_missing_none': 'Cannot find the base branch (detached HEAD and no main/master): choose a base.',
   'err.dir_missing': 'The folder no longer exists: {dir}',
+  'err.unknown_method': 'The background service is older than this app and does not support this. Restart it to finish updating.',
   'err.resume_failed.still_running': 'Session {sessionId}: its previous process (pid {pid}) is still running. Stop it or discard the session.',
   'err.resume_failed.project_missing': 'Session {sessionId}: its project is no longer in agenterm.',
   'err.resume_failed.not_suspended': 'Session {sessionId} is not suspended.',

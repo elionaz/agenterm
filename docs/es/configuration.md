@@ -89,23 +89,25 @@ Es una lista YAML. Cada entrada tiene un `id` obligatorio y único, y se **super
   comandos que lo leen fallan hasta que lo corrijas.
 
 ```yaml
-- id: claude-yolo           # variante
-  name: Claude (sin permisos)
-  extends: claude
-  args: ["--dangerously-skip-permissions"]
-- id: claude
-  env: {CLAUDE_CODE_USE_BEDROCK: "1"}
-- id: gemini
-  enabled: false
-- id: mio                   # perfil propio
-  cmd: $HOME/bin/mi-agente
-  args: []
-  env: {}
-  status: heuristic         # hooks | heuristic
-  setup_hooks: none         # claude | codex | none
-  idle_seconds: 3
-  attention_patterns:
-    - '\(y/n\)'
+version: 1
+profiles:
+  - id: claude-yolo           # variante
+    name: Claude (sin permisos)
+    extends: claude
+    args: ["--dangerously-skip-permissions"]
+  - id: claude
+    env: {CLAUDE_CODE_USE_BEDROCK: "1"}
+  - id: gemini
+    enabled: false
+  - id: mio                   # perfil propio
+    cmd: $HOME/bin/mi-agente
+    args: []
+    env: {}
+    status: heuristic         # hooks | heuristic
+    setup_hooks: none         # claude | codex | none
+    idle_seconds: 3
+    attention_patterns:
+      - '\(y/n\)'
 ```
 
 ### Edición desde la app
@@ -147,6 +149,7 @@ Todas las claves son opcionales; las que faltan toman el valor por defecto.
 | `sessions.restore` | `ask` | qué hace un daemon al arrancar con las sesiones que estaban vivas cuando se detuvo el anterior: `ask` (dejarlas `suspended` hasta que las reanudes o descartes), `always` (reanudarlas enseguida) o `never` (descartarlas). Ver [architecture.md](architecture.md#persistencia-y-reanudación) |
 
 ```yaml
+version: 1
 ui:
   language: auto
   appearance: system

@@ -29,7 +29,7 @@ import (
 func (s *Server) dispatch(req protocol.Request) (any, error) {
 	switch req.Method {
 	case protocol.MethodDaemonPing:
-		return protocol.PingResult{OK: true, Version: version.Version, Commit: version.Short()}, nil
+		return protocol.PingResult{OK: true, Version: version.Version, Commit: version.Short(), Protocol: protocol.Version}, nil
 	case protocol.MethodProjectAdd:
 		p, err := decode[protocol.ProjectAddParams](req.Params)
 		if err != nil {
@@ -259,7 +259,8 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 		sess.Ack()
 		return s.sessionInfo(sess), nil
 	}
-	return nil, fmt.Errorf("unknown method %q", req.Method)
+	return nil, apierr.New(apierr.UnknownMethod, map[string]string{"method": req.Method},
+		"unknown method %q (daemon %s)", req.Method, version.Version)
 }
 
 func profileList(ps []profile.Profile, err error) (any, error) {

@@ -493,7 +493,7 @@
       .catch(() => {})
     void api
       .daemonStatus()
-      .then((s) => (daemonOld = s.mismatch ? s : null))
+      .then((s) => (daemonOld = s.mismatch || s.newer ? s : null))
       .catch(() => {})
   }
 
@@ -1061,6 +1061,8 @@
           {t('banner.restartBusy', { n: busyCount })}
           <button onclick={() => restartDaemon(true)}>{t('banner.restartAnyway')}</button>
           <button onclick={() => (confirmRestart = false)}>{t('banner.cancel')}</button>
+        {:else if daemonOld.newer}
+          {t('banner.daemonNewer', { version: daemonOld.daemonVersion })}
         {:else}
           {daemonOld.daemonVersion
             ? t('banner.daemonOld', { version: daemonOld.daemonVersion })

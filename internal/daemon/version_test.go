@@ -20,7 +20,7 @@ func TestPingReportsVersion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := protocol.PingResult{OK: true, Version: "9.8.7-test", Commit: "abc1234"}
+	want := protocol.PingResult{OK: true, Version: "9.8.7-test", Commit: "abc1234", Protocol: protocol.Version}
 	if got != want {
 		t.Fatalf("daemon.ping = %+v, want %+v", got, want)
 	}

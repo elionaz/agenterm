@@ -7,6 +7,23 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Changed
+
+- **Versioned file formats**: `settings.yaml` and `profiles.yaml` get a `version` key
+  (`profiles.yaml` becomes `version` + `profiles`), and `projects.json`, `worktrees.json` and
+  `sessions.json` a `{"version": 1, …}` envelope. Older files are still read and get the version on
+  their next save. A file written by a newer agenterm is refused with a clear error and never
+  overwritten. **Going back to 0.3.x** after this needs the `.bak` copies: see
+  [docs/compatibility.md](docs/compatibility.md#going-back-to-an-older-version).
+- The daemon reports its **protocol version** in `daemon.ping`. A command an older daemon doesn't
+  know fails with a message that says to restart it, and the app says when the daemon is newer than
+  itself instead of offering to restart (which would downgrade it).
+
+### Added
+
+- [docs/compatibility.md](docs/compatibility.md): what stays stable between versions (CLI,
+  `AGENTERM_*` variables, configuration files, hooks) and how formats and the protocol are versioned.
+
 ## [0.3.1] - 2026-11-16
 
 ### Fixed
