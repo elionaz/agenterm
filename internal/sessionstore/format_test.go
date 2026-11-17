@@ -46,3 +46,22 @@ func TestNewerFormatIsRefusedAndKept(t *testing.T) {
 		t.Fatalf("moved aside: %v", m)
 	}
 }
+
+func TestOddVersionIsRefusedAndKept(t *testing.T) {
+	for _, in := range []string{`{"version":"2","sessions":[]}`, `{"version":2.5}`, `{"version":0,"sessions":[]}`} {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "sessions.json")
+		if err := os.WriteFile(path, []byte(in), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, _, err := Open(path); !fileformat.Protected(err) {
+			t.Errorf("%s: %v", in, err)
+		}
+		if data, _ := os.ReadFile(path); string(data) != in {
+			t.Errorf("%s: modified", in)
+		}
+		if m, _ := filepath.Glob(filepath.Join(dir, "*.corrupt-*")); len(m) != 0 {
+			t.Errorf("%s: moved aside", in)
+		}
+	}
+}

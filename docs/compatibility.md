@@ -38,15 +38,27 @@ Every file agenterm writes says which format it uses:
   **never overwrites it**, so no data is lost. `settings.yaml` is the exception on reading: what this
   build understands is still applied, but it isn't saved over either.
 - A format version only goes up when an older agenterm would misread the file. Adding an optional
-  key doesn't change it.
+  key doesn't change it. An older agenterm ignores keys it doesn't know; `settings.yaml` keeps them
+  when it's saved, but the other files are rewritten from what that version understands, so it drops
+  them on its next save (the newer version then uses their defaults).
+- A version that isn't a whole number is treated like a newer one: the file is refused and left alone.
 
 ### Going back to an older version
 
-0.3.x and older don't know the versioned formats: once 0.4.0 has saved `profiles.yaml` or one of
-the JSON files, an older agenterm can't read it. If you need to go back, restore the previous
-copies: `profiles.yaml.bak`, `settings.yaml.bak` and `worktrees.json.bak` hold the content before
-the last save (`settings.yaml` itself stays readable). For `projects.json` and `sessions.json`,
-turn the file back into a bare array: keep only the list inside `"projects"` / `"sessions"`.
+0.3.x and older don't know the versioned formats: once 0.4.0 has saved a file, an older agenterm
+can't read it. Before starting the older version, turn each file back into its old shape (the
+content stays the same):
+
+- `profiles.yaml`: keep only the entries under `profiles:`, as a top-level list (remove `version:`
+  and `profiles:`, and the two spaces of indentation).
+- `projects.json`, `worktrees.json`, `sessions.json`: keep only the array inside `"projects"`,
+  `"worktrees"` or `"sessions"`.
+- `settings.yaml` needs nothing: older versions ignore the `version` key.
+
+The `.bak` copies don't help here: after a couple of saves they are in the new format too. If you
+already started 0.3.x without converting `sessions.json`, it was moved aside as
+`sessions.json.corrupt-<time>` and its sessions weren't restored; convert that file and rename it
+back to `sessions.json` (with the daemon stopped) to get them back.
 
 ## Daemon protocol
 

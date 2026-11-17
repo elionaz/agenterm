@@ -39,16 +39,29 @@ Cada archivo que escribe agenterm dice qué formato usa:
   update agenterm`) y **nunca lo sobrescribe**, así que no se pierde nada. `settings.yaml` es la
   excepción al leer: se aplica lo que esta versión entiende, pero tampoco se guarda encima.
 - La versión de un formato solo sube cuando un agenterm anterior leería mal el archivo. Añadir una
-  clave opcional no la cambia.
+  clave opcional no la cambia. Un agenterm anterior ignora las claves que no conoce; `settings.yaml`
+  las conserva al guardarse, pero los demás archivos se reescriben con lo que esa versión entiende,
+  así que las pierde en su siguiente guardado (y la versión más nueva usa entonces sus valores por
+  defecto).
+- Una versión que no es un número entero se trata como una más nueva: el archivo se rechaza y no se
+  toca.
 
 ### Volver a una versión anterior
 
-La 0.3.x y anteriores no conocen los formatos con versión: cuando la 0.4.0 ha guardado
-`profiles.yaml` o uno de los JSON, un agenterm anterior no puede leerlo. Si necesitas volver,
-restaura las copias anteriores: `profiles.yaml.bak`, `settings.yaml.bak` y `worktrees.json.bak`
-guardan el contenido de antes del último guardado (`settings.yaml` en sí sigue siendo legible). Para
-`projects.json` y `sessions.json`, vuelve a dejar el archivo como un array: quédate solo con la
-lista que hay dentro de `"projects"` / `"sessions"`.
+La 0.3.x y anteriores no conocen los formatos con versión: cuando la 0.4.0 ha guardado un archivo,
+un agenterm anterior no puede leerlo. Antes de abrir la versión anterior, devuelve cada archivo a su
+forma antigua (el contenido es el mismo):
+
+- `profiles.yaml`: deja solo las entradas que hay bajo `profiles:`, como una lista en el nivel
+  superior (quita `version:` y `profiles:`, y los dos espacios de sangría).
+- `projects.json`, `worktrees.json`, `sessions.json`: deja solo el array que hay dentro de
+  `"projects"`, `"worktrees"` o `"sessions"`.
+- `settings.yaml` no necesita nada: las versiones anteriores ignoran la clave `version`.
+
+Las copias `.bak` no sirven para esto: después de un par de guardados también están en el formato
+nuevo. Si ya abriste la 0.3.x sin convertir `sessions.json`, se apartó como
+`sessions.json.corrupt-<fecha>` y sus sesiones no se restauraron; convierte ese archivo y vuelve a
+llamarlo `sessions.json` (con el daemon detenido) para recuperarlas.
 
 ## Protocolo del daemon
 

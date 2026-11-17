@@ -51,7 +51,9 @@ Agentes* la refrescan.
 
 ## `profiles.yaml`
 
-Es una lista YAML. Cada entrada tiene un `id` obligatorio y único, y se **superpone** al catálogo:
+Una clave `version` (el [formato del archivo](compatibility.md#formatos-de-archivo)) y una lista
+`profiles:` (los archivos de antes de la 0.4.0 son solo la lista, y se siguen leyendo). Cada entrada
+tiene un `id` obligatorio y único, y se **superpone** al catálogo:
 
 | campo | |
 |---|---|

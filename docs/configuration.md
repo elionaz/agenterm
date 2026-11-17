@@ -50,7 +50,8 @@ found in the daemon's `PATH` or in your login shell's (`$SHELL -l -i -c`); that 
 
 ## `profiles.yaml`
 
-A YAML list. Each entry has a required, unique `id` and is **layered over** the catalog:
+A `version` key (the [file format](compatibility.md#file-formats)) and a `profiles:` list (files
+from before 0.4.0 are just the list, and are still read). Each entry has a required, unique `id` and is **layered over** the catalog:
 
 | field | |
 |---|---|

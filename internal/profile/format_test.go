@@ -25,8 +25,13 @@ func TestParseFormats(t *testing.T) {
 	if _, err := Parse([]byte("profiles: []\n")); err == nil {
 		t.Error("a mapping without version is an error")
 	}
-	if _, err := Parse([]byte("version: 2\nprofiles:\n  - id: a\n    future: true\n")); !fileformat.IsTooNew(err) {
-		t.Errorf("version 2: %v", err)
+	for _, in := range []string{"version: 2\nprofiles:\n  - id: a\n    future: true\n", "version: 2\nprofiles: {a: {cmd: x}}\n"} {
+		if _, err := Parse([]byte(in)); !fileformat.IsTooNew(err) {
+			t.Errorf("%q: %v", in, err)
+		}
+	}
+	if _, err := Parse([]byte("version: two\nprofiles: []\n")); !fileformat.Protected(err) {
+		t.Errorf("bad version: %v", err)
 	}
 }
 

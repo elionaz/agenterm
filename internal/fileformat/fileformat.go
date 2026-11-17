@@ -17,6 +17,10 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strconv"
+	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 // TooNewError: path was written in a format newer than this build reads.
@@ -37,12 +41,58 @@ func IsTooNew(err error) bool {
 	return errors.As(err, &t)
 }
 
+// BadVersionError: path has a version that is not a whole number, which no
+// agenterm writes. It is treated like a newer format: refused, not touched.
+type BadVersionError struct {
+	Path string
+	Raw  string
+}
+
+func (e *BadVersionError) Error() string {
+	return fmt.Sprintf("%s has a format version this agenterm does not understand (%s): update agenterm or fix the file",
+		filepath.Base(e.Path), e.Raw)
+}
+
+// Protected reports whether err means the file must be left alone: written
+// by a newer agenterm (TooNewError) or with an unreadable version
+// (BadVersionError).
+func Protected(err error) bool {
+	var b *BadVersionError
+	return IsTooNew(err) || errors.As(err, &b)
+}
+
+// YAMLVersion returns the top-level `version` of a YAML document (0 when
+// the document is not a mapping or has no version key), checked against
+// max. It looks at the node only, so a file whose other keys changed shape
+// is still recognized as newer.
+func YAMLVersion(path string, doc *yaml.Node, max int) (int, error) {
+	if doc.Kind != yaml.DocumentNode || len(doc.Content) != 1 || doc.Content[0].Kind != yaml.MappingNode {
+		return 0, nil
+	}
+	m := doc.Content[0]
+	for i := 0; i+1 < len(m.Content); i += 2 {
+		if m.Content[i].Value != "version" {
+			continue
+		}
+		v := m.Content[i+1]
+		n, err := strconv.Atoi(v.Value)
+		if v.Kind != yaml.ScalarNode || err != nil || (v.Tag != "!!int" && v.Tag != "") {
+			return 0, &BadVersionError{Path: path, Raw: strings.TrimSpace(v.Value)}
+		}
+		if n == 0 {
+			return 0, &BadVersionError{Path: path, Raw: "0"}
+		}
+		return n, Check(path, n, max)
+	}
+	return 0, nil
+}
+
 // Check validates a version read from path. 0 means the key was absent: a
 // file from before formats were versioned, which is format 1.
 func Check(path string, v, max int) error {
 	switch {
 	case v < 0:
-		return fmt.Errorf("%s: invalid format version %d", filepath.Base(path), v)
+		return &BadVersionError{Path: path, Raw: strconv.Itoa(v)}
 	case v > max:
 		return &TooNewError{Path: path, Version: v, Max: max}
 	}
@@ -65,14 +115,13 @@ func DecodeList[T any](path string, data []byte, key string, max int) ([]T, int,
 	if err := json.Unmarshal(trimmed, &env); err != nil {
 		return nil, 0, fmt.Errorf("parse %s: %w", path, err)
 	}
-	var v int
-	if raw, ok := env["version"]; ok {
-		if err := json.Unmarshal(raw, &v); err != nil {
-			return nil, 0, fmt.Errorf("parse %s: version: %w", path, err)
-		}
-	}
-	if v == 0 {
+	raw, ok := env["version"]
+	if !ok {
 		return nil, 0, fmt.Errorf("parse %s: missing format version", path)
+	}
+	var v int
+	if err := json.Unmarshal(raw, &v); err != nil || v == 0 {
+		return nil, 0, &BadVersionError{Path: path, Raw: string(bytes.TrimSpace(raw))}
 	}
 	if err := Check(path, v, max); err != nil {
 		return nil, v, err

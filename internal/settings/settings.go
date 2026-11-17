@@ -244,8 +244,9 @@ type fileTerminal struct {
 // Files from before 0.4.0 have no version key: they are format 1.
 const Format = 1
 
+// file is the decoded document; `version` is read from the node first
+// (fileformat.YAMLVersion), so it is not a field here.
 type file struct {
-	Version  int          `yaml:"version"`
 	Notify   fileNotify   `yaml:"notify"`
 	Activity fileActivity `yaml:"activity"`
 	Git      fileGit      `yaml:"git"`
@@ -265,7 +266,7 @@ func Save(path string, s Settings) error {
 	if old, err := os.ReadFile(path); err == nil {
 		if yaml.Unmarshal(old, &doc) != nil || doc.Kind != yaml.DocumentNode || len(doc.Content) != 1 || doc.Content[0].Kind != yaml.MappingNode {
 			doc = yaml.Node{}
-		} else if _, err := Parse(old); fileformat.IsTooNew(err) {
+		} else if _, err := fileformat.YAMLVersion("settings.yaml", &doc, Format); fileformat.Protected(err) {
 			return err
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
@@ -308,9 +309,8 @@ func Save(path string, s Settings) error {
 	return atomicfile.Write(path, buf.Bytes(), 0o600)
 }
 
-// setKey sets the scalar at path inside mapping m, creating (or replacing
-// non-mapping) intermediate nodes as needed.
-// setVersion sets the top-level version key, adding it first in the file.
+// setVersion sets the top-level version key, adding it first in the file
+// (a file's leading comment, separated by a blank line, stays above it).
 func setVersion(m *yaml.Node) {
 	for i := 0; i+1 < len(m.Content); i += 2 {
 		if m.Content[i].Value == "version" {
@@ -320,12 +320,11 @@ func setVersion(m *yaml.Node) {
 	}
 	k := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "version"}
 	v := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!int", Value: strconv.Itoa(Format)}
-	if len(m.Content) > 0 { // the file's leading comment stays on top
-		k.HeadComment, m.Content[0].HeadComment = m.Content[0].HeadComment, ""
-	}
 	m.Content = append([]*yaml.Node{k, v}, m.Content...)
 }
 
+// setKey sets the scalar at path inside mapping m, creating (or replacing
+// non-mapping) intermediate nodes as needed.
 func setKey(m *yaml.Node, path []string, value, tag string) {
 	for i := 0; i+1 < len(m.Content); i += 2 {
 		k, v := m.Content[i], m.Content[i+1]
@@ -375,11 +374,22 @@ func normMode(m string) string {
 // a newer agenterm is still read as far as this build understands it, and
 // returned with a fileformat.TooNewError.
 func Parse(data []byte) (Settings, error) {
-	var f file
-	if err := yaml.Unmarshal(data, &f); err != nil {
+	var doc yaml.Node
+	if err := yaml.Unmarshal(data, &doc); err != nil {
 		return Defaults(), fmt.Errorf("parse settings: %w", err)
 	}
-	vErr := fileformat.Check("settings.yaml", f.Version, Format)
+	// The version first: a newer file whose keys changed shape must still
+	// be reported as newer, not as broken.
+	_, vErr := fileformat.YAMLVersion("settings.yaml", &doc, Format)
+	var f file
+	if doc.Kind != 0 {
+		if err := doc.Decode(&f); err != nil {
+			if vErr != nil {
+				return Defaults(), vErr
+			}
+			return Defaults(), fmt.Errorf("parse settings: %w", err)
+		}
+	}
 	s := Defaults()
 	set := func(dst *bool, v *bool) {
 		if v != nil {

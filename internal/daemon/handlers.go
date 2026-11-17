@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/elionaz/agenterm/internal/apierr"
+	"github.com/elionaz/agenterm/internal/fileformat"
 	"github.com/elionaz/agenterm/internal/hooks"
 	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/project"
@@ -81,7 +82,14 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 
 	case protocol.MethodSettingsGet:
 		st, err := settings.Load(s.cfg.Paths.Settings())
-		if err != nil {
+		switch {
+		case fileformat.IsTooNew(err):
+			// What this build understands is shown (and applied); saving
+			// refuses, with the same message.
+			s.log.Warn("settings", "err", err)
+		case fileformat.Protected(err):
+			return nil, err
+		case err != nil:
 			return nil, fmt.Errorf("settings.yaml: %w", err)
 		}
 		return st, nil

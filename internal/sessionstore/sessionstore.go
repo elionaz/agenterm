@@ -76,8 +76,9 @@ type Store struct {
 // Open loads path. A missing file yields an empty store. A file that does
 // not parse is moved aside (path.corrupt-<time>) and the store starts
 // empty: backup names the moved file ("" if nothing was moved). A file
-// written by a newer agenterm is left alone and Open fails
-// (fileformat.TooNewError): starting empty would drop its sessions.
+// written by a newer agenterm, or with a version it can't read, is left
+// alone and Open fails (fileformat.Protected): starting empty would drop
+// its sessions.
 func Open(path string) (s *Store, backup string, err error) {
 	s = &Store{path: path}
 	data, err := os.ReadFile(path)
@@ -88,7 +89,7 @@ func Open(path string) (s *Store, backup string, err error) {
 		return nil, "", err
 	}
 	recs, _, jerr := fileformat.DecodeList[Record](path, data, "sessions", Format)
-	if fileformat.IsTooNew(jerr) {
+	if fileformat.Protected(jerr) {
 		return nil, "", jerr
 	}
 	s.recs = recs

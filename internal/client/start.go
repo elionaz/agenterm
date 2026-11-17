@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -82,10 +83,38 @@ func StartDaemon(ctx context.Context, exe string, p paths.Paths) error {
 			if transport.Alive(t, p.Socket()) {
 				return nil // another starter won the race
 			}
+			if why := startupError(p.LogFile()); why != "" {
+				return fmt.Errorf("daemon exited during startup: %s (see %s)", why, p.LogFile())
+			}
 			return fmt.Errorf("daemon exited during startup (%v); see %s", err, p.LogFile())
 		case <-ctx.Done():
 			return fmt.Errorf("daemon did not come up: %w; see %s", ctx.Err(), p.LogFile())
 		case <-tick.C:
 		}
 	}
+}
+
+// startupError is the reason a daemon that failed to start printed last in
+// its log ("agenterm: <error>" from the CLI, "agenterm daemon: <error>"
+// from the app binary; e.g. a file written by a newer agenterm),
+// or "".
+func startupError(logFile string) string {
+	f, err := os.Open(logFile)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	const tail = 4096
+	if fi, err := f.Stat(); err == nil && fi.Size() > tail {
+		_, _ = f.Seek(fi.Size()-tail, io.SeekStart)
+	}
+	data, _ := io.ReadAll(f)
+	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+	last := lines[len(lines)-1]
+	for _, prefix := range []string{"agenterm daemon: ", "agenterm: "} {
+		if why, ok := strings.CutPrefix(last, prefix); ok {
+			return why
+		}
+	}
+	return ""
 }

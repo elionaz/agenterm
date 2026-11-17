@@ -119,15 +119,18 @@ func Parse(data []byte) ([]Entry, error) {
 	}
 	var es []Entry
 	if len(doc.Content) == 1 && doc.Content[0].Kind == yaml.MappingNode {
+		// The version first: a newer file whose entries changed shape is
+		// reported as newer, not as broken.
+		v, err := fileformat.YAMLVersion("profiles.yaml", &doc, Format)
+		if err != nil {
+			return nil, err
+		}
+		if v == 0 {
+			return nil, fmt.Errorf("parse profiles: missing version")
+		}
 		var f file
 		if err := doc.Decode(&f); err != nil {
 			return nil, fmt.Errorf("parse profiles: %w", err)
-		}
-		if f.Version == 0 {
-			return nil, fmt.Errorf("parse profiles: missing version")
-		}
-		if err := fileformat.Check("profiles.yaml", f.Version, Format); err != nil {
-			return nil, err
 		}
 		es = f.Profiles
 	} else if err := doc.Decode(&es); err != nil && doc.Kind != 0 {
