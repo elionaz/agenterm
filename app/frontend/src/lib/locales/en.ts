@@ -109,13 +109,10 @@ export const en = {
   'banner.updateAvailable': 'agenterm {version} is available.',
   'banner.updateReady':
     'agenterm {version} is ready to install. The background service keeps running — your sessions are not affected.',
-  'banner.updateBrew': 'agenterm {version} is available — run brew upgrade --cask agenterm.',
   'banner.updateDownloading': 'agenterm {version} is downloading in the background; it will be ready to install shortly.',
   'banner.updateDownloadingButton': 'Downloading…',
   'banner.update': 'Update',
   'banner.updateRestart': 'Restart to update',
-  'banner.updateCopy': 'Copy command',
-  'banner.updateCopied': 'Copied',
   'banner.later': 'Later',
 
   // Terminal (terminals.ts).
@@ -336,14 +333,10 @@ export const en = {
   'settings.updates.availableHelp': 'Opens the update window to download and install it.',
   'settings.updates.availableReady':
     'Downloaded: restarting agenterm installs it. The background service keeps running, so sessions are not affected.',
-  'settings.updates.availableBrew': 'Update it with brew upgrade --cask agenterm.',
   'settings.updates.auto': 'Check for updates automatically',
   'settings.updates.autoHelp': 'Once a day, in the background.',
   'settings.updates.download': 'Download and install updates automatically',
   'settings.updates.downloadHelp': 'Installed when you quit agenterm; otherwise you are asked first.',
-  /** (html) */
-  'settings.updates.homebrew':
-    'Installed with Homebrew — update with <code>brew upgrade --cask agenterm</code>. In-app updates are off so Homebrew stays in charge.',
   /** (html) */
   'settings.updates.unavailable':
     'In-app updates are not available in this build (development builds and builds without an update key).',

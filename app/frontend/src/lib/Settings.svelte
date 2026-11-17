@@ -15,7 +15,7 @@
   import { langSetting, locale, setLangSetting, systemLang, t, th, type LangSetting } from './i18n.svelte'
   import { appearance, setAppearance, setTermPrefs, termPrefs, type Appearance } from './prefs.svelte'
   import { MAX_FONT_SIZE, MIN_FONT_SIZE, defaultPrefs, themeLabels, themeNames, themeOf, type TermPrefs } from './themes'
-  import { availableUpdate, setAvailableUpdate, updateDownloading, updateNow, upgradeCopied } from './updates.svelte'
+  import { availableUpdate, setAvailableUpdate, updateDownloading, updateNow } from './updates.svelte'
 
   interface Props {
     profiles: Profile[]
@@ -143,11 +143,6 @@
     } finally {
       checking = false
     }
-    if (updater?.reason === 'homebrew') {
-      // The appcast check is done: a newer release is in the banner already.
-      void loadUpdater()
-      return
-    }
     // The check runs in Sparkle's window; refresh "last checked" later.
     setTimeout(() => void loadUpdater(), 3000)
   }
@@ -162,11 +157,9 @@
   }
 
   const updaterHintKey = $derived(
-    updater?.reason === 'homebrew'
-      ? 'settings.updates.homebrew'
-      : updater?.reason === 'nokey' || updater?.reason === 'nobundle' || updater?.reason === 'unsupported'
-        ? 'settings.updates.unavailable'
-        : 'settings.updates.error',
+    updater?.reason === 'nokey' || updater?.reason === 'nobundle' || updater?.reason === 'unsupported'
+      ? 'settings.updates.unavailable'
+      : 'settings.updates.error',
   )
 
   /** Appearance tab: everything applies at once and is saved shortly after. */
@@ -633,12 +626,12 @@
               <em>
                 {updater.lastCheck
                   ? t('settings.updates.lastCheck', { when: new Date(updater.lastCheck).toLocaleString(locale()) })
-                  : updater.enabled || updater.reason === 'homebrew'
+                  : updater.enabled
                     ? t('settings.updates.neverChecked')
                     : ''}
               </em>
             </span>
-            {#if updater.enabled || updater.reason === 'homebrew'}
+            {#if updater.enabled}
               <button class="btn" disabled={!updater.canCheck || checking} onclick={checkNow}>
                 {checking ? t('settings.updates.checking') : t('settings.updates.check')}
               </button>
@@ -650,23 +643,15 @@
               <span>
                 <b>{t('settings.updates.available', { version: u.version })}</b>
                 <em>
-                  {u.brew
-                    ? t('settings.updates.availableBrew')
-                    : u.ready
-                      ? t('settings.updates.availableReady')
-                      : t('settings.updates.availableHelp')}
+                  {u.ready ? t('settings.updates.availableReady') : t('settings.updates.availableHelp')}
                 </em>
               </span>
-              <button class="btn" disabled={!u.brew && updateDownloading()} onclick={installUpdate}>
-                {u.brew
-                  ? upgradeCopied()
-                    ? t('banner.updateCopied')
-                    : t('banner.updateCopy')
-                  : updateDownloading()
-                    ? t('banner.updateDownloadingButton')
-                    : u.ready
-                      ? t('banner.updateRestart')
-                      : t('banner.update')}
+              <button class="btn" disabled={updateDownloading()} onclick={installUpdate}>
+                {updateDownloading()
+                  ? t('banner.updateDownloadingButton')
+                  : u.ready
+                    ? t('banner.updateRestart')
+                    : t('banner.update')}
               </button>
             </div>
           {/if}

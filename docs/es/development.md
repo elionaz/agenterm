@@ -250,16 +250,18 @@ siempre a la release más reciente. Los builds sin notarizar no lo publican: Spa
 app que Gatekeeper luego se niega a abrir.
 
 La app desactiva su actualizador, y lo explica en *Ajustes → General → Actualizaciones* y en
-**Buscar actualizaciones…**, cuando es un build de desarrollo, cuando no tiene `SUPublicEDKey` y
-cuando la instaló Homebrew: el bundle resuelve dentro de un `Caskroom`, o existe
-`<prefijo de brew>/Caskroom/agenterm/<versión del bundle>` (brew mueve la `.app` a `/Applications`
-y conserva esa carpeta como registro), para los prefijos `$HOMEBREW_PREFIX`, `/opt/homebrew` y
-`/usr/local`. Por eso el cask tampoco declara `auto_updates true`: brew sigue siendo el único
-actualizador de las instalaciones con brew y `brew outdated` sigue avisando de versiones nuevas.
+**Buscar actualizaciones…**, cuando es un build de desarrollo y cuando no tiene `SUPublicEDKey`.
+Las instalaciones con Homebrew se actualizan con Sparkle como cualquier otra. El cask todavía no
+declara `auto_updates true`: brew lo lee del cask del tap, no de la app instalada, así que espera a
+que las instalaciones de la 0.4.1 y anteriores (con Sparkle desactivado) hayan tenido una release a
+la que pasar con un simple `brew upgrade`. Cuando lo declare, el registro de brew
+(`Caskroom/agenterm/<versión>`) se queda en la versión que instaló brew después de que Sparkle
+actualice la app; es lo normal en los casks con `auto_updates`, y el enlace de la CLI apunta a una
+ruta fija.
 
 **El aviso de actualización.** Sparkle se crea con un delegado del updater y otro del *user driver*
 estándar (`AgtSparkleDelegate` en `updater_sparkle_darwin.m`) que informan a Go (`agtSparkleUpdate`
-→ evento de Wails `updates.available` `{version, ready, brew}`, también en
+→ evento de Wails `updates.available` `{version, ready}`, también en
 `UpdaterState().available`): `updater:didFindValidUpdate:` guarda la versión,
 `updaterDidNotFindUpdate:` y la opción *Omitir esta versión* (`updater:userDidMakeChoice:…`) la
 borran, y `updater:willInstallUpdateOnQuit:immediateInstallationBlock:` la marca como lista. Este
@@ -274,13 +276,8 @@ hace de recordatorio. `InstallUpdateNow` (tanto **Actualizar** como **Reiniciar 
 llama a `checkForUpdates`, que trae la ventana con la actualización encontrada; si ya está
 descargada, su diálogo *Instalar y reiniciar* (el daemon no se toca). Mientras Sparkle todavía la
 descarga en segundo plano, `canCheckForUpdates` es `NO` y esa llamada no haría nada, así que
-`InstallUpdateNow` devuelve `false` y el botón muestra *Descargando…* hasta que esté lista. Las
-instalaciones con Homebrew, con Sparkle desactivado, descargan el appcast por su cuenta
-(`app/appcast.go`: 10 s después de abrir y luego un tic cada hora que comprueba cuando han pasado
-6 h de reloj de pared desde la última comprobación correcta, y al momento desde Ajustes → **Buscar ahora** (`CheckForUpdates`) —los temporizadores monotónicos se
-detienen mientras el Mac duerme—; timeout de 15 s, los fallos solo se registran en el log y se
-reintentan en el siguiente tic; los builds de desarrollo no comprueban) y ofrecen copiar
-`brew upgrade --cask agenterm`. "Más tarde" se recuerda por versión y etapa (disponible / lista) en
+`InstallUpdateNow` devuelve `false` y el botón muestra *Descargando…* hasta que esté lista.
+"Más tarde" se recuerda por versión y etapa (disponible / lista) en
 el `localStorage` del webview. El aviso cede el sitio a los de reconexión y de reinicio del daemon.
 
 **Generar el par de claves** (una vez, en tu Mac; la clave privada nunca va al repositorio):

@@ -1,11 +1,8 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"log"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -19,6 +16,7 @@ import (
 // In-app updates (Sparkle 2, updater_sparkle_darwin.go). Release builds are
 // made with -tags sparkle and Sparkle.framework in Contents/Frameworks;
 // every other build gets updater_stub.go and reports reason "unsupported".
+// Homebrew installs update through Sparkle too (`brew upgrade` also works).
 
 // Why the updater is off (UpdaterState.Reason).
 const (
@@ -26,7 +24,6 @@ const (
 	updUnsupported = "unsupported" // built without Sparkle (dev builds, other OSes)
 	updNoBundle    = "nobundle"    // not running from agenterm.app, or Sparkle.framework missing
 	updNoKey       = "nokey"       // no SUPublicEDKey (built without SPARKLE_PUBLIC_ED_KEY)
-	updHomebrew    = "homebrew"    // installed as a Homebrew cask: brew upgrades it
 	updError       = "error"       // Sparkle refused to start (see the log)
 )
 
@@ -39,8 +36,7 @@ type UpdaterState struct {
 	CanCheck           bool   `json:"canCheck"`
 	Reason             string `json:"reason"`
 	Version            string `json:"version"` // this build's
-	// A newer release found by Sparkle or, for Homebrew installs, by the
-	// appcast check (appcast.go); nil when none.
+	// A newer release found by Sparkle; nil when none.
 	Available *UpdateInfo `json:"available,omitempty"`
 }
 
@@ -53,8 +49,6 @@ type UpdateInfo struct {
 	// Downloaded by Sparkle: installed on quit, or now from the prompt
 	// InstallUpdateNow brings up.
 	Ready bool `json:"ready"`
-	// Homebrew install: `brew upgrade --cask agenterm` updates it.
-	Brew bool `json:"brew"`
 }
 
 // bundleInfo describes the running bundle (from NSBundle).
@@ -63,7 +57,6 @@ type bundleInfo struct {
 	Version     string // CFBundleShortVersionString
 	PublicEDKey string // SUPublicEDKey
 	HasSparkle  bool   // Sparkle.framework loaded
-	FeedURL     string // SUFeedURL
 }
 
 // sparkleStatus is SPUUpdater's state.
@@ -76,10 +69,6 @@ type updaterCtl struct {
 	mu        sync.Mutex
 	reason    string      // updStarting until startUpdater ran
 	available *UpdateInfo // see UpdaterState.Available
-	// Homebrew installs: the appcast watcher's request channel (nil when
-	// it isn't running) and its last successful check.
-	feedCheck chan chan error
-	feedLast  time.Time
 }
 
 const updStarting = "starting"
@@ -89,7 +78,7 @@ const updStarting = "starting"
 // Updates…" menu item, which shows a hint instead when the updater is off.
 func (a *App) startUpdater(p paths.Paths) {
 	b := sparkleBundle()
-	reason := decideUpdater(sparkleBuilt, b, homebrewPrefixes(), dirExists)
+	reason := decideUpdater(sparkleBuilt, b)
 	if reason == updNone {
 		f := a.setAvailable
 		onSparkleUpdate.Store(&f)
@@ -103,9 +92,6 @@ func (a *App) startUpdater(p paths.Paths) {
 	a.upd.mu.Lock()
 	a.upd.reason = reason
 	a.upd.mu.Unlock()
-	if reason == updHomebrew && a.wailsCtx != nil {
-		go a.watchFeed(a.wailsCtx, feedURL(b), defaultFeedSchedule)
-	}
 	// The language is read now, not at launch: a change made meanwhile
 	// skipped the menu (reason was still "starting").
 	title, hint := updatesMenuText(uiLang(p), reason)
@@ -115,8 +101,6 @@ func (a *App) startUpdater(p paths.Paths) {
 func updatesMenuText(lang i18n.Lang, reason string) (title, hint string) {
 	switch reason {
 	case updNone:
-	case updHomebrew:
-		hint = i18n.T(lang, i18n.UpdatesHomebrew)
 	default:
 		hint = i18n.T(lang, i18n.UpdatesUnavailable)
 	}
@@ -147,7 +131,7 @@ func (a *App) updaterReason() string {
 }
 
 // decideUpdater is "" when Sparkle may start, else why not.
-func decideUpdater(built bool, b bundleInfo, brewPrefixes []string, exists func(string) bool) string {
+func decideUpdater(built bool, b bundleInfo) string {
 	switch {
 	case !built:
 		return updUnsupported
@@ -156,50 +140,8 @@ func decideUpdater(built bool, b bundleInfo, brewPrefixes []string, exists func(
 	case b.PublicEDKey == "" || strings.HasPrefix(b.PublicEDKey, "@"):
 		// "@SPARKLE_PUBLIC_ED_KEY@": the Info.plist placeholder, unsubstituted.
 		return updNoKey
-	case homebrewCask(b.Path, b.Version, brewPrefixes, exists):
-		return updHomebrew
 	}
 	return updNone
-}
-
-// homebrewCask reports whether the bundle at path (version v) was installed
-// by `brew install --cask agenterm`. Homebrew moves the .app to the appdir
-// (/Applications) and keeps <prefix>/Caskroom/agenterm/<version>/ as its
-// record, so: the bundle resolves into a Caskroom, or that record exists
-// for this very version (a newer copy installed by hand over a brew one is
-// not brew's, and may update itself).
-func homebrewCask(path, v string, prefixes []string, exists func(string) bool) bool {
-	if real, err := filepath.EvalSymlinks(path); err == nil {
-		path = real
-	}
-	for _, p := range prefixes {
-		if real, err := filepath.EvalSymlinks(p); err == nil {
-			p = real
-		}
-		room := filepath.Join(p, "Caskroom")
-		if strings.HasPrefix(path, room+string(filepath.Separator)) {
-			return true
-		}
-		if v != "" && exists(filepath.Join(room, "agenterm", v)) {
-			return true
-		}
-	}
-	return false
-}
-
-// homebrewPrefixes: $HOMEBREW_PREFIX (rarely set for GUI apps), then the
-// defaults for Apple silicon and Intel.
-func homebrewPrefixes() []string {
-	out := []string{}
-	if p := os.Getenv("HOMEBREW_PREFIX"); p != "" {
-		out = append(out, p)
-	}
-	return append(out, "/opt/homebrew", "/usr/local")
-}
-
-func dirExists(p string) bool {
-	fi, err := os.Stat(p)
-	return err == nil && fi.IsDir()
 }
 
 // --- Bindings -------------------------------------------------------------------
@@ -211,13 +153,6 @@ func (a *App) UpdaterState() UpdaterState {
 	if u := a.upd.available; u != nil {
 		c := *u
 		st.Available = &c
-	}
-	if st.Reason == updHomebrew {
-		// Sparkle is off, but the appcast watcher can check on demand.
-		st.CanCheck = a.upd.feedCheck != nil
-		if !a.upd.feedLast.IsZero() {
-			st.LastCheck = a.upd.feedLast.UTC().Format(time.RFC3339)
-		}
 	}
 	a.upd.mu.Unlock()
 	if st.Reason != updNone {
@@ -233,18 +168,9 @@ func (a *App) UpdaterState() UpdaterState {
 }
 
 // CheckForUpdates runs a user-initiated check (Sparkle's own window shows
-// the result). Homebrew installs check the appcast instead; a newer release
-// shows up as the update banner.
+// the result).
 func (a *App) CheckForUpdates() error {
-	r := a.updaterReason()
-	if r == updHomebrew {
-		ctx := a.ctx
-		if ctx == nil {
-			ctx = context.Background()
-		}
-		return a.checkFeedNow(ctx)
-	}
-	if r != updNone {
+	if r := a.updaterReason(); r != updNone {
 		_, hint := updatesMenuText(uiLang(a.paths), r)
 		return errors.New(hint)
 	}

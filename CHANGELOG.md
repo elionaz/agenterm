@@ -7,6 +7,12 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Changed
+
+- **Homebrew installs update from the app**, like downloaded ones: the banner's **Update**
+  installs and relaunches instead of copying `brew upgrade --cask agenterm` (which still works).
+  Coming from 0.4.1 or earlier, run `brew upgrade --cask agenterm` one last time.
+
 ## [0.4.1] - 2026-11-16
 
 ### Added

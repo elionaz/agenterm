@@ -42,7 +42,6 @@
     updateBannerVisible,
     updateDownloading,
     updateNow,
-    upgradeCopied,
   } from './lib/updates.svelte'
   import {
     api,
@@ -1127,12 +1126,7 @@
     {:else if updateBannerVisible()}
       {@const u = availableUpdate()!}
       <div class="banner action">
-        {#if u.brew}
-          {t('banner.updateBrew', { version: u.version })}
-          <button onclick={() => void guard(updateNow())}>
-            {upgradeCopied() ? t('banner.updateCopied') : t('banner.updateCopy')}
-          </button>
-        {:else if u.ready}
+        {#if u.ready}
           {t('banner.updateReady', { version: u.version })}
           <button disabled={updateDownloading()} onclick={() => void guard(updateNow())}>
             {updateDownloading() ? t('banner.updateDownloadingButton') : t('banner.updateRestart')}

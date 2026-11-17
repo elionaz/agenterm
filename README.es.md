@@ -44,8 +44,8 @@ vivos aunque cierres la app y te avisa cuando alguno te necesita.
 - **Ajustes en la app**: activar, ordenar y editar agentes, y configurar el idioma, la apariencia,
   las notificaciones y git.
 - **Actualizaciones integradas** (Sparkle): una comprobación diaria en segundo plano, **Buscar
-  actualizaciones…** en el menú de la app y una sección *Actualizaciones* en *Ajustes → General*;
-  las instalaciones con Homebrew se dejan a `brew`.
+  actualizaciones…** en el menú de la app y una sección *Actualizaciones* en *Ajustes → General*,
+  también en las instalaciones con Homebrew.
 - **En inglés y español**: la app sigue los idiomas preferidos de macOS (con inglés como respaldo)
   o el idioma que elijas en *Ajustes → General*.
 
@@ -62,8 +62,9 @@ brew install --cask elionaz/tap/agenterm
 ```
 
 Instala `agenterm.app` en `/Applications` y pone la CLI `agenterm` en tu `PATH` (la CLI viene dentro
-de la app, en `agenterm.app/Contents/Helpers/agenterm`). `brew upgrade --cask agenterm` actualiza
-ambas; `brew uninstall --zap --cask agenterm` borra además `~/.agenterm` y `~/.config/agenterm`.
+de la app, en `agenterm.app/Contents/Helpers/agenterm`). La app mantiene ambas al día
+([Actualizar](#actualizar)); `brew uninstall --zap --cask agenterm` borra además `~/.agenterm` y
+`~/.config/agenterm`.
 
 ### Descarga
 
@@ -113,11 +114,9 @@ app, así que también tiene notificaciones nativas.
 
 ## Actualizar
 
-- **Homebrew**: `brew upgrade --cask agenterm`. La app detecta que la instaló Homebrew y desactiva
-  su propio actualizador (lo indican los Ajustes y **Buscar actualizaciones…**), así brew sigue a
-  cargo y `brew outdated` sigue funcionando. Aun así comprueba cada 6 horas si hay una release
-  más nueva (**Ajustes → General → Actualizaciones → Buscar ahora** lo comprueba al momento) y, si la hay, muestra un aviso con **Copiar comando** (copia `brew upgrade --cask
-  agenterm`).
+- **Homebrew**: la app se actualiza sola, igual que la descargada (abajo); `brew upgrade --cask
+  agenterm` también funciona. Las instalaciones de antes de la 0.4.2 necesitan un último
+  `brew upgrade --cask agenterm` para llegar ahí.
 - **App descargada** (dmg/zip): agenterm busca una release nueva una vez al día y ofrece instalarla;
   **agenterm → Buscar actualizaciones…** lo comprueba al momento. Si encuentra una versión nueva
   mientras trabajas, un aviso te lo indica (**Actualizar**, o **Reiniciar para actualizar** cuando
