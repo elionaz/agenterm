@@ -7,25 +7,28 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-16
+
+**Upgrade note:** 0.4.0 writes your settings, profiles and session files in a versioned format.
+Going back to 0.3.x afterwards needs converting them back: see
+[docs/compatibility.md](docs/compatibility.md#going-back-to-an-older-version).
+
 ### Added
 
+- **Reorder by drag & drop**: drag projects in the sidebar, and sessions within their project
+  (or move the selected one with ⌘⇧↑ / ⌘⇧↓). The order is kept by the daemon, so the CLI
+  (`agenterm ls`, `project list`), ⌘1…⌘9 and restored sessions follow it.
+- **Terminal themes named after indie albums**: *Turn On the Bright Lights* (Interpol, the new
+  default), *Room on Fire* (The Strokes), *It Still Moves* (My Morning Jacket) and *Alphabetical*
+  (Phoenix), with palettes taken from their covers; Settings shows the artist and year. They
+  replace agenterm Dark and agenterm Light: `agenterm-dark` and `agenterm-light` in
+  `settings.yaml` keep working as `bright-lights` and `alphabetical`.
 - **Welcome screen** on first run (while there are no projects): the agent CLIs found (with
   Rescan), notification permission (**Allow notifications**, or **Open System Settings** if it was
   denied), whether the `agenterm` command is on your `PATH` (with the command to link the CLI that
   ships in the app), and **+ Add your first project**.
 - README: how to **uninstall** (Homebrew and by hand), and what to check in `~/.agenterm/worktrees`
   before deleting your data.
-
-- **Terminal themes named after indie albums**: *Turn On the Bright Lights* (Interpol, the new
-  default), *Room on Fire* (The Strokes), *It Still Moves* (My Morning Jacket) and *Alphabetical*
-  (Phoenix), with palettes taken from their covers; Settings shows the artist and year. They
-  replace agenterm Dark and agenterm Light: `agenterm-dark` and `agenterm-light` in
-  `settings.yaml` keep working as `bright-lights` and `alphabetical`.
-
-- **Reorder by drag & drop**: drag projects in the sidebar, and sessions within their project
-  (or move the selected one with ⌘⇧↑ / ⌘⇧↓). The order is kept by the daemon, so the CLI
-  (`agenterm ls`, `project list`), ⌘1…⌘9 and restored sessions follow it.
-
 - [docs/compatibility.md](docs/compatibility.md): what stays stable between versions (CLI,
   `AGENTERM_*` variables, configuration files, hooks) and how formats and the protocol are versioned.
 
@@ -40,6 +43,8 @@ releases may include breaking changes.
 - The daemon reports its **protocol version** in `daemon.ping`. A command an older daemon doesn't
   know fails with a message that says to restart it, and the app says when the daemon is newer than
   itself instead of offering to restart (which would downgrade it).
+- When the daemon can't start, the CLI and the app show why (for example, a file written by a newer
+  agenterm) instead of only pointing at `daemon.log`.
 
 ### Fixed
 
@@ -173,7 +178,8 @@ First public release: a macOS desktop app (universal: Apple Silicon and Intel, m
   `.zip` downloads, CLI archives for macOS and Linux, and a Homebrew cask
   (`brew install --cask elionaz/tap/agenterm`).
 
-[Unreleased]: https://github.com/elionaz/agenterm/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/elionaz/agenterm/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/elionaz/agenterm/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/elionaz/agenterm/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/elionaz/agenterm/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/elionaz/agenterm/compare/v0.2.0...v0.2.1
