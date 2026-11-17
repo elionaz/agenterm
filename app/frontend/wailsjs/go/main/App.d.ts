@@ -49,6 +49,8 @@ export function ProfileCatalog():Promise<Array<protocol.CatalogInfo>>;
 
 export function ProjectGit(arg1:string):Promise<protocol.ProjectGit>;
 
+export function PullRequestWorktree(arg1:string,arg2:boolean):Promise<gitx.PRResult>;
+
 export function RemoveProject(arg1:string):Promise<void>;
 
 export function RemoveWorktree(arg1:string,arg2:boolean,arg3:boolean,arg4:boolean):Promise<protocol.WorktreeRemoveResult>;

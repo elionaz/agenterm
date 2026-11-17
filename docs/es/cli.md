@@ -160,9 +160,10 @@ Marca la atención de la sesión como vista (lo mismo que seleccionarla en la ap
 | `agenterm worktrees <proyecto>` | worktrees de agenterm del proyecto: `ID BRANCH BASE STATE GIT SESSIONS PATH`, con `STATE` = `live`, `exited` u `orphan` |
 | `agenterm worktree rm [--force] [--delete-branch] [--dry-run] <id>` (o `remove`) | elimina un worktree. `--dry-run` solo dice qué se perdería |
 | `agenterm worktree merge <id>` | `git merge --no-ff` de su rama en la carpeta principal |
+| `agenterm worktree pr [--no-open] <id>` | sube su rama (`git push -u`, nunca forzado) e imprime la página para crear el pull request hacia la base (GitHub / GitLab), y la abre salvo con `--no-open`. Otros servidores: solo el push |
 | `agenterm worktree open [--finder] <id>` | abre el worktree en el editor (`git.editor`) o, con `--finder`, en Finder |
 
-Las reglas de seguridad de `rm` y `merge` están en [worktrees.md](worktrees.md#acciones).
+Las reglas de seguridad de `rm`, `merge` y `pr` están en [worktrees.md](worktrees.md#acciones).
 
 ## `agenterm notify`
 

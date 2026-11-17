@@ -44,6 +44,8 @@ Usage:
   agenterm worktree rm [--force] [--delete-branch] [--dry-run] <id>
   agenterm worktree merge <id>        merge its branch into the base (main folder must be
                                       clean and on the base branch)
+  agenterm worktree pr [--no-open] <id>   push its branch and open the pull request page
+                                      (GitHub / GitLab; prints the URL)
   agenterm worktree open [--finder] <id>
   agenterm ls                         list sessions (with activity line and timers)
   agenterm tail [-n N] <sessionId>    last N lines of output as plain text (default 8)

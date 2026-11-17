@@ -35,6 +35,14 @@ const (
 	// MergeConflict: the merge conflicted and was aborted.
 	// Data: {branch, base, files}.
 	MergeConflict = "merge_conflict"
+	// PRNothing: the branch has no commits the base lacks (nothing to
+	// open a pull request for). Data: {branch, base}.
+	PRNothing = "pr_nothing"
+	// PRNoRemote: no remote to push the branch to (none, or several
+	// without upstream/origin). Data: {branch, remotes}.
+	PRNoRemote = "pr_no_remote"
+	// PushFailed: git push failed. Data: {remote, branch, stderr}.
+	PushFailed = "push_failed"
 	// BranchMissing: the worktree's branch no longer exists. Data: {branch}.
 	BranchMissing = "branch_missing"
 	// BranchExists: a new worktree's branch is taken. Data: {branch}.

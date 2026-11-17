@@ -58,9 +58,10 @@ func exitCode(err error) int {
 }
 
 type runOpts struct {
-	limit   int   // max stdout bytes kept (0 = unlimited)
-	okCodes []int // extra exit codes that are not errors (diff --no-index: 1)
-	write   bool  // may take locks (worktree add, merge…)
+	limit   int      // max stdout bytes kept (0 = unlimited)
+	okCodes []int    // extra exit codes that are not errors (diff --no-index: 1)
+	write   bool     // may take locks (worktree add, merge…)
+	env     []string // extra environment (after the defaults: wins)
 }
 
 // run executes `git -C dir args…` and returns stdout. truncated reports
@@ -78,6 +79,7 @@ func run(ctx context.Context, dir string, o runOpts, args ...string) (out []byte
 	if !o.write {
 		cmd.Env = append(cmd.Env, "GIT_OPTIONAL_LOCKS=0")
 	}
+	cmd.Env = append(cmd.Env, o.env...)
 	var stdout limitBuf
 	stdout.limit = o.limit
 	var stderr bytes.Buffer

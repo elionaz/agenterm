@@ -76,7 +76,23 @@ folder the first time.
   - the branch has commits the base doesn't have.
 
   On conflicts it runs `git merge --abort` and reports which files clashed. Uncommitted changes in
-  the worktree aren't part of the merge (you're told how many were left out).
+  the worktree aren't part of the merge (you're told how many were left out). In the app, a
+  successful merge then offers to remove the worktree and its branch (the usual remove
+  confirmation, with *delete the branch* already ticked).
+- **Create pull request** (`agenterm worktree pr [--no-open] <id>`): `git push -u <remote> <branch>`
+  and then opens the host's page to create the pull request into the base. It doesn't use `gh` and
+  never force-pushes or pushes the base.
+  - Remote: the branch's upstream remote if it has one, else `origin`, else the only remote; it
+    refuses if there is none (or several and none of these applies).
+  - Refuses if the branch has no commits the base doesn't have.
+  - The push is non-interactive (`GIT_TERMINAL_PROMPT=0`, ssh in `BatchMode`): if credentials
+    would be asked for, it fails with git's message instead of waiting. Credential helpers and
+    `ssh-agent` keep working.
+  - The page: GitHub (`https://github.com/<owner>/<repo>/compare/<base>...<branch>?expand=1`) and
+    GitLab (gitlab.com and hosts whose name contains `gitlab`: *new merge request*), from https,
+    ssh or `git@host:path` remote URLs. Other hosts: the branch is pushed and you open the pull
+    request there yourself.
+  - Uncommitted changes in the worktree are not pushed (you're told how many).
 - **Remove worktree** (`agenterm worktree rm <id>`):
   - refuses if a live session is using it;
   - without *force* it also refuses if uncommitted changes would be lost or, when also deleting the
@@ -99,7 +115,8 @@ folder the first time.
 - **Terminal** and **Changes (N)** tabs on sessions with git: a file list on the left (status,
   `+`/`−`), commits ahead, the diff on the right with diff2html (side by side or unified), ⟳ to
   reload, a truncated-diff notice and the action bar (open in editor, open in Finder, copy branch,
-  merge into &lt;base&gt;, and remove worktree with a confirmation that shows what would be lost, a
+  merge into &lt;base&gt;, create pull request (a confirmation with the remote, branch and base),
+  and remove worktree with a confirmation that shows what would be lost, a
   checkbox to also delete the branch and another to force).
 - Under each project, **orphaned worktrees** (if any): view changes, open a shell here (a new
   `shell` session in that worktree) and remove.

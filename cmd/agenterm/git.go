@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"text/tabwriter"
 
@@ -135,7 +136,7 @@ func cmdWorktrees(ctx context.Context, c *client.Client, project string) error {
 
 func cmdWorktree(ctx context.Context, c *client.Client, args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: agenterm worktree rm|merge|open <id>")
+		return errors.New("usage: agenterm worktree rm|merge|pr|open <id>")
 	}
 	switch args[0] {
 	case "rm", "remove":
@@ -174,6 +175,34 @@ func cmdWorktree(ctx context.Context, c *client.Client, args []string) error {
 		fmt.Printf("%s merged into %s (%d %s)\n", res.Branch, res.Base, res.Commits, plural(res.Commits, "commit", "commits"))
 		if res.Uncommitted > 0 {
 			fmt.Printf("note: %d uncommitted %s in the worktree were not included\n", res.Uncommitted, plural(res.Uncommitted, "change", "changes"))
+		}
+		return nil
+	case "pr":
+		fs := flag.NewFlagSet("worktree pr", flag.ContinueOnError)
+		noOpen := fs.Bool("no-open", false, "print the pull request URL without opening it")
+		if err := parseInterspersed(fs, args[1:]); err != nil {
+			return err
+		}
+		if fs.NArg() != 1 {
+			return errors.New("usage: agenterm worktree pr [--no-open] <id>")
+		}
+		res, err := c.WorktreePR(ctx, fs.Arg(0), false)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%s pushed to %s (%d %s ahead of %s)\n", res.Branch, res.Remote, res.Commits, plural(res.Commits, "commit", "commits"), res.Base)
+		if res.Uncommitted > 0 {
+			fmt.Printf("note: %d uncommitted %s in the worktree were not pushed\n", res.Uncommitted, plural(res.Uncommitted, "change", "changes"))
+		}
+		if res.URL == "" {
+			fmt.Printf("open a pull request for %s on your git host\n", res.Branch)
+			return nil
+		}
+		fmt.Println(res.URL)
+		if !*noOpen {
+			if err := exec.Command("open", res.URL).Run(); err != nil {
+				fmt.Fprintln(os.Stderr, "agenterm: could not open the browser:", err)
+			}
 		}
 		return nil
 	case "open":

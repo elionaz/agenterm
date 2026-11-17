@@ -158,9 +158,10 @@ Marks the session's attention as seen (same as selecting it in the app).
 | `agenterm worktrees <project>` | the project's agenterm worktrees: `ID BRANCH BASE STATE GIT SESSIONS PATH`, with `STATE` = `live`, `exited` or `orphan` |
 | `agenterm worktree rm [--force] [--delete-branch] [--dry-run] <id>` (or `remove`) | removes a worktree. `--dry-run` only reports what would be lost |
 | `agenterm worktree merge <id>` | `git merge --no-ff` of its branch into the main folder |
+| `agenterm worktree pr [--no-open] <id>` | pushes its branch (`git push -u`, never forced) and prints the page to create the pull request into the base (GitHub / GitLab), opening it unless `--no-open`. Other hosts: push only |
 | `agenterm worktree open [--finder] <id>` | opens the worktree in the editor (`git.editor`) or, with `--finder`, in Finder |
 
-The safety rules for `rm` and `merge` are in [worktrees.md](worktrees.md#actions).
+The safety rules for `rm`, `merge` and `pr` are in [worktrees.md](worktrees.md#actions).
 
 ## `agenterm notify`
 

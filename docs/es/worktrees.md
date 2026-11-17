@@ -77,7 +77,23 @@ confianza la primera vez para la carpeta nueva.
   - la rama tiene commits que la base no tiene.
 
   Si hay conflictos se hace `git merge --abort` y se informa qué archivos chocaron. Los cambios sin
-  commitear del worktree no entran en el merge (se avisa cuántos quedaron fuera).
+  commitear del worktree no entran en el merge (se avisa cuántos quedaron fuera). En la app, tras un
+  merge correcto se ofrece eliminar el worktree y su rama (la confirmación de siempre, con *Borrar
+  también la rama* ya marcada).
+- **Crear pull request** (`agenterm worktree pr [--no-open] <id>`): `git push -u <remoto> <rama>` y
+  luego abre la página del servidor para crear el pull request hacia la base. No usa `gh`, nunca
+  hace push forzado ni sube la base.
+  - Remoto: el remoto del upstream de la rama si lo tiene; si no, `origin`; si no, el único remoto.
+    Se niega si no hay ninguno (o si hay varios y no aplica ninguna de estas reglas).
+  - Se niega si la rama no tiene commits que la base no tenga.
+  - El push no es interactivo (`GIT_TERMINAL_PROMPT=0`, ssh en `BatchMode`): si tuviera que pedir
+    credenciales, falla con el mensaje de git en lugar de quedarse esperando. Los credential helpers
+    y `ssh-agent` siguen funcionando.
+  - La página: GitHub (`https://github.com/<owner>/<repo>/compare/<base>...<rama>?expand=1`) y
+    GitLab (gitlab.com y servidores cuyo nombre contiene `gitlab`: *new merge request*), a partir de
+    URLs de remoto https, ssh o `git@host:ruta`. Otros servidores: se sube la rama y el pull request
+    lo abres tú allí.
+  - Los cambios sin commitear del worktree no se suben (se avisa cuántos quedaron fuera).
 - **Eliminar worktree** (`agenterm worktree rm <id>`):
   - se niega si una sesión viva lo usa;
   - sin *force* también se niega si se perderían cambios sin commitear o, con *borrar también la
@@ -99,7 +115,8 @@ confianza la primera vez para la carpeta nueva.
 - Pestañas **Terminal | Cambios (N)** en las sesiones con git: lista de archivos a la izquierda
   (estado, `+`/`−`), commits por delante, diff a la derecha con diff2html (lado a lado o unificado),
   ⟳ para recargar, aviso de diff truncado y la barra de acciones (*Abrir en editor*, *Abrir en
-  Finder*, *Copiar rama*, *Merge a &lt;base&gt;*, *Eliminar worktree* con una confirmación que
+  Finder*, *Copiar rama*, *Merge a &lt;base&gt;*, *Crear pull request* (con una confirmación que
+  muestra remoto, rama y base), *Eliminar worktree* con una confirmación que
   muestra qué se perdería, la casilla *Borrar también la rama* y otra para forzar).
 - Bajo cada proyecto, **Worktrees huérfanos** (si hay): *Ver cambios*, *Abrir shell aquí* (una
   sesión `shell` nueva en ese worktree) y *Eliminar*.

@@ -26,6 +26,8 @@ export type WorktreeInfo = Omit<protocol.WorktreeInfo, 'convertValues'>
 export type ProjectGit = protocol.ProjectGit
 export type LossInfo = Omit<gitx.LossError, 'convertValues'>
 export type MergeResult = gitx.MergeResult
+/** url '' = a host we cannot build a pull request page for (pushed only). */
+export type PRResult = gitx.PRResult
 /** In-app updates (Sparkle). reason: '' (enabled) | homebrew | unsupported | nobundle | nokey | error | starting. */
 export type UpdaterState = main.UpdaterState
 /** daemonVersion '' = a daemon older than 0.2.0. */
@@ -143,6 +145,8 @@ export const api = {
   removeWorktree: (id: string, o: { force?: boolean; deleteBranch?: boolean; dryRun?: boolean }) =>
     App.RemoveWorktree(id, !!o.force, !!o.deleteBranch, !!o.dryRun),
   mergeWorktree: (id: string): Promise<MergeResult> => App.MergeWorktree(id),
+  /** Pushes the branch and returns the pull request page; dryRun: only remote and URL. */
+  pullRequest: (id: string, dryRun = false): Promise<PRResult> => App.PullRequestWorktree(id, dryRun),
   /** Opens a worktree (id) or a session's folder in the editor or Finder. */
   openFolder: (target: 'editor' | 'finder', ref: { worktreeId?: string; sessionId?: string }) =>
     App.OpenWorktree(ref.worktreeId ?? '', ref.sessionId ?? '', target),
@@ -293,6 +297,12 @@ export function codedMessage(ce: CodedError): string | null {
       break
     case 'merge_wrong_branch':
       if (!d.current) key = 'err.merge_wrong_branch_detached'
+      break
+    case 'pr_no_remote':
+      if (Array.isArray(d.remotes) && d.remotes.length) {
+        key = 'err.pr_no_remote_many'
+        p.remotes = d.remotes.map(String).join(', ')
+      }
       break
     case 'merge_conflict':
       p.files = preview(d.files, 5)

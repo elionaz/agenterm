@@ -29,7 +29,8 @@ const (
 	flushDelay = 8 * time.Millisecond
 	flushBytes = 32 * 1024
 	callTO     = 10 * time.Second
-	gitTO      = 70 * time.Second // diffs, worktree creation, merges
+	gitTO      = 70 * time.Second  // diffs, worktree creation, merges
+	pushTO     = 130 * time.Second // worktree.pr (the daemon allows 120s)
 )
 
 // Event names emitted to the frontend. Per-session events are suffixed
@@ -693,6 +694,17 @@ func (a *App) MergeWorktree(id string) (gitx.MergeResult, error) {
 	var out gitx.MergeResult
 	err := a.callTimeout(gitTO, func(ctx context.Context) (err error) {
 		out, err = a.client.WorktreeMerge(ctx, id)
+		return err
+	})
+	return out, err
+}
+
+// PullRequestWorktree pushes a worktree's branch and returns the page that
+// opens a pull request into its base; dryRun only reports remote and URL.
+func (a *App) PullRequestWorktree(id string, dryRun bool) (gitx.PRResult, error) {
+	var out gitx.PRResult
+	err := a.callTimeout(pushTO, func(ctx context.Context) (err error) {
+		out, err = a.client.WorktreePR(ctx, id, dryRun)
 		return err
 	})
 	return out, err
