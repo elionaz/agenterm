@@ -7,6 +7,8 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-16
+
 ### Added
 
 - Five new terminal themes named after albums: *Is This It*, *Funeral*, *Silent Alarm* and *Z*
@@ -196,7 +198,8 @@ First public release: a macOS desktop app (universal: Apple Silicon and Intel, m
   `.zip` downloads, CLI archives for macOS and Linux, and a Homebrew cask
   (`brew install --cask elionaz/tap/agenterm`).
 
-[Unreleased]: https://github.com/elionaz/agenterm/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/elionaz/agenterm/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/elionaz/agenterm/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/elionaz/agenterm/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/elionaz/agenterm/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/elionaz/agenterm/compare/v0.2.1...v0.3.0
