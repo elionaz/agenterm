@@ -289,8 +289,14 @@ export class TerminalManager {
       () => el.removeEventListener('focusin', onFocusIn),
       EventsOn(`pty:${id}`, (b64: string) => term.write(b64ToBytes(b64))),
       EventsOn(`pty-replay-done:${id}`, () => {
-        e.replaying = false
         e.failures = 0
+        // term.write is asynchronous: the replay may still be waiting to be
+        // parsed, and xterm answers the queries in it (OSC 11 colours, cursor
+        // reports…) as it goes. Those answers must not reach the program as
+        // typed text, so input opens only once xterm has caught up.
+        term.write('', () => {
+          e.replaying = false
+        })
       }),
       EventsOn(`pty-exit:${id}`, (code: number) => {
         e.exited = true
