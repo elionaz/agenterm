@@ -84,6 +84,9 @@ func main() {
 				runtime.Show(app.ctx)
 			},
 		},
+		// Files dropped on a terminal type their paths (runtime.OnFileDrop);
+		// the webview keeps its own drops for the sidebar's drag & drop.
+		DragAndDrop:    &options.DragAndDrop{EnableFileDrop: true},
 		Bind:           []any{app},
 		ErrorFormatter: formatError,
 		Mac: &mac.Options{

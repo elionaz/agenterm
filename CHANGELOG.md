@@ -7,6 +7,21 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- **Drop files on a terminal** to type their paths, escaped like Terminal.app does. Claude Code
+  turns dropped images into attachments.
+
+### Fixed
+
+- Sessions resumed after a daemon restart (e.g. **Restart now**) no longer stay frozen in the
+  app: their terminal kept the old screen and dropped every key, because the daemon told it the
+  session had exited. The daemon now asks attached clients to reattach, and the app reattaches
+  any terminal whose session came back with a new process.
+- Shells no longer get junk like `11;rgb:0f0f/1414/2020` or `1R` typed at the prompt after the
+  app reattaches: xterm answered terminal queries left in the replayed scrollback (by tools
+  like `gh`) after input had already reopened. Input now waits until the replay is parsed.
+
 ### Changed
 
 - The Homebrew cask declares `auto_updates true`: the app updates itself, so a plain

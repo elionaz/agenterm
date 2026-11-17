@@ -20,7 +20,8 @@ tells you when one of them needs you.
 
 - **Projects and sessions** in a sidebar: each project is a folder and each session is a terminal
   (xterm.js) running an agent or a shell. Double-click a session to give it a name; drag projects
-  and sessions to reorder them.
+  and sessions to reorder them. Drop files (e.g. screenshots) on a terminal to type their paths;
+  Claude Code attaches dropped images.
 - **Split panes**: show several sessions side by side or stacked (⌘D / ⌘⇧D), with draggable
   dividers; the layout is kept per project.
 - **Terminal comforts**: search the scrollback (⌘F), ⌘-click to open URLs, nine built-in themes named after

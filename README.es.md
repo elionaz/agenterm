@@ -20,7 +20,8 @@ vivos aunque cierres la app y te avisa cuando alguno te necesita.
 
 - **Proyectos y sesiones** en una barra lateral: cada proyecto es una carpeta y cada sesión una
   terminal (xterm.js) con un agente o una shell. Doble clic en una sesión para ponerle nombre;
-  arrastra proyectos y sesiones para ordenarlos.
+  arrastra proyectos y sesiones para ordenarlos. Suelta archivos (p. ej. capturas) en una terminal
+  para escribir sus rutas; Claude Code adjunta las imágenes soltadas.
 - **Paneles divididos**: varias sesiones lado a lado o apiladas (⌘D / ⌘⇧D), con divisores que se
   arrastran; la disposición se guarda por proyecto.
 - **Comodidades de terminal**: búsqueda en el scrollback (⌘F), ⌘-clic para abrir URLs, nueve temas integrados con nombre

@@ -653,6 +653,11 @@ func (s *Server) handleAttach(conn net.Conn, br *bufio.Reader, req protocol.Requ
 				msg = "session resumed; reattach"
 			}
 			protocol.WriteFrame(conn, protocol.FrameError, []byte(msg))
+		} else if _, exited := sess.ExitCode(); exited && s.stopping.Load() {
+			// Killed by the daemon stopping: it is suspended, not gone, and
+			// the next daemon resumes it under the same id. An exit frame
+			// would make the client give the terminal up for good.
+			protocol.WriteFrame(conn, protocol.FrameError, []byte("daemon stopping; reattach"))
 		} else if code, exited := sess.ExitCode(); exited {
 			protocol.WriteFrame(conn, protocol.FrameExit, protocol.ExitPayload(code))
 		} else if sub.Dropped() {

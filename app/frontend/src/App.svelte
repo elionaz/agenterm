@@ -461,6 +461,7 @@
     if (!list) return
     sessions = list
     terms.retain(new Set(list.map((s) => s.id)))
+    terms.revive(list)
     pruneLayouts()
     if (selectedId && !list.some((s) => s.id === selectedId)) reconcileSelection()
     // Nothing selected and a session appeared in the current project (e.g.
