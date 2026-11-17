@@ -4,14 +4,18 @@ package project
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/elionaz/agenterm/internal/fileformat"
 )
+
+// Format is the projects.json format version (see internal/fileformat).
+const Format = 1
 
 // Project is a registered folder.
 type Project struct {
@@ -42,8 +46,8 @@ func Open(path string) (*Registry, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := json.Unmarshal(data, &r.projects); err != nil {
-		return nil, fmt.Errorf("parse %s: %w", path, err)
+	if r.projects, _, err = fileformat.DecodeList[Project](path, data, "projects", Format); err != nil {
+		return nil, err
 	}
 	return r, nil
 }
@@ -130,11 +134,7 @@ func (r *Registry) saveLocked() error {
 	if err := os.MkdirAll(filepath.Dir(r.path), 0o700); err != nil {
 		return err
 	}
-	list := r.projects
-	if list == nil {
-		list = []Project{}
-	}
-	data, err := json.MarshalIndent(list, "", "  ")
+	data, err := fileformat.EncodeList("projects", Format, r.projects)
 	if err != nil {
 		return err
 	}
@@ -143,7 +143,7 @@ func (r *Registry) saveLocked() error {
 		return err
 	}
 	defer os.Remove(tmp.Name())
-	if _, err := tmp.Write(append(data, '\n')); err != nil {
+	if _, err := tmp.Write(data); err != nil {
 		tmp.Close()
 		return err
 	}

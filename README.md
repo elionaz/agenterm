@@ -180,22 +180,25 @@ variants with `extends`, hide agents with `enabled: false`, and the list order i
 first one is what ⌘N launches):
 
 ```yaml
-- id: claude-yolo                 # variant: inherits everything from claude
-  name: Claude (no permissions)
-  extends: claude
-  args: ["--dangerously-skip-permissions"]
-- id: claude
-  env: {CLAUDE_CODE_USE_BEDROCK: "1"}
-- id: gemini
-  enabled: false
-- id: mine                        # your own profile
-  cmd: $HOME/bin/my-agent
-  attention_patterns: ['\(y/n\)']
+version: 1
+profiles:
+  - id: claude-yolo                 # variant: inherits everything from claude
+    name: Claude (no permissions)
+    extends: claude
+    args: ["--dangerously-skip-permissions"]
+  - id: claude
+    env: {CLAUDE_CODE_USE_BEDROCK: "1"}
+  - id: gemini
+    enabled: false
+  - id: mine                        # your own profile
+    cmd: $HOME/bin/my-agent
+    attention_patterns: ['\(y/n\)']
 ```
 
 **`settings.yaml`** (defaults):
 
 ```yaml
+version: 1
 ui:
   language: auto         # auto (macOS preferred languages, else English) | en | es
   appearance: system     # the app's colors: system (follow macOS) | dark | light
@@ -256,6 +259,8 @@ diffs: [docs/worktrees.md](docs/worktrees.md).
   persistence.
 - [docs/development.md](docs/development.md): development, tests, releasing, the icon and known
   limitations.
+- [docs/compatibility.md](docs/compatibility.md): what stays stable between versions, file format
+  and protocol versions, and going back to an older version.
 - [CHANGELOG.md](CHANGELOG.md): what changed in each release.
 
 If you change commands, flags, paths or `settings.yaml`, update the README and the matching document

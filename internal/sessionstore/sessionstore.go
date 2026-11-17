@@ -9,7 +9,6 @@
 package sessionstore
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -21,6 +20,7 @@ import (
 	"time"
 
 	"github.com/elionaz/agenterm/internal/atomicfile"
+	"github.com/elionaz/agenterm/internal/fileformat"
 )
 
 // Resume is what an agent needs to continue the same conversation.
@@ -34,6 +34,9 @@ type Resume struct {
 	TranscriptPath string    `json:"transcriptPath,omitempty"`
 	At             time.Time `json:"at"`
 }
+
+// Format is the sessions.json format version (see internal/fileformat).
+const Format = 1
 
 // Record is one persisted session.
 type Record struct {
@@ -72,7 +75,10 @@ type Store struct {
 
 // Open loads path. A missing file yields an empty store. A file that does
 // not parse is moved aside (path.corrupt-<time>) and the store starts
-// empty: backup names the moved file ("" if nothing was moved).
+// empty: backup names the moved file ("" if nothing was moved). A file
+// written by a newer agenterm, or with a version it can't read, is left
+// alone and Open fails (fileformat.Protected): starting empty would drop
+// its sessions.
 func Open(path string) (s *Store, backup string, err error) {
 	s = &Store{path: path}
 	data, err := os.ReadFile(path)
@@ -82,7 +88,12 @@ func Open(path string) (s *Store, backup string, err error) {
 	if err != nil {
 		return nil, "", err
 	}
-	if jerr := json.Unmarshal(data, &s.recs); jerr != nil {
+	recs, _, jerr := fileformat.DecodeList[Record](path, data, "sessions", Format)
+	if fileformat.Protected(jerr) {
+		return nil, "", jerr
+	}
+	s.recs = recs
+	if jerr != nil {
 		s.recs = nil
 		backup = fmt.Sprintf("%s.corrupt-%s", path, time.Now().UTC().Format("20060102T150405"))
 		if err := os.Rename(path, backup); err != nil {
@@ -163,16 +174,12 @@ func (s *Store) Delete(ids ...string) error {
 }
 
 func (s *Store) commitLocked(next []Record) error {
-	list := next
-	if list == nil {
-		list = []Record{}
-	}
-	data, err := json.MarshalIndent(list, "", "  ")
+	data, err := fileformat.EncodeList("sessions", Format, next)
 	if err != nil {
 		return err
 	}
 	// No .bak: the file changes often and a corrupt one is moved aside.
-	if err := atomicfile.Replace(s.path, append(data, '\n'), 0o600); err != nil {
+	if err := atomicfile.Replace(s.path, data, 0o600); err != nil {
 		return err
 	}
 	s.recs = next

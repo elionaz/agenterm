@@ -274,3 +274,23 @@ func TestRestartDaemonKeepsSuspended(t *testing.T) {
 		t.Fatalf("after restart: %v", s)
 	}
 }
+
+func TestDaemonStatusProtocol(t *testing.T) {
+	cases := []struct {
+		name              string
+		app               string
+		ping              protocol.PingResult
+		mismatch, isNewer bool
+	}{
+		{"same", "0.4.0", protocol.PingResult{Version: "0.4.0", Protocol: protocol.Version}, false, false},
+		{"pre-0.4 daemon speaks protocol 1", "0.4.0", protocol.PingResult{Version: "0.3.1"}, true, false},
+		{"newer daemon, same protocol", "0.4.0", protocol.PingResult{Version: "0.5.0", Protocol: protocol.Version}, false, false},
+		{"newer protocol", "0.4.0", protocol.PingResult{Version: "0.9.0", Protocol: protocol.Version + 1}, false, true},
+	}
+	for _, c := range cases {
+		s := daemonStatus(c.app, c.ping)
+		if s.Mismatch != c.mismatch || s.Newer != c.isNewer {
+			t.Errorf("%s: mismatch=%v newer=%v", c.name, s.Mismatch, s.Newer)
+		}
+	}
+}

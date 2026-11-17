@@ -72,8 +72,11 @@ internal/paths          directory resolution (AGENTERM_HOME)
 | profiles | `profile.list`, `profile.catalog`, `profile.save`, `profile.delete`, `profile.reorder`, `profile.rescan` |
 | settings | `settings.get`, `settings.save` |
 | sessions | `session.spawn`, `session.list`, `session.kill`, `session.resize`, `session.notify`, `session.ack`, `session.rename`, `session.attach`, `session.tail`, `session.diff`, `session.resume`, `session.discard` |
-| worktrees | `worktree.list`, `worktree.diff`, `worktree.remove`, `worktree.merge`, `worktree.open` |
+| worktrees | `worktree.list`, `worktree.diff`, `worktree.remove`, `worktree.merge`, `worktree.pr`, `worktree.open` |
 | daemon | `events.subscribe`, `daemon.ping`, `daemon.shutdown` |
+
+`daemon.ping` returns the daemon's `version`, `commit` and `protocol` version; a method the daemon
+doesn't know fails with the code `unknown_method`. See [compatibility.md](compatibility.md#daemon-protocol).
 
 Some parameters:
 

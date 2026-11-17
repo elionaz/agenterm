@@ -57,6 +57,8 @@ export const es: Dict = {
     'El servicio en segundo plano es de una versión anterior ({version}). Reinícialo para terminar de actualizar — las sesiones se suspenderán y se reanudarán.',
   'banner.daemonOldUnknown':
     'El servicio en segundo plano es de una versión anterior. Reinícialo para terminar de actualizar — las sesiones se suspenderán y se reanudarán.',
+  'banner.daemonNewer':
+    'El servicio en segundo plano es de una versión más nueva ({version}) con la que esta app no puede comunicarse. Actualiza agenterm.',
   'banner.restartNow': 'Reiniciar ahora',
   'banner.restartBusy': {
     one: 'Hay un agente trabajando: reiniciar lo interrumpe (se reanuda después). ¿Reiniciar igualmente?',
@@ -431,6 +433,7 @@ export const es: Dict = {
   'err.base_missing': 'La base "{base}" no existe en el repositorio.',
   'err.base_missing_none': 'No se encuentra la rama base (HEAD separado y sin main/master): elige una base.',
   'err.dir_missing': 'La carpeta ya no existe: {dir}',
+  'err.unknown_method': 'El servicio en segundo plano es más antiguo que esta app y no admite esto. Reinícialo para terminar de actualizar.',
   'err.resume_failed.still_running': 'Sesión {sessionId}: su proceso anterior (pid {pid}) sigue en marcha. Detenlo o descarta la sesión.',
   'err.resume_failed.project_missing': 'Sesión {sessionId}: su proyecto ya no está en agenterm.',
   'err.resume_failed.not_suspended': 'La sesión {sessionId} no está suspendida.',

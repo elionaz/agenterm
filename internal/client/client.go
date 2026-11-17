@@ -10,9 +10,11 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 
+	"github.com/elionaz/agenterm/internal/apierr"
 	"github.com/elionaz/agenterm/internal/gitx"
 	"github.com/elionaz/agenterm/internal/paths"
 	"github.com/elionaz/agenterm/internal/profile"
@@ -20,6 +22,7 @@ import (
 	"github.com/elionaz/agenterm/internal/protocol"
 	"github.com/elionaz/agenterm/internal/settings"
 	"github.com/elionaz/agenterm/internal/transport"
+	"github.com/elionaz/agenterm/internal/version"
 )
 
 // Client is a daemon client. Each control call uses its own short-lived
@@ -79,6 +82,20 @@ func (e *RemoteError) Error() string     { return e.Msg }
 func (e *RemoteError) ErrorCode() string { return e.Code }
 func (e *RemoteError) ErrorData() any    { return e.Data }
 
+// remoteError builds the error for a failed response. A method the daemon
+// does not know (code unknown_method, or the plain message of daemons before
+// 0.4.0) means it is older than this client: say so and how to fix it.
+func remoteError(method string, resp protocol.Response) *RemoteError {
+	e := &RemoteError{Msg: resp.Error, Code: resp.ErrorCode, Data: resp.ErrorData}
+	if e.Code == apierr.UnknownMethod || (e.Code == "" && strings.HasPrefix(e.Msg, "unknown method ")) {
+		e.Code = apierr.UnknownMethod
+		e.Data, _ = json.Marshal(map[string]string{"method": method})
+		e.Msg = fmt.Sprintf("the agenterm daemon does not support %s: it is older than this agenterm (%s). "+
+			"Restart it (\"Restart now\" in the app, or `agenterm stop` and run the command again)", method, version.Version)
+	}
+	return e
+}
+
 func (c *Client) dial(ctx context.Context) (net.Conn, error) {
 	conn, err := c.Transport.Dial(ctx, c.Sock)
 	if err == nil || c.AutoStart == nil {
@@ -130,7 +147,7 @@ func (c *Client) open(ctx context.Context, method string, params, result any) (n
 		return fail(fmt.Errorf("decode response: %w", err))
 	}
 	if resp.Error != "" {
-		return fail(&RemoteError{Msg: resp.Error, Code: resp.ErrorCode, Data: resp.ErrorData})
+		return fail(remoteError(method, resp))
 	}
 	if result != nil && len(resp.Result) > 0 {
 		if err := json.Unmarshal(resp.Result, result); err != nil {

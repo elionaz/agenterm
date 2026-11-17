@@ -68,6 +68,9 @@ const (
 	// folders and agents use DirMissing / ProfileNotInstalled.
 	// Data: {sessionId, reason, pid?}.
 	ResumeFailed = "resume_failed"
+	// UnknownMethod: the daemon does not know the method, usually because
+	// it is older than the client. Data: {method}.
+	UnknownMethod = "unknown_method"
 )
 
 // Coded is implemented by errors that carry a code.

@@ -18,6 +18,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/elionaz/agenterm/internal/fileformat"
+
 	"github.com/elionaz/agenterm/internal/status"
 )
 
@@ -96,12 +98,42 @@ func (e Entry) isStub() bool {
 	return e == Entry{ID: e.ID}
 }
 
-// Parse decodes a YAML list of entries. Only structural problems (syntax,
-// missing or duplicate ids) are errors; semantic ones are reported per
-// profile by Resolve.
+// Format is the profiles.yaml format version (see internal/fileformat).
+const Format = 1
+
+// file is profiles.yaml since 0.4.0. Older files are a bare list of entries
+// (format 1 without the version key).
+type file struct {
+	Version  int     `yaml:"version"`
+	Profiles []Entry `yaml:"profiles"`
+}
+
+// Parse decodes profiles.yaml: `version` + `profiles`, or the bare list of
+// entries of files from before 0.4.0. Only structural problems (syntax,
+// missing or duplicate ids, a newer format) are errors; semantic ones are
+// reported per profile by Resolve.
 func Parse(data []byte) ([]Entry, error) {
+	var doc yaml.Node
+	if err := yaml.Unmarshal(data, &doc); err != nil {
+		return nil, fmt.Errorf("parse profiles: %w", err)
+	}
 	var es []Entry
-	if err := yaml.Unmarshal(data, &es); err != nil {
+	if len(doc.Content) == 1 && doc.Content[0].Kind == yaml.MappingNode {
+		// The version first: a newer file whose entries changed shape is
+		// reported as newer, not as broken.
+		v, err := fileformat.YAMLVersion("profiles.yaml", &doc, Format)
+		if err != nil {
+			return nil, err
+		}
+		if v == 0 {
+			return nil, fmt.Errorf("parse profiles: missing version")
+		}
+		var f file
+		if err := doc.Decode(&f); err != nil {
+			return nil, fmt.Errorf("parse profiles: %w", err)
+		}
+		es = f.Profiles
+	} else if err := doc.Decode(&es); err != nil && doc.Kind != 0 {
 		return nil, fmt.Errorf("parse profiles: %w", err)
 	}
 	seen := make(map[string]bool, len(es))

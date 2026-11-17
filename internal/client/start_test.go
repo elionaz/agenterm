@@ -78,3 +78,32 @@ func TestDaemonExecutable(t *testing.T) {
 		t.Errorf("non-executable app binary: got %q", got)
 	}
 }
+
+func TestStartupError(t *testing.T) {
+	dir := t.TempDir()
+	log := filepath.Join(dir, "daemon.log")
+	for in, want := range map[string]string{
+		"time=x level=INFO msg=start\nagenterm: projects.json was written by a newer agenterm (format 2; this build reads up to 1): update agenterm\n": "projects.json was written by a newer agenterm (format 2; this build reads up to 1): update agenterm",
+		"agenterm daemon: listen unix /x/d.sock: bind: invalid argument\n":                                                                             "listen unix /x/d.sock: bind: invalid argument",
+		"time=x level=INFO msg=start\n": "",
+		"":                              "",
+	} {
+		if err := os.WriteFile(log, []byte(in), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if got := startupError(log, 0); got != want {
+			t.Errorf("%q: got %q, want %q", in, got, want)
+		}
+	}
+	if got := startupError(filepath.Join(dir, "missing.log"), 0); got != "" {
+		t.Errorf("missing log: %q", got)
+	}
+	// An earlier run's error is not this one's.
+	old := "agenterm daemon: an old failure\n"
+	if err := os.WriteFile(log, []byte(old), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := startupError(log, int64(len(old))); got != "" {
+		t.Errorf("stale reason: %q", got)
+	}
+}

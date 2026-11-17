@@ -71,8 +71,11 @@ JSON delimitado por `\n`. Petición `{"id":1,"method":"session.list","params":{�
 | perfiles | `profile.list`, `profile.catalog`, `profile.save`, `profile.delete`, `profile.reorder`, `profile.rescan` |
 | ajustes | `settings.get`, `settings.save` |
 | sesiones | `session.spawn`, `session.list`, `session.kill`, `session.resize`, `session.notify`, `session.ack`, `session.rename`, `session.attach`, `session.tail`, `session.diff`, `session.resume`, `session.discard` |
-| worktrees | `worktree.list`, `worktree.diff`, `worktree.remove`, `worktree.merge`, `worktree.open` |
+| worktrees | `worktree.list`, `worktree.diff`, `worktree.remove`, `worktree.merge`, `worktree.pr`, `worktree.open` |
 | daemon | `events.subscribe`, `daemon.ping`, `daemon.shutdown` |
+
+`daemon.ping` devuelve la `version`, el `commit` y la versión de `protocol` del daemon; un método que
+el daemon no conoce falla con el código `unknown_method`. Ver [compatibility.md](compatibility.md#protocolo-del-daemon).
 
 Algunos parámetros:
 

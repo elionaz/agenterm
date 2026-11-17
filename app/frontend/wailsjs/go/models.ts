@@ -160,6 +160,7 @@ export namespace main {
 	    appVersion: string;
 	    daemonVersion: string;
 	    mismatch: boolean;
+	    newer: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new DaemonStatus(source);
@@ -170,6 +171,7 @@ export namespace main {
 	        this.appVersion = source["appVersion"];
 	        this.daemonVersion = source["daemonVersion"];
 	        this.mismatch = source["mismatch"];
+	        this.newer = source["newer"];
 	    }
 	}
 	export class SettingsPatch {

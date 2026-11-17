@@ -184,22 +184,25 @@ variantes con `extends`, ocultas agentes con `enabled: false` y el orden de la l
 (el primero es el de ⌘N):
 
 ```yaml
-- id: claude-yolo                 # variante: hereda todo de claude
-  name: Claude (sin permisos)
-  extends: claude
-  args: ["--dangerously-skip-permissions"]
-- id: claude
-  env: {CLAUDE_CODE_USE_BEDROCK: "1"}
-- id: gemini
-  enabled: false
-- id: mio                         # perfil propio
-  cmd: $HOME/bin/mi-agente
-  attention_patterns: ['\(y/n\)']
+version: 1
+profiles:
+  - id: claude-yolo                 # variante: hereda todo de claude
+    name: Claude (sin permisos)
+    extends: claude
+    args: ["--dangerously-skip-permissions"]
+  - id: claude
+    env: {CLAUDE_CODE_USE_BEDROCK: "1"}
+  - id: gemini
+    enabled: false
+  - id: mio                         # perfil propio
+    cmd: $HOME/bin/mi-agente
+    attention_patterns: ['\(y/n\)']
 ```
 
 **`settings.yaml`** (valores por defecto):
 
 ```yaml
+version: 1
 ui:
   language: auto         # auto (idiomas preferidos de macOS; si no, inglés) | en | es
   appearance: system     # colores de la app: system (sigue a macOS) | dark | light
@@ -260,6 +263,8 @@ y diff: [docs/es/worktrees.md](docs/es/worktrees.md).
   persistencia.
 - [docs/es/development.md](docs/es/development.md): desarrollo, tests, publicación de releases,
   icono y limitaciones conocidas.
+- [docs/es/compatibility.md](docs/es/compatibility.md): qué se mantiene estable entre versiones,
+  versiones de formato y de protocolo, y cómo volver a una versión anterior.
 - [CHANGELOG.md](CHANGELOG.md): los cambios de cada versión (en inglés).
 
 Si cambias comandos, flags, rutas o `settings.yaml`, actualiza el README y el documento

@@ -20,6 +20,13 @@ import (
 	"github.com/elionaz/agenterm/internal/project"
 )
 
+// Version is the protocol version, reported by daemon.ping. Additive
+// changes (new methods, new optional fields, new event types) keep it;
+// anything an older peer would misread (a removed or renamed method or
+// field, a changed meaning or frame layout) bumps it. Daemons before 0.4.0
+// do not report it: they speak version 1.
+const Version = 1
+
 // Environment variables injected into every session.
 const (
 	EnvSession = "AGENTERM_SESSION"
@@ -291,11 +298,21 @@ type WorktreeOpenParams struct {
 
 // PingResult is daemon.ping's. Version and Commit identify the daemon's
 // build (internal/version); daemons before 0.2.0 send neither, so a client
-// that finds an empty Version is talking to an older daemon.
+// that finds an empty Version is talking to an older daemon. Protocol is
+// the daemon's protocol Version (0 from daemons before 0.4.0: version 1).
 type PingResult struct {
-	OK      bool   `json:"ok"`
-	Version string `json:"version,omitempty"`
-	Commit  string `json:"commit,omitempty"`
+	OK       bool   `json:"ok"`
+	Version  string `json:"version,omitempty"`
+	Commit   string `json:"commit,omitempty"`
+	Protocol int    `json:"protocol,omitempty"`
+}
+
+// ProtocolOf is the protocol version r reports (1 for daemons before 0.4.0).
+func (r PingResult) ProtocolOf() int {
+	if r.Protocol == 0 {
+		return 1
+	}
+	return r.Protocol
 }
 
 // ShutdownParams are daemon.shutdown's. Without Force the daemon refuses

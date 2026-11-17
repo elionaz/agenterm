@@ -2,7 +2,6 @@ package daemon_test
 
 import (
 	"bytes"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/elionaz/agenterm/internal/client"
 	"github.com/elionaz/agenterm/internal/daemon"
+	"github.com/elionaz/agenterm/internal/fileformat"
 	"github.com/elionaz/agenterm/internal/paths"
 	"github.com/elionaz/agenterm/internal/protocol"
 	"github.com/elionaz/agenterm/internal/sessionstore"
@@ -194,8 +194,8 @@ func readRecords(t *testing.T, p paths.Paths) []sessionstore.Record {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var recs []sessionstore.Record
-	if err := json.Unmarshal(b, &recs); err != nil {
+	recs, _, err := fileformat.DecodeList[sessionstore.Record](p.Sessions(), b, "sessions", sessionstore.Format)
+	if err != nil {
 		t.Fatal(err)
 	}
 	return recs

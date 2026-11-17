@@ -194,19 +194,19 @@ func (s *Store) write(es []Entry, order []string) ([]Profile, error) {
 const fileHeader = `# agenterm agent profiles. Each entry overrides the catalog agent with the
 # same id (missing fields are inherited) or defines a new one (cmd required,
 # or extends: <id>). The list order is the menu order; the first one is ⌘N's.
-# "enabled: false" hides it. See README.
+# "enabled: false" hides it. "version" is the file format. See README.
 `
 
 // Marshal encodes entries in the canonical file format.
 func Marshal(es []Entry) ([]byte, error) {
-	if len(es) == 0 {
-		return []byte(fileHeader + "[]\n"), nil
+	if es == nil {
+		es = []Entry{}
 	}
 	var buf bytes.Buffer
 	buf.WriteString(fileHeader)
 	enc := yaml.NewEncoder(&buf)
 	enc.SetIndent(2)
-	if err := enc.Encode(es); err != nil {
+	if err := enc.Encode(file{Version: Format, Profiles: es}); err != nil {
 		return nil, err
 	}
 	if err := enc.Close(); err != nil {

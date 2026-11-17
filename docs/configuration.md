@@ -50,7 +50,8 @@ found in the daemon's `PATH` or in your login shell's (`$SHELL -l -i -c`); that 
 
 ## `profiles.yaml`
 
-A YAML list. Each entry has a required, unique `id` and is **layered over** the catalog:
+A `version` key (the [file format](compatibility.md#file-formats)) and a `profiles:` list (files
+from before 0.4.0 are just the list, and are still read). Each entry has a required, unique `id` and is **layered over** the catalog:
 
 | field | |
 |---|---|
@@ -87,23 +88,25 @@ A YAML list. Each entry has a required, unique `id` and is **layered over** the 
   commands that read it fail until you fix it.
 
 ```yaml
-- id: claude-yolo           # variant
-  name: Claude (no permissions)
-  extends: claude
-  args: ["--dangerously-skip-permissions"]
-- id: claude
-  env: {CLAUDE_CODE_USE_BEDROCK: "1"}
-- id: gemini
-  enabled: false
-- id: mine                  # custom profile
-  cmd: $HOME/bin/my-agent
-  args: []
-  env: {}
-  status: heuristic         # hooks | heuristic
-  setup_hooks: none         # claude | codex | none
-  idle_seconds: 3
-  attention_patterns:
-    - '\(y/n\)'
+version: 1
+profiles:
+  - id: claude-yolo           # variant
+    name: Claude (no permissions)
+    extends: claude
+    args: ["--dangerously-skip-permissions"]
+  - id: claude
+    env: {CLAUDE_CODE_USE_BEDROCK: "1"}
+  - id: gemini
+    enabled: false
+  - id: mine                  # custom profile
+    cmd: $HOME/bin/my-agent
+    args: []
+    env: {}
+    status: heuristic         # hooks | heuristic
+    setup_hooks: none         # claude | codex | none
+    idle_seconds: 3
+    attention_patterns:
+      - '\(y/n\)'
 ```
 
 ### Editing from the app
@@ -144,6 +147,7 @@ Every key is optional; missing ones take the default value.
 | `sessions.restore` | `ask` | what a starting daemon does with the sessions that were live when the previous one stopped: `ask` (keep them `suspended` until you resume or discard them), `always` (resume them right away) or `never` (discard them). See [architecture.md](architecture.md#persistence-and-resume) |
 
 ```yaml
+version: 1
 ui:
   language: auto
   appearance: system
