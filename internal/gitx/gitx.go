@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/elionaz/agenterm/internal/apierr"
@@ -58,9 +59,10 @@ func exitCode(err error) int {
 }
 
 type runOpts struct {
-	limit   int   // max stdout bytes kept (0 = unlimited)
-	okCodes []int // extra exit codes that are not errors (diff --no-index: 1)
-	write   bool  // may take locks (worktree add, merge…)
+	limit   int      // max stdout bytes kept (0 = unlimited)
+	okCodes []int    // extra exit codes that are not errors (diff --no-index: 1)
+	write   bool     // may take locks (worktree add, merge…)
+	env     []string // extra environment (after the defaults: wins)
 }
 
 // run executes `git -C dir args…` and returns stdout. truncated reports
@@ -78,16 +80,20 @@ func run(ctx context.Context, dir string, o runOpts, args ...string) (out []byte
 	if !o.write {
 		cmd.Env = append(cmd.Env, "GIT_OPTIONAL_LOCKS=0")
 	}
+	cmd.Env = append(cmd.Env, o.env...)
+	// git runs in its own process group, killed as a whole on timeout:
+	// killing only git would leave its helpers (ssh, git-remote-https…)
+	// holding stdout/stderr open, and Wait would block on them. WaitDelay
+	// bounds that wait anyway.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error { return killGroup(cmd) }
+	cmd.WaitDelay = waitDelay
 	var stdout limitBuf
 	stdout.limit = o.limit
 	var stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if o.limit > 0 {
-		stdout.onFull = func() {
-			if cmd.Process != nil {
-				_ = cmd.Process.Kill()
-			}
-		}
+		stdout.onFull = func() { _ = killGroup(cmd) }
 	}
 	err = cmd.Run()
 	if stdout.full {
@@ -106,6 +112,21 @@ func run(ctx context.Context, dir string, o runOpts, args ...string) (out []byte
 		return stdout.buf.Bytes(), false, &Error{Args: args, Code: code, Stderr: stderr.String(), Err: err}
 	}
 	return stdout.buf.Bytes(), false, nil
+}
+
+// waitDelay bounds how long run waits for git's output pipes to close
+// after git was killed or exited.
+const waitDelay = 3 * time.Second
+
+// killGroup kills cmd's process group (git and anything it started).
+func killGroup(cmd *exec.Cmd) error {
+	if cmd.Process == nil {
+		return nil
+	}
+	if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL); err != nil {
+		return cmd.Process.Kill()
+	}
+	return nil
 }
 
 // limitBuf keeps at most limit bytes; once exceeded it flags full and calls

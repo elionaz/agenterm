@@ -11,6 +11,13 @@ releases may include breaking changes.
 
 - **Clickable URLs** in the terminal: ⌘-click opens a URL in the browser, both plain-text URLs
   and OSC 8 hyperlinks (`gh`, `ls --hyperlink`…). Only http and https; a plain click still selects.
+- **Create pull request** for worktree sessions, in the Changes view and as
+  `agenterm worktree pr [--no-open] <id>`: pushes the branch (`git push -u`, non-interactive, never
+  forced) to the remote git would push to (`pushRemote`, `pushDefault`, upstream, `origin` or the
+  only remote) and opens the GitHub compare page or the GitLab new merge request page. Other hosts
+  get the push only. It doesn't need `gh`.
+- After a successful **Merge into base**, the Changes view offers to remove the worktree and its
+  branch.
 
 ## [0.2.1] - 2026-11-16
 

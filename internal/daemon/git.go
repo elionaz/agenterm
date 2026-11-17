@@ -22,6 +22,8 @@ import (
 const (
 	gitQueryTO  = 20 * time.Second
 	gitActionTO = 60 * time.Second
+	// gitPushTO bounds a push (network) for worktree.pr.
+	gitPushTO = 120 * time.Second
 	// gitMinInterval throttles automatic GitInfo refreshes per session.
 	gitMinInterval = 3 * time.Second
 )
@@ -646,6 +648,25 @@ func (s *Server) worktreeMerge(p protocol.WorktreeRef) (gitx.MergeResult, error)
 		s.requestGit(id)
 	}
 	s.publishWorktrees(rec.ProjectID)
+	return res, nil
+}
+
+// worktreePR pushes a worktree's branch to its remote (see gitx.PullRequest).
+func (s *Server) worktreePR(p protocol.WorktreePRParams) (gitx.PRResult, error) {
+	rec, err := s.wts.Get(p.ID)
+	if err != nil {
+		return gitx.PRResult{}, err
+	}
+	ctx, cancel := context.WithTimeout(s.bg, gitPushTO)
+	defer cancel()
+	res, err := gitx.PullRequest(ctx, rec.Repo, rec.Branch, rec.Base, baseRef(ctx, rec.Repo, rec.Base, rec.BaseCommit), rec.Path, p.DryRun)
+	if err != nil || p.DryRun {
+		return res, err
+	}
+	s.log.Info("worktree pushed", "id", rec.ID, "branch", rec.Branch, "remote", res.Remote, "commits", res.Commits)
+	for _, id := range s.sessionsIn(recGit(rec)) {
+		s.requestGit(id)
+	}
 	return res, nil
 }
 

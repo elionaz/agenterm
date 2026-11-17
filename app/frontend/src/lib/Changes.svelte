@@ -1,13 +1,14 @@
 <script lang="ts">
   // "Changes" view: a session's (or an orphaned worktree's) diff — file list,
   // commits ahead of the base, the selected file rendered with diff2html —
-  // and the worktree actions (editor, Finder, copy branch, merge, remove).
+  // and the worktree actions (editor, Finder, copy branch, merge, pull
+  // request, remove).
   import { onMount } from 'svelte'
   import { html as renderDiff } from 'diff2html'
   import type { ColorSchemeType } from 'diff2html/lib/types'
   import 'diff2html/bundles/css/diff2html.min.css'
-  import { ClipboardSetText } from '../../wailsjs/runtime/runtime'
-  import { api, errorMessage, type DiffFile, type DiffResult, type LossInfo } from './api'
+  import { BrowserOpenURL, ClipboardSetText } from '../../wailsjs/runtime/runtime'
+  import { api, errorMessage, type DiffFile, type DiffResult, type LossInfo, type PRResult } from './api'
   import { locale, t, th } from './i18n.svelte'
 
   interface Props {
@@ -44,8 +45,15 @@
   let loss = $state<LossInfo | null>(null)
   let lossLoading = $state(false)
   let busy = $state(false)
-  // Merge confirmation.
+  // Merge confirmation, and the offer to remove the worktree after a merge.
   let merging = $state(false)
+  let removeOffer = $state(false)
+  // Pull request confirmation: remote and URL from a dry run.
+  let prOpen = $state(false)
+  let prInfo = $state<PRResult | null>(null)
+  let prLoading = $state(false)
+  let prCheckError = $state<string | null>(null)
+  let prSeq = 0 // drops stale dry-run answers
 
   const wtId = $derived(diff?.worktreeId || worktreeId || '')
   const isWorktree = $derived(diff?.mode === 'worktree' || !!worktreeId)
@@ -112,7 +120,9 @@
     if (targetChanged) {
       diff = null
       selectedPath = null
-      removing = merging = false
+      removing = merging = prOpen = removeOffer = false
+      prSeq++
+      prLoading = false
     }
     void load()
   })
@@ -145,6 +155,11 @@
     flash(t('changes.copied', { branch: diff.branch }))
   }
 
+  function toggleMerge() {
+    merging = !merging
+    removing = prOpen = removeOffer = false
+  }
+
   async function doMerge() {
     if (!wtId) return
     busy = true
@@ -154,12 +169,61 @@
       let msg = t('changes.merged', { branch: r.branch, base: r.base, n: r.commits })
       if (r.uncommitted) msg += t('changes.mergedUncommitted', { n: r.uncommitted })
       flash(msg)
+      removeOffer = !live
       void load()
     } catch (e) {
       onError(errorMessage(e))
     } finally {
       busy = false
     }
+  }
+
+  async function togglePR() {
+    if (prOpen) {
+      prOpen = false
+      prSeq++
+      prLoading = false
+      return
+    }
+    merging = removing = removeOffer = false
+    prOpen = true
+    prInfo = null
+    prCheckError = null
+    if (!wtId || !diff?.git.ahead) return
+    const my = ++prSeq
+    const id = wtId
+    prLoading = true
+    try {
+      const r = await api.pullRequest(id, true)
+      if (my === prSeq && id === wtId) prInfo = r
+    } catch (e) {
+      if (my === prSeq && id === wtId) prCheckError = errorMessage(e)
+    } finally {
+      if (my === prSeq && id === wtId) prLoading = false
+    }
+  }
+
+  async function doPR() {
+    if (!wtId) return
+    busy = true
+    try {
+      const r = await api.pullRequest(wtId)
+      prOpen = false
+      let msg = t(r.url ? 'changes.prOpened' : 'changes.prPushed', { branch: r.branch, remote: r.remote })
+      if (r.uncommitted) msg += t('changes.prPushedUncommitted', { n: r.uncommitted })
+      flash(msg)
+      if (r.url) BrowserOpenURL(r.url)
+      void load()
+    } catch (e) {
+      onError(errorMessage(e))
+    } finally {
+      busy = false
+    }
+  }
+
+  /** After a merge: the remove confirmation, with the branch preselected. */
+  function offerRemove() {
+    askRemove(true)
   }
 
   async function checkLoss() {
@@ -175,8 +239,9 @@
     }
   }
 
-  function askRemove() {
-    merging = false
+  function askRemove(withBranch = false) {
+    deleteBranch = withBranch
+    merging = prOpen = removeOffer = false
     removing = true
     force = false
     void checkLoss()
@@ -226,12 +291,13 @@
       <button class="btn" onclick={() => open('finder')}>{t('changes.openFinder')}</button>
       {#if diff?.branch}<button class="btn" onclick={copyBranch}>{t('changes.copyBranch')}</button>{/if}
       {#if isWorktree && wtId}
-        <button class="btn" disabled={busy} onclick={() => ((merging = !merging), (removing = false))}>{t('changes.mergeInto', { base: diff?.base || 'base' })}</button>
+        <button class="btn" disabled={busy} onclick={toggleMerge}>{t('changes.mergeInto', { base: diff?.base || 'base' })}</button>
+        <button class="btn" disabled={busy} onclick={togglePR}>{t('changes.createPR')}</button>
         <button
           class="btn danger"
           disabled={busy || live}
           title={live ? t('changes.stopFirst') : ''}
-          onclick={askRemove}>{t('changes.removeWorktree')}</button
+          onclick={() => askRemove()}>{t('changes.removeWorktree')}</button
         >
       {/if}
       {#if onClose}<button class="icon close" title={t('changes.close')} aria-label={t('changes.closeLabel')} onclick={onClose}>×</button>{/if}
@@ -251,6 +317,38 @@
           {diff.git.ahead ? t('changes.doMerge', { n: diff.git.ahead }) : t('changes.nothingToMerge')}
         </button>
         <button class="btn" onclick={() => (merging = false)}>{t('changes.cancel')}</button>
+      </div>
+    </div>
+  {/if}
+
+  {#if removeOffer && !merging && !removing}
+    <div class="confirm">
+      <p>{t('changes.removeOffer')}</p>
+      <div class="row">
+        <button class="btn danger" disabled={busy || live} onclick={offerRemove}>{t('changes.removeOfferYes')}</button>
+        <button class="btn" onclick={() => (removeOffer = false)}>{t('changes.removeOfferNo')}</button>
+      </div>
+    </div>
+  {/if}
+
+  {#if prOpen && diff}
+    <div class="confirm">
+      {#if prLoading}
+        <p class="muted">{t('changes.prChecking')}</p>
+      {:else if prCheckError}
+        <p class="err">{prCheckError}</p>
+      {:else if prInfo}
+        <p>
+          {@html th('changes.prInfo', { branch: prInfo.branch, remote: prInfo.remote, base: prInfo.base })}
+          {#if !prInfo.url}<br /><span class="muted">{t('changes.prNoUrl', { remote: prInfo.remote })}</span>{/if}
+          {#if prInfo.uncommitted}<br /><span class="warn">{t('changes.prUncommitted', { n: prInfo.uncommitted })}</span>{/if}
+        </p>
+      {/if}
+      <div class="row">
+        <button class="btn primary" disabled={busy || prLoading || !prInfo || !diff.git.ahead} onclick={doPR}>
+          {diff.git.ahead ? t('changes.doPR', { n: diff.git.ahead }) : t('changes.nothingToPR')}
+        </button>
+        <button class="btn" onclick={() => (prOpen = false)}>{t('changes.cancel')}</button>
       </div>
     </div>
   {/if}

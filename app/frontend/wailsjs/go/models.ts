@@ -125,6 +125,32 @@ export namespace gitx {
 	        this.uncommitted = source["uncommitted"];
 	    }
 	}
+	export class PRResult {
+	    branch: string;
+	    base: string;
+	    remote: string;
+	    pushed: boolean;
+	    url?: string;
+	    commits: number;
+	    output?: string;
+	    uncommitted?: number;
+
+	    static createFrom(source: any = {}) {
+	        return new PRResult(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.branch = source["branch"];
+	        this.base = source["base"];
+	        this.remote = source["remote"];
+	        this.pushed = source["pushed"];
+	        this.url = source["url"];
+	        this.commits = source["commits"];
+	        this.output = source["output"];
+	        this.uncommitted = source["uncommitted"];
+	    }
+	}
 
 }
 

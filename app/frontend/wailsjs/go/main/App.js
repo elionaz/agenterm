@@ -86,6 +86,10 @@ export function ProjectGit(arg1) {
   return window['go']['main']['App']['ProjectGit'](arg1);
 }
 
+export function PullRequestWorktree(arg1, arg2) {
+  return window['go']['main']['App']['PullRequestWorktree'](arg1, arg2);
+}
+
 export function RemoveProject(arg1) {
   return window['go']['main']['App']['RemoveProject'](arg1);
 }

@@ -296,6 +296,44 @@ func TestWorktreeMergeAndSameMode(t *testing.T) {
 	}
 }
 
+func TestWorktreePR(t *testing.T) {
+	c, _, _ := startDaemon(t)
+	ctx := ctxT(t)
+	repo := tempRepo(t)
+	proj, _ := c.ProjectAdd(ctx, repo, "")
+	wt, err := c.Spawn(ctx, protocol.SpawnParams{ProjectID: proj.ID, ProfileID: "shell", Mode: protocol.ModeWorktree, Branch: "agent/pr"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.WorktreePR(ctx, wt.WorktreeID, false); err == nil || !hasCode(err, apierr.PRNothing) {
+		t.Fatalf("pr with nothing ahead: %v", err)
+	}
+	os.WriteFile(filepath.Join(wt.WorktreePath, "feat.txt"), []byte("feat\n"), 0o644)
+	gitT(t, wt.WorktreePath, "add", "feat.txt")
+	gitT(t, wt.WorktreePath, "commit", "-qm", "feat")
+	if _, err := c.WorktreePR(ctx, wt.WorktreeID, false); err == nil || !hasCode(err, apierr.PRNoRemote) {
+		t.Fatalf("pr without remote: %v", err)
+	}
+
+	bare := filepath.Join(t.TempDir(), "remote.git")
+	gitT(t, repo, "init", "-q", "--bare", "-b", "main", bare)
+	gitT(t, repo, "remote", "add", "origin", bare)
+	dry, err := c.WorktreePR(ctx, wt.WorktreeID, true)
+	if err != nil || dry.Pushed || dry.Remote != "origin" || dry.Commits != 1 || dry.Base != "main" {
+		t.Fatalf("dry pr = %+v, %v", dry, err)
+	}
+	res, err := c.WorktreePR(ctx, wt.WorktreeID, false)
+	if err != nil || !res.Pushed || res.Branch != "agent/pr" || res.URL != "" {
+		t.Fatalf("pr = %+v, %v", res, err)
+	}
+	if got, want := gitT(t, bare, "rev-parse", "refs/heads/agent/pr"), gitT(t, wt.WorktreePath, "rev-parse", "HEAD"); got != want {
+		t.Fatalf("remote branch at %s, want %s", got, want)
+	}
+	if out := gitT(t, bare, "for-each-ref", "--format=%(refname)"); out != "refs/heads/agent/pr" {
+		t.Fatalf("remote refs = %q (base must not be pushed)", out)
+	}
+}
+
 // hasCode reports whether a daemon error carries code (protocol errorCode).
 func hasCode(err error, code string) bool {
 	c, _, ok := apierr.Code(err)

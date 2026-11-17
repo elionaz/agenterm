@@ -443,6 +443,14 @@ func (c *Client) WorktreeMerge(ctx context.Context, id string) (gitx.MergeResult
 	return r, err
 }
 
+// WorktreePR pushes a worktree's branch and returns the pull request page
+// (dryRun: only the remote and URL that would be used).
+func (c *Client) WorktreePR(ctx context.Context, id string, dryRun bool) (gitx.PRResult, error) {
+	var r gitx.PRResult
+	err := c.Call(ctx, protocol.MethodWorktreePR, protocol.WorktreePRParams{ID: id, DryRun: dryRun}, &r)
+	return r, err
+}
+
 // WorktreeOpen opens a worktree (or a session's folder) in the editor or
 // Finder.
 func (c *Client) WorktreeOpen(ctx context.Context, p protocol.WorktreeOpenParams) error {

@@ -235,6 +235,12 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 			return nil, err
 		}
 		return s.worktreeMerge(p)
+	case protocol.MethodWorktreePR:
+		p, err := decode[protocol.WorktreePRParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.worktreePR(p)
 	case protocol.MethodWorktreeOpen:
 		p, err := decode[protocol.WorktreeOpenParams](req.Params)
 		if err != nil {

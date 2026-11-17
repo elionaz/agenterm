@@ -64,6 +64,7 @@ const (
 	MethodWorktreeList   = "worktree.list"
 	MethodWorktreeRemove = "worktree.remove"
 	MethodWorktreeMerge  = "worktree.merge"
+	MethodWorktreePR     = "worktree.pr"
 	MethodWorktreeOpen   = "worktree.open"
 )
 
@@ -270,6 +271,14 @@ type WorktreeRemoveResult struct {
 
 type WorktreeRef struct {
 	ID string `json:"id"`
+}
+
+// WorktreePRParams pushes a worktree's branch and returns the page that
+// opens a pull request into its base (result: gitx.PRResult). DryRun only
+// reports the remote and URL that would be used.
+type WorktreePRParams struct {
+	ID     string `json:"id"`
+	DryRun bool   `json:"dryRun,omitempty"`
 }
 
 // WorktreeOpenParams opens a worktree (ID) or a session's folder
