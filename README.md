@@ -22,7 +22,7 @@ tells you when one of them needs you.
   (xterm.js) running an agent or a shell. Double-click a session to give it a name.
 - **Split panes**: show several sessions side by side or stacked (⌘D / ⌘⇧D), with draggable
   dividers; the layout is kept per project.
-- **Terminal comforts**: search the scrollback (⌘F), built-in themes (agenterm, Solarized,
+- **Terminal comforts**: search the scrollback (⌘F), ⌘-click to open URLs, built-in themes (agenterm, Solarized,
   Dracula, Gruvbox, Nord), font, size, line height and cursor, plus a light or dark app (or follow
   macOS).
 - **Any agent CLI**: a built-in catalog (Claude Code, codex, opencode, Gemini, Cursor, Copilot,
@@ -233,6 +233,7 @@ diffs: [docs/worktrees.md](docs/worktrees.md).
 | ⌘F | search the focused terminal; Enter / ⇧Enter or ⌘G / ⌘⇧G for next / previous |
 | ⌘= / ⌘- / ⌘⌥0 | bigger / smaller / default terminal font (saved to `terminal.font_size`) |
 | ⌘C / ⌘V | copy the selection / paste into the terminal |
+| ⌘-click | open the URL under the pointer in the browser (plain-text URLs and OSC 8 links; http and https only) |
 | Esc | close the search bar, the overview, Settings or an orphaned worktree's view |
 | `Ctrl-\` | detach from `agenterm attach` (CLI) |
 

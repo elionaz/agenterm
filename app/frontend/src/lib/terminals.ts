@@ -7,10 +7,12 @@ import { FitAddon } from '@xterm/addon-fit'
 import { SearchAddon, type ISearchOptions } from '@xterm/addon-search'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
+import { WebLinksAddon } from '@xterm/addon-web-links'
 import '@xterm/xterm/css/xterm.css'
-import { ClipboardSetText, EventsOn } from '../../wailsjs/runtime/runtime'
+import { BrowserOpenURL, ClipboardSetText, EventsOn } from '../../wailsjs/runtime/runtime'
 import { api, b64ToBytes, errorMessage } from './api'
 import { t } from './i18n.svelte'
+import { openLink } from './links'
 import { defaultPrefs, themeOf, type TermPrefs } from './themes'
 
 const MAX_REATTACH = 3
@@ -217,12 +219,15 @@ export class TerminalManager {
       macOptionIsMeta: true,
       macOptionClickForcesSelection: true,
       drawBoldTextInBrightColors: false,
+      // OSC 8 hyperlinks (printed by gh, ls --hyperlink, …).
+      linkHandler: { activate: (ev, text) => { openLink(ev, text, BrowserOpenURL) } },
     })
     const fit = new FitAddon()
     const search = new SearchAddon()
     term.loadAddon(fit)
     term.loadAddon(search)
     term.loadAddon(new Unicode11Addon())
+    term.loadAddon(new WebLinksAddon((ev, uri) => { openLink(ev, uri, BrowserOpenURL) })) // plain-text URLs
     term.unicode.activeVersion = '11'
     term.open(el)
     try {

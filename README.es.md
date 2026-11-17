@@ -22,7 +22,7 @@ vivos aunque cierres la app y te avisa cuando alguno te necesita.
   terminal (xterm.js) con un agente o una shell. Doble clic en una sesión para ponerle nombre.
 - **Paneles divididos**: varias sesiones lado a lado o apiladas (⌘D / ⌘⇧D), con divisores que se
   arrastran; la disposición se guarda por proyecto.
-- **Comodidades de terminal**: búsqueda en el scrollback (⌘F), temas integrados (agenterm,
+- **Comodidades de terminal**: búsqueda en el scrollback (⌘F), ⌘-clic para abrir URLs, temas integrados (agenterm,
   Solarized, Dracula, Gruvbox, Nord), fuente, tamaño, interlineado y cursor, y la app en claro u
   oscuro (o siguiendo a macOS).
 - **Cualquier CLI de agente**: catálogo integrado (Claude Code, codex, opencode, Gemini, Cursor,
@@ -237,6 +237,7 @@ y diff: [docs/es/worktrees.md](docs/es/worktrees.md).
 | ⌘F | buscar en la terminal enfocada; Enter / ⇧Enter o ⌘G / ⌘⇧G para siguiente / anterior |
 | ⌘= / ⌘- / ⌘⌥0 | fuente de la terminal más grande / más pequeña / por defecto (se guarda en `terminal.font_size`) |
 | ⌘C / ⌘V | copiar la selección / pegar en la terminal |
+| ⌘-clic | abrir en el navegador la URL bajo el puntero (URLs en texto y enlaces OSC 8; solo http y https) |
 | Esc | cerrar la búsqueda, la vista general, Ajustes o la vista de un worktree huérfano |
 | `Ctrl-\` | desacoplarse de `agenterm attach` (CLI) |
 
