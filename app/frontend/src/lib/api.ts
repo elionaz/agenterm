@@ -28,9 +28,9 @@ export type LossInfo = Omit<gitx.LossError, 'convertValues'>
 export type MergeResult = gitx.MergeResult
 /** url '' = a host we cannot build a pull request page for (pushed only). */
 export type PRResult = gitx.PRResult
-/** In-app updates (Sparkle). reason: '' (enabled) | homebrew | unsupported | nobundle | nokey | error | starting. */
+/** In-app updates (Sparkle). reason: '' (enabled) | unsupported | nobundle | nokey | error | starting. */
 export type UpdaterState = Omit<main.UpdaterState, 'convertValues'>
-/** A newer release: ready = downloaded (installs on quit or via installUpdateNow); brew = Homebrew install. */
+/** A newer release: ready = downloaded (installs on quit or via installUpdateNow). */
 export type UpdateInfo = main.UpdateInfo
 /** daemonVersion '' = a daemon older than 0.2.0. */
 export type DaemonStatus = main.DaemonStatus

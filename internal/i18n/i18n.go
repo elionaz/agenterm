@@ -113,7 +113,6 @@ const (
 	MenuPreferences  = "menu.preferences"
 	MenuCheckUpdates = "menu.checkUpdates"
 	// Shown by "Check for Updates…" when the in-app updater is off.
-	UpdatesHomebrew    = "updates.homebrew"
 	UpdatesUnavailable = "updates.unavailable"
 	DialogAddProject   = "dialog.addProject"
 	AboutMessage       = "about.message"
@@ -136,8 +135,6 @@ var messages = map[string]map[Lang]string{
 
 	MenuPreferences:  {EN: "Preferences…", ES: "Preferencias…"},
 	MenuCheckUpdates: {EN: "Check for Updates…", ES: "Buscar actualizaciones…"},
-	UpdatesHomebrew: {EN: "Installed with Homebrew — update with `brew upgrade --cask agenterm`.",
-		ES: "Instalado con Homebrew — actualízalo con `brew upgrade --cask agenterm`."},
 	UpdatesUnavailable: {EN: "In-app updates are not available in this build.",
 		ES: "Las actualizaciones integradas no están disponibles en esta compilación."},
 	DialogAddProject: {EN: "Add project", ES: "Añadir proyecto"},

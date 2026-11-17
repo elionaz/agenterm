@@ -3,10 +3,8 @@
 // the "updates.available" event; "Later" hides the banner for that version
 // and stage (a later "Restart to update" for it shows again), remembered in
 // localStorage.
-import { ClipboardSetText } from '../../wailsjs/runtime/runtime'
 import { api, type UpdateInfo } from './api'
 
-export const BREW_UPGRADE = 'brew upgrade --cask agenterm'
 const DISMISSED_KEY = 'agenterm.updateDismissed'
 /** How long the button says "Downloading…" before it can be tried again. */
 const BUSY_MS = 15_000
@@ -24,12 +22,10 @@ const keyOf = (u: UpdateInfo) => `${u.version}${u.ready ? '|ready' : ''}`
 const state = $state({
   info: null as UpdateInfo | null,
   dismissed: dismissedKey(),
-  copied: false,
   /** Sparkle was still downloading the update when asked to show it. */
   downloading: false,
 })
 
-let copiedTimer: number | undefined
 let busyTimer: number | undefined
 
 /** The update found (null: none). */
@@ -59,26 +55,14 @@ export function dismissUpdate() {
   }
 }
 
-/** "Copy command" was clicked recently (Homebrew). */
-export function upgradeCopied(): boolean {
-  return state.copied
-}
-
 /** The update is still downloading in the background (the button waits). */
 export function updateDownloading(): boolean {
   return state.downloading
 }
 
-/** The update button: Homebrew copies the upgrade command; Sparkle shows its
- * window for the update ("Install and Relaunch" once it's downloaded). */
+/** The update button: Sparkle shows its window for the update ("Install and
+ * Relaunch" once it's downloaded). */
 export async function updateNow() {
-  if (state.info?.brew) {
-    await ClipboardSetText(BREW_UPGRADE)
-    state.copied = true
-    clearTimeout(copiedTimer)
-    copiedTimer = window.setTimeout(() => (state.copied = false), 2500)
-    return
-  }
   if (await api.installUpdateNow()) return
   // Busy downloading: the "ready" event resets this; else allow a retry.
   state.downloading = true

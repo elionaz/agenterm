@@ -14,9 +14,11 @@ cask "agenterm" do
 
   depends_on macos: :ventura
 
-  # No `auto_updates true`: the app detects that this cask installed it and
-  # turns its Sparkle updater off, so `brew upgrade` stays the only updater
-  # (and `brew outdated` keeps reporting new versions).
+  # Since 0.4.2 the app updates itself (Sparkle), Homebrew installs included.
+  # `auto_updates true` comes in a later release: brew reads it from this
+  # cask, not from the installed app, so declaring it now would stop plain
+  # `brew upgrade` from moving installs that still have Sparkle off (0.4.1
+  # and earlier) onto a build that updates itself.
 
   app "agenterm.app"
   binary "#{appdir}/agenterm.app/Contents/Helpers/agenterm"

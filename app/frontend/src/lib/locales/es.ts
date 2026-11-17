@@ -90,13 +90,10 @@ export const es: Dict = {
   'banner.updateAvailable': 'Ya está disponible agenterm {version}.',
   'banner.updateReady':
     'agenterm {version} está listo para instalarse. El servicio en segundo plano sigue funcionando — tus sesiones no se ven afectadas.',
-  'banner.updateBrew': 'Ya está disponible agenterm {version} — ejecuta brew upgrade --cask agenterm.',
   'banner.updateDownloading': 'agenterm {version} se está descargando en segundo plano; en un momento estará listo para instalarse.',
   'banner.updateDownloadingButton': 'Descargando…',
   'banner.update': 'Actualizar',
   'banner.updateRestart': 'Reiniciar para actualizar',
-  'banner.updateCopy': 'Copiar comando',
-  'banner.updateCopied': 'Copiado',
   'banner.later': 'Más tarde',
   'banner.reconnecting': 'Reconectando con el daemon…',
 
@@ -307,13 +304,10 @@ export const es: Dict = {
   'settings.updates.availableHelp': 'Abre la ventana de actualización para descargarla e instalarla.',
   'settings.updates.availableReady':
     'Ya se descargó: al reiniciar agenterm se instala. El servicio en segundo plano sigue funcionando, así que las sesiones no se ven afectadas.',
-  'settings.updates.availableBrew': 'Actualízala con brew upgrade --cask agenterm.',
   'settings.updates.auto': 'Buscar actualizaciones automáticamente',
   'settings.updates.autoHelp': 'Una vez al día, en segundo plano.',
   'settings.updates.download': 'Descargar e instalar actualizaciones automáticamente',
   'settings.updates.downloadHelp': 'Se instalan al salir de agenterm; si no, se te pregunta antes.',
-  'settings.updates.homebrew':
-    'Instalado con Homebrew — actualízalo con <code>brew upgrade --cask agenterm</code>. Las actualizaciones integradas están desactivadas para que Homebrew siga a cargo.',
   'settings.updates.unavailable':
     'Las actualizaciones integradas no están disponibles en esta compilación (compilaciones de desarrollo y sin clave de actualización).',
   'settings.updates.error': 'El actualizador no pudo arrancar; revisa el log de la app.',

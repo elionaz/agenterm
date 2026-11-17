@@ -247,16 +247,16 @@ points at the newest release. Unnotarized builds don't publish it: Sparkle would
 Gatekeeper then refuses to open.
 
 The app turns its updater off, and says why in **Settings → General → Updates** and in **Check for
-Updates…**, when it's a development build, when it has no `SUPublicEDKey`, and when it was
-installed by Homebrew: the bundle resolves into a `Caskroom`, or
-`<brew prefix>/Caskroom/agenterm/<bundle version>` exists (brew moves the `.app` to `/Applications`
-and keeps that folder as its record), for the prefixes `$HOMEBREW_PREFIX`, `/opt/homebrew` and
-`/usr/local`. That's also why the cask doesn't declare `auto_updates true`: brew remains the only
-updater for brew installs and `brew outdated` keeps reporting new versions.
+Updates…**, when it's a development build and when it has no `SUPublicEDKey`. Homebrew installs
+update through Sparkle like any other. The cask doesn't declare `auto_updates true` yet: brew reads
+it from the tap's cask, not from the installed app, so it waits until installs from 0.4.1 and
+earlier (Sparkle off) have had a release to move to with plain `brew upgrade`. Once it does, brew's
+record (`Caskroom/agenterm/<version>`) stays at the version brew installed after Sparkle updates
+the app; that is expected for `auto_updates` casks, and the CLI symlink points at a fixed path.
 
 **The update banner.** Sparkle is created with an updater delegate and a standard user driver
 delegate (`AgtSparkleDelegate` in `updater_sparkle_darwin.m`) that report to Go
-(`agtSparkleUpdate` → Wails event `updates.available` `{version, ready, brew}`, also in
+(`agtSparkleUpdate` → Wails event `updates.available` `{version, ready}`, also in
 `UpdaterState().available`): `updater:didFindValidUpdate:` records the version,
 `updaterDidNotFindUpdate:` and a *Skip this version* choice (`updater:userDidMakeChoice:…`) clear
 it, and `updater:willInstallUpdateOnQuit:immediateInstallationBlock:` marks it ready. That one
@@ -270,11 +270,7 @@ to update**) calls `checkForUpdates`, which brings the window with the update fo
 downloaded one, its *Install and Relaunch* prompt (the daemon is untouched). While Sparkle is still
 downloading in the background `canCheckForUpdates` is `NO` and that call would do nothing, so
 `InstallUpdateNow` returns `false` and the button shows *Downloading…* until the update is ready.
-Homebrew installs, with Sparkle off, fetch the appcast themselves (`app/appcast.go`: 10 s after
-launch, then hourly ticks that check once 6 h have passed on the wall clock since the last
-successful check, and right away from Settings → **Check now** (`CheckForUpdates`) — monotonic timers stop while the Mac sleeps; 15 s timeout, failures only logged
-and retried at the next tick; development builds don't check) and offer to copy
-`brew upgrade --cask agenterm`. "Later" is remembered per version and stage (available / ready) in
+"Later" is remembered per version and stage (available / ready) in
 the webview's `localStorage`. The banner yields to the reconnecting and daemon-restart ones.
 
 **Generating the key pair** (once, on your Mac; the private key never goes into the repo):

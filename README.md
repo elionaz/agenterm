@@ -43,7 +43,7 @@ tells you when one of them needs you.
 - **In-app settings**: enable, reorder and edit agents, and configure the language, appearance,
   notifications and git.
 - **In-app updates** (Sparkle): a daily background check, **Check for Updates…** in the app menu
-  and an *Updates* section in **Settings → General**; Homebrew installs are left to `brew`.
+  and an *Updates* section in **Settings → General**, Homebrew installs included.
 - **English and Spanish**: the app follows your macOS preferred languages (falling back to English)
   or the language you pick in **Settings → General**.
 
@@ -59,8 +59,8 @@ brew install --cask elionaz/tap/agenterm
 ```
 
 This installs `agenterm.app` in `/Applications` and puts the `agenterm` CLI on your `PATH` (the CLI
-ships inside the app, at `agenterm.app/Contents/Helpers/agenterm`). `brew upgrade --cask agenterm`
-updates both; `brew uninstall --zap --cask agenterm` also deletes `~/.agenterm` and
+ships inside the app, at `agenterm.app/Contents/Helpers/agenterm`). The app keeps both up to date
+([Updating](#updating)); `brew uninstall --zap --cask agenterm` also deletes `~/.agenterm` and
 `~/.config/agenterm`.
 
 ### Download
@@ -109,11 +109,9 @@ notifications too.
 
 ## Updating
 
-- **Homebrew**: `brew upgrade --cask agenterm`. The app notices it was installed by Homebrew and
-  turns its own updater off (Settings and **Check for Updates…** say so), so brew stays in charge
-  and `brew outdated` keeps working. It still checks every 6 hours whether a newer release exists
-  (**Settings → General → Updates → Check now** checks right away) and then shows a banner with
-  **Copy command** (copies `brew upgrade --cask agenterm`).
+- **Homebrew**: the app updates itself, like a downloaded one (below); `brew upgrade --cask
+  agenterm` works too. Installs from before 0.4.2 need one last `brew upgrade --cask agenterm`
+  to get there.
 - **Downloaded app** (dmg/zip): agenterm checks for a new release once a day and offers to install
   it; **agenterm → Check for Updates…** checks right away. When a new version is found while you're
   working, a banner says so (**Update**, or **Restart to update** once it's downloaded; **Later**

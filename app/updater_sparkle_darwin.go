@@ -52,7 +52,6 @@ func sparkleBundle() bundleInfo {
 		Version:     bundleValue("CFBundleShortVersionString"),
 		PublicEDKey: bundleValue("SUPublicEDKey"),
 		HasSparkle:  C.agtSparkleLoaded() != 0,
-		FeedURL:     bundleValue("SUFeedURL"),
 	}
 }
 
