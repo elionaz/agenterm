@@ -7,6 +7,13 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-16
+
+### Fixed
+
+- The release notes shown in the in-app update window now render Markdown links and *italics*
+  (they appeared as raw `[text](url)` and `*text*`), and nothing inside `code` is formatted.
+
 ## [0.2.0] - 2026-11-16
 
 ### Added
@@ -87,7 +94,8 @@ First public release: a macOS desktop app (universal: Apple Silicon and Intel, m
   `.zip` downloads, CLI archives for macOS and Linux, and a Homebrew cask
   (`brew install --cask elionaz/tap/agenterm`).
 
-[Unreleased]: https://github.com/elionaz/agenterm/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/elionaz/agenterm/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/elionaz/agenterm/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/elionaz/agenterm/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/elionaz/agenterm/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/elionaz/agenterm/releases/tag/v0.1.0

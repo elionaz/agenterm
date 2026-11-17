@@ -7,7 +7,7 @@
 #   scripts/render-appcast.sh <version> <zip> <edSignature> [min macOS]
 #
 # Release notes: the "## [<version>]" section of CHANGELOG.md as simple
-# HTML (headings, bullet lists, `code`, **bold**), plus a link to the GitHub
+# HTML (headings, bullet lists, `code`, **bold**, *italics*, [links](https://…)), plus a link to the GitHub
 # release; without such a section, Sparkle shows the release page instead.
 # GITHUB_REPOSITORY (owner/name) defaults to elionaz/agenterm.
 set -euo pipefail
@@ -31,10 +31,22 @@ PUBDATE=$(LC_ALL=C date -u "+%a, %d %b %Y %H:%M:%S +0000")
 # CHANGELOG section -> HTML.
 NOTES=$(awk -v v="$VERSION" '
 	function esc(s) { gsub(/&/, "\\&amp;", s); gsub(/</, "\\&lt;", s); gsub(/>/, "\\&gt;", s); return s }
-	function inl(s,   out) {
+	function inl(s,   n, i, url, txt, out) {
 		s = esc(s)
-		while (match(s, /`[^`]+`/)) { s = substr(s, 1, RSTART - 1) "<code>" substr(s, RSTART + 1, RLENGTH - 2) "</code>" substr(s, RSTART + RLENGTH) }
+		# Code spans first, kept aside so nothing inside them is formatted.
+		n = 0
+		while (match(s, /`[^`]+`/)) { code[++n] = "<code>" substr(s, RSTART + 1, RLENGTH - 2) "</code>"; s = substr(s, 1, RSTART - 1) "\001" n "\002" substr(s, RSTART + RLENGTH) }
+		# [text](http…) links; other targets keep just the text.
+		while (match(s, /\[[^]]+\]\([^)]+\)/)) {
+			txt = substr(s, RSTART, RLENGTH); i = index(txt, "](")
+			url = substr(txt, i + 2, length(txt) - i - 2); txt = substr(txt, 2, i - 2)
+			gsub(/"/, "\\&quot;", url)
+			out = (url ~ /^https?:\/\//) ? "<a href=\"" url "\">" txt "</a>" : txt
+			s = substr(s, 1, RSTART - 1) out substr(s, RSTART + RLENGTH)
+		}
 		while (match(s, /\*\*[^*]+\*\*/)) { s = substr(s, 1, RSTART - 1) "<b>" substr(s, RSTART + 2, RLENGTH - 4) "</b>" substr(s, RSTART + RLENGTH) }
+		while (match(s, /\*[^* ]([^*]*[^* ])?\*/)) { s = substr(s, 1, RSTART - 1) "<i>" substr(s, RSTART + 1, RLENGTH - 2) "</i>" substr(s, RSTART + RLENGTH) }
+		for (i = 1; i <= n; i++) { while (match(s, "\001" i "\002")) s = substr(s, 1, RSTART - 1) code[i] substr(s, RSTART + RLENGTH) }
 		return s
 	}
 	function endp() { if (p) { printf "</p>\n"; p = 0 } }
