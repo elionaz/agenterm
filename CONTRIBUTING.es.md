@@ -28,7 +28,7 @@ Usamos [Conventional Commits](https://www.conventionalcommits.org/):
 ```bash
 gofmt -l .                     # no debe listar nada
 go vet ./... && go test -race ./...
-cd app/frontend && npm ci && npm run check && npm run build   # si tocas el frontend
+cd app/frontend && npm ci && npm run check && npm test && npm run build   # si tocas el frontend
 ```
 
 - Añade o actualiza tests para el comportamiento que cambies.

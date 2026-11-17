@@ -7,6 +7,11 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Changed
+
+- Development: the frontend has Vitest unit tests (`npm test`, run by CI), and the GitHub Actions
+  workflows use actions that run on Node 24.
+
 ## [0.3.0] - 2026-11-16
 
 ### Added
