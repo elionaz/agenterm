@@ -16,6 +16,7 @@ export type Shortcut =
   | { kind: 'find' }
   | { kind: 'findNext'; backwards: boolean }
   | { kind: 'font'; delta: 1 | -1 | 0 }
+  | { kind: 'moveSession'; delta: 1 | -1 }
 
 const arrows: Record<string, Toward> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' }
 
@@ -37,6 +38,9 @@ export function shortcutOf(e: KeyboardEvent): Shortcut | null {
   const k = e.key.toLowerCase()
   if (k === 'g') return { kind: 'findNext', backwards: e.shiftKey }
   if (k === 'd') return { kind: 'split', dir: e.shiftKey ? 'col' : 'row' }
+  if (e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+    return { kind: 'moveSession', delta: e.key === 'ArrowUp' ? -1 : 1 }
+  }
   if (e.shiftKey) return null
   switch (k) {
     case ',':

@@ -16,6 +16,7 @@ import (
 	"github.com/elionaz/agenterm/internal/apierr"
 	"github.com/elionaz/agenterm/internal/fileformat"
 	"github.com/elionaz/agenterm/internal/hooks"
+	"github.com/elionaz/agenterm/internal/order"
 	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/project"
 	"github.com/elionaz/agenterm/internal/protocol"
@@ -36,7 +37,22 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 		if err != nil {
 			return nil, err
 		}
-		return s.projects.Add(p.Path, p.Name)
+		proj, err := s.projects.Add(p.Path, p.Name)
+		if err == nil {
+			s.projectsChanged()
+		}
+		return proj, err
+	case protocol.MethodProjectReorder:
+		p, err := decode[protocol.ProjectReorderParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		list, err := s.projects.Reorder(p.IDs)
+		if err != nil {
+			return nil, err
+		}
+		s.projectsChanged()
+		return protocol.ProjectList{Projects: list}, nil
 	case protocol.MethodProjectList:
 		return protocol.ProjectList{Projects: s.projects.List()}, nil
 	case protocol.MethodProjectRemove:
@@ -44,7 +60,11 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 		if err != nil {
 			return nil, err
 		}
-		return map[string]any{"ok": true}, s.projects.Remove(p.ID)
+		if err := s.projects.Remove(p.ID); err != nil {
+			return nil, err
+		}
+		s.projectsChanged()
+		return map[string]any{"ok": true}, nil
 
 	case protocol.MethodProfileList:
 		return profileList(s.profiles.List())
@@ -119,6 +139,12 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 		return s.spawn(p)
 	case protocol.MethodSessionList:
 		return s.list(), nil
+	case protocol.MethodSessionReorder:
+		p, err := decode[protocol.SessionReorderParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.reorderSessions(p.ProjectID, p.IDs)
 	case protocol.MethodSessionKill:
 		p, err := decode[protocol.SessionRef](req.Params)
 		if err != nil {
@@ -484,6 +510,36 @@ func (s *Server) startSession(sp startSpec) (protocol.SessionInfo, error) {
 		}
 	}()
 	return info, nil
+}
+
+func (s *Server) projectsChanged() {
+	s.bus.publish(protocol.Event{Type: protocol.EventProjects, At: time.Now().UTC()})
+}
+
+// reorderSessions moves ids to the front of projectID's sessions (others
+// keep their positions), persists the order (restores follow it) and
+// returns the whole list.
+func (s *Server) reorderSessions(projectID string, ids []string) (protocol.SessionList, error) {
+	proj, err := s.projects.Get(projectID)
+	if err != nil {
+		return protocol.SessionList{}, err
+	}
+	s.mu.Lock()
+	next, err := order.Within(s.order, func(id string) bool {
+		sess, ok := s.sessions[id]
+		return ok && sess.ProjectID == proj.ID
+	}, ids)
+	if err != nil {
+		s.mu.Unlock()
+		return protocol.SessionList{}, fmt.Errorf("reorder sessions: %w", err)
+	}
+	s.order = next
+	s.mu.Unlock()
+	if err := s.store.Reorder(next); err != nil {
+		s.log.Warn("persist session order", "err", err)
+	}
+	s.bus.publish(protocol.Event{Type: protocol.EventSessionsReordered, ProjectID: proj.ID, At: time.Now().UTC()})
+	return s.list(), nil
 }
 
 func (s *Server) list() protocol.SessionList {

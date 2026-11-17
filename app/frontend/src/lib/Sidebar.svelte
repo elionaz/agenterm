@@ -18,6 +18,7 @@
   import { activityText, progressOf, shortTimer, stateLabel } from './activity'
   import { hasKey, t } from './i18n.svelte'
   import ProgressBar from './ProgressBar.svelte'
+  import { dropSlot, moveTo } from './reorder'
 
   interface Props {
     projects: Project[]
@@ -44,6 +45,10 @@
     onDiscardAll: () => void
     onAddProject: () => void
     onRemoveProject: (id: string) => void
+    /** Drag & drop: the new project order. */
+    onReorderProjects: (ids: string[]) => void
+    /** Drag & drop (or ⌘⇧↑/↓): the new order of a project's sessions. */
+    onReorderSessions: (projectId: string, ids: string[]) => void
     onOpenSettings: () => void
     /** Opens the grid overview (focused on a project when given). */
     onOpenGrid: (projectId?: string) => void
@@ -69,6 +74,8 @@
     onDiscardAll,
     onAddProject,
     onRemoveProject,
+    onReorderProjects,
+    onReorderSessions,
     onOpenSettings,
     onOpenGrid,
     now,
@@ -119,6 +126,57 @@
   let branch = $state('')
   let base = $state('')
   let defaultMode: SpawnMode = 'same'
+
+  // Drag & drop: a project among projects, or a session among its project's
+  // sessions. dropAt is the gap the pointer is over (see reorder.ts).
+  let drag = $state<{ kind: 'project' | 'session'; id: string; projectId: string } | null>(null)
+  let dropAt = $state<{ kind: 'project' | 'session'; projectId: string; slot: number } | null>(null)
+
+  function onDragStart(ev: DragEvent, kind: 'project' | 'session', id: string, projectId: string) {
+    if ((ev.target as HTMLElement).closest('button, input')) {
+      ev.preventDefault()
+      return
+    }
+    ev.stopPropagation()
+    drag = { kind, id, projectId }
+    ev.dataTransfer?.setData('text/plain', id)
+    if (ev.dataTransfer) ev.dataTransfer.effectAllowed = 'move'
+  }
+
+  function onDragOver(ev: DragEvent, kind: 'project' | 'session', projectId: string, i: number) {
+    if (!drag || drag.kind !== kind || (kind === 'session' && drag.projectId !== projectId)) return
+    ev.preventDefault()
+    ev.stopPropagation()
+    if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'move'
+    dropAt = { kind, projectId, slot: dropSlot(ev.clientY, (ev.currentTarget as HTMLElement).getBoundingClientRect(), i) }
+  }
+
+  function onDrop(ev: DragEvent) {
+    if (!drag || !dropAt || drag.kind !== dropAt.kind) return onDragEnd()
+    ev.preventDefault()
+    ev.stopPropagation()
+    const { kind, id, projectId } = drag
+    const slot = dropAt.slot
+    onDragEnd()
+    if (kind === 'project') {
+      const next = moveTo(projects.map((p) => p.id), id, slot)
+      if (next) onReorderProjects(next)
+    } else {
+      const next = moveTo((byProject.get(projectId) ?? []).map((s) => s.id), id, slot)
+      if (next) onReorderSessions(projectId, next)
+    }
+  }
+
+  function onDragEnd() {
+    drag = null
+    dropAt = null
+  }
+
+  /** The drop line goes before item i, or after it when it is the last. */
+  const dropBefore = (kind: 'project' | 'session', projectId: string, i: number) =>
+    dropAt?.kind === kind && dropAt.projectId === projectId && dropAt.slot === i
+  const dropAfter = (kind: 'project' | 'session', projectId: string, i: number, n: number) =>
+    dropAt?.kind === kind && dropAt.projectId === projectId && dropAt.slot === i + 1 && i === n - 1
 
   const byProject = $derived.by(() => {
     const m = new Map<string, Session[]>()
@@ -246,13 +304,25 @@
   {/if}
 
   <div class="projects">
-    {#each projects as p (p.id)}
+    {#each projects as p, pi (p.id)}
       {@const list = byProject.get(p.id) ?? []}
       {@const pending = list.filter(needsAttention).length}
       <section class="project" class:current={p.id === currentProjectId}>
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="project-row" title={p.path} onclick={() => onSelectProject(p.id)}>
+        <div
+          class="project-row"
+          class:dragging={drag?.kind === 'project' && drag.id === p.id}
+          class:drop-before={dropBefore('project', '', pi)}
+          class:drop-after={dropAfter('project', '', pi, projects.length)}
+          title={p.path}
+          draggable="true"
+          ondragstart={(e) => onDragStart(e, 'project', p.id, '')}
+          ondragover={(e) => onDragOver(e, 'project', '', pi)}
+          ondrop={onDrop}
+          ondragend={onDragEnd}
+          onclick={() => onSelectProject(p.id)}
+        >
           <button
             class="chevron"
             class:closed={collapsed[p.id]}
@@ -361,6 +431,14 @@
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div
                   class="session"
+                  class:dragging={drag?.kind === 'session' && drag.id === s.id}
+                  class:drop-before={dropBefore('session', p.id, i)}
+                  class:drop-after={dropAfter('session', p.id, i, list.length)}
+                  draggable={renaming !== s.id}
+                  ondragstart={(e) => onDragStart(e, 'session', s.id, p.id)}
+                  ondragover={(e) => onDragOver(e, 'session', p.id, i)}
+                  ondrop={onDrop}
+                  ondragend={onDragEnd}
                   class:selected={s.id === selectedId}
                   class:shown={s.id !== selectedId && visibleIds.includes(s.id)}
                   class:needs={needsAttention(s)}
@@ -527,6 +605,27 @@
   .project-row:hover {
     background: var(--hover);
   }
+  /* Drag & drop: the dragged row fades and a line marks where it goes. */
+  .dragging {
+    opacity: 0.4;
+  }
+  .drop-before::before,
+  .drop-after::after {
+    content: '';
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--blue);
+    pointer-events: none;
+  }
+  .drop-before::before {
+    top: -1px;
+  }
+  .drop-after::after {
+    bottom: -1px;
+  }
   .project.current > .project-row {
     color: var(--fg);
   }
@@ -613,6 +712,7 @@
     padding: 0 0 0 10px;
   }
   .session {
+    position: relative;
     display: flex;
     flex-direction: column;
     justify-content: center;

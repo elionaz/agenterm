@@ -9,6 +9,10 @@ releases may include breaking changes.
 
 ### Added
 
+- **Reorder by drag & drop**: drag projects in the sidebar, and sessions within their project
+  (or move the selected one with ⌘⇧↑ / ⌘⇧↓). The order is kept by the daemon, so the CLI
+  (`agenterm ls`, `project list`), ⌘1…⌘9 and restored sessions follow it.
+
 - [docs/compatibility.md](docs/compatibility.md): what stays stable between versions (CLI,
   `AGENTERM_*` variables, configuration files, hooks) and how formats and the protocol are versioned.
 

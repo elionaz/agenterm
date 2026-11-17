@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/elionaz/agenterm/internal/fileformat"
+	"github.com/elionaz/agenterm/internal/order"
 )
 
 // Format is the projects.json format version (see internal/fileformat).
@@ -128,6 +129,33 @@ func (r *Registry) Remove(id string) error {
 		}
 	}
 	return fmt.Errorf("%w: %s", ErrNotFound, id)
+}
+
+// Reorder moves the given project ids to the front, in that order; the rest
+// keep their relative order after them. The registry order is the sidebar's.
+func (r *Registry) Reorder(ids []string) ([]Project, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	cur := make([]string, len(r.projects))
+	byID := make(map[string]Project, len(r.projects))
+	for i, p := range r.projects {
+		cur[i] = p.ID
+		byID[p.ID] = p
+	}
+	next, err := order.Front(cur, ids)
+	if err != nil {
+		return nil, fmt.Errorf("reorder projects: %w", err)
+	}
+	prev := r.projects
+	r.projects = make([]Project, len(next))
+	for i, id := range next {
+		r.projects[i] = byID[id]
+	}
+	if err := r.saveLocked(); err != nil {
+		r.projects = prev
+		return nil, err
+	}
+	return append([]Project(nil), r.projects...), nil
 }
 
 func (r *Registry) saveLocked() error {

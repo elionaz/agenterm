@@ -68,10 +68,10 @@ internal/paths          directory resolution (AGENTERM_HOME)
 
 | group | methods |
 |---|---|
-| projects | `project.add`, `project.list`, `project.remove`, `project.git` |
+| projects | `project.add`, `project.list`, `project.remove`, `project.reorder`, `project.git` |
 | profiles | `profile.list`, `profile.catalog`, `profile.save`, `profile.delete`, `profile.reorder`, `profile.rescan` |
 | settings | `settings.get`, `settings.save` |
-| sessions | `session.spawn`, `session.list`, `session.kill`, `session.resize`, `session.notify`, `session.ack`, `session.rename`, `session.attach`, `session.tail`, `session.diff`, `session.resume`, `session.discard` |
+| sessions | `session.spawn`, `session.list`, `session.kill`, `session.resize`, `session.notify`, `session.ack`, `session.rename`, `session.reorder`, `session.attach`, `session.tail`, `session.diff`, `session.resume`, `session.discard` |
 | worktrees | `worktree.list`, `worktree.diff`, `worktree.remove`, `worktree.merge`, `worktree.pr`, `worktree.open` |
 | daemon | `events.subscribe`, `daemon.ping`, `daemon.shutdown` |
 
@@ -138,6 +138,8 @@ JSON event per line.
 | `session.activity` | activity line, progress, "stalled?" or output heartbeat |
 | `session.git` | new git summary (`git`) |
 | `session.renamed` | the session's display name changed (`sessionName`; absent: back to the profile's) |
+| `session.reordered` | the sessions of `projectId` were reordered (`session.list` has the new order) |
+| `project.changed` | the project list changed: added, removed or reordered |
 | `session.removed` | the session was removed from the list |
 | `worktree.changed` | a project's worktree list changed (`projectId`) |
 

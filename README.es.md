@@ -19,7 +19,8 @@ vivos aunque cierres la app y te avisa cuando alguno te necesita.
 ## Funciones
 
 - **Proyectos y sesiones** en una barra lateral: cada proyecto es una carpeta y cada sesión una
-  terminal (xterm.js) con un agente o una shell. Doble clic en una sesión para ponerle nombre.
+  terminal (xterm.js) con un agente o una shell. Doble clic en una sesión para ponerle nombre;
+  arrastra proyectos y sesiones para ordenarlos.
 - **Paneles divididos**: varias sesiones lado a lado o apiladas (⌘D / ⌘⇧D), con divisores que se
   arrastran; la disposición se guarda por proyecto.
 - **Comodidades de terminal**: búsqueda en el scrollback (⌘F), ⌘-clic para abrir URLs, temas integrados (agenterm,
@@ -237,6 +238,7 @@ y diff: [docs/es/worktrees.md](docs/es/worktrees.md).
 |---|---|
 | ⌘N | nueva sesión en el proyecto actual con el primer agente activado e instalado |
 | ⌘1 … ⌘9 | seleccionar la sesión n del proyecto actual |
+| ⌘⇧↑ / ⌘⇧↓ | subir / bajar la sesión seleccionada en su proyecto (o arrastrarla en la barra lateral) |
 | ⌘0 | abrir/cerrar la vista general |
 | ⌘, | abrir Ajustes |
 | ⌘D / ⌘⇧D | dividir el panel enfocado a la derecha / abajo con una sesión nueva del mismo agente y modo |

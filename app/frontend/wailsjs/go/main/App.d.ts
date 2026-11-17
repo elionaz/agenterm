@@ -61,6 +61,10 @@ export function Rename(arg1:string,arg2:string):Promise<protocol.SessionInfo>;
 
 export function ReorderProfiles(arg1:Array<string>):Promise<Array<profile.Profile>>;
 
+export function ReorderProjects(arg1:Array<string>):Promise<Array<project.Project>>;
+
+export function ReorderSessions(arg1:string,arg2:Array<string>):Promise<Array<protocol.SessionInfo>>;
+
 export function RescanProfiles():Promise<Array<profile.Profile>>;
 
 export function Resize(arg1:string,arg2:number,arg3:number):Promise<void>;

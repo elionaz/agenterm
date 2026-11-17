@@ -71,6 +71,8 @@ export interface DaemonEvent extends Live {
     | 'session.git'
     | 'session.renamed'
     | 'worktree.changed'
+    | 'project.changed'
+    | 'session.reordered'
   sessionId: string
   /** The session's display name (session.renamed: the new one; absent: reset). */
   sessionName?: string
@@ -120,6 +122,8 @@ export const api = {
   /** Opens the native folder picker; resolves null if cancelled. */
   addProject: async (): Promise<Project | null> => (await App.AddProject()) ?? null,
   removeProject: (id: string) => App.RemoveProject(id),
+  reorderProjects: (ids: string[]): Promise<Project[]> => App.ReorderProjects(ids),
+  reorderSessions: (projectId: string, ids: string[]): Promise<Session[]> => App.ReorderSessions(projectId, ids),
   /** Every effective profile (hidden ones too), in menu order. */
   listProfiles: (): Promise<Profile[]> => App.ListProfiles(),
   profileCatalog: (): Promise<CatalogInfo[]> => App.ProfileCatalog(),
