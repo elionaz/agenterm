@@ -7,6 +7,11 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- **Clickable URLs** in the terminal: ⌘-click opens a URL in the browser, both plain-text URLs
+  and OSC 8 hyperlinks (`gh`, `ls --hyperlink`…). Only http and https; a plain click still selects.
+
 ## [0.2.1] - 2026-11-16
 
 ### Fixed

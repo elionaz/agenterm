@@ -7,12 +7,13 @@
     "dev": "vite",
     "build": "vite build && touch dist/.gitkeep",
     "preview": "vite preview",
-    "check": "svelte-check --tsconfig ./tsconfig.json && node scripts/check-i18n.ts && node scripts/check-panes.ts"
+    "check": "svelte-check --tsconfig ./tsconfig.json && node scripts/check-i18n.ts && node scripts/check-panes.ts && node scripts/check-links.ts"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/addon-search": "^0.16.0",
     "@xterm/addon-unicode11": "^0.9.0",
+    "@xterm/addon-web-links": "^0.12.0",
     "@xterm/addon-webgl": "^0.19.0",
     "@xterm/xterm": "^6.0.0",
     "diff2html": "^3.4.52"
