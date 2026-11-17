@@ -311,6 +311,7 @@ export const en = {
   'settings.updates.lastCheck': 'Last checked {when}',
   'settings.updates.neverChecked': 'Not checked yet',
   'settings.updates.check': 'Check now',
+  'settings.updates.checking': 'Checking…',
   'settings.updates.available': 'Version {version} available',
   'settings.updates.availableHelp': 'Opens the update window to download and install it.',
   'settings.updates.availableReady':

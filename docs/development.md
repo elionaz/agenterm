@@ -271,8 +271,8 @@ downloaded one, its *Install and Relaunch* prompt (the daemon is untouched). Whi
 downloading in the background `canCheckForUpdates` is `NO` and that call would do nothing, so
 `InstallUpdateNow` returns `false` and the button shows *Downloading…* until the update is ready.
 Homebrew installs, with Sparkle off, fetch the appcast themselves (`app/appcast.go`: 10 s after
-launch, then hourly ticks that check once 24 h have passed on the wall clock since the last
-successful check — monotonic timers stop while the Mac sleeps; 15 s timeout, failures only logged
+launch, then hourly ticks that check once 6 h have passed on the wall clock since the last
+successful check, and right away from Settings → **Check now** (`CheckForUpdates`) — monotonic timers stop while the Mac sleeps; 15 s timeout, failures only logged
 and retried at the next tick; development builds don't check) and offer to copy
 `brew upgrade --cask agenterm`. "Later" is remembered per version and stage (available / ready) in
 the webview's `localStorage`. The banner yields to the reconnecting and daemon-restart ones.

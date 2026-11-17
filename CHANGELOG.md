@@ -7,6 +7,11 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- [docs/compatibility.md](docs/compatibility.md): what stays stable between versions (CLI,
+  `AGENTERM_*` variables, configuration files, hooks) and how formats and the protocol are versioned.
+
 ### Changed
 
 - **Versioned file formats**: `settings.yaml` and `profiles.yaml` get a `version` key
@@ -19,10 +24,11 @@ releases may include breaking changes.
   know fails with a message that says to restart it, and the app says when the daemon is newer than
   itself instead of offering to restart (which would downgrade it).
 
-### Added
+### Fixed
 
-- [docs/compatibility.md](docs/compatibility.md): what stays stable between versions (CLI,
-  `AGENTERM_*` variables, configuration files, hooks) and how formats and the protocol are versioned.
+- **Homebrew installs** can check for a new version from **Settings → General → Updates → Check
+  now**, and check by themselves every 6 hours instead of once a day: a release published after
+  you opened agenterm could go unnoticed for a day.
 
 ## [0.3.1] - 2026-11-16
 

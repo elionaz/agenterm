@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -19,7 +20,7 @@ import (
 const (
 	defaultFeedURL = "https://github.com/elionaz/agenterm/releases/latest/download/appcast.xml"
 	feedFirstCheck = 10 * time.Second
-	feedInterval   = 24 * time.Hour
+	feedInterval   = 6 * time.Hour
 	feedTick       = time.Hour
 	feedTimeout    = 15 * time.Second
 )
@@ -104,35 +105,81 @@ var defaultFeedSchedule = feedSchedule{first: feedFirstCheck, tick: feedTick, ev
 
 // watchFeed checks the appcast on schedule s until ctx ends; a newer release
 // is reported as a Homebrew update. Failures are only logged and retried at
-// the next tick (an hour later).
+// the next tick (an hour later). checkFeedNow (Settings → Check now) asks
+// for a check right away.
 func (a *App) watchFeed(ctx context.Context, url string, s feedSchedule) {
 	current := version.Version
 	if current == "dev" {
 		return
 	}
+	reqs := make(chan chan error)
+	a.upd.mu.Lock()
+	a.upd.feedCheck = reqs
+	a.upd.mu.Unlock()
+	defer func() {
+		a.upd.mu.Lock()
+		a.upd.feedCheck = nil
+		a.upd.mu.Unlock()
+	}()
 	c := &http.Client{}
 	t := time.NewTimer(s.first)
 	defer t.Stop()
 	var last time.Time // wall clock (Round(0) drops the monotonic reading)
 	for {
+		var reply chan error
 		select {
 		case <-ctx.Done():
 			return
 		case <-t.C:
+			t.Reset(s.tick)
+		case reply = <-reqs:
 		}
-		if now := s.now().Round(0); last.IsZero() || now.Sub(last) >= s.every {
-			latest, err := latestRelease(ctx, c, url)
-			switch {
-			case err != nil:
-				log.Printf("agenterm: update check: %v", err)
-			case newerRelease(latest, current):
-				last = now
-				a.setAvailable(&UpdateInfo{Version: latest, Brew: true})
-			default:
-				last = now
-				a.setAvailable(nil)
-			}
+		now := s.now().Round(0)
+		if reply == nil && !last.IsZero() && now.Sub(last) < s.every {
+			continue
 		}
-		t.Reset(s.tick)
+		latest, err := latestRelease(ctx, c, url)
+		switch {
+		case err != nil:
+			log.Printf("agenterm: update check: %v", err)
+		case newerRelease(latest, current):
+			a.setAvailable(&UpdateInfo{Version: latest, Brew: true})
+		default:
+			a.setAvailable(nil)
+		}
+		if err == nil {
+			last = now
+			a.upd.mu.Lock()
+			a.upd.feedLast = now
+			a.upd.mu.Unlock()
+		}
+		if reply != nil {
+			reply <- err
+		}
+	}
+}
+
+// checkFeedNow runs an appcast check now and waits for it. It fails when no
+// watcher runs (not a Homebrew install, or a development build).
+func (a *App) checkFeedNow(ctx context.Context) error {
+	a.upd.mu.Lock()
+	reqs := a.upd.feedCheck
+	a.upd.mu.Unlock()
+	if reqs == nil {
+		return errors.New("update checks are not running")
+	}
+	ctx, cancel := context.WithTimeout(ctx, feedTimeout+5*time.Second)
+	defer cancel()
+	reply := make(chan error, 1)
+	select {
+	case reqs <- reply:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	select {
+	case err := <-reply:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 }

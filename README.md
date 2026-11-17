@@ -109,8 +109,9 @@ notifications too.
 
 - **Homebrew**: `brew upgrade --cask agenterm`. The app notices it was installed by Homebrew and
   turns its own updater off (Settings and **Check for Updates…** say so), so brew stays in charge
-  and `brew outdated` keeps working. It still checks once a day whether a newer release exists and
-  then shows a banner with **Copy command** (copies `brew upgrade --cask agenterm`).
+  and `brew outdated` keeps working. It still checks every 6 hours whether a newer release exists
+  (**Settings → General → Updates → Check now** checks right away) and then shows a banner with
+  **Copy command** (copies `brew upgrade --cask agenterm`).
 - **Downloaded app** (dmg/zip): agenterm checks for a new release once a day and offers to install
   it; **agenterm → Check for Updates…** checks right away. When a new version is found while you're
   working, a banner says so (**Update**, or **Restart to update** once it's downloaded; **Later**
