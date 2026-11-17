@@ -84,6 +84,17 @@ export const en = {
   'banner.restartAnyway': 'Restart',
   'banner.cancel': 'Not now',
   'banner.restarting': 'Restarting…',
+  'banner.updateAvailable': 'agenterm {version} is available.',
+  'banner.updateReady':
+    'agenterm {version} is ready to install. The background service keeps running — your sessions are not affected.',
+  'banner.updateBrew': 'agenterm {version} is available — run brew upgrade --cask agenterm.',
+  'banner.updateDownloading': 'agenterm {version} is downloading in the background; it will be ready to install shortly.',
+  'banner.updateDownloadingButton': 'Downloading…',
+  'banner.update': 'Update',
+  'banner.updateRestart': 'Restart to update',
+  'banner.updateCopy': 'Copy command',
+  'banner.updateCopied': 'Copied',
+  'banner.later': 'Later',
 
   // Terminal (terminals.ts).
   'term.exited': '[process exited · code {code}]',
@@ -219,7 +230,7 @@ export const en = {
     one: ' · note: 1 uncommitted change was not pushed',
     other: ' · note: {n} uncommitted changes were not pushed',
   },
-  'changes.removeOffer': 'Merged. Remove the worktree and its branch?',
+  'changes.removeOffer': 'Remove the worktree and its branch?',
   'changes.removeOfferYes': 'Remove…',
   'changes.removeOfferNo': 'Keep',
   'changes.cancel': 'Cancel',
@@ -298,6 +309,11 @@ export const en = {
   'settings.updates.lastCheck': 'Last checked {when}',
   'settings.updates.neverChecked': 'Not checked yet',
   'settings.updates.check': 'Check now',
+  'settings.updates.available': 'Version {version} available',
+  'settings.updates.availableHelp': 'Opens the update window to download and install it.',
+  'settings.updates.availableReady':
+    'Downloaded: restarting agenterm installs it. The background service keeps running, so sessions are not affected.',
+  'settings.updates.availableBrew': 'Update it with brew upgrade --cask agenterm.',
   'settings.updates.auto': 'Check for updates automatically',
   'settings.updates.autoHelp': 'Once a day, in the background.',
   'settings.updates.download': 'Download and install updates automatically',

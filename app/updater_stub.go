@@ -11,5 +11,6 @@ func sparkleBundle() bundleInfo            { return bundleInfo{} }
 func sparkleStart() error                  { return nil }
 func sparkleState() sparkleStatus          { return sparkleStatus{} }
 func sparkleCheck()                        {}
+func sparkleInstallNow() bool              { return false }
 func sparkleSetAutomaticChecks(on bool)    {}
 func sparkleSetAutomaticDownloads(on bool) {}

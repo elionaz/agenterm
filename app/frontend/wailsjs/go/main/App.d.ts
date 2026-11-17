@@ -31,6 +31,8 @@ export function Input(arg1:string,arg2:string):Promise<void>;
 
 export function InputBase64(arg1:string,arg2:string):Promise<void>;
 
+export function InstallUpdateNow():Promise<boolean>;
+
 export function Kill(arg1:string):Promise<protocol.SessionInfo>;
 
 export function ListProfiles():Promise<Array<profile.Profile>>;

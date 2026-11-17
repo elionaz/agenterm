@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/elionaz/agenterm/internal/i18n"
@@ -37,6 +38,22 @@ type UpdaterState struct {
 	CanCheck           bool   `json:"canCheck"`
 	Reason             string `json:"reason"`
 	Version            string `json:"version"` // this build's
+	// A newer release found by Sparkle or, for Homebrew installs, by the
+	// appcast check (appcast.go); nil when none.
+	Available *UpdateInfo `json:"available,omitempty"`
+}
+
+// evUpdateAvailable carries an *UpdateInfo (null: no update any more).
+const evUpdateAvailable = "updates.available"
+
+// UpdateInfo is a newer release than the running one.
+type UpdateInfo struct {
+	Version string `json:"version"`
+	// Downloaded by Sparkle: installed on quit, or now from the prompt
+	// InstallUpdateNow brings up.
+	Ready bool `json:"ready"`
+	// Homebrew install: `brew upgrade --cask agenterm` updates it.
+	Brew bool `json:"brew"`
 }
 
 // bundleInfo describes the running bundle (from NSBundle).
@@ -45,6 +62,7 @@ type bundleInfo struct {
 	Version     string // CFBundleShortVersionString
 	PublicEDKey string // SUPublicEDKey
 	HasSparkle  bool   // Sparkle.framework loaded
+	FeedURL     string // SUFeedURL
 }
 
 // sparkleStatus is SPUUpdater's state.
@@ -54,8 +72,9 @@ type sparkleStatus struct {
 }
 
 type updaterCtl struct {
-	mu     sync.Mutex
-	reason string // updStarting until startUpdater ran
+	mu        sync.Mutex
+	reason    string      // updStarting until startUpdater ran
+	available *UpdateInfo // see UpdaterState.Available
 }
 
 const updStarting = "starting"
@@ -67,6 +86,8 @@ func (a *App) startUpdater(p paths.Paths) {
 	b := sparkleBundle()
 	reason := decideUpdater(sparkleBuilt, b, homebrewPrefixes(), dirExists)
 	if reason == updNone {
+		f := a.setAvailable
+		onSparkleUpdate.Store(&f)
 		if err := sparkleStart(); err != nil {
 			log.Printf("agenterm: updater: %v", err)
 			reason = updError
@@ -77,6 +98,9 @@ func (a *App) startUpdater(p paths.Paths) {
 	a.upd.mu.Lock()
 	a.upd.reason = reason
 	a.upd.mu.Unlock()
+	if reason == updHomebrew && a.wailsCtx != nil {
+		go a.watchFeed(a.wailsCtx, feedURL(b), defaultFeedSchedule)
+	}
 	// The language is read now, not at launch: a change made meanwhile
 	// skipped the menu (reason was still "starting").
 	title, hint := updatesMenuText(uiLang(p), reason)
@@ -92,6 +116,23 @@ func updatesMenuText(lang i18n.Lang, reason string) (title, hint string) {
 		hint = i18n.T(lang, i18n.UpdatesUnavailable)
 	}
 	return i18n.T(lang, i18n.MenuCheckUpdates), hint
+}
+
+// onSparkleUpdate is called by Sparkle's delegate (updater_sparkle_darwin.m)
+// with the update found (nil: none any more), from another goroutine.
+var onSparkleUpdate atomic.Pointer[func(*UpdateInfo)]
+
+// setAvailable records the update found (nil: none) and tells the UI when
+// it changed.
+func (a *App) setAvailable(u *UpdateInfo) {
+	a.upd.mu.Lock()
+	old := a.upd.available
+	same := (old == nil && u == nil) || (old != nil && u != nil && *old == *u)
+	a.upd.available = u
+	a.upd.mu.Unlock()
+	if !same && a.emit != nil {
+		a.emit(evUpdateAvailable, u)
+	}
 }
 
 func (a *App) updaterReason() string {
@@ -160,7 +201,13 @@ func dirExists(p string) bool {
 
 // UpdaterState reports the in-app updater's settings and status.
 func (a *App) UpdaterState() UpdaterState {
-	st := UpdaterState{Reason: a.updaterReason(), Version: version.Version}
+	a.upd.mu.Lock()
+	st := UpdaterState{Reason: a.upd.reason, Version: version.Version}
+	if u := a.upd.available; u != nil {
+		c := *u
+		st.Available = &c
+	}
+	a.upd.mu.Unlock()
 	if st.Reason != updNone {
 		return st
 	}
@@ -182,6 +229,18 @@ func (a *App) CheckForUpdates() error {
 	}
 	sparkleCheck()
 	return nil
+}
+
+// InstallUpdateNow brings Sparkle's window with the update found to the
+// front: for a downloaded update, its "Install and Relaunch" prompt (the
+// daemon keeps running). It is false, and does nothing, while Sparkle is
+// still downloading the update in the background (canCheckForUpdates NO).
+func (a *App) InstallUpdateNow() (bool, error) {
+	if r := a.updaterReason(); r != updNone {
+		_, hint := updatesMenuText(uiLang(a.paths), r)
+		return false, errors.New(hint)
+	}
+	return sparkleInstallNow(), nil
 }
 
 // SetAutomaticChecks turns Sparkle's daily background check on or off.

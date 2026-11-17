@@ -7,11 +7,88 @@
 #import <Sparkle/Sparkle.h>
 #include <stdlib.h>
 #include <string.h>
+#include "_cgo_export.h"
 
 extern int (*agtUpdatesCanCheck)(void);
 
 // Only touched on the main thread (Sparkle's API is main-thread only).
 static SPUStandardUpdaterController *agtUpdater;
+
+// The version Sparkle has downloaded (and installs on quit), nil if none.
+static NSString *agtReadyVersion;
+
+static NSString *agtVersionOf(SUAppcastItem *item) {
+	return item.displayVersionString.length > 0 ? item.displayVersionString : item.versionString;
+}
+
+// agtReport tells Go about the update found (nil: none any more).
+static void agtReport(SUAppcastItem *item) {
+	NSString *v = agtVersionOf(item);
+	BOOL ready = v.length > 0 && [v isEqualToString:agtReadyVersion];
+	agtSparkleUpdate(v.length > 0 ? (char *)v.UTF8String : NULL, ready ? 1 : 0);
+}
+
+// Feeds the in-app banner (updates.available) and implements gentle
+// reminders: a scheduled update shows Sparkle's window only when it would be
+// in immediate focus (just launched, or idle); otherwise the banner is the
+// reminder and its button brings that window up (checkForUpdates, which for
+// a downloaded update is Sparkle's "Install and Relaunch" prompt).
+@interface AgtSparkleDelegate : NSObject <SPUUpdaterDelegate, SPUStandardUserDriverDelegate>
+@end
+
+@implementation AgtSparkleDelegate
+
+- (void)updater:(SPUUpdater *)updater didFindValidUpdate:(SUAppcastItem *)item {
+	agtReport(item);
+}
+
+- (void)updaterDidNotFindUpdate:(SPUUpdater *)updater {
+	// A downloaded update is still installed on quit.
+	if (agtReadyVersion == nil) {
+		agtReport(nil);
+	}
+}
+
+// Automatic downloads: the update is ready ("Restart to update"). Returning
+// NO keeps Sparkle's update cycle running (later or critical releases are
+// still found, and its impatient reminders still apply; scheduled ones go
+// through the gentle-reminder methods below). The immediate installation
+// block is only usable after returning YES, which stalls those cycles until
+// quit, so "Restart to update" uses checkForUpdates instead: one more click,
+// in Sparkle's own prompt. Sparkle installs the update on quit either way.
+- (BOOL)updater:(SPUUpdater *)updater willInstallUpdateOnQuit:(SUAppcastItem *)item immediateInstallationBlock:(void (^)(void))immediateInstallHandler {
+	agtReadyVersion = agtVersionOf(item);
+	agtReport(item);
+	return NO;
+}
+
+- (void)updater:(SPUUpdater *)updater userDidMakeChoice:(SPUUserUpdateChoice)choice forUpdate:(SUAppcastItem *)updateItem state:(SPUUserUpdateState *)state {
+	if (choice == SPUUserUpdateChoiceSkip) {
+		agtReport(nil);
+	}
+}
+
+- (BOOL)supportsGentleScheduledUpdateReminders {
+	return YES;
+}
+
+- (BOOL)standardUserDriverShouldHandleShowingScheduledUpdate:(SUAppcastItem *)update andInImmediateFocus:(BOOL)immediateFocus {
+	return immediateFocus;
+}
+
+- (void)standardUserDriverWillHandleShowingUpdate:(BOOL)handleShowingUpdate forUpdate:(SUAppcastItem *)update state:(SPUUserUpdateState *)state {
+	if (state.stage != SPUUserUpdateStageNotDownloaded) {
+		agtReadyVersion = agtVersionOf(update);
+	}
+	if (!handleShowingUpdate) {
+		agtReport(update);
+	}
+}
+
+@end
+
+// Sparkle references its delegates weakly.
+static AgtSparkleDelegate *agtDelegate;
 
 static void agtOnMain(dispatch_block_t b) {
 	if ([NSThread isMainThread]) {
@@ -60,7 +137,8 @@ char *agtSparkleStart(void) {
 			msg = @"Sparkle.framework not loaded";
 			return;
 		}
-		SPUStandardUpdaterController *c = [[cls alloc] initWithStartingUpdater:NO updaterDelegate:nil userDriverDelegate:nil];
+		agtDelegate = [AgtSparkleDelegate new];
+		SPUStandardUpdaterController *c = [[cls alloc] initWithStartingUpdater:NO updaterDelegate:agtDelegate userDriverDelegate:agtDelegate];
 		NSError *err = nil;
 		if (![c.updater startUpdater:&err]) {
 			msg = err.localizedDescription ?: @"startUpdater failed";
@@ -96,6 +174,22 @@ void agtSparkleCheck(void) {
 			[agtUpdater checkForUpdates:nil];
 		}
 	});
+}
+
+// agtSparkleInstallNow shows Sparkle's window for the update found ("Install
+// and Relaunch" once downloaded). It returns 0 when Sparkle can't show it
+// yet: it is still downloading in the background (canCheckForUpdates is NO).
+int agtSparkleInstallNow(void) {
+	__block BOOL ok = NO;
+	agtOnMain(^{
+		if (agtUpdater == nil || !agtUpdater.updater.canCheckForUpdates) {
+			return;
+		}
+		ok = YES;
+		[NSApp activateIgnoringOtherApps:YES];
+		[agtUpdater checkForUpdates:nil];
+	});
+	return ok ? 1 : 0;
 }
 
 void agtSparkleSetAutomaticChecks(int on) {

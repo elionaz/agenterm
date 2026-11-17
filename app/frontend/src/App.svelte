@@ -34,6 +34,15 @@
   import { shortcutOf, type Toward } from './lib/shortcuts'
   import { DEFAULT_FONT_SIZE, MAX_FONT_SIZE, MIN_FONT_SIZE, themeOf } from './lib/themes'
   import {
+    availableUpdate,
+    dismissUpdate,
+    setAvailableUpdate,
+    updateBannerVisible,
+    updateDownloading,
+    updateNow,
+    upgradeCopied,
+  } from './lib/updates.svelte'
+  import {
     api,
     attentionLabel,
     errorMessage,
@@ -792,7 +801,14 @@
       EventsOn('app:open-settings', openSettings),
       // A notification was clicked.
       EventsOn('app:focus-session', focusFromNotification),
+      // A newer release was found (null: none any more).
+      EventsOn('updates.available', setAvailableUpdate),
     )
+    // One found before the window loaded (the event may also win the race).
+    void api
+      .updaterState()
+      .then((s) => s.available && setAvailableUpdate(s.available))
+      .catch(() => {})
     // What ui.language "auto" means on this Mac.
     void api
       .systemLanguage()
@@ -1053,6 +1069,29 @@
             {restartingDaemon ? t('banner.restarting') : t('banner.restartNow')}
           </button>
         {/if}
+      </div>
+    {:else if updateBannerVisible()}
+      {@const u = availableUpdate()!}
+      <div class="banner action">
+        {#if u.brew}
+          {t('banner.updateBrew', { version: u.version })}
+          <button onclick={() => void guard(updateNow())}>
+            {upgradeCopied() ? t('banner.updateCopied') : t('banner.updateCopy')}
+          </button>
+        {:else if u.ready}
+          {t('banner.updateReady', { version: u.version })}
+          <button disabled={updateDownloading()} onclick={() => void guard(updateNow())}>
+            {updateDownloading() ? t('banner.updateDownloadingButton') : t('banner.updateRestart')}
+          </button>
+        {:else}
+          {updateDownloading()
+            ? t('banner.updateDownloading', { version: u.version })
+            : t('banner.updateAvailable', { version: u.version })}
+          <button disabled={updateDownloading()} onclick={() => void guard(updateNow())}>
+            {updateDownloading() ? t('banner.updateDownloadingButton') : t('banner.update')}
+          </button>
+        {/if}
+        <button onclick={dismissUpdate}>{t('banner.later')}</button>
       </div>
     {/if}
     {#if error}

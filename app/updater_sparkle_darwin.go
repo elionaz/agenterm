@@ -15,6 +15,7 @@ char *agtBundlePath(void);
 char *agtSparkleStart(void);
 void agtSparkleState(int *autoChecks, int *autoDownloads, int *canCheck, double *lastCheck);
 void agtSparkleCheck(void);
+int agtSparkleInstallNow(void);
 void agtSparkleSetAutomaticChecks(int on);
 void agtSparkleSetAutomaticDownloads(int on);
 */
@@ -22,7 +23,9 @@ import "C"
 
 import (
 	"errors"
+	"log"
 	"math"
+	"sync"
 	"time"
 	"unsafe"
 )
@@ -49,6 +52,39 @@ func sparkleBundle() bundleInfo {
 		Version:     bundleValue("CFBundleShortVersionString"),
 		PublicEDKey: bundleValue("SUPublicEDKey"),
 		HasSparkle:  C.agtSparkleLoaded() != 0,
+		FeedURL:     bundleValue("SUFeedURL"),
+	}
+}
+
+// Sparkle's reports, handled in order off the main thread (emitting a Wails
+// event from it could wait on the main thread itself).
+var (
+	sparkleUpdates     = make(chan *UpdateInfo, 16)
+	sparkleUpdatesOnce sync.Once
+)
+
+// agtSparkleUpdate is called by the delegate (on the main thread) with the
+// update found, or NULL when there is none any more.
+//
+//export agtSparkleUpdate
+func agtSparkleUpdate(version *C.char, ready C.int) {
+	var u *UpdateInfo
+	if version != nil {
+		u = &UpdateInfo{Version: C.GoString(version), Ready: ready != 0}
+	}
+	sparkleUpdatesOnce.Do(func() {
+		go func() {
+			for u := range sparkleUpdates {
+				if f := onSparkleUpdate.Load(); f != nil {
+					(*f)(u)
+				}
+			}
+		}()
+	})
+	select {
+	case sparkleUpdates <- u:
+	default:
+		log.Printf("agenterm: updater: dropped an update report")
 	}
 }
 
@@ -72,6 +108,9 @@ func sparkleState() sparkleStatus {
 }
 
 func sparkleCheck() { C.agtSparkleCheck() }
+
+// sparkleInstallNow is false while Sparkle is busy downloading.
+func sparkleInstallNow() bool { return C.agtSparkleInstallNow() != 0 }
 
 func sparkleSetAutomaticChecks(on bool)    { C.agtSparkleSetAutomaticChecks(cBool(on)) }
 func sparkleSetAutomaticDownloads(on bool) { C.agtSparkleSetAutomaticDownloads(cBool(on)) }
