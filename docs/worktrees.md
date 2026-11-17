@@ -82,15 +82,18 @@ folder the first time.
 - **Create pull request** (`agenterm worktree pr [--no-open] <id>`): `git push -u <remote> <branch>`
   and then opens the host's page to create the pull request into the base. It doesn't use `gh` and
   never force-pushes or pushes the base.
-  - Remote: the branch's upstream remote if it has one, else `origin`, else the only remote; it
-    refuses if there is none (or several and none of these applies).
+  - Remote: the one git would push to: `branch.<branch>.pushRemote`, else `remote.pushDefault`,
+    else the branch's upstream remote, else `origin`, else the only remote. It refuses if there is
+    none (or several and none of these applies).
   - Refuses if the branch has no commits the base doesn't have.
   - The push is non-interactive (`GIT_TERMINAL_PROMPT=0`, ssh in `BatchMode`): if credentials
     would be asked for, it fails with git's message instead of waiting. Credential helpers and
-    `ssh-agent` keep working.
+    `ssh-agent` keep working. Unreachable or stalled servers are given up on (ssh connect and
+    keep-alive timeouts, a minimum http speed) and the whole push is limited to two minutes.
   - The page: GitHub (`https://github.com/<owner>/<repo>/compare/<base>...<branch>?expand=1`) and
-    GitLab (gitlab.com and hosts whose name contains `gitlab`: *new merge request*), from https,
-    ssh or `git@host:path` remote URLs. Other hosts: the branch is pushed and you open the pull
+    GitLab (gitlab.com and hosts whose name contains `gitlab`: *new merge request*), from http(s),
+    ssh or `git@host:path` remote URLs (`ssh.github.com` and ssh aliases like `github.com-work`
+    count as GitHub). Other hosts: the branch is pushed and you open the pull
     request there yourself.
   - Uncommitted changes in the worktree are not pushed (you're told how many).
 - **Remove worktree** (`agenterm worktree rm <id>`):

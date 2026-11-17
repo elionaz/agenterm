@@ -83,15 +83,19 @@ confianza la primera vez para la carpeta nueva.
 - **Crear pull request** (`agenterm worktree pr [--no-open] <id>`): `git push -u <remoto> <rama>` y
   luego abre la página del servidor para crear el pull request hacia la base. No usa `gh`, nunca
   hace push forzado ni sube la base.
-  - Remoto: el remoto del upstream de la rama si lo tiene; si no, `origin`; si no, el único remoto.
-    Se niega si no hay ninguno (o si hay varios y no aplica ninguna de estas reglas).
+  - Remoto: el mismo al que haría push git: `branch.<rama>.pushRemote`; si no, `remote.pushDefault`;
+    si no, el remoto del upstream de la rama; si no, `origin`; si no, el único remoto. Se niega si no
+    hay ninguno (o si hay varios y no aplica ninguna de estas reglas).
   - Se niega si la rama no tiene commits que la base no tenga.
   - El push no es interactivo (`GIT_TERMINAL_PROMPT=0`, ssh en `BatchMode`): si tuviera que pedir
     credenciales, falla con el mensaje de git en lugar de quedarse esperando. Los credential helpers
-    y `ssh-agent` siguen funcionando.
+    y `ssh-agent` siguen funcionando. Si el servidor no responde o se traba, se abandona (timeouts
+    de conexión y keep-alive de ssh, una velocidad mínima en http) y el push entero tiene un límite
+    de dos minutos.
   - La página: GitHub (`https://github.com/<owner>/<repo>/compare/<base>...<rama>?expand=1`) y
     GitLab (gitlab.com y servidores cuyo nombre contiene `gitlab`: *new merge request*), a partir de
-    URLs de remoto https, ssh o `git@host:ruta`. Otros servidores: se sube la rama y el pull request
+    URLs de remoto http(s), ssh o `git@host:ruta` (`ssh.github.com` y alias de ssh como
+    `github.com-work` cuentan como GitHub). Otros servidores: se sube la rama y el pull request
     lo abres tú allí.
   - Los cambios sin commitear del worktree no se suben (se avisa cuántos quedaron fuera).
 - **Eliminar worktree** (`agenterm worktree rm <id>`):

@@ -1,9 +1,12 @@
 package gitx
 
 import (
+	"context"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/elionaz/agenterm/internal/apierr"
 )
@@ -29,6 +32,10 @@ func TestCompareURL(t *testing.T) {
 		{"https://gitlab.com/g/sub/r.git", "main", "agent/x", gl},
 		{"ssh://git@gitlab.example.com:2222/team/r.git", "dev", "b", "https://gitlab.example.com/team/r/-/merge_requests/new?merge_request[source_branch]=b&merge_request[target_branch]=dev"},
 		{"https://gitlab.example.com:8443/team/r", "dev", "b", "https://gitlab.example.com:8443/team/r/-/merge_requests/new?merge_request[source_branch]=b&merge_request[target_branch]=dev"},
+		{"http://gitlab.lan/team/r.git", "dev", "b", "http://gitlab.lan/team/r/-/merge_requests/new?merge_request[source_branch]=b&merge_request[target_branch]=dev"},
+		{"ssh://git@ssh.github.com:443/o/r.git", "main", "agent/x", gh},
+		{"git@github.com-work:o/r.git", "main", "agent/x", gh},
+		{"https://github.com-work/o/r.git", "main", "agent/x", ""}, // aliases are ssh-only
 		{"git@bitbucket.org:o/r.git", "main", "b", ""},
 		{"/srv/git/r.git", "main", "b", ""},
 		{"file:///srv/git/r.git", "main", "b", ""},
@@ -42,22 +49,27 @@ func TestCompareURL(t *testing.T) {
 }
 
 func TestChooseRemote(t *testing.T) {
+	two := []string{"origin", "fork"}
 	cases := []struct {
-		upstream string
-		remotes  []string
-		want     string
+		candidates []string // pushRemote, pushDefault, upstream
+		remotes    []string
+		want       string
 	}{
-		{"fork", []string{"origin", "fork"}, "fork"},
-		{"", []string{"upstream", "origin"}, "origin"},
-		{"gone", []string{"origin"}, "origin"},
-		{".", []string{"origin"}, "origin"},
-		{"", []string{"only"}, "only"},
-		{"", []string{"a", "b"}, ""},
-		{"", nil, ""},
+		{[]string{"", "", "fork"}, two, "fork"},
+		{[]string{"fork", "", "origin"}, two, "fork"},       // pushRemote first
+		{[]string{"", "fork", "origin"}, two, "fork"},       // then pushDefault
+		{[]string{"origin", "fork", "fork"}, two, "origin"}, // pushRemote beats pushDefault
+		{[]string{"gone", "", "fork"}, two, "fork"},         // unknown names are skipped
+		{[]string{"", "", ""}, []string{"upstream", "origin"}, "origin"},
+		{[]string{"", "", "gone"}, []string{"origin"}, "origin"},
+		{[]string{"", "", "."}, []string{"origin"}, "origin"},
+		{nil, []string{"only"}, "only"},
+		{nil, []string{"a", "b"}, ""},
+		{nil, nil, ""},
 	}
 	for _, c := range cases {
-		if got := chooseRemote(c.upstream, c.remotes); got != c.want {
-			t.Errorf("chooseRemote(%q, %v) = %q, want %q", c.upstream, c.remotes, got, c.want)
+		if got := chooseRemote(c.candidates, c.remotes); got != c.want {
+			t.Errorf("chooseRemote(%q, %v) = %q, want %q", c.candidates, c.remotes, got, c.want)
 		}
 	}
 }
@@ -136,6 +148,16 @@ func TestPullRequest(t *testing.T) {
 	if err != nil || dry.Remote != "fork" || dry.URL != "https://github.com/me/r/compare/main...agent/pr?expand=1" {
 		t.Fatalf("fork dry pr = %+v, %v", dry, err)
 	}
+	// …and remote.pushDefault / branch.<b>.pushRemote over the upstream.
+	sh(t, repo, "remote", "add", "gl", "git@gitlab.com:me/r.git")
+	sh(t, repo, "config", "remote.pushDefault", "gl")
+	if dry, err = PullRequest(c, repo, "agent/pr", "main", "", wt, true); err != nil || dry.Remote != "gl" {
+		t.Fatalf("pushDefault dry pr = %+v, %v", dry, err)
+	}
+	sh(t, repo, "config", "branch.agent/pr.pushRemote", "origin")
+	if dry, err = PullRequest(c, repo, "agent/pr", "main", "", wt, true); err != nil || dry.Remote != "origin" {
+		t.Fatalf("pushRemote dry pr = %+v, %v", dry, err)
+	}
 
 	// A branch with nothing ahead of its base is refused.
 	if err := AddWorktree(c, repo, filepath.Join(canon(t.TempDir()), "s2"), "agent/empty", "main"); err != nil {
@@ -146,5 +168,27 @@ func TestPullRequest(t *testing.T) {
 	}
 	if _, err := PullRequest(c, repo, "agent/gone", "main", "", "", false); err == nil || code(err) != apierr.BranchMissing {
 		t.Fatalf("missing branch pr: %v", err)
+	}
+}
+
+// TestRunTimeoutKillsHelpers: on timeout run kills git's whole process
+// group, so a helper still holding the output pipes (like ssh under git
+// push) does not keep it waiting.
+func TestRunTimeoutKillsHelpers(t *testing.T) {
+	bin := t.TempDir()
+	write(t, bin, "git", "#!/bin/sh\nsleep 30\necho done\n")
+	if err := os.Chmod(filepath.Join(bin, "git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	c, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, _, err := run(c, t.TempDir(), runOpts{write: true}, "push")
+	if took := time.Since(start); took > 2*time.Second {
+		t.Fatalf("run returned after %v (deadline 300ms)", took)
+	}
+	if err == nil || !strings.Contains(err.Error(), "timeout") {
+		t.Fatalf("err = %v, want a timeout", err)
 	}
 }

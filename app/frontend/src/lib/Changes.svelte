@@ -53,6 +53,7 @@
   let prInfo = $state<PRResult | null>(null)
   let prLoading = $state(false)
   let prCheckError = $state<string | null>(null)
+  let prSeq = 0 // drops stale dry-run answers
 
   const wtId = $derived(diff?.worktreeId || worktreeId || '')
   const isWorktree = $derived(diff?.mode === 'worktree' || !!worktreeId)
@@ -120,6 +121,8 @@
       diff = null
       selectedPath = null
       removing = merging = prOpen = removeOffer = false
+      prSeq++
+      prLoading = false
     }
     void load()
   })
@@ -178,6 +181,8 @@
   async function togglePR() {
     if (prOpen) {
       prOpen = false
+      prSeq++
+      prLoading = false
       return
     }
     merging = removing = removeOffer = false
@@ -185,13 +190,16 @@
     prInfo = null
     prCheckError = null
     if (!wtId || !diff?.git.ahead) return
+    const my = ++prSeq
+    const id = wtId
     prLoading = true
     try {
-      prInfo = await api.pullRequest(wtId, true)
+      const r = await api.pullRequest(id, true)
+      if (my === prSeq && id === wtId) prInfo = r
     } catch (e) {
-      prCheckError = errorMessage(e)
+      if (my === prSeq && id === wtId) prCheckError = errorMessage(e)
     } finally {
-      prLoading = false
+      if (my === prSeq && id === wtId) prLoading = false
     }
   }
 
@@ -215,8 +223,7 @@
 
   /** After a merge: the remove confirmation, with the branch preselected. */
   function offerRemove() {
-    deleteBranch = true
-    askRemove()
+    askRemove(true)
   }
 
   async function checkLoss() {
@@ -232,7 +239,8 @@
     }
   }
 
-  function askRemove() {
+  function askRemove(withBranch = false) {
+    deleteBranch = withBranch
     merging = prOpen = removeOffer = false
     removing = true
     force = false
@@ -289,7 +297,7 @@
           class="btn danger"
           disabled={busy || live}
           title={live ? t('changes.stopFirst') : ''}
-          onclick={askRemove}>{t('changes.removeWorktree')}</button
+          onclick={() => askRemove()}>{t('changes.removeWorktree')}</button
         >
       {/if}
       {#if onClose}<button class="icon close" title={t('changes.close')} aria-label={t('changes.closeLabel')} onclick={onClose}>×</button>{/if}

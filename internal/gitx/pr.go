@@ -27,9 +27,11 @@ type PRResult struct {
 	Uncommitted int `json:"uncommitted,omitempty"`
 }
 
-// chooseRemote picks the remote to push to: the branch's upstream remote,
-// else origin, else the only remote ("" if none fits).
-func chooseRemote(upstream string, remotes []string) string {
+// chooseRemote picks the remote to push to, in git's order: the first of
+// candidates (branch.<b>.pushRemote, remote.pushDefault, branch.<b>.remote)
+// that is a configured remote, else origin, else the only remote ("" if
+// none fits).
+func chooseRemote(candidates, remotes []string) string {
 	has := func(r string) bool {
 		for _, x := range remotes {
 			if x == r {
@@ -38,8 +40,10 @@ func chooseRemote(upstream string, remotes []string) string {
 		}
 		return false
 	}
-	if upstream != "" && upstream != "." && has(upstream) {
-		return upstream
+	for _, c := range candidates {
+		if c != "" && c != "." && has(c) {
+			return c
+		}
 	}
 	if has("origin") {
 		return "origin"
@@ -58,8 +62,12 @@ func PushRemote(ctx context.Context, dir, branch string) (string, error) {
 		return "", err
 	}
 	remotes := splitLines(out)
-	upstream, _ := git(ctx, dir, "config", "--get", "branch."+branch+".remote")
-	if r := chooseRemote(strings.TrimSpace(upstream), remotes); r != "" {
+	var candidates []string
+	for _, key := range []string{"branch." + branch + ".pushRemote", "remote.pushDefault", "branch." + branch + ".remote"} {
+		v, _ := git(ctx, dir, "config", "--get", key)
+		candidates = append(candidates, strings.TrimSpace(v))
+	}
+	if r := chooseRemote(candidates, remotes); r != "" {
 		return r, nil
 	}
 	if len(remotes) == 0 {
@@ -70,18 +78,24 @@ func PushRemote(ctx context.Context, dir, branch string) (string, error) {
 		"cannot choose a remote for %s among %s (no upstream and no origin): set its upstream and try again", branch, strings.Join(remotes, ", "))
 }
 
+// sshPushCommand makes ssh fail instead of prompting, and give up on an
+// unreachable or stalled server.
+const sshPushCommand = "ssh -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=3"
+
 // PushBranch runs `git push -u <remote> <branch>` (never forced, never
-// interactive: credential and ssh prompts fail instead of waiting). A
-// failure is apierr.PushFailed with git's stderr.
+// interactive: credential and ssh prompts fail instead of waiting; stalled
+// transfers are dropped). A failure is apierr.PushFailed with git's stderr.
 func PushBranch(ctx context.Context, dir, remote, branch string) (string, error) {
 	env := []string{"GIT_TERMINAL_PROMPT=0", "GCM_INTERACTIVE=never"}
 	if os.Getenv("GIT_SSH_COMMAND") == "" && os.Getenv("GIT_SSH") == "" {
 		if c, _ := git(ctx, dir, "config", "--get", "core.sshCommand"); c == "" {
-			env = append(env, "GIT_SSH_COMMAND=ssh -o BatchMode=yes")
+			env = append(env, "GIT_SSH_COMMAND="+sshPushCommand)
 		}
 	}
 	ref := "refs/heads/" + branch
-	out, _, err := run(ctx, dir, runOpts{write: true, env: env}, "push", "--porcelain", "-u", remote, ref+":"+ref)
+	out, _, err := run(ctx, dir, runOpts{write: true, env: env},
+		"-c", "http.lowSpeedLimit=1000", "-c", "http.lowSpeedTime=30",
+		"push", "--porcelain", "-u", "--", remote, ref+":"+ref)
 	if err != nil {
 		stderr := err.Error()
 		var ge *Error
@@ -101,36 +115,52 @@ func RemoteURL(ctx context.Context, dir, remote string) (string, error) {
 
 var scpLike = regexp.MustCompile(`^(?:[^@/]+@)?([^:/]+):(.+)$`)
 
-// parseRemote splits a remote URL into the web host and repository path
-// (https and ssh URLs, scp-like git@host:path). The port is kept only for
-// http(s) URLs: an ssh port says nothing about the web server.
-func parseRemote(remote string) (host, path string, ok bool) {
+// remoteInfo is a remote URL split for building web links.
+type remoteInfo struct {
+	scheme string // web scheme: http for http remotes, else https
+	host   string // lower case; with port only for http(s) remotes
+	path   string // repository path, without .git
+	ssh    bool   // ssh or scp-like (host may be an ssh config alias)
+}
+
+// parseRemote splits a remote URL (https and ssh URLs, scp-like
+// git@host:path). The port is kept only for http(s) URLs: an ssh port says
+// nothing about the web server.
+func parseRemote(remote string) (remoteInfo, bool) {
+	ri := remoteInfo{scheme: "https"}
 	remote = strings.TrimSpace(remote)
 	if strings.Contains(remote, "://") {
 		u, err := url.Parse(remote)
 		if err != nil || u.Hostname() == "" {
-			return "", "", false
+			return ri, false
 		}
 		switch u.Scheme {
 		case "https", "http":
-			host = u.Host
+			ri.scheme, ri.host = u.Scheme, u.Host
 		case "ssh", "git", "git+ssh", "ssh+git":
-			host = u.Hostname()
+			ri.host, ri.ssh = u.Hostname(), true
 		default:
-			return "", "", false
+			return ri, false
 		}
-		path = u.Path
+		ri.path = u.Path
 	} else if m := scpLike.FindStringSubmatch(remote); m != nil {
-		host, path = m[1], m[2]
+		ri.host, ri.path, ri.ssh = m[1], m[2], true
 	} else {
-		return "", "", false
+		return ri, false
 	}
-	path = strings.TrimSuffix(strings.Trim(path, "/"), ".git")
-	path = strings.Trim(path, "/")
-	if path == "" {
-		return "", "", false
+	ri.path = strings.Trim(strings.TrimSuffix(strings.Trim(ri.path, "/"), ".git"), "/")
+	ri.host = strings.ToLower(ri.host)
+	return ri, ri.path != ""
+}
+
+// isGitHub: github.com, ssh.github.com (ssh over port 443) and, for ssh
+// remotes, config aliases like github.com-work.
+func (ri remoteInfo) isGitHub() bool {
+	switch ri.host {
+	case "github.com", "www.github.com", "ssh.github.com":
+		return true
 	}
-	return strings.ToLower(host), path, true
+	return ri.ssh && strings.HasPrefix(ri.host, "github.com-")
 }
 
 // escapeRef escapes a branch name for a URL path, keeping its slashes.
@@ -147,26 +177,26 @@ func escapeRef(ref string) string {
 // request; gitlab.com or any host whose name contains "gitlab"). Other
 // hosts give "".
 func CompareURL(remoteURL, base, branch string) string {
-	host, path, ok := parseRemote(remoteURL)
+	ri, ok := parseRemote(remoteURL)
 	if !ok || branch == "" {
 		return ""
 	}
 	switch {
-	case host == "github.com" || host == "www.github.com":
-		if strings.Count(path, "/") != 1 {
+	case ri.isGitHub():
+		if strings.Count(ri.path, "/") != 1 {
 			return ""
 		}
 		spec := escapeRef(branch)
 		if base != "" {
 			spec = escapeRef(base) + "..." + spec
 		}
-		return "https://github.com/" + path + "/compare/" + spec + "?expand=1"
-	case strings.Contains(host, "gitlab"):
+		return "https://github.com/" + ri.path + "/compare/" + spec + "?expand=1"
+	case strings.Contains(ri.host, "gitlab"):
 		q := "merge_request[source_branch]=" + url.QueryEscape(branch)
 		if base != "" {
 			q += "&merge_request[target_branch]=" + url.QueryEscape(base)
 		}
-		return "https://" + host + "/" + path + "/-/merge_requests/new?" + q
+		return ri.scheme + "://" + ri.host + "/" + ri.path + "/-/merge_requests/new?" + q
 	}
 	return ""
 }
