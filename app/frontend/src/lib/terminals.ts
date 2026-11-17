@@ -12,6 +12,7 @@ import '@xterm/xterm/css/xterm.css'
 import { BrowserOpenURL, ClipboardSetText, EventsOn } from '../../wailsjs/runtime/runtime'
 import { api, b64ToBytes, errorMessage } from './api'
 import { t } from './i18n.svelte'
+import { SHIFT_ENTER, isShiftEnter } from './keys'
 import { openLink } from './links'
 import { defaultPrefs, themeOf, type TermPrefs } from './themes'
 
@@ -245,7 +246,16 @@ export class TerminalManager {
     this.entries.set(id, e)
     this.resizeObs?.observe(el)
 
+    const encoder = new TextEncoder()
     term.attachCustomKeyEventHandler((ev) => {
+      if (isShiftEnter(ev)) {
+        // Handled on keydown; the keypress that follows must not send "\r".
+        if (ev.type === 'keydown') {
+          ev.preventDefault()
+          this.send(e, encoder.encode(SHIFT_ENTER))
+        }
+        return false
+      }
       if (ev.type !== 'keydown' || !ev.metaKey) return true
       if (ev.key === 'c' && term.hasSelection()) {
         void ClipboardSetText(term.getSelection())
@@ -255,7 +265,6 @@ export class TerminalManager {
       // Everything else (⌘V paste, ⌘A…) keeps its native behaviour.
       return !this.isAppShortcut(ev)
     })
-    const encoder = new TextEncoder()
     term.onData((d) => this.send(e, encoder.encode(d)))
     term.onBinary((d) => this.send(e, Uint8Array.from(d, (c) => c.charCodeAt(0) & 0xff)))
     term.onResize(({ cols, rows }) => {

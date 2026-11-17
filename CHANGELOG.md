@@ -7,6 +7,11 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Fixed
+
+- **⇧Enter** in the terminal inserts a new line in the agent's prompt (Claude Code, Codex…)
+  instead of sending it. It sends a line feed (Ctrl-J); in a shell it still runs the command.
+
 ### Changed
 
 - Development: the frontend has Vitest unit tests (`npm test`, run by CI), and the GitHub Actions

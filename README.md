@@ -240,6 +240,7 @@ diffs: [docs/worktrees.md](docs/worktrees.md).
 | ⌘= / ⌘- / ⌘⌥0 | bigger / smaller / default terminal font (saved to `terminal.font_size`) |
 | ⌘C / ⌘V | copy the selection / paste into the terminal |
 | ⌘-click | open the URL under the pointer in the browser (plain-text URLs and OSC 8 links; http and https only) |
+| ⇧Enter | new line in the prompt instead of sending it (Claude Code, Codex…); sends a line feed (Ctrl-J) |
 | Esc | close the search bar, the overview, Settings or an orphaned worktree's view |
 | `Ctrl-\` | detach from `agenterm attach` (CLI) |
 

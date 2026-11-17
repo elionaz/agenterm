@@ -244,6 +244,7 @@ y diff: [docs/es/worktrees.md](docs/es/worktrees.md).
 | ⌘= / ⌘- / ⌘⌥0 | fuente de la terminal más grande / más pequeña / por defecto (se guarda en `terminal.font_size`) |
 | ⌘C / ⌘V | copiar la selección / pegar en la terminal |
 | ⌘-clic | abrir en el navegador la URL bajo el puntero (URLs en texto y enlaces OSC 8; solo http y https) |
+| ⇧Enter | salto de línea en el prompt en vez de enviarlo (Claude Code, Codex…); envía un salto de línea (Ctrl-J) |
 | Esc | cerrar la búsqueda, la vista general, Ajustes o la vista de un worktree huérfano |
 | `Ctrl-\` | desacoplarse de `agenterm attach` (CLI) |
 
