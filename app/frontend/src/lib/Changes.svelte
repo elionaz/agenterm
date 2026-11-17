@@ -48,6 +48,9 @@
   // Merge confirmation, and the offer to remove the worktree after a merge.
   let merging = $state(false)
   let removeOffer = $state(false)
+  /** The merge result, shown in the remove offer (not as a timed notice, whose
+   * disappearing would move the offer's buttons under the pointer). */
+  let mergedMsg = $state('')
   // Pull request confirmation: remote and URL from a dry run.
   let prOpen = $state(false)
   let prInfo = $state<PRResult | null>(null)
@@ -168,8 +171,8 @@
       merging = false
       let msg = t('changes.merged', { branch: r.branch, base: r.base, n: r.commits })
       if (r.uncommitted) msg += t('changes.mergedUncommitted', { n: r.uncommitted })
-      flash(msg)
-      removeOffer = !live
+      if (live) flash(msg)
+      else ((mergedMsg = msg), (removeOffer = true))
       void load()
     } catch (e) {
       onError(errorMessage(e))
@@ -323,6 +326,7 @@
 
   {#if removeOffer && !merging && !removing}
     <div class="confirm">
+      {#if mergedMsg}<p class="ok">{mergedMsg}</p>{/if}
       <p>{t('changes.removeOffer')}</p>
       <div class="row">
         <button class="btn danger" disabled={busy || live} onclick={offerRemove}>{t('changes.removeOfferYes')}</button>
@@ -562,6 +566,9 @@
   .notice.ok {
     color: var(--green);
     background: color-mix(in srgb, var(--green) 8%, transparent);
+  }
+  .confirm .ok {
+    color: var(--green);
   }
   .confirm {
     flex: none;

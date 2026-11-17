@@ -205,7 +205,7 @@ export const es: Dict = {
     one: ' · ojo: 1 cambio sin commitear no se subió',
     other: ' · ojo: {n} cambios sin commitear no se subieron',
   },
-  'changes.removeOffer': 'Merge hecho. ¿Eliminar el worktree y su rama?',
+  'changes.removeOffer': '¿Eliminar el worktree y su rama?',
   'changes.removeOfferYes': 'Eliminar…',
   'changes.removeOfferNo': 'Conservar',
   'changes.cancel': 'Cancelar',

@@ -230,7 +230,7 @@ export const en = {
     one: ' · note: 1 uncommitted change was not pushed',
     other: ' · note: {n} uncommitted changes were not pushed',
   },
-  'changes.removeOffer': 'Merged. Remove the worktree and its branch?',
+  'changes.removeOffer': 'Remove the worktree and its branch?',
   'changes.removeOfferYes': 'Remove…',
   'changes.removeOfferNo': 'Keep',
   'changes.cancel': 'Cancel',
