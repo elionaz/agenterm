@@ -9,6 +9,13 @@ releases may include breaking changes.
 
 ### Added
 
+- **Welcome screen** on first run (while there are no projects): the agent CLIs found (with
+  Rescan), notification permission (**Allow notifications**, or **Open System Settings** if it was
+  denied), whether the `agenterm` command is on your `PATH` (with the command to link the CLI that
+  ships in the app), and **+ Add your first project**.
+- README: how to **uninstall** (Homebrew and by hand), and what to check in `~/.agenterm/worktrees`
+  before deleting your data.
+
 - **Terminal themes named after indie albums**: *Turn On the Bright Lights* (Interpol, the new
   default), *Room on Fire* (The Strokes), *It Still Moves* (My Morning Jacket) and *Alphabetical*
   (Phoenix), with palettes taken from their covers; Settings shows the artist and year. They

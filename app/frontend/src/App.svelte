@@ -6,6 +6,7 @@
   import ProgressBar from './lib/ProgressBar.svelte'
   import Settings from './lib/Settings.svelte'
   import Sidebar from './lib/Sidebar.svelte'
+  import Welcome from './lib/Welcome.svelte'
   import { activityText, mergeLive, progressOf, timerInfo } from './lib/activity'
   import { setLangSetting, setSystemLang, t, th } from './lib/i18n.svelte'
   import { TerminalManager } from './lib/terminals'
@@ -1036,9 +1037,15 @@
       {#if loaded && !selected && !multi}
         <div class="empty">
           {#if projects.length === 0}
-            <h2>{t('empty.noProjects')}</h2>
-            <p>{t('empty.addFolder')}</p>
-            <button class="primary" onclick={addProject}>{t('empty.addProject')}</button>
+            <Welcome
+              {profiles}
+              onAddProject={addProject}
+              onOpenSettings={openSettings}
+              onRescan={async () => {
+                const ps = await guard(api.rescanProfiles())
+                if (ps) profiles = ps
+              }}
+            />
           {:else}
             <h2>{t('empty.noSessions')}</h2>
             <p>

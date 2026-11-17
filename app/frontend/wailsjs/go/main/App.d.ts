@@ -45,6 +45,10 @@ export function ListWorktrees(arg1:string):Promise<Array<protocol.WorktreeInfo>>
 
 export function MergeWorktree(arg1:string):Promise<gitx.MergeResult>;
 
+export function Onboarding():Promise<main.OnboardingInfo>;
+
+export function OpenNotificationSettings():Promise<void>;
+
 export function OpenWorktree(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function ProfileCatalog():Promise<Array<protocol.CatalogInfo>>;
@@ -64,6 +68,8 @@ export function ReorderProfiles(arg1:Array<string>):Promise<Array<profile.Profil
 export function ReorderProjects(arg1:Array<string>):Promise<Array<project.Project>>;
 
 export function ReorderSessions(arg1:string,arg2:Array<string>):Promise<Array<protocol.SessionInfo>>;
+
+export function RequestNotifications():Promise<string>;
 
 export function RescanProfiles():Promise<Array<profile.Profile>>;
 

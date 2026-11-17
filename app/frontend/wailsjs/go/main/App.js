@@ -78,6 +78,14 @@ export function MergeWorktree(arg1) {
   return window['go']['main']['App']['MergeWorktree'](arg1);
 }
 
+export function Onboarding() {
+  return window['go']['main']['App']['Onboarding']();
+}
+
+export function OpenNotificationSettings() {
+  return window['go']['main']['App']['OpenNotificationSettings']();
+}
+
 export function OpenWorktree(arg1, arg2, arg3) {
   return window['go']['main']['App']['OpenWorktree'](arg1, arg2, arg3);
 }
@@ -116,6 +124,10 @@ export function ReorderProjects(arg1) {
 
 export function ReorderSessions(arg1, arg2) {
   return window['go']['main']['App']['ReorderSessions'](arg1, arg2);
+}
+
+export function RequestNotifications() {
+  return window['go']['main']['App']['RequestNotifications']();
 }
 
 export function RescanProfiles() {

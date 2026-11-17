@@ -132,9 +132,33 @@ still the old version: the window shows a banner with **Restart now**, which res
 you had left suspended stay so). You can also do it later,
 or from a terminal with `agenterm stop --force`.
 
+## Uninstall
+
+First stop the daemon: quit the app, then `agenterm stop` (it refuses while sessions are running;
+`agenterm stop --force` kills them). Then:
+
+- **Homebrew**: `brew uninstall --cask agenterm` removes the app and the CLI and keeps your data.
+  `brew uninstall --zap --cask agenterm` also deletes it: `~/.agenterm`, `~/.config/agenterm` and
+  agenterm's files in `~/Library` (caches, preferences, WebKit data, saved window state).
+- **By hand**: delete `/Applications/agenterm.app`, the CLI link if you made one
+  (`/usr/local/bin/agenterm`), and, to delete your data too, `~/.agenterm` (daemon state, scrollback
+  and agenterm's worktrees), `~/.config/agenterm` (settings, profiles, projects) and
+  `~/Library/{Caches,WebKit}/com.elionaz.agenterm`,
+  `~/Library/Preferences/com.elionaz.agenterm.plist` and
+  `~/Library/Saved Application State/com.elionaz.agenterm.savedState`.
+
+**Before deleting `~/.agenterm`**, check `~/.agenterm/worktrees` (or your `git.worktree_dir`): it holds the
+worktrees agenterm created, and any uncommitted work in them is lost with it (`--zap` included). Their branches stay in
+your repositories; `git worktree prune` cleans up the references afterwards.
+
+Nothing else needs undoing: agenterm doesn't change your agents' configuration (hooks are added to
+each session it starts, not installed) and doesn't touch your project folders.
+
 ## Quick start
 
-**App.** Click the sidebar's **+ Project** button and pick a folder. With the **+** next to a
+**App.** The first time, a welcome screen shows which agent CLIs were found, lets you allow
+notifications and shows how to put the `agenterm` command on your `PATH`. Click **+ Add your first
+project** (or the sidebar's **+ Project** button) and pick a folder. With the **+** next to a
 project you choose an agent and whether it runs in the project folder or in a new worktree; **⌘N**
 launches the first agent in the list. When an agent needs you, you'll see an amber dot in the sidebar
 and get a notification.

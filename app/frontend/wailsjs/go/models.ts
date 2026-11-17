@@ -156,6 +156,22 @@ export namespace gitx {
 
 export namespace main {
 	
+	export class OnboardingInfo {
+	    notifications: string;
+	    cliPath: string;
+	    bundledCli: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new OnboardingInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.notifications = source["notifications"];
+	        this.cliPath = source["cliPath"];
+	        this.bundledCli = source["bundledCli"];
+	    }
+	}
 	export class DaemonStatus {
 	    appVersion: string;
 	    daemonVersion: string;
