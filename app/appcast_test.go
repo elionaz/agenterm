@@ -139,8 +139,24 @@ func TestWatchFeed(t *testing.T) {
 	}
 	clock.Add(int64(time.Hour))
 	waitHits(2)
+	// "Check now" fetches at once, whatever the schedule says.
+	if st := a.UpdaterState(); !st.CanCheck || st.LastCheck == "" {
+		t.Fatalf("homebrew state: canCheck=%v lastCheck=%q", st.CanCheck, st.LastCheck)
+	}
+	if err := a.CheckForUpdates(); err != nil {
+		t.Fatal(err)
+	}
+	if h := hits.Load(); h != 3 {
+		t.Fatalf("check now: fetched %d times, want 3", h)
+	}
 	cancel()
 	<-done
+	if a.UpdaterState().CanCheck {
+		t.Error("canCheck stays on after the watcher stopped")
+	}
+	if err := a.CheckForUpdates(); err == nil {
+		t.Error("check now without a watcher should fail")
+	}
 	st := a.UpdaterState()
 	if st.Available == nil || *st.Available != (UpdateInfo{Version: "0.3.0", Brew: true}) {
 		t.Fatalf("Available = %+v", st.Available)

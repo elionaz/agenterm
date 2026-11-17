@@ -282,6 +282,7 @@ export const es: Dict = {
   'settings.updates.lastCheck': 'Última comprobación: {when}',
   'settings.updates.neverChecked': 'Aún no se ha comprobado',
   'settings.updates.check': 'Buscar ahora',
+  'settings.updates.checking': 'Buscando…',
   'settings.updates.available': 'Versión {version} disponible',
   'settings.updates.availableHelp': 'Abre la ventana de actualización para descargarla e instalarla.',
   'settings.updates.availableReady':

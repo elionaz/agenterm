@@ -277,7 +277,7 @@ descarga en segundo plano, `canCheckForUpdates` es `NO` y esa llamada no haría 
 `InstallUpdateNow` devuelve `false` y el botón muestra *Descargando…* hasta que esté lista. Las
 instalaciones con Homebrew, con Sparkle desactivado, descargan el appcast por su cuenta
 (`app/appcast.go`: 10 s después de abrir y luego un tic cada hora que comprueba cuando han pasado
-24 h de reloj de pared desde la última comprobación correcta —los temporizadores monotónicos se
+6 h de reloj de pared desde la última comprobación correcta, y al momento desde Ajustes → **Buscar ahora** (`CheckForUpdates`) —los temporizadores monotónicos se
 detienen mientras el Mac duerme—; timeout de 15 s, los fallos solo se registran en el log y se
 reintentan en el siguiente tic; los builds de desarrollo no comprueban) y ofrecen copiar
 `brew upgrade --cask agenterm`. "Más tarde" se recuerda por versión y etapa (disponible / lista) en

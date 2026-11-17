@@ -132,12 +132,21 @@
     }
   }
 
+  let checking = $state(false)
   async function checkNow() {
     updaterError = null
+    checking = true
     try {
       await api.checkForUpdates()
     } catch (e) {
       updaterError = errorMessage(e)
+    } finally {
+      checking = false
+    }
+    if (updater?.reason === 'homebrew') {
+      // The appcast check is done: a newer release is in the banner already.
+      void loadUpdater()
+      return
     }
     // The check runs in Sparkle's window; refresh "last checked" later.
     setTimeout(() => void loadUpdater(), 3000)
@@ -624,13 +633,15 @@
               <em>
                 {updater.lastCheck
                   ? t('settings.updates.lastCheck', { when: new Date(updater.lastCheck).toLocaleString(locale()) })
-                  : updater.enabled
+                  : updater.enabled || updater.reason === 'homebrew'
                     ? t('settings.updates.neverChecked')
                     : ''}
               </em>
             </span>
-            {#if updater.enabled}
-              <button class="btn" disabled={!updater.canCheck} onclick={checkNow}>{t('settings.updates.check')}</button>
+            {#if updater.enabled || updater.reason === 'homebrew'}
+              <button class="btn" disabled={!updater.canCheck || checking} onclick={checkNow}>
+                {checking ? t('settings.updates.checking') : t('settings.updates.check')}
+              </button>
             {/if}
           </div>
           {#if availableUpdate()}

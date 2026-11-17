@@ -113,8 +113,8 @@ app, así que también tiene notificaciones nativas.
 
 - **Homebrew**: `brew upgrade --cask agenterm`. La app detecta que la instaló Homebrew y desactiva
   su propio actualizador (lo indican los Ajustes y **Buscar actualizaciones…**), así brew sigue a
-  cargo y `brew outdated` sigue funcionando. Aun así comprueba una vez al día si hay una release
-  más nueva y, si la hay, muestra un aviso con **Copiar comando** (copia `brew upgrade --cask
+  cargo y `brew outdated` sigue funcionando. Aun así comprueba cada 6 horas si hay una release
+  más nueva (**Ajustes → General → Actualizaciones → Buscar ahora** lo comprueba al momento) y, si la hay, muestra un aviso con **Copiar comando** (copia `brew upgrade --cask
   agenterm`).
 - **App descargada** (dmg/zip): agenterm busca una release nueva una vez al día y ofrece instalarla;
   **agenterm → Buscar actualizaciones…** lo comprueba al momento. Si encuentra una versión nueva

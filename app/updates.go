@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"log"
 	"os"
@@ -75,6 +76,10 @@ type updaterCtl struct {
 	mu        sync.Mutex
 	reason    string      // updStarting until startUpdater ran
 	available *UpdateInfo // see UpdaterState.Available
+	// Homebrew installs: the appcast watcher's request channel (nil when
+	// it isn't running) and its last successful check.
+	feedCheck chan chan error
+	feedLast  time.Time
 }
 
 const updStarting = "starting"
@@ -207,6 +212,13 @@ func (a *App) UpdaterState() UpdaterState {
 		c := *u
 		st.Available = &c
 	}
+	if st.Reason == updHomebrew {
+		// Sparkle is off, but the appcast watcher can check on demand.
+		st.CanCheck = a.upd.feedCheck != nil
+		if !a.upd.feedLast.IsZero() {
+			st.LastCheck = a.upd.feedLast.UTC().Format(time.RFC3339)
+		}
+	}
 	a.upd.mu.Unlock()
 	if st.Reason != updNone {
 		return st
@@ -221,9 +233,18 @@ func (a *App) UpdaterState() UpdaterState {
 }
 
 // CheckForUpdates runs a user-initiated check (Sparkle's own window shows
-// the result).
+// the result). Homebrew installs check the appcast instead; a newer release
+// shows up as the update banner.
 func (a *App) CheckForUpdates() error {
-	if r := a.updaterReason(); r != updNone {
+	r := a.updaterReason()
+	if r == updHomebrew {
+		ctx := a.ctx
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		return a.checkFeedNow(ctx)
+	}
+	if r != updNone {
 		_, hint := updatesMenuText(uiLang(a.paths), r)
 		return errors.New(hint)
 	}
