@@ -136,11 +136,17 @@ const (
 	MaxFontSize       = 32
 	DefaultLineHeight = 1.15
 	DefaultCursor     = "block"
-	DefaultTheme      = "agenterm-dark"
+	DefaultTheme      = "bright-lights"
 )
 
-// Themes are the built-in terminal palettes (the app defines their colors).
-var Themes = []string{"agenterm-dark", "agenterm-light", "solarized-dark", "solarized-light", "dracula", "gruvbox-dark", "nord"}
+// Themes are the built-in terminal palettes (the app defines their colors):
+// four named after albums, then the classic palettes.
+var Themes = []string{"bright-lights", "room-on-fire", "it-still-moves", "alphabetical",
+	"solarized-dark", "solarized-light", "dracula", "gruvbox-dark", "nord"}
+
+// ThemeAliases maps retired theme names to their replacements, so a
+// settings.yaml from before 0.4.0 keeps a matching palette.
+var ThemeAliases = map[string]string{"agenterm-dark": "bright-lights", "agenterm-light": "alphabetical"}
 
 func normTerminal(t Terminal) Terminal {
 	t.FontFamily = strings.TrimSpace(t.FontFamily)
@@ -162,6 +168,9 @@ func normTerminal(t Terminal) Terminal {
 		t.CursorStyle = DefaultCursor
 	}
 	t.Theme = strings.ToLower(strings.TrimSpace(t.Theme))
+	if alias, ok := ThemeAliases[t.Theme]; ok {
+		t.Theme = alias
+	}
 	if !slices.Contains(Themes, t.Theme) {
 		t.Theme = DefaultTheme
 	}

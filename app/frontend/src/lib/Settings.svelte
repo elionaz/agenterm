@@ -14,7 +14,7 @@
   } from './api'
   import { langSetting, locale, setLangSetting, systemLang, t, th, type LangSetting } from './i18n.svelte'
   import { appearance, setAppearance, setTermPrefs, termPrefs, type Appearance } from './prefs.svelte'
-  import { MAX_FONT_SIZE, MIN_FONT_SIZE, defaultPrefs, themeLabels, themeNames, themeOf, type TermPrefs } from './themes'
+  import { MAX_FONT_SIZE, MIN_FONT_SIZE, defaultPrefs, themeCredits, themeLabels, themeNames, themeOf, type TermPrefs } from './themes'
   import { availableUpdate, setAvailableUpdate, updateDownloading, updateNow, upgradeCopied } from './updates.svelte'
 
   interface Props {
@@ -748,6 +748,7 @@
                 onclick={() => updateTerm({ theme: name })}
               >
                 <span class="theme-name">{themeLabels[name] ?? name}</span>
+                {#if themeCredits[name]}<span class="theme-credit">{themeCredits[name]}</span>{/if}
                 <span class="swatches">
                   {#each [c.red, c.green, c.yellow, c.blue, c.magenta, c.cyan] as sw, i (i)}
                     <i style:background={sw}></i>
@@ -1561,6 +1562,12 @@
   }
   .field .theme-name {
     display: block;
+  }
+  .field .theme-credit {
+    display: block;
+    margin-top: -4px;
+    font-size: 10.5px;
+    opacity: 0.7;
   }
   .field .swatches {
     display: flex;

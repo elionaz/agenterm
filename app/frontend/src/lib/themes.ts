@@ -8,59 +8,117 @@ export interface TermTheme {
   colors: ITheme
 }
 
-export const DEFAULT_THEME = 'agenterm-dark'
+export const DEFAULT_THEME = 'bright-lights'
+
+/** Retired names and their replacements (mirrors internal/settings ThemeAliases). */
+export const themeAliases: Record<string, string> = { 'agenterm-dark': 'bright-lights', 'agenterm-light': 'alphabetical' }
 
 export const themes: Record<string, TermTheme> = {
-  'agenterm-dark': {
+  // Turn On the Bright Lights (Interpol, 2002): near black with a deep red accent. The default.
+  'bright-lights': {
     light: false,
     colors: {
-      background: '#141518',
-      foreground: '#d6d7dc',
-      cursor: '#d6d7dc',
-      cursorAccent: '#141518',
-      selectionBackground: '#3a3d4a',
-      black: '#1d1f24',
-      red: '#e06c75',
-      green: '#98c379',
-      yellow: '#e5c07b',
-      blue: '#61afef',
-      magenta: '#c678dd',
-      cyan: '#56b6c2',
-      white: '#c8ccd4',
-      brightBlack: '#5c6370',
-      brightRed: '#ef7b84',
-      brightGreen: '#a8d38a',
-      brightYellow: '#f0cd8b',
-      brightBlue: '#74bdf7',
-      brightMagenta: '#d58bea',
-      brightCyan: '#69c7d3',
+      background: '#111214',
+      foreground: '#d8d9dc',
+      cursor: '#e24a3f',
+      cursorAccent: '#111214',
+      selectionBackground: '#3b2a2c',
+      black: '#1c1d20',
+      red: '#e24a3f',
+      green: '#8fc07f',
+      yellow: '#e1b962',
+      blue: '#71a0d9',
+      magenta: '#c381ca',
+      cyan: '#61b4b9',
+      white: '#c5c6ca',
+      brightBlack: '#62646b',
+      brightRed: '#f06c61',
+      brightGreen: '#a7d196',
+      brightYellow: '#edcb82',
+      brightBlue: '#8eb7e7',
+      brightMagenta: '#d59bda',
+      brightCyan: '#7ec8cc',
       brightWhite: '#ffffff',
     },
   },
-  // One Light-based.
-  'agenterm-light': {
+  // Room on Fire (The Strokes, 2003): reds, pinks and oranges over dark wine.
+  'room-on-fire': {
+    light: false,
+    colors: {
+      background: '#1a1115',
+      foreground: '#eddcd5',
+      cursor: '#ff5c70',
+      cursorAccent: '#1a1115',
+      selectionBackground: '#4b2632',
+      black: '#2a1b21',
+      red: '#ff5c70',
+      green: '#a3c98d',
+      yellow: '#f5b468',
+      blue: '#86a8e8',
+      magenta: '#ea7cbc',
+      cyan: '#72c4c0',
+      white: '#d9c7c1',
+      brightBlack: '#7a5f69',
+      brightRed: '#ff7e8e',
+      brightGreen: '#b8d9a3',
+      brightYellow: '#f9c98c',
+      brightBlue: '#a1bcf2',
+      brightMagenta: '#f39dcf',
+      brightCyan: '#93d6d3',
+      brightWhite: '#fff4f0',
+    },
+  },
+  // It Still Moves (My Morning Jacket, 2003): sepia paper, ochres and browns.
+  'it-still-moves': {
     light: true,
     colors: {
-      background: '#fafafa',
-      foreground: '#383a42',
-      cursor: '#526eff',
-      cursorAccent: '#fafafa',
-      selectionBackground: '#d4dbe8',
-      black: '#383a42',
-      red: '#e45649',
-      green: '#50a14f',
-      yellow: '#c18401',
-      blue: '#4078f2',
-      magenta: '#a626a4',
-      cyan: '#0184bc',
-      white: '#a0a1a7',
-      brightBlack: '#696c77',
-      brightRed: '#ca1243',
-      brightGreen: '#3f8f3e',
-      brightYellow: '#986801',
-      brightBlue: '#2f63d6',
-      brightMagenta: '#8a1f88',
-      brightCyan: '#0f6f99',
+      background: '#f3e9d6',
+      foreground: '#3a2e21',
+      cursor: '#9a5a1c',
+      cursorAccent: '#f3e9d6',
+      selectionBackground: '#e0cdaa',
+      black: '#3a2e21',
+      red: '#a8321f',
+      green: '#4a7426',
+      yellow: '#8a5e00',
+      blue: '#2c5b8a',
+      magenta: '#83386c',
+      cyan: '#236d69',
+      white: '#a3916f',
+      brightBlack: '#7d6d56',
+      brightRed: '#bf4a34',
+      brightGreen: '#5c8a33',
+      brightYellow: '#a07214',
+      brightBlue: '#3f6fa0',
+      brightMagenta: '#9a5084',
+      brightCyan: '#33827d',
+      brightWhite: '#fffaf0',
+    },
+  },
+  // Alphabetical (Phoenix, 2004): warm cream with soft, bright colours.
+  'alphabetical': {
+    light: true,
+    colors: {
+      background: '#fbf7ef',
+      foreground: '#2d2933',
+      cursor: '#cf4679',
+      cursorAccent: '#fbf7ef',
+      selectionBackground: '#e8ddcd',
+      black: '#2d2933',
+      red: '#c3334b',
+      green: '#3a8449',
+      yellow: '#946b00',
+      blue: '#305fb0',
+      magenta: '#a04195',
+      cyan: '#1c7686',
+      white: '#a69e93',
+      brightBlack: '#857e8a',
+      brightRed: '#d64c62',
+      brightGreen: '#4c975b',
+      brightYellow: '#ad8210',
+      brightBlue: '#4a78c8',
+      brightMagenta: '#b858ab',
+      brightCyan: '#2e8b9b',
       brightWhite: '#ffffff',
     },
   },
@@ -205,8 +263,10 @@ export const themeNames = Object.keys(themes)
 
 /** Display names (proper nouns: not translated). */
 export const themeLabels: Record<string, string> = {
-  'agenterm-dark': 'agenterm Dark',
-  'agenterm-light': 'agenterm Light',
+  'bright-lights': 'Turn On the Bright Lights',
+  'room-on-fire': 'Room on Fire',
+  'it-still-moves': 'It Still Moves',
+  alphabetical: 'Alphabetical',
   'solarized-dark': 'Solarized Dark',
   'solarized-light': 'Solarized Light',
   dracula: 'Dracula',
@@ -214,8 +274,24 @@ export const themeLabels: Record<string, string> = {
   nord: 'Nord',
 }
 
+/** Who made the album a theme is named after (shown under its name). */
+export const themeCredits: Record<string, string> = {
+  'bright-lights': 'Interpol · 2002',
+  'room-on-fire': 'The Strokes · 2003',
+  'it-still-moves': 'My Morning Jacket · 2003',
+  alphabetical: 'Phoenix · 2004',
+}
+
+/** The built-in name for a setting value: retired names map to their
+ * replacement, unknown ones to the default. */
+export function themeName(name: string | undefined): string {
+  const n = (name ?? '').trim().toLowerCase()
+  const real = themeAliases[n] ?? n
+  return themes[real] ? real : DEFAULT_THEME
+}
+
 export function themeOf(name: string | undefined): TermTheme {
-  return themes[name ?? ''] ?? themes[DEFAULT_THEME]
+  return themes[themeName(name)]
 }
 
 /** settings.terminal as the app uses it (defaults mirror internal/settings). */
@@ -252,6 +328,6 @@ export function normPrefs(p: TermPrefsInput | undefined | null): TermPrefs {
     fontSize: Math.min(Math.max(size, MIN_FONT_SIZE), MAX_FONT_SIZE),
     lineHeight: Math.min(Math.max(lh, 1), 2),
     cursorStyle: cursor,
-    theme: themes[p?.theme ?? ''] ? p!.theme! : DEFAULT_THEME,
+    theme: themeName(p?.theme),
   }
 }

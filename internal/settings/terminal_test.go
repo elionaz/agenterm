@@ -9,7 +9,7 @@ import (
 
 func TestTerminalAndAppearance(t *testing.T) {
 	d := Defaults()
-	if d.UI.Appearance != AppearanceSystem || d.Terminal != (Terminal{FontFamily: DefaultFontFamily, FontSize: 13, LineHeight: 1.15, CursorStyle: "block", Theme: "agenterm-dark"}) {
+	if d.UI.Appearance != AppearanceSystem || d.Terminal != (Terminal{FontFamily: DefaultFontFamily, FontSize: 13, LineHeight: 1.15, CursorStyle: "block", Theme: "bright-lights"}) {
 		t.Fatalf("defaults %+v %+v", d.UI, d.Terminal)
 	}
 	// Out-of-range and unknown values are clamped / fall back.
@@ -55,5 +55,13 @@ func TestTerminalAndAppearance(t *testing.T) {
 	}
 	if got, _ := Load(p); got.Terminal != Defaults().Terminal {
 		t.Fatalf("zero terminal saved as %+v", got.Terminal)
+	}
+}
+
+func TestRetiredThemesMapToTheirReplacements(t *testing.T) {
+	for in, want := range map[string]string{"agenterm-dark": "bright-lights", " Agenterm-Light ": "alphabetical", "nord": "nord", "nope": DefaultTheme} {
+		if got := normTerminal(Terminal{Theme: in}).Theme; got != want {
+			t.Errorf("%q: got %q, want %q", in, got, want)
+		}
 	}
 }
