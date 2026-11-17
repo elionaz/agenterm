@@ -7,6 +7,24 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- Five new terminal themes named after albums: *Is This It*, *Funeral*, *Silent Alarm* and *Z*
+  (dark) and *Hot Fuss* (light).
+
+### Changed
+
+- Every terminal theme is now named after an album, and Settings shows only the album title.
+  Solarized, Dracula, Gruvbox and Nord are gone; in `settings.yaml` their names keep working and
+  pick the closest new palette: `solarized-dark` → `z`, `solarized-light` → `hot-fuss`,
+  `dracula` → `funeral`, `gruvbox-dark` → `is-this-it`, `nord` → `silent-alarm`.
+
+### Fixed
+
+- In the light themes *It Still Moves* and *Alphabetical*, text in white or bright white was
+  nearly invisible on the cream background. They're now readable grays, and bright black (dim
+  text) is a darker gray so it still looks different from bright white.
+
 ## [0.4.0] - 2026-11-16
 
 **Upgrade note:** 0.4.0 writes your settings, profiles and session files in a versioned format.

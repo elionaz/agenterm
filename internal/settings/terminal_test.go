@@ -26,7 +26,7 @@ func TestTerminalAndAppearance(t *testing.T) {
 	os.WriteFile(p, []byte("terminal:\n  ligatures: true # mine\n"), 0o600)
 	want := Defaults()
 	want.UI.Appearance = AppearanceDark
-	want.Terminal = Terminal{FontFamily: `"JetBrains Mono", monospace`, FontSize: 15, LineHeight: 1.25, CursorStyle: "underline", Theme: "gruvbox-dark"}
+	want.Terminal = Terminal{FontFamily: `"JetBrains Mono", monospace`, FontSize: 15, LineHeight: 1.25, CursorStyle: "underline", Theme: "is-this-it"}
 	if err := Save(p, want); err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +34,7 @@ func TestTerminalAndAppearance(t *testing.T) {
 		t.Fatalf("round trip: %+v %v", got, err)
 	}
 	data, _ := os.ReadFile(p)
-	for _, keep := range []string{"ligatures: true # mine", "font_size: 15", "line_height: 1.25", "cursor_style: underline", "theme: gruvbox-dark", "appearance: dark"} {
+	for _, keep := range []string{"ligatures: true # mine", "font_size: 15", "line_height: 1.25", "cursor_style: underline", "theme: is-this-it", "appearance: dark"} {
 		if !strings.Contains(string(data), keep) {
 			t.Errorf("missing %q in:\n%s", keep, data)
 		}
@@ -59,7 +59,8 @@ func TestTerminalAndAppearance(t *testing.T) {
 }
 
 func TestRetiredThemesMapToTheirReplacements(t *testing.T) {
-	for in, want := range map[string]string{"agenterm-dark": "bright-lights", " Agenterm-Light ": "alphabetical", "nord": "nord", "nope": DefaultTheme} {
+	for in, want := range map[string]string{"agenterm-dark": "bright-lights", " Agenterm-Light ": "alphabetical", "nord": "silent-alarm", "Dracula": "funeral",
+		"gruvbox-dark": "is-this-it", "solarized-dark": "z", "solarized-light": "hot-fuss", "z": "z", "nope": DefaultTheme} {
 		if got := normTerminal(Terminal{Theme: in}).Theme; got != want {
 			t.Errorf("%q: got %q, want %q", in, got, want)
 		}

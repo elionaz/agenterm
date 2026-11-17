@@ -134,7 +134,7 @@ Every key is optional; missing ones take the default value.
 | `terminal.font_size` | `13` | points, clamped to 8–32. ⌘= / ⌘- / ⌘⌥0 change it (and save it) from anywhere in the app |
 | `terminal.line_height` | `1.15` | a multiple of the font size, 1.0–2.0 |
 | `terminal.cursor_style` | `block` | `block`, `bar` or `underline` |
-| `terminal.theme` | `bright-lights` | built-in palette: `bright-lights` (*Turn On the Bright Lights*, Interpol), `room-on-fire` (*Room on Fire*, The Strokes), `it-still-moves` (*It Still Moves*, My Morning Jacket, light), `alphabetical` (*Alphabetical*, Phoenix, light), `solarized-dark`, `solarized-light`, `dracula`, `gruvbox-dark` or `nord`. The names from before 0.4.0 still work: `agenterm-dark` is `bright-lights` and `agenterm-light` is `alphabetical`. Unknown names fall back to `bright-lights` |
+| `terminal.theme` | `bright-lights` | built-in palette, each named after an album. Dark: `bright-lights` (*Turn On the Bright Lights*), `room-on-fire` (*Room on Fire*), `is-this-it` (*Is This It*), `funeral` (*Funeral*), `silent-alarm` (*Silent Alarm*), `z` (*Z*). Light: `it-still-moves` (*It Still Moves*), `alphabetical` (*Alphabetical*), `hot-fuss` (*Hot Fuss*). Retired names still work and pick the closest palette: `agenterm-dark` → `bright-lights`, `agenterm-light` → `alphabetical`, `solarized-dark` → `z`, `solarized-light` → `hot-fuss`, `dracula` → `funeral`, `gruvbox-dark` → `is-this-it`, `nord` → `silent-alarm`. Unknown names fall back to `bright-lights` |
 | `notify.enabled` | `true` | notifications (from the app and the daemon) |
 | `notify.sound` | `true` | sound, only for approvals and questions |
 | `notify.notify_on_done` | `true` | also notify when an agent finishes its turn (errors always notify) |

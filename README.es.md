@@ -23,10 +23,10 @@ vivos aunque cierres la app y te avisa cuando alguno te necesita.
   arrastra proyectos y sesiones para ordenarlos.
 - **Paneles divididos**: varias sesiones lado a lado o apiladas (⌘D / ⌘⇧D), con divisores que se
   arrastran; la disposición se guarda por proyecto.
-- **Comodidades de terminal**: búsqueda en el scrollback (⌘F), ⌘-clic para abrir URLs, temas integrados (cuatro con nombre
-  de discos indie: *Turn On the Bright Lights*, *Room on Fire*, *It Still Moves* y *Alphabetical*;
-  y Solarized, Dracula, Gruvbox y Nord), fuente, tamaño, interlineado y cursor, y la app en claro u
-  oscuro (o siguiendo a macOS).
+- **Comodidades de terminal**: búsqueda en el scrollback (⌘F), ⌘-clic para abrir URLs, nueve temas integrados con nombre
+  de discos (*Turn On the Bright Lights*, *Room on Fire*, *Is This It*, *Funeral*, *Silent Alarm*,
+  *Z*, *It Still Moves*, *Alphabetical* y *Hot Fuss*), fuente, tamaño, interlineado y cursor, y la
+  app en claro u oscuro (o siguiendo a macOS).
 - **Cualquier CLI de agente**: catálogo integrado (Claude Code, codex, opencode, Gemini, Cursor,
   Copilot, aider, Amp, goose, Qwen, Crush, Kiro, shell) con detección automática de los instalados,
   más perfiles propios y variantes en `profiles.yaml`.
@@ -238,8 +238,8 @@ terminal:
   font_size: 13          # 8-32 (también ⌘= / ⌘- / ⌘⌥0)
   line_height: 1.15      # 1.0-2.0
   cursor_style: block    # block | bar | underline
-  theme: bright-lights   # bright-lights | room-on-fire | it-still-moves | alphabetical |
-                         # solarized-dark | solarized-light | dracula | gruvbox-dark | nord
+  theme: bright-lights   # bright-lights | room-on-fire | is-this-it | funeral | silent-alarm | z |
+                         # it-still-moves | alphabetical | hot-fuss
 notify:
   enabled: true          # notificaciones (app y daemon)
   sound: true            # sonido en aprobación/pregunta
