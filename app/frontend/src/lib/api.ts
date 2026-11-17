@@ -34,6 +34,7 @@ export type UpdaterState = Omit<main.UpdaterState, 'convertValues'>
 export type UpdateInfo = main.UpdateInfo
 /** daemonVersion '' = a daemon older than 0.2.0. */
 export type DaemonStatus = main.DaemonStatus
+export type OnboardingInfo = main.OnboardingInfo
 
 /** Mirrors protocol.Progress (terminal OSC 9;4 progress). */
 export interface Progress {
@@ -190,6 +191,9 @@ export const api = {
   setAutomaticDownloads: (on: boolean): Promise<UpdaterState> => App.SetAutomaticDownloads(on),
   /** Whether the daemon runs another version than the app (after an update). */
   daemonStatus: (): Promise<DaemonStatus> => App.DaemonStatus(),
+  onboarding: (): Promise<OnboardingInfo> => App.Onboarding(),
+  requestNotifications: (): Promise<string> => App.RequestNotifications(),
+  openNotificationSettings: (): Promise<void> => App.OpenNotificationSettings(),
   /** Replaces the daemon with this version's; suspended sessions are resumed. */
   restartDaemon: (): Promise<SessionBatch> => App.RestartDaemon(),
 }

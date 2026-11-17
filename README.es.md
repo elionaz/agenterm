@@ -136,9 +136,34 @@ ahora**, que reinicia el daemon (las sesiones en marcha se suspenden y se reanud
 diga `sessions.restore`; las que habías dejado suspendidas siguen así). También puedes hacerlo más tarde, o desde una terminal con
 `agenterm stop --force`.
 
+## Desinstalar
+
+Primero detén el daemon: cierra la app y luego `agenterm stop` (se niega si hay sesiones en marcha;
+`agenterm stop --force` las termina). Después:
+
+- **Homebrew**: `brew uninstall --cask agenterm` quita la app y la CLI y conserva tus datos.
+  `brew uninstall --zap --cask agenterm` también los borra: `~/.agenterm`, `~/.config/agenterm` y
+  los archivos de agenterm en `~/Library` (cachés, preferencias, datos de WebKit, estado guardado de
+  la ventana).
+- **A mano**: borra `/Applications/agenterm.app`, el enlace de la CLI si lo creaste
+  (`/usr/local/bin/agenterm`) y, para borrar también tus datos, `~/.agenterm` (estado del daemon,
+  scrollback y los worktrees de agenterm), `~/.config/agenterm` (ajustes, perfiles, proyectos) y
+  `~/Library/{Caches,WebKit}/com.elionaz.agenterm`,
+  `~/Library/Preferences/com.elionaz.agenterm.plist` y
+  `~/Library/Saved Application State/com.elionaz.agenterm.savedState`.
+
+**Antes de borrar `~/.agenterm`**, revisa `~/.agenterm/worktrees` (o tu `git.worktree_dir`): ahí están los
+worktrees que creó agenterm, y el trabajo sin commitear que tengan se pierde con él (`--zap` incluido). Sus ramas
+quedan en tus repositorios; `git worktree prune` limpia después las referencias.
+
+No hay nada más que deshacer: agenterm no cambia la configuración de tus agentes (los hooks se
+añaden a cada sesión que abre, no se instalan) ni toca las carpetas de tus proyectos.
+
 ## Inicio rápido
 
-**App.** Haz clic en **+ Proyecto** y elige una carpeta. Con el **+** junto al proyecto eliges un agente
+**App.** La primera vez, una pantalla de bienvenida muestra qué CLIs de agentes se encontraron, te
+deja permitir las notificaciones y explica cómo poner el comando `agenterm` en tu `PATH`. Haz clic en
+**+ Añadir tu primer proyecto** (o en **+ Proyecto** de la barra lateral) y elige una carpeta. Con el **+** junto al proyecto eliges un agente
 y si corre en la misma carpeta o en un worktree nuevo; **⌘N** lanza el primer agente de la lista.
 Cuando un agente te necesita verás un punto ámbar en la sidebar y una notificación.
 
