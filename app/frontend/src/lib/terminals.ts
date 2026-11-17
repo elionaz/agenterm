@@ -9,8 +9,9 @@ import { WebglAddon } from '@xterm/addon-webgl'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import '@xterm/xterm/css/xterm.css'
-import { BrowserOpenURL, ClipboardSetText, EventsOn } from '../../wailsjs/runtime/runtime'
+import { BrowserOpenURL, ClipboardSetText, EventsOn, OnFileDrop, OnFileDropOff } from '../../wailsjs/runtime/runtime'
 import { api, b64ToBytes, errorMessage } from './api'
+import { dropText } from './drop'
 import { t } from './i18n.svelte'
 import { SHIFT_ENTER, isShiftEnter } from './keys'
 import { openLink } from './links'
@@ -31,6 +32,12 @@ interface Entry {
   replaying: boolean
   exited: boolean
   failures: number
+  /** Gave up reattaching (MAX_REATTACH failures in a row). */
+  gaveUp: boolean
+  /** The process the stream was attached to (0: not yet). A session that
+   * comes back with another one (resumed after a daemon restart, same id)
+   * is reattached even if this terminal saw it exit. */
+  pid: number
   disposed: boolean
   /** Input not yet sent. Wails runs bound calls concurrently, so keystrokes
    * are sent one call at a time to keep their order. */
@@ -71,9 +78,11 @@ export class TerminalManager {
       }
     })
     for (const e of this.entries.values()) this.resizeObs.observe(e.el)
+    OnFileDrop((x, y, paths) => this.dropFiles(x, y, paths), false)
   }
 
   unmount() {
+    OnFileDropOff()
     this.resizeObs?.disconnect()
     for (const id of [...this.entries.keys()]) this.dispose(id)
     this.parking = null
@@ -240,8 +249,8 @@ export class TerminalManager {
     }
 
     const e: Entry = {
-      id, el, term, fit, search, offs: [], replaying: true, exited: false, failures: 0, disposed: false,
-      pending: [], sending: false, fitTimer: undefined,
+      id, el, term, fit, search, offs: [], replaying: true, exited: false, failures: 0, gaveUp: false, pid: 0,
+      disposed: false, pending: [], sending: false, fitTimer: undefined,
     }
     this.entries.set(id, e)
     this.resizeObs?.observe(el)
@@ -316,7 +325,8 @@ export class TerminalManager {
   private async attach(e: Entry) {
     this.fit(e)
     try {
-      await api.attach(e.id, e.term.cols, e.term.rows)
+      const info = await api.attach(e.id, e.term.cols, e.term.rows)
+      if (!e.disposed) e.pid = info.pid
     } catch (err) {
       if (!e.disposed) this.onError(`attach ${e.id}: ${errorMessage(err)}`)
     }
@@ -327,14 +337,47 @@ export class TerminalManager {
     if (e.disposed || e.exited) return
     e.failures++
     if (e.failures > MAX_REATTACH) {
+      e.gaveUp = true
       e.term.write(`\r\n\x1b[31m${t('term.disconnected', { msg })}\x1b[0m\r\n`)
       return
     }
-    setTimeout(() => {
-      if (e.disposed) return
-      e.term.reset()
-      e.replaying = true
-      void this.attach(e)
-    }, 300 * e.failures)
+    setTimeout(() => this.reattach(e), 300 * e.failures)
+  }
+
+  /** Resets e's terminal and attaches it again (replay included). */
+  private reattach(e: Entry) {
+    if (e.disposed) return
+    e.term.reset()
+    e.exited = false
+    e.replaying = true
+    void this.attach(e)
+  }
+
+  /** Files dropped at (x, y): their paths are pasted, escaped, into the
+   * terminal under the pointer, which takes the keyboard (Claude Code turns
+   * dropped image paths into attachments). */
+  private dropFiles(x: number, y: number, paths: string[]) {
+    const text = dropText(paths ?? [])
+    const hit = document.elementFromPoint(x, y)
+    const e = hit ? [...this.entries.values()].find((v) => v.el.contains(hit)) : undefined
+    if (!text || !e || e.exited) return
+    e.term.paste(text)
+    e.term.focus()
+  }
+
+  /** Reattaches terminals left dead by a daemon restart: their session
+   * runs again (resumed under the same id, another process) but the
+   * terminal saw it exit, or gave up reconnecting while the daemon was
+   * down. Without this they keep the old screen and drop every key. */
+  revive(sessions: ReadonlyArray<{ id: string; state: string; pid: number }>) {
+    for (const s of sessions) {
+      const e = this.entries.get(s.id)
+      if (!e || s.state === 'exited' || s.state === 'suspended') continue
+      if ((e.exited && s.pid !== e.pid) || e.gaveUp) {
+        e.failures = 0
+        e.gaveUp = false
+        this.reattach(e)
+      }
+    }
   }
 }

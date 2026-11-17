@@ -7,6 +7,18 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- **Drop files on a terminal** to type their paths, escaped like Terminal.app does. Claude Code
+  turns dropped images into attachments.
+
+### Fixed
+
+- Sessions resumed after a daemon restart (e.g. **Restart now**) no longer stay frozen in the
+  app: their terminal kept the old screen and dropped every key, because the daemon told it the
+  session had exited. The daemon now asks attached clients to reattach, and the app reattaches
+  any terminal whose session came back with a new process.
+
 ### Changed
 
 - The Homebrew cask declares `auto_updates true`: the app updates itself, so a plain

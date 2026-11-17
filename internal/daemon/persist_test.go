@@ -383,3 +383,38 @@ func TestCorruptSessionsFileStartsEmpty(t *testing.T) {
 		t.Fatalf("backup: %v", m)
 	}
 }
+
+// A stream attached while the daemon stops must not see an exit frame: the
+// session is suspended, not gone, and the next daemon resumes it under the
+// same id. An exit frame made the app give the terminal up for good.
+func TestStopTellsAttachedClientsToReattach(t *testing.T) {
+	c, _, stop := startDaemon(t)
+	defer stop()
+	proj, err := c.ProjectAdd(ctxT(t), t.TempDir(), "demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sh := spawnWith(t, c, proj.ID, "shell", "", "")
+	st, _ := attachSnapshot(t, c, sh.ID)
+	defer st.Close()
+	if err := c.Shutdown(ctxT(t), true); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		f, err := st.Recv()
+		if err != nil {
+			t.Fatalf("stream ended without a terminal frame: %v", err)
+		}
+		switch f.Type {
+		case protocol.FrameExit:
+			t.Fatal("exit frame while the daemon stops: the client would not reattach")
+		case protocol.FrameError:
+			if !strings.Contains(string(f.Payload), "reattach") {
+				t.Fatalf("error frame %q, want a reattach hint", f.Payload)
+			}
+			return
+		}
+	}
+	t.Fatal("no terminal frame")
+}
