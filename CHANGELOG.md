@@ -19,6 +19,9 @@ releases may include breaking changes.
   `[o]nce | [s]ession` marks the session as waiting. After a daemon restart, resume appends
   `-c` (the latest session in that directory). `args`, `resume_args` and `enabled: false`
   change or hide it; agenterm does not write `~/.hermes`.
+- **The notification permission in Settings → Notifications**: whether macOS allows agenterm's
+  notifications, with **Ask macOS**, **Open System Settings** (on agenterm's entry) and **Send a
+  test notification**, which shows one right away or says why it can't.
 
 ### Fixed
 
@@ -36,6 +39,9 @@ releases may include breaking changes.
   instead*) mark the session as waiting and notify; it showed as idle.
 - **`agenterm msg send all` skips shells.** They never read messages by themselves, so a broadcast
   stayed in their Messages tab for good. Name a shell to write to it.
+- **A notification permission granted after launch now applies without restarting the app.** The
+  app checked it only at startup, so after allowing agenterm in System Settings its notifications
+  were still dropped until a relaunch.
 
 ## [0.7.0] - 2026-11-18
 

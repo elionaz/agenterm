@@ -35,11 +35,13 @@ import "C"
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -57,8 +59,13 @@ import (
 type macDesktop struct {
 	off    bool         // AGENTERM_NOTIFY=off
 	native atomic.Bool  // UNUserNotificationCenter usable and authorized
+	inited atomic.Bool  // UNUserNotificationCenter initialized (Refresh may enable native)
 	reason atomic.Value // string: why native is not usable
-	logged sync.Map     // reasons already logged for dropped notifications
+	// checked is when a dropped notification last re-read the permission
+	// (unix nanos), so a permission granted later is picked up without a
+	// relaunch, at most once per recheckEvery.
+	checked atomic.Int64
+	logged  sync.Map // reasons already logged for dropped notifications
 }
 
 func newDesktop(ctx context.Context, onClick func(sessionID string)) desktop {
@@ -76,6 +83,7 @@ func newDesktop(ctx context.Context, onClick func(sessionID string)) desktop {
 		d.reason.Store("notifications: " + err.Error())
 		return d
 	}
+	d.inited.Store(true)
 	runtime.OnNotificationResponse(ctx, func(r runtime.NotificationResult) {
 		if r.Error != nil {
 			return
@@ -90,17 +98,74 @@ func newDesktop(ctx context.Context, onClick func(sessionID string)) desktop {
 	go func() {
 		ok, err := runtime.RequestNotificationAuthorization(ctx)
 		if err != nil || !ok {
-			d.reason.Store(fmt.Sprintf("not authorized (%v)", err))
+			if !d.native.Load() { // a Refresh may have found it granted meanwhile
+				d.reason.Store(fmt.Sprintf("not authorized (%v)", err))
+			}
 			return
 		}
 		d.native.Store(true)
+		d.reason.Store("")
 	}()
 	return d
+}
+
+// recheckEvery bounds how often a dropped notification re-reads the
+// permission.
+const recheckEvery = 30 * time.Second
+
+// Refresh re-reads the permission: granted in System Settings after launch,
+// notifications start working without a relaunch (and stop if revoked).
+func (d *macDesktop) Refresh() (macnotify.Status, string) {
+	if d.off {
+		return macnotify.StatusUnknown, "off (" + desktopnotify.EnvNotify + "=off)"
+	}
+	if !d.inited.Load() {
+		r, _ := d.reason.Load().(string)
+		return macnotify.StatusUnknown, r
+	}
+	d.checked.Store(time.Now().UnixNano())
+	st := macnotify.AuthStatus(2 * time.Second)
+	switch st {
+	case macnotify.StatusAuthorized:
+		d.native.Store(true)
+		d.reason.Store("")
+	case macnotify.StatusUnknown: // a failed query leaves things as they are
+	default:
+		d.native.Store(false)
+		d.reason.Store("not authorized (" + st.String() + ")")
+	}
+	if d.native.Load() {
+		return st, ""
+	}
+	r, _ := d.reason.Load().(string)
+	return st, r
+}
+
+// Post shows n now (native, else the osascript fallback when n asks for
+// it) and reports what failed.
+func (d *macDesktop) Post(n note) error {
+	if d.off {
+		return errors.New("notifications are off (" + desktopnotify.EnvNotify + "=off)")
+	}
+	if _, reason := d.Refresh(); reason == "" {
+		return macnotify.Post(macnotify.Note{ID: macnotify.NotificationID(n.SessionID), Title: n.Title, Body: n.Body,
+			SessionID: n.SessionID, Sound: n.Sound})
+	} else if !n.Osascript {
+		return errors.New(reason)
+	}
+	return desktopnotify.Osascript(n.Title, n.Body, n.Sound)
 }
 
 func (d *macDesktop) Notify(n note) error {
 	if d.off {
 		return nil
+	}
+	if !d.native.Load() && d.inited.Load() {
+		// One goroutine claims the re-check; a burst doesn't pile up.
+		prev, now := d.checked.Load(), time.Now().UnixNano()
+		if now-prev > int64(recheckEvery) && d.checked.CompareAndSwap(prev, now) {
+			d.Refresh()
+		}
 	}
 	reason, _ := d.reason.Load().(string)
 	if d.native.Load() {

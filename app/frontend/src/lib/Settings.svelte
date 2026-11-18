@@ -54,6 +54,45 @@
   let dropAt = $state<number | null>(null)
 
   let notify = $state<Settings['notify'] | null>(null)
+  /** macOS's permission for agenterm (re-read when the tab opens and when
+   * the window comes back, e.g. from System Settings). */
+  let perm = $state<{ state: string; detail?: string } | null>(null)
+  let permBusy = $state(false)
+  let testResult = $state<{ ok: boolean; text: string } | null>(null)
+  async function loadPerm() {
+    try {
+      perm = await api.notificationStatus()
+    } catch {
+      perm = { state: 'unknown' }
+    }
+  }
+  async function askPerm() {
+    permBusy = true
+    try {
+      await api.requestNotifications()
+    } finally {
+      permBusy = false
+      await loadPerm()
+    }
+  }
+  async function sendTest() {
+    testResult = null
+    try {
+      await api.testNotification('agenterm', t('settings.n.testBody'))
+      testResult = { ok: true, text: t('settings.n.testSent') }
+    } catch (e) {
+      testResult = { ok: false, text: errorMessage(e) }
+    }
+    await loadPerm()
+  }
+  $effect(() => {
+    if (tab !== 'notify') return
+    void loadPerm()
+    // Back from System Settings: show the new permission.
+    const onFocus = () => void loadPerm()
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  })
   /** activity.stall_seconds as typed (validated on save). */
   let stallSeconds = $state('')
   let savedNotify = $state<string>('')
@@ -987,6 +1026,28 @@
       </section>
     {:else if tab === 'notify'}
       <section class="pane narrow">
+        {#if perm}
+          <div class="perm">
+            <div class="perm-line">
+              <span class="perm-dot" class:ok={perm.state === 'authorized'} class:bad={perm.state === 'denied'}></span>
+              <span>
+                <b>{t('settings.n.perm')}</b>
+                <em>{t(`settings.n.perm.${['authorized', 'denied', 'not-determined', 'off', 'unsupported'].includes(perm.state) ? perm.state : 'unknown'}` as 'settings.n.perm.unknown')}</em>
+                {#if perm.detail && (perm.state === 'denied' || perm.state === 'unknown' || perm.state === 'not-determined')}<em class="perm-detail">{perm.detail}</em>{/if}
+              </span>
+            </div>
+            <div class="editor-actions left">
+              {#if perm.state === 'not-determined' || perm.state === 'unknown'}
+                <button class="btn primary" disabled={permBusy} onclick={askPerm}>{t('settings.n.permAsk')}</button>
+              {/if}
+              {#if perm.state !== 'off' && perm.state !== 'unsupported'}
+                <button class="btn" onclick={() => void api.openNotificationSettings()}>{t('settings.n.permOpen')}</button>
+                <button class="btn" onclick={sendTest}>{t('settings.n.test')}</button>
+              {/if}
+              {#if testResult}<span class={testResult.ok ? 'saved' : 'perm-err'}>{testResult.text}</span>{/if}
+            </div>
+          </div>
+        {/if}
         {#if notify}
           <label class="check">
             <input type="checkbox" bind:checked={notify.enabled} />
@@ -1648,5 +1709,45 @@
   }
   .preview .cursor.underline {
     box-shadow: inset 0 -2px 0 var(--cursor);
+  }
+  .perm {
+    padding: 10px 0 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .perm-line {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .perm-line span:last-child {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .perm-line em {
+    font-size: 12px;
+  }
+  .perm-detail {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 11px !important;
+  }
+  .perm-dot {
+    flex: none;
+    width: 9px;
+    height: 9px;
+    margin: 5px 3px 0;
+    border-radius: 50%;
+    background: var(--amber);
+  }
+  .perm-dot.ok {
+    background: var(--green);
+  }
+  .perm-dot.bad {
+    background: var(--red);
+  }
+  .perm-err {
+    color: var(--red);
+    font-size: 12px;
   }
 </style>

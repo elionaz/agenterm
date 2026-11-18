@@ -4,8 +4,10 @@ package main
 
 import (
 	"context"
+	"errors"
 
 	"github.com/elionaz/agenterm/internal/desktopnotify"
+	"github.com/elionaz/agenterm/internal/macnotify"
 )
 
 type otherDesktop struct{}
@@ -23,6 +25,15 @@ func (otherDesktop) SetBadge(int)      {}
 func (otherDesktop) RequestAttention() {}
 func (otherDesktop) IsActive() bool    { return true }
 func (otherDesktop) Activate()         {}
+func (otherDesktop) Refresh() (macnotify.Status, string) {
+	return macnotify.StatusUnknown, "no native notifications on this platform"
+}
+func (otherDesktop) Post(n note) error {
+	if !n.Osascript {
+		return errors.New("no native notifications on this platform")
+	}
+	return desktopnotify.Osascript(n.Title, n.Body, n.Sound)
+}
 
 func installPreferencesMenu(string, func()) {}
 func setPreferencesTitle(string)            {}

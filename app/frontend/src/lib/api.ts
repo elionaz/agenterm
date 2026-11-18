@@ -227,6 +227,10 @@ export const api = {
   onboarding: (): Promise<OnboardingInfo> => App.Onboarding(),
   requestNotifications: (): Promise<string> => App.RequestNotifications(),
   openNotificationSettings: (): Promise<void> => App.OpenNotificationSettings(),
+  /** macOS's permission, re-read (state as onboarding's notifications; detail: why not, in English). */
+  notificationStatus: (): Promise<{ state: string; detail?: string }> => App.NotificationStatus(),
+  /** Shows a notification now; rejects with why it can't. */
+  testNotification: (title: string, body: string): Promise<void> => App.TestNotification(title, body),
   /** Replaces the daemon with this version's; suspended sessions are resumed. */
   restartDaemon: (): Promise<SessionBatch> => App.RestartDaemon(),
 }

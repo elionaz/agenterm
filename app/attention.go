@@ -9,6 +9,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/elionaz/agenterm/internal/desktopnotify"
+	"github.com/elionaz/agenterm/internal/macnotify"
 	"github.com/elionaz/agenterm/internal/protocol"
 	"github.com/elionaz/agenterm/internal/settings"
 )
@@ -34,17 +35,26 @@ type desktop interface {
 	RequestAttention() // bounce the Dock icon once
 	IsActive() bool    // the app is frontmost
 	Activate()
+	// Refresh re-reads macOS's notification permission (it may have changed
+	// in System Settings since launch): what macOS said, and why
+	// notifications can't be shown natively ("" when they can).
+	Refresh() (macnotify.Status, string)
+	// Post shows n now and reports any failure (Notify drops them): for
+	// the test notification.
+	Post(n note) error
 }
 
 // nopDesktop is used until startup wires the real one (and in tests).
 type nopDesktop struct{}
 
-func (nopDesktop) Notify(note) error { return nil }
-func (nopDesktop) Withdraw(string)   {}
-func (nopDesktop) SetBadge(int)      {}
-func (nopDesktop) RequestAttention() {}
-func (nopDesktop) IsActive() bool    { return false }
-func (nopDesktop) Activate()         {}
+func (nopDesktop) Notify(note) error                   { return nil }
+func (nopDesktop) Withdraw(string)                     {}
+func (nopDesktop) SetBadge(int)                        {}
+func (nopDesktop) RequestAttention()                   {}
+func (nopDesktop) IsActive() bool                      { return false }
+func (nopDesktop) Activate()                           {}
+func (nopDesktop) Refresh() (macnotify.Status, string) { return macnotify.StatusUnknown, "" }
+func (nopDesktop) Post(note) error                     { return nil }
 
 // attention tracks which sessions need the user, to drive notifications
 // and the Dock badge.

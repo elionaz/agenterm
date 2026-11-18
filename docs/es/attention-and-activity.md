@@ -153,6 +153,13 @@ La primera vez que abras el `.app` macOS pregunta si permites notificaciones. Si
 si quieres que se queden en pantalla). Con `notify.fallback: osascript`, esas notificaciones se
 controlan en *Notificaciones → Editor de Scripts*.
 
+**Ajustes → Notificaciones** muestra ese permiso arriba (permitido, no permitido, aún sin
+preguntar), con **Pedir a macOS** mientras no ha preguntado, **Abrir Ajustes del Sistema** en la
+entrada de agenterm y **Enviar una notificación de prueba**, que muestra una al momento y dice por
+qué cuando no puede. La app vuelve a leer el permiso al volver de Ajustes del Sistema y antes de una
+notificación que tuvo que descartar (como mucho cada 30 segundos), así que un permiso dado después de abrirla se aplica sin
+reiniciarla.
+
 ### Esquema de URL
 
 `agenterm://session/<id>` abre la app en esa sesión. Está registrado en `CFBundleURLTypes` (vía
