@@ -160,6 +160,14 @@ arriba.
 - **Crear pull request**: sube la rama (nunca forzado) y lo abre hacia la base (la del worktree, o
   la rama por defecto del remoto en la carpeta principal) con título y descripción editables
   sugeridos a partir de los commits, opcionalmente como borrador.
+- **Añadir las sesiones de los agentes** (activado por defecto, con vista previa): añade a la
+  descripción una sección *Agent sessions* con los agentes que trabajaron en esa carpeta (sin las
+  shells), su modelo y, en Claude Code, las peticiones que escribiste en cada sesión (leídas de su
+  transcript; sin salidas de herramientas, subagentes ni comandos con /). Las peticiones van en
+  bloques de código, así que sus enlaces y @menciones no se muestran ni avisan a nadie. Lo que
+  parece un secreto (claves de API, tokens, claves privadas, `password=…`) se sustituye por
+  `[redacted]`: es un filtro aproximado, revisa la vista previa antes de crear. Desmárcalo para no
+  añadir la sección.
 
 Todo se recarga al abrir Cambios, con ⟳ y cuando la rama cambia (commits, pushes); no hay
 sondeo periódico. Las CLIs se buscan en el `PATH` del shell de login, como los agentes. El

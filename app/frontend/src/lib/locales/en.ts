@@ -319,6 +319,8 @@ export const en = {
   'pr.titleLabel': 'Title',
   'pr.bodyLabel': 'Description',
   'pr.draft': 'Open as draft',
+  'pr.withSession': 'Add the agent sessions (agent, model and prompts; secrets removed)',
+  'pr.sessionPreview': 'Preview',
   'pr.createInfo': 'Pushes {branch} (never forced) and opens the pull request into {base} on {host}.',
   'pr.doCreate': { one: 'Push and open (1 commit)', other: 'Push and open ({n} commits)' },
   'pr.nothingToCreate': 'No commits to open a pull request for',

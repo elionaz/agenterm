@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ForgeComment, ForgePR, ForgeStatus } from './api'
-import { canMerge, commentPlace, forgeView, hostName, mergeWarnings, prRef } from './forge'
+import { canMerge, commentPlace, forgeView, hostName, mergeWarnings, prBody, prRef } from './forge'
 
 const pr = (over: Partial<ForgePR> = {}): ForgePR =>
   ({
@@ -51,5 +51,17 @@ describe('pull request helpers', () => {
     expect(commentPlace({ path: 'a.go', line: 42 } as ForgeComment)).toBe('a.go:42')
     expect(commentPlace({ path: 'a.go' } as ForgeComment)).toBe('a.go')
     expect(commentPlace({} as ForgeComment)).toBe('')
+  })
+})
+
+describe('prBody', () => {
+  it('appends the session section when kept', () => {
+    expect(prBody('- a\n- b\n', '### Agent sessions\n', true)).toBe('- a\n- b\n\n### Agent sessions')
+    expect(prBody('', '### Agent sessions', true)).toBe('### Agent sessions')
+  })
+  it('leaves the body alone otherwise', () => {
+    expect(prBody('text', '### Agent sessions', false)).toBe('text')
+    expect(prBody('text', undefined, true)).toBe('text')
+    expect(prBody('text', '  ', true)).toBe('text')
   })
 })

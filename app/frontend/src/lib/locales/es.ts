@@ -295,6 +295,8 @@ export const es: Dict = {
   'pr.titleLabel': 'Título',
   'pr.bodyLabel': 'Descripción',
   'pr.draft': 'Abrir como borrador',
+  'pr.withSession': 'Añadir las sesiones de los agentes (agente, modelo y peticiones; sin secretos)',
+  'pr.sessionPreview': 'Vista previa',
   'pr.createInfo': 'Sube {branch} (nunca forzado) y abre el pull request hacia {base} en {host}.',
   'pr.doCreate': { one: 'Subir y abrir (1 commit)', other: 'Subir y abrir ({n} commits)' },
   'pr.nothingToCreate': 'No hay commits para un pull request',
