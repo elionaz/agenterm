@@ -17,7 +17,7 @@ branch, stashes or commits, it takes the others' half-done work with it. The **Â
 and the Changes tab show that folder, so every session there shows the same files.
 
 For agents working in parallel, give each one its own **worktree**. That is what agenterm does by
-default (`git.default_mode: worktree`, since 0.6.1): a new agent starts on its own branch and
+default (`git.default_mode: worktree`, since 0.7.0): a new agent starts on its own branch and
 folder, and a plain **Shell** starts in the project folder. **Same folder** is still one click away
 in the **+** menu.
 
@@ -167,7 +167,7 @@ looked up (and opened) there. Comments are read in pages of 100, all of them.
 - A project's **+** menu: after picking the agent, choose same folder or new worktree (an editable,
   pre-filled branch and a base selector defaulting to the current branch). The last choice is
   remembered per project (for agents; shells always start in the folder), and âŒ˜N uses it; if
-  there's none, `git.default_mode` is used (`worktree` by default). Choices made before 0.6.1 are
+  there's none, `git.default_mode` is used (`worktree` by default). Choices made before 0.7.0 are
   not remembered any more.
 - Session row: a chip with the branch (without the `agent/` prefix): blue for the session's own
   worktree, grey for the project folder's current branch (shared with the other sessions there);
