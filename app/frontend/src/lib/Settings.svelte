@@ -108,6 +108,21 @@
     }
   }
 
+  /** Messages between sessions (messages.enabled). */
+  let messagesOn = $state(true)
+  let messagesError = $state<string | null>(null)
+  async function saveMessages(on: boolean) {
+    messagesOn = on
+    messagesError = null
+    try {
+      const s = await api.saveSettings({ messages: { enabled: on } })
+      onSettings?.(s)
+    } catch (e) {
+      messagesOn = !on
+      messagesError = errorMessage(e)
+    }
+  }
+
   /** In-app updates (General tab). */
   let updater = $state<UpdaterState | null>(null)
   let updaterError = $state<string | null>(null)
@@ -444,6 +459,7 @@
     language = langSetting()
     const r = s.sessions?.restore
     restore = r === 'always' || r === 'never' ? r : 'ask'
+    messagesOn = s.messages?.enabled ?? true
     setAppearance(s.ui?.appearance)
     setTermPrefs(s.terminal)
     fontFamily = termPrefs().fontFamily
@@ -617,6 +633,14 @@
           </select>
         </label>
         {#if restoreError}<div class="error">{restoreError}</div>{/if}
+        <label class="check">
+          <input type="checkbox" checked={messagesOn} onchange={(e) => saveMessages((e.currentTarget as HTMLInputElement).checked)} />
+          <span>
+            <b>{t('settings.messages')}</b>
+            <em>{t('settings.messagesHelp')}</em>
+          </span>
+        </label>
+        {#if messagesError}<div class="error">{messagesError}</div>{/if}
 
         <h3 class="group">{t('settings.updates')}</h3>
         {#if updater}

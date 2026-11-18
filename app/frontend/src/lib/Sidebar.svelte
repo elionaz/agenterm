@@ -588,6 +588,19 @@
                     {#if s.git && s.git.files > 0}
                       <span class="changes" title={changesTitle(s)}>{changesLabel(s.git)}</span>
                     {/if}
+                    {#if s.msgPending}
+                      <span class="mail" title={t('sidebar.msgPending', { n: s.msgPending })}
+                        ><svg viewBox="0 0 12 9" width="11" height="9" aria-hidden="true"
+                          ><rect x="0.6" y="0.6" width="10.8" height="7.8" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.2" /><path
+                            d="M1 1.2 6 5l5-3.8"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.2"
+                            stroke-linejoin="round"
+                          /></svg
+                        >{s.msgPending}</span
+                      >
+                    {/if}
                     <span class="state {badgeClass(s)}">{stateLabel(s)}</span>
                     {#if s.state === 'suspended'}
                       <button
@@ -1029,6 +1042,15 @@
   }
   .session:hover .kbd {
     display: none;
+  }
+  .mail {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: var(--amber);
   }
   .dot {
     flex: none;
