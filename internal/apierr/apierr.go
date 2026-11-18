@@ -96,6 +96,21 @@ const (
 	// UnknownMethod: the daemon does not know the method, usually because
 	// it is older than the client. Data: {method}.
 	UnknownMethod = "unknown_method"
+
+	// Messages between sessions (msg.*).
+	// MsgDisabled: messages are off (settings messages.enabled).
+	MsgDisabled = "msg_disabled"
+	// MsgNoSession: no session of the project matches. Data: {to}.
+	MsgNoSession = "msg_no_session"
+	// MsgAmbiguous: several sessions of the project have that name.
+	// Data: {to, ids}.
+	MsgAmbiguous = "msg_ambiguous"
+	// MsgOtherProject: the recipient is in another project. Data: {to}.
+	MsgOtherProject = "msg_other_project"
+	// MsgNotInSession: the call must come from inside a session (msg.take).
+	MsgNotInSession = "msg_not_in_session"
+	// MsgFromSession: only the user may do it, not a session (msg.deliver).
+	MsgFromSession = "msg_from_session"
 )
 
 // Coded is implemented by errors that carry a code.

@@ -63,3 +63,16 @@ func TestPeerPIDNotUnix(t *testing.T) {
 		t.Fatalf("got %v, want ErrUnsupported", err)
 	}
 }
+
+func TestParent(t *testing.T) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("no fast parent lookup here")
+	}
+	ppid, err := Parent(os.Getpid())
+	if err != nil || ppid != os.Getppid() {
+		t.Fatalf("Parent(self) = %d, %v; want %d", ppid, err, os.Getppid())
+	}
+	if _, err := Parent(1 << 30); err == nil {
+		t.Fatal("Parent of a missing pid succeeded")
+	}
+}

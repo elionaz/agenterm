@@ -61,6 +61,11 @@ Usage:
                                       report state/attention (from agent hooks)
   agenterm notify --from-hook claude|codex   read a hook payload (stdin / last arg)
   agenterm ack <sessionId>            mark a session's attention as seen
+  agenterm msg peers                  the other sessions of this project (inside a session)
+  agenterm msg send <to> <text…>      message a session of this project (id, name or all)
+  agenterm msg read                   your new messages from other sessions
+  agenterm msg list [--pending]       message history
+  agenterm wait <sessionId> [--timeout 30m]   until it is idle, waiting for input or exited
   agenterm version                    print the version and commit (also --version)
 
 Environment:
@@ -168,6 +173,10 @@ func run(args []string) error {
 		return nil
 	case "resume", "discard":
 		return cmdSuspended(ctx, c, cmd, rest)
+	case "msg":
+		return cmdMsg(ctx, c, rest)
+	case "wait":
+		return cmdWait(ctx, c, rest)
 	case "kill":
 		if len(rest) != 1 {
 			return errors.New("usage: agenterm kill <sessionId>")

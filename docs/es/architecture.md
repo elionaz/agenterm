@@ -49,6 +49,7 @@ internal/profile        catálogo de agentes, detección, combinación con profi
 internal/settings       settings.yaml (lectura con valores por defecto y edición en su sitio)
 internal/gitx           git por CLI: repo, ramas, status, worktrees, diff, merge, abrir en editor
 internal/forge          pull requests en GitHub / GitLab con gh / glab (la sesión del usuario)
+internal/mailbox        mensajes entre las sesiones de un proyecto (messages.json)
 internal/worktree       registro de worktrees de agenterm (worktrees.json)
 internal/project        registro de proyectos (projects.json)
 internal/desktopnotify  textos de las notificaciones + respaldo con osascript
@@ -73,6 +74,7 @@ JSON delimitado por `\n`. Petición `{"id":1,"method":"session.list","params":{�
 | ajustes | `settings.get`, `settings.save` |
 | sesiones | `session.spawn`, `session.list`, `session.kill`, `session.resize`, `session.notify`, `session.ack`, `session.rename`, `session.reorder`, `session.attach`, `session.tail`, `session.diff`, `session.resume`, `session.discard` |
 | worktrees | `worktree.list`, `worktree.diff`, `worktree.remove`, `worktree.merge`, `worktree.pr`, `worktree.open` |
+| mensajes | `msg.peers`, `msg.send`, `msg.list`, `msg.take`, `msg.ack`, `msg.deliver` (el remitente es la sesión en la que corre el proceso que llama; ver [messages.md](messages.md)) |
 | daemon | `events.subscribe`, `daemon.ping`, `daemon.shutdown` |
 
 `daemon.ping` devuelve la `version`, el `commit` y la versión de `protocol` del daemon; un método que
@@ -140,6 +142,7 @@ JSON por línea.
 | `session.git` | nuevo resumen de git (`git`) |
 | `session.renamed` | cambió el nombre de la sesión (`sessionName`; ausente: vuelve al del perfil) |
 | `session.removed` | la sesión se quitó de la lista |
+| `message.changed` | se enviaron o entregaron mensajes de o para `sessionId` (en `projectId`); `msgPending` es cuántos esperan a esa sesión |
 | `worktree.changed` | cambió la lista de worktrees de un proyecto (`projectId`) |
 | `session.reordered` | se reordenaron las sesiones de `projectId` (`session.list` trae el orden nuevo) |
 | `project.changed` | cambió la lista de proyectos: se añadió, quitó, reordenó o renombró uno, o cambió su insignia |

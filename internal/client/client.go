@@ -17,6 +17,7 @@ import (
 	"github.com/elionaz/agenterm/internal/apierr"
 	"github.com/elionaz/agenterm/internal/forge"
 	"github.com/elionaz/agenterm/internal/gitx"
+	"github.com/elionaz/agenterm/internal/mailbox"
 	"github.com/elionaz/agenterm/internal/paths"
 	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/project"
@@ -522,4 +523,55 @@ func (c *Client) ForgeCreate(ctx context.Context, p protocol.ForgeCreateParams) 
 // Finder.
 func (c *Client) WorktreeOpen(ctx context.Context, p protocol.WorktreeOpenParams) error {
 	return c.Call(ctx, protocol.MethodWorktreeOpen, p, nil)
+}
+
+// MsgPeers lists the sessions of the caller's project (or, outside a
+// session, of sessionID's).
+func (c *Client) MsgPeers(ctx context.Context, sessionID string) (protocol.MsgPeers, error) {
+	var r protocol.MsgPeers
+	err := c.Call(ctx, protocol.MethodMsgPeers, protocol.MsgPeersParams{SessionID: sessionID}, &r)
+	return r, err
+}
+
+// MsgSend sends a message (see protocol.MsgSendParams).
+func (c *Client) MsgSend(ctx context.Context, p protocol.MsgSendParams) ([]mailbox.Message, error) {
+	var r protocol.MsgList
+	err := c.Call(ctx, protocol.MethodMsgSend, p, &r)
+	return r.Messages, err
+}
+
+// MsgList lists messages (a session sees only its own).
+func (c *Client) MsgList(ctx context.Context, p protocol.MsgListParams) ([]mailbox.Message, error) {
+	var r protocol.MsgList
+	err := c.Call(ctx, protocol.MethodMsgList, p, &r)
+	return r.Messages, err
+}
+
+// MsgTake returns the calling session's pending messages and marks them
+// delivered.
+func (c *Client) MsgTake(ctx context.Context, intro bool) (protocol.MsgTakeResult, error) {
+	var r protocol.MsgTakeResult
+	err := c.Call(ctx, protocol.MethodMsgTake, protocol.MsgTakeParams{Intro: intro}, &r)
+	return r, err
+}
+
+// MsgTakePeek is MsgTake without marking them delivered (see MsgAck).
+func (c *Client) MsgTakePeek(ctx context.Context, intro bool) (protocol.MsgTakeResult, error) {
+	var r protocol.MsgTakeResult
+	err := c.Call(ctx, protocol.MethodMsgTake, protocol.MsgTakeParams{Intro: intro, Peek: true}, &r)
+	return r, err
+}
+
+// MsgAck marks the calling session's messages ids delivered.
+func (c *Client) MsgAck(ctx context.Context, ids []int) error {
+	return c.Call(ctx, protocol.MethodMsgAck, protocol.MsgAckParams{IDs: ids}, nil)
+}
+
+// MsgDeliver nudges sessionID about its pending messages (the user only).
+func (c *Client) MsgDeliver(ctx context.Context, sessionID string) (int, error) {
+	var r struct {
+		Pending int `json:"pending"`
+	}
+	err := c.Call(ctx, protocol.MethodMsgDeliver, protocol.MsgDeliverParams{SessionID: sessionID}, &r)
+	return r.Pending, err
 }

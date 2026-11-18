@@ -17,6 +17,7 @@ import (
 
 	"github.com/elionaz/agenterm/internal/forge"
 	"github.com/elionaz/agenterm/internal/gitx"
+	"github.com/elionaz/agenterm/internal/mailbox"
 	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/project"
 )
@@ -87,6 +88,16 @@ const (
 	MethodForgeComments = "forge.comments"
 	MethodForgeMerge    = "forge.merge"
 	MethodForgeCreate   = "forge.create"
+
+	// Messages between the sessions of a project (agenterm msg). The
+	// daemon tells the sender from the connection: a call from inside a
+	// session is from that session whatever its params say.
+	MethodMsgPeers   = "msg.peers"
+	MethodMsgSend    = "msg.send"
+	MethodMsgList    = "msg.list"
+	MethodMsgTake    = "msg.take"
+	MethodMsgDeliver = "msg.deliver"
+	MethodMsgAck     = "msg.ack"
 )
 
 // Session modes (SpawnParams.Mode, SessionInfo.Mode).
@@ -579,6 +590,8 @@ type SessionInfo struct {
 	AttentionMessage string     `json:"attentionMessage,omitempty"`
 	AttentionAt      *time.Time `json:"attentionAt,omitempty"`
 	Unread           bool       `json:"unread,omitempty"`
+	// MsgPending: messages from other sessions it has not got yet.
+	MsgPending int `json:"msgPending,omitempty"`
 	// Mode is same | worktree; worktree sessions name their worktree.
 	Mode         string   `json:"mode,omitempty"`
 	WorktreeID   string   `json:"worktreeId,omitempty"`
@@ -633,6 +646,9 @@ const (
 	// EventSessionsReordered: the sessions of ProjectID were reordered;
 	// session.list has the new order.
 	EventSessionsReordered = "session.reordered"
+	// EventMessages: messages to or from SessionID (in ProjectID) changed:
+	// sent or delivered. MsgPending is how many wait for SessionID.
+	EventMessages = "message.changed"
 )
 
 // Event is pushed to events.subscribe streams.
@@ -664,8 +680,10 @@ type Event struct {
 	StallRaised bool `json:"stallRaised,omitempty"`
 	// Git (session.git) is the new change summary.
 	Git *GitInfo `json:"git,omitempty"`
-	// ProjectID (worktree.changed).
+	// ProjectID (worktree.changed, message.changed).
 	ProjectID string `json:"projectId,omitempty"`
+	// MsgPending (message.changed): messages waiting for SessionID.
+	MsgPending int `json:"msgPending,omitempty"`
 	// Live is filled in session.activity and session.state events.
 	Live
 }
@@ -674,4 +692,85 @@ type Event struct {
 // were live when the app replaced the daemon ("Restart now").
 type RestartMarker struct {
 	Resume []string `json:"resume"`
+}
+
+// MsgPeer is a session of the project, as agenterm msg peers shows it.
+type MsgPeer struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"` // display name (the user's, else the profile's)
+	ProfileID string `json:"profileId"`
+	State     string `json:"state"`
+	Activity  string `json:"activity,omitempty"`
+	Mode      string `json:"mode,omitempty"`
+	Branch    string `json:"branch,omitempty"`
+	// SameFolder: it works in the same folder as the asking session.
+	SameFolder bool `json:"sameFolder,omitempty"`
+}
+
+// MsgPeersParams: the project of SessionID (callers outside a session).
+type MsgPeersParams struct {
+	SessionID string `json:"sessionId,omitempty"`
+}
+
+// MsgPeers lists a project's sessions. Self is the asking session (nil
+// when the call does not come from one).
+type MsgPeers struct {
+	ProjectID   string    `json:"projectId"`
+	ProjectName string    `json:"projectName"`
+	Self        *MsgPeer  `json:"self,omitempty"`
+	Peers       []MsgPeer `json:"peers"`
+	// Enabled: messages are on (settings messages.enabled).
+	Enabled bool `json:"enabled"`
+}
+
+// MsgSendParams sends Body to To: a session id, a display name unique in
+// the project, or "all" (every other session of the project). Callers
+// outside a session (the app) name the project with ProjectID when To is
+// not an id.
+type MsgSendParams struct {
+	To        string `json:"to"`
+	Body      string `json:"body"`
+	ProjectID string `json:"projectId,omitempty"`
+}
+
+// MsgListParams selects messages: those of SessionID (sent or received),
+// else of ProjectID. A session asking sees only its own.
+type MsgListParams struct {
+	SessionID   string `json:"sessionId,omitempty"`
+	ProjectID   string `json:"projectId,omitempty"`
+	PendingOnly bool   `json:"pendingOnly,omitempty"`
+}
+
+// MsgList is the result of msg.send, msg.list and msg.take.
+type MsgList struct {
+	Messages []mailbox.Message `json:"messages"`
+}
+
+// MsgTakeParams: only a session may take its messages (they are marked
+// delivered). Intro also returns its project's peers (agent hooks at
+// session start).
+type MsgTakeParams struct {
+	Intro bool `json:"intro,omitempty"`
+	// Peek: return them without marking them delivered; msg.ack does,
+	// once they were handed over (agent hooks).
+	Peek bool `json:"peek,omitempty"`
+}
+
+// MsgAckParams marks the calling session's messages IDs delivered.
+type MsgAckParams struct {
+	IDs []int `json:"ids"`
+}
+
+// MsgTakeResult is what msg.take returns.
+type MsgTakeResult struct {
+	Messages []mailbox.Message `json:"messages"`
+	Peers    *MsgPeers         `json:"peers,omitempty"`
+	Enabled  bool              `json:"enabled"`
+	// Self is the asking session's id.
+	Self string `json:"self"`
+}
+
+// MsgDeliverParams: the app's "Deliver" button for SessionID.
+type MsgDeliverParams struct {
+	SessionID string `json:"sessionId"`
 }

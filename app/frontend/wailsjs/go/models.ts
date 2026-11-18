@@ -274,6 +274,59 @@ export namespace gitx {
 
 }
 
+export namespace mailbox {
+	
+	export class Message {
+	    id: number;
+	    projectId: string;
+	    from: string;
+	    fromName?: string;
+	    to: string;
+	    toName?: string;
+	    body: string;
+	    // Go type: time
+	    at: any;
+	    // Go type: time
+	    deliveredAt?: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new Message(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.projectId = source["projectId"];
+	        this.from = source["from"];
+	        this.fromName = source["fromName"];
+	        this.to = source["to"];
+	        this.toName = source["toName"];
+	        this.body = source["body"];
+	        this.at = this.convertValues(source["at"], null);
+	        this.deliveredAt = this.convertValues(source["deliveredAt"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace main {
 	
 	export class DaemonStatus {
@@ -317,6 +370,7 @@ export namespace main {
 	    ui?: settings.UI;
 	    sessions?: settings.Sessions;
 	    terminal?: settings.Terminal;
+	    messages?: settings.Messages;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsPatch(source);
@@ -330,6 +384,7 @@ export namespace main {
 	        this.ui = this.convertValues(source["ui"], settings.UI);
 	        this.sessions = this.convertValues(source["sessions"], settings.Sessions);
 	        this.terminal = this.convertValues(source["terminal"], settings.Terminal);
+	        this.messages = this.convertValues(source["messages"], settings.Messages);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -772,6 +827,70 @@ export namespace protocol {
 		}
 	}
 	
+	export class MsgPeer {
+	    id: string;
+	    name: string;
+	    profileId: string;
+	    state: string;
+	    activity?: string;
+	    mode?: string;
+	    branch?: string;
+	    sameFolder?: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new MsgPeer(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.profileId = source["profileId"];
+	        this.state = source["state"];
+	        this.activity = source["activity"];
+	        this.mode = source["mode"];
+	        this.branch = source["branch"];
+	        this.sameFolder = source["sameFolder"];
+	    }
+	}
+	export class MsgPeers {
+	    projectId: string;
+	    projectName: string;
+	    self?: MsgPeer;
+	    peers: MsgPeer[];
+	    enabled: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new MsgPeers(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.projectId = source["projectId"];
+	        this.projectName = source["projectName"];
+	        this.self = this.convertValues(source["self"], MsgPeer);
+	        this.peers = this.convertValues(source["peers"], MsgPeer);
+	        this.enabled = source["enabled"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class ProjectGit {
 	    isRepo: boolean;
 	    root?: string;
@@ -850,6 +969,7 @@ export namespace protocol {
 	    // Go type: time
 	    attentionAt?: any;
 	    unread?: boolean;
+	    msgPending?: number;
 	    mode?: string;
 	    worktreeId?: string;
 	    worktreePath?: string;
@@ -906,6 +1026,7 @@ export namespace protocol {
 	        this.attentionMessage = source["attentionMessage"];
 	        this.attentionAt = this.convertValues(source["attentionAt"], null);
 	        this.unread = source["unread"];
+	        this.msgPending = source["msgPending"];
 	        this.mode = source["mode"];
 	        this.worktreeId = source["worktreeId"];
 	        this.worktreePath = source["worktreePath"];
@@ -1097,6 +1218,18 @@ export namespace settings {
 	        this.defaultMode = source["defaultMode"];
 	    }
 	}
+	export class Messages {
+	    enabled: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Messages(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	    }
+	}
 	export class Notify {
 	    enabled: boolean;
 	    sound: boolean;
@@ -1170,6 +1303,7 @@ export namespace settings {
 	    ui: UI;
 	    sessions: Sessions;
 	    terminal: Terminal;
+	    messages: Messages;
 	
 	    static createFrom(source: any = {}) {
 	        return new Settings(source);
@@ -1183,6 +1317,7 @@ export namespace settings {
 	        this.ui = this.convertValues(source["ui"], UI);
 	        this.sessions = this.convertValues(source["sessions"], Sessions);
 	        this.terminal = this.convertValues(source["terminal"], Terminal);
+	        this.messages = this.convertValues(source["messages"], Messages);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

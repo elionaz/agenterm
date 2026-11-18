@@ -28,6 +28,7 @@ Every file agenterm writes says which format it uses:
 | `projects.json` | `~/.config/agenterm/` | `{"version": 1, "projects": [...]}` | 1 |
 | `worktrees.json` | `~/.agenterm/` | `{"version": 1, "worktrees": [...]}` | 1 |
 | `sessions.json` | `~/.agenterm/` | `{"version": 1, "sessions": [...]}` | 1 |
+| `messages.json` | `~/.agenterm/` | `{"version": 1, "messages": [...]}` (since 0.6.0) | 1 |
 
 - **Files from before 0.4.0** have no version: they are format 1 and are read as they are
   (`profiles.yaml` as a bare list, the JSON files as bare arrays). agenterm adds the version the

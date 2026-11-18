@@ -17,6 +17,9 @@ import (
 // offers no peer credentials.
 var ErrUnsupported = errors.New("peer credentials not supported")
 
+// ErrNoProcess: there is no such process.
+var ErrNoProcess = errors.New("no such process")
+
 // PeerPID returns the pid of the process that opened the other end of conn
 // (a *net.UnixConn). The kernel records it at connect time.
 func PeerPID(conn net.Conn) (int, error) {

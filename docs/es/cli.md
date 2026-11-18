@@ -153,6 +153,18 @@ Olvida sesiones `suspended`: salen de la lista y se borran su registro y su scro
 
 Marca la atención de la sesión como vista (lo mismo que seleccionarla en la app).
 
+## Mensajes
+
+Mensajes entre las sesiones de un proyecto; ver [messages.md](messages.md).
+
+| comando | |
+|---|---|
+| `agenterm msg peers [--session ID]` | las otras sesiones de este proyecto (fuera de una sesión: las de `--session`) |
+| `agenterm msg send [--project ID] <a> <texto…>` | a un id de sesión, un nombre o `all`; con el texto `-` lee stdin |
+| `agenterm msg read` | tus mensajes nuevos (solo dentro de una sesión); los marca como entregados |
+| `agenterm msg list [--pending] [--session ID \| --project ID]` | historial de mensajes (una sesión solo ve los suyos) |
+| `agenterm wait <sessionId> [--timeout 30m]` | hasta que la sesión quede inactiva, esperando input o terminada; código de salida 2 si se agota el tiempo |
+
 ## Git
 
 | comando | |

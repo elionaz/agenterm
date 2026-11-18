@@ -3,6 +3,7 @@ import * as App from '../../wailsjs/go/main/App'
 import type { ProjectPatch } from './badge'
 import type { forge, gitx, main, profile, project, protocol, settings } from '../../wailsjs/go/models'
 import { hasKey, t, type Params } from './i18n.svelte'
+import type { Message } from './messages'
 
 // Plain data (the generated classes carry a convertValues helper we never use).
 export type Project = Omit<project.Project, 'convertValues'>
@@ -79,6 +80,7 @@ export interface DaemonEvent extends Live {
     | 'worktree.changed'
     | 'project.changed'
     | 'session.reordered'
+    | 'message.changed'
   sessionId: string
   /** The session's display name (session.renamed: the new one; absent: reset). */
   sessionName?: string
@@ -97,8 +99,10 @@ export interface DaemonEvent extends Live {
   stallRaised?: boolean
   /** session.git: the new change summary (absent: no longer a git folder). */
   git?: GitInfo
-  /** worktree.changed: whose worktree list changed. */
+  /** worktree.changed, message.changed: the project. */
   projectId?: string
+  /** message.changed: messages waiting for sessionId. */
+  msgPending?: number
 }
 
 /** What a session is called: its given name, else its profile. */
@@ -172,6 +176,12 @@ export const api = {
     App.ForgeMerge(sessionId, worktreeId, n, method, head, deleteBranch),
   forgeCreate: (sessionId: string, worktreeId: string, title: string, body: string, draft: boolean): Promise<ForgeStatus> =>
     App.ForgeCreate(sessionId, worktreeId, title, body, draft),
+  /** Messages sent by or to a session (agenterm msg). */
+  listMessages: (sessionId: string): Promise<Message[]> => App.ListMessages(sessionId, ''),
+  /** From the user to a session (id). */
+  sendMessage: (to: string, body: string): Promise<Message[]> => App.SendMessage(to, '', body),
+  /** Types a fixed line telling the agent to read its messages; returns how many were pending. */
+  deliverMessages: (sessionId: string): Promise<number> => App.DeliverMessages(sessionId),
   /** Opens a worktree (id) or a session's folder in the editor or Finder. */
   openFolder: (target: 'editor' | 'finder', ref: { worktreeId?: string; sessionId?: string }) =>
     App.OpenWorktree(ref.worktreeId ?? '', ref.sessionId ?? '', target),

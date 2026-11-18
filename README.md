@@ -46,6 +46,10 @@ tells you when one of them needs you.
   branch your main folder is on: state, checks and review, the comments (line comments jump to the
   file), merging on the host, and opening a new one with a suggested title and description. It
   uses your own `gh` / `glab` login; agenterm stores no tokens.
+- **Messages between sessions**: the agents of a project can write to each other
+  (`agenterm msg send`, `agenterm wait`); Claude Code gets its messages by itself, other agents
+  read them with `agenterm msg read` or get a nudge from the **Messages** tab. Messages never leave
+  their project and the daemon decides who sent each one.
 - **In-app settings**: enable, reorder and edit agents, and configure the language, appearance,
   notifications and git.
 - **In-app updates** (Sparkle): a daily background check, **Check for Updates…** in the app menu
@@ -295,6 +299,7 @@ diffs: [docs/worktrees.md](docs/worktrees.md).
 - [docs/attention-and-activity.md](docs/attention-and-activity.md): hooks, terminal signals,
   notifications, activity, "stalled?" and progress.
 - [docs/worktrees.md](docs/worktrees.md): per-session worktrees, diff, merge and removal.
+- [docs/messages.md](docs/messages.md): messages between the sessions of a project.
 - [docs/architecture.md](docs/architecture.md): daemon, app and CLI, protocol, events and
   persistence.
 - [docs/development.md](docs/development.md): development, tests, releasing, the icon and known

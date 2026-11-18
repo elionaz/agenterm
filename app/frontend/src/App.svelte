@@ -2,6 +2,8 @@
   import { onDestroy, onMount, tick } from 'svelte'
   import { EventsOn, WindowSetTitle } from '../wailsjs/runtime/runtime'
   import Changes from './lib/Changes.svelte'
+  import Messages from './lib/Messages.svelte'
+  import { showMessagesTab } from './lib/messages'
   import Grid from './lib/Grid.svelte'
   import ProgressBar from './lib/ProgressBar.svelte'
   import Settings from './lib/Settings.svelte'
@@ -86,7 +88,9 @@
   /** agenterm worktrees per project (for the orphan lists). */
   let worktrees = $state<Record<string, WorktreeInfo[]>>({})
   /** Which tab each session shows: terminal (default) or its changes. */
-  let views = $state<Record<string, 'terminal' | 'changes'>>({})
+  let views = $state<Record<string, 'terminal' | 'changes' | 'messages'>>({})
+  /** Bumped per session on message.changed: the Messages tab reloads. */
+  let msgStamps = $state<Record<string, number>>({})
   /** An orphaned worktree's changes shown over the main area. */
   let orphanView = $state<{ id: string; remove: boolean } | null>(null)
   /** settings git.default_mode (what ⌘N / the + menu start with). */
@@ -113,7 +117,14 @@
   const selectedTimer = $derived(selected ? timerInfo(selected, now, true) : null)
   /** The selected session has a git folder: offer the Cambios tab. */
   const hasChanges = $derived(!!selected && (selected.mode === 'worktree' || !!selected.git))
-  const view = $derived(selected && hasChanges ? (views[selected.id] ?? 'terminal') : 'terminal')
+  /** The project has other sessions (or this one has messages): offer Mensajes. */
+  const hasMessages = $derived(!!selected && showMessagesTab(selected, sessions, msgStamps[selected.id] ?? 0))
+  const view = $derived.by(() => {
+    const v = selected ? (views[selected.id] ?? 'terminal') : 'terminal'
+    if (v === 'changes' && !hasChanges) return 'terminal'
+    if (v === 'messages' && !hasMessages) return 'terminal'
+    return v
+  })
 
   const layout = $derived(currentProjectId ? (layouts[currentProjectId] ?? null) : null)
   const geo = $derived(layout ? geometry(layout.root) : null)
@@ -133,7 +144,7 @@
     terms.setPrefs(termPrefs())
   })
 
-  function setView(v: 'terminal' | 'changes') {
+  function setView(v: 'terminal' | 'changes' | 'messages') {
     if (!selected) return
     views[selected.id] = v
     if (v === 'terminal') terms.focus(selected.id)
@@ -760,6 +771,10 @@
       case 'session.git':
         sessions = sessions.map((s) => (s.id === ev.sessionId ? { ...s, git: ev.git as Session['git'] } : s))
         break
+      case 'message.changed':
+        sessions = sessions.map((s) => (s.id === ev.sessionId ? { ...s, msgPending: ev.msgPending ?? 0 } : s))
+        msgStamps[ev.sessionId] = (msgStamps[ev.sessionId] ?? 0) + 1
+        break
       case 'session.renamed':
         sessions = sessions.map((s) => (s.id === ev.sessionId ? { ...s, name: ev.sessionName } : s))
         break
@@ -980,12 +995,19 @@
       {/if}
     </header>
 
-    {#if selected && hasChanges}
+    {#if selected && (hasChanges || hasMessages)}
       <nav class="view-tabs">
         <button class:on={view === 'terminal'} onclick={() => setView('terminal')}>{t('view.terminal')}</button>
-        <button class:on={view === 'changes'} onclick={() => setView('changes')}
-          >{t('view.changes')}{selected.git ? ` (${selected.git.files})` : ''}</button
-        >
+        {#if hasChanges}
+          <button class:on={view === 'changes'} onclick={() => setView('changes')}
+            >{t('view.changes')}{selected.git ? ` (${selected.git.files})` : ''}</button
+          >
+        {/if}
+        {#if hasMessages}
+          <button class:on={view === 'messages'} class:attn={(selected.msgPending ?? 0) > 0} onclick={() => setView('messages')}
+            >{t('view.messages')}{selected.msgPending ? ` (${selected.msgPending})` : ''}</button
+          >
+        {/if}
       </nav>
     {/if}
 
@@ -1033,6 +1055,15 @@
                       setView('terminal')
                       void refreshSessions()
                     }}
+                  />
+                {/if}
+                {#if focused && selected && view === 'messages'}
+                  <Messages
+                    session={selected}
+                    {sessions}
+                    projectName={projects.find((x) => x.id === selected.projectId)?.name ?? ''}
+                    stamp={msgStamps[selected.id] ?? 0}
+                    onError={showError}
                   />
                 {/if}
                 {#if focused && search.open && search.session === p.leaf.session}
@@ -1302,6 +1333,9 @@
   .view-tabs button.on {
     color: var(--fg);
     border-bottom-color: var(--blue);
+  }
+  .view-tabs button.attn:not(.on) {
+    color: var(--amber);
   }
   .orphan-view {
     position: absolute;

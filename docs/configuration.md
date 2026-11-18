@@ -12,6 +12,7 @@
 | session worktrees | `~/.agenterm/worktrees/<project>-<projectId>/<sessionId>/` (or `git.worktree_dir`) | `/x/worktrees/…` |
 | worktree registry | `~/.agenterm/worktrees.json` | `/x/worktrees.json` |
 | sessions to restore and their scrollback | `~/.agenterm/sessions.json`, `~/.agenterm/scrollback/<id>.log` | `/x/…` |
+| messages between sessions | `~/.agenterm/messages.json` | `/x/messages.json` |
 
 - Directories are created with `0700` permissions and the socket with `0600`.
 - On macOS a unix socket path is limited to about 104 bytes: if you use `AGENTERM_HOME`, keep it
@@ -145,6 +146,7 @@ Every key is optional; missing ones take the default value.
 | `git.worktree_dir` | `""` | where to create worktrees (absolute path or `~/…`). Empty: `~/.agenterm/worktrees` (or `$AGENTERM_HOME/worktrees`) |
 | `git.default_mode` | `same` | `same` or `worktree`: what the **+** menu (and ⌘N) suggests in a project where you haven't chosen yet |
 | `sessions.restore` | `ask` | what a starting daemon does with the sessions that were live when the previous one stopped: `ask` (keep them `suspended` until you resume or discard them), `always` (resume them right away) or `never` (discard them). See [architecture.md](architecture.md#persistence-and-resume) |
+| `messages.enabled` | `true` | messages between the sessions of a project (`agenterm msg`): when off, sending is refused and agent hooks hand nothing over. See [messages.md](messages.md) |
 
 ```yaml
 version: 1
@@ -165,6 +167,8 @@ git:
   default_mode: same
 sessions:
   restore: ask
+messages:
+  enabled: true
 terminal:
   font_family: '"SF Mono", Menlo, Monaco, monospace'
   font_size: 13
@@ -180,6 +184,7 @@ When it's read:
 - `git.worktree_dir` is read when each worktree is created (and when listing a project's worktrees).
 - `git.editor` is read on every "Open in editor".
 - `sessions.restore` is read when the daemon starts.
+- `messages.enabled` is read on every message sent and every hook that could deliver one.
 - `ui.appearance` and `terminal.*` are read by the app when it loads (and when Settings opens);
   changes made in the app apply at once to every open terminal. A hand edit applies on the next
   reload of the window.
@@ -190,7 +195,7 @@ fields a client doesn't send keep their value. If the file can't be parsed, the 
 (and this is logged); saving replaces it.
 
 **Settings → Git** edits `git.editor`, `git.worktree_dir` and `git.default_mode`. **Settings →
-General** edits `ui.language` and `sessions.restore` (saved right away). **Settings →
+General** edits `ui.language`, `sessions.restore` and `messages.enabled` (saved right away). **Settings →
 Appearance** edits `ui.appearance` and `terminal.*`, with a live preview; changes apply to the open
 terminals at once and are saved right away.
 

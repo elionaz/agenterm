@@ -48,6 +48,10 @@ vivos aunque cierres la app y te avisa cuando alguno te necesita.
   en la que está tu carpeta principal: estado, checks y review, los comentarios (los de línea llevan
   al archivo), merge en el servidor y crear uno nuevo con título y descripción sugeridos. Usa tu
   propia sesión de `gh` / `glab`; agenterm no guarda tokens.
+- **Mensajes entre sesiones**: los agentes de un proyecto pueden escribirse
+  (`agenterm msg send`, `agenterm wait`); Claude Code recibe sus mensajes solo, los demás agentes
+  los leen con `agenterm msg read` o reciben un aviso desde la pestaña **Mensajes**. Los mensajes
+  nunca salen de su proyecto y el daemon decide quién envió cada uno.
 - **Ajustes en la app**: activar, ordenar y editar agentes, y configurar el idioma, la apariencia,
   las notificaciones y git.
 - **Actualizaciones integradas** (Sparkle): una comprobación diaria en segundo plano, **Buscar
@@ -302,6 +306,7 @@ y diff: [docs/es/worktrees.md](docs/es/worktrees.md).
 - [docs/es/attention-and-activity.md](docs/es/attention-and-activity.md): hooks, señales de terminal,
   notificaciones, actividad, «¿trabado?» y progreso.
 - [docs/es/worktrees.md](docs/es/worktrees.md): worktrees por sesión, diff, merge y borrado.
+- [docs/es/messages.md](docs/es/messages.md): mensajes entre las sesiones de un proyecto.
 - [docs/es/architecture.md](docs/es/architecture.md): daemon, app y CLI, protocolo, eventos y
   persistencia.
 - [docs/es/development.md](docs/es/development.md): desarrollo, tests, publicación de releases,

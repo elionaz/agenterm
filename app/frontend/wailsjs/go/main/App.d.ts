@@ -6,6 +6,7 @@ import {main} from '../models';
 import {profile} from '../models';
 import {forge} from '../models';
 import {settings} from '../models';
+import {mailbox} from '../models';
 import {gitx} from '../models';
 
 export function Ack(arg1:string):Promise<void>;
@@ -19,6 +20,8 @@ export function CheckForUpdates():Promise<void>;
 export function DaemonStatus():Promise<main.DaemonStatus>;
 
 export function DeleteProfile(arg1:string):Promise<Array<profile.Profile>>;
+
+export function DeliverMessages(arg1:string):Promise<number>;
 
 export function Detach(arg1:string):Promise<void>;
 
@@ -44,6 +47,8 @@ export function InstallUpdateNow():Promise<boolean>;
 
 export function Kill(arg1:string):Promise<protocol.SessionInfo>;
 
+export function ListMessages(arg1:string,arg2:string):Promise<Array<mailbox.Message>>;
+
 export function ListProfiles():Promise<Array<profile.Profile>>;
 
 export function ListProjects():Promise<Array<project.Project>>;
@@ -53,6 +58,8 @@ export function ListSessions():Promise<Array<protocol.SessionInfo>>;
 export function ListWorktrees(arg1:string):Promise<Array<protocol.WorktreeInfo>>;
 
 export function MergeWorktree(arg1:string):Promise<gitx.MergeResult>;
+
+export function MessagePeers(arg1:string):Promise<protocol.MsgPeers>;
 
 export function Onboarding():Promise<main.OnboardingInfo>;
 
@@ -93,6 +100,8 @@ export function ResumeAll():Promise<protocol.SessionBatch>;
 export function SaveProfile(arg1:profile.Entry):Promise<Array<profile.Profile>>;
 
 export function SaveSettings(arg1:main.SettingsPatch):Promise<settings.Settings>;
+
+export function SendMessage(arg1:string,arg2:string,arg3:string):Promise<Array<mailbox.Message>>;
 
 export function SessionDiff(arg1:string):Promise<protocol.DiffResult>;
 

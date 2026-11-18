@@ -26,6 +26,10 @@ export function DeleteProfile(arg1) {
   return window['go']['main']['App']['DeleteProfile'](arg1);
 }
 
+export function DeliverMessages(arg1) {
+  return window['go']['main']['App']['DeliverMessages'](arg1);
+}
+
 export function Detach(arg1) {
   return window['go']['main']['App']['Detach'](arg1);
 }
@@ -74,6 +78,10 @@ export function Kill(arg1) {
   return window['go']['main']['App']['Kill'](arg1);
 }
 
+export function ListMessages(arg1, arg2) {
+  return window['go']['main']['App']['ListMessages'](arg1, arg2);
+}
+
 export function ListProfiles() {
   return window['go']['main']['App']['ListProfiles']();
 }
@@ -92,6 +100,10 @@ export function ListWorktrees(arg1) {
 
 export function MergeWorktree(arg1) {
   return window['go']['main']['App']['MergeWorktree'](arg1);
+}
+
+export function MessagePeers(arg1) {
+  return window['go']['main']['App']['MessagePeers'](arg1);
 }
 
 export function Onboarding() {
@@ -172,6 +184,10 @@ export function SaveProfile(arg1) {
 
 export function SaveSettings(arg1) {
   return window['go']['main']['App']['SaveSettings'](arg1);
+}
+
+export function SendMessage(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SendMessage'](arg1, arg2, arg3);
 }
 
 export function SessionDiff(arg1) {

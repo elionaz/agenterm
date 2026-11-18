@@ -17,6 +17,7 @@ import (
 	"github.com/elionaz/agenterm/internal/forge"
 	"github.com/elionaz/agenterm/internal/gitx"
 	"github.com/elionaz/agenterm/internal/i18n"
+	"github.com/elionaz/agenterm/internal/mailbox"
 	"github.com/elionaz/agenterm/internal/paths"
 	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/project"
@@ -362,6 +363,7 @@ type SettingsPatch struct {
 	UI       *settings.UI       `json:"ui,omitempty"`
 	Sessions *settings.Sessions `json:"sessions,omitempty"`
 	Terminal *settings.Terminal `json:"terminal,omitempty"`
+	Messages *settings.Messages `json:"messages,omitempty"`
 }
 
 func (a *App) SaveSettings(s SettingsPatch) (settings.Settings, error) {
@@ -801,4 +803,49 @@ func (a *App) OpenWorktree(id, sessionID, target string) error {
 	return a.call(func(ctx context.Context) error {
 		return a.client.WorktreeOpen(ctx, protocol.WorktreeOpenParams{ID: id, SessionID: sessionID, Target: target})
 	})
+}
+
+// MessagePeers lists the sessions of sessionID's project, as agents see
+// them (agenterm msg peers).
+func (a *App) MessagePeers(sessionID string) (protocol.MsgPeers, error) {
+	var out protocol.MsgPeers
+	err := a.call(func(ctx context.Context) (err error) {
+		out, err = a.client.MsgPeers(ctx, sessionID)
+		return err
+	})
+	return out, err
+}
+
+// ListMessages lists the messages sent by or to sessionID (all of the
+// project when sessionID is empty).
+func (a *App) ListMessages(sessionID, projectID string) ([]mailbox.Message, error) {
+	var out []mailbox.Message
+	err := a.call(func(ctx context.Context) (err error) {
+		out, err = a.client.MsgList(ctx, protocol.MsgListParams{SessionID: sessionID, ProjectID: projectID})
+		return err
+	})
+	return out, err
+}
+
+// SendMessage sends a message from the user to a session (to: an id) or
+// to every session of projectID (to: "all").
+func (a *App) SendMessage(to, projectID, body string) ([]mailbox.Message, error) {
+	var out []mailbox.Message
+	err := a.call(func(ctx context.Context) (err error) {
+		out, err = a.client.MsgSend(ctx, protocol.MsgSendParams{To: to, ProjectID: projectID, Body: body})
+		return err
+	})
+	return out, err
+}
+
+// DeliverMessages types a fixed line into sessionID's terminal telling the
+// agent it has messages (never the messages themselves); returns how many
+// were pending.
+func (a *App) DeliverMessages(sessionID string) (int, error) {
+	var n int
+	err := a.call(func(ctx context.Context) (err error) {
+		n, err = a.client.MsgDeliver(ctx, sessionID)
+		return err
+	})
+	return n, err
 }

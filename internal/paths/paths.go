@@ -79,5 +79,8 @@ func (p Paths) Worktrees() string { return filepath.Join(p.RuntimeDir, "worktree
 // Sessions is the registry of sessions to restore after a daemon restart.
 func (p Paths) Sessions() string { return filepath.Join(p.RuntimeDir, "sessions.json") }
 
+// Messages holds the messages between sessions (agenterm msg).
+func (p Paths) Messages() string { return filepath.Join(p.RuntimeDir, "messages.json") }
+
 // ScrollbackDir holds each persisted session's scrollback (<id>.log).
 func (p Paths) ScrollbackDir() string { return filepath.Join(p.RuntimeDir, "scrollback") }
