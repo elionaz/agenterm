@@ -95,6 +95,11 @@ func (s *Server) restoreSessions() {
 		s.git[rec.ID] = info.git()
 		s.mu.Unlock()
 		s.setName(rec.ID, normName(rec.Name))
+		if m := normModel(rec.Model); m != "" {
+			s.namesMu.Lock()
+			s.models[rec.ID] = m
+			s.namesMu.Unlock()
+		}
 		keep[rec.ID] = true
 		restored = append(restored, rec.ID)
 		if !restart[rec.ID] {
@@ -204,7 +209,7 @@ func (i *suspInfo) git() sessGit {
 func (s *Server) recordSession(sess *session.Session, g sessGit, resume *sessionstore.Resume) {
 	cols, rows := sess.Size()
 	rec := sessionstore.Record{
-		ID: sess.ID, ProjectID: sess.ProjectID, ProfileID: sess.ProfileID, Name: s.sessionName(sess.ID),
+		ID: sess.ID, ProjectID: sess.ProjectID, ProfileID: sess.ProfileID, Name: s.sessionName(sess.ID), Model: s.sessionModel(sess.ID),
 		Mode: g.Mode, WorktreeID: g.WorktreeID,
 		Cwd: sess.Cwd, Cmd: sess.Cmd, Args: sess.Args, Pid: sess.Pid, Cols: cols, Rows: rows,
 		CreatedAt: sess.CreatedAt, State: string(sess.State()), Resume: resume,
@@ -488,6 +493,7 @@ func (s *Server) discard(id string) (protocol.SessionInfo, error) {
 	s.mu.Unlock()
 	s.forgetGit(id)
 	s.setName(id, "")
+	s.forgetModel(id)
 	s.forgetMessages(sess)
 	sess.Release()
 	s.dropPersisted(id)

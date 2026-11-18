@@ -177,19 +177,23 @@ func TestSaveNewAndBrokenFile(t *testing.T) {
 }
 
 func TestGitSettings(t *testing.T) {
-	if d := Defaults(); d.Git.DefaultMode != ModeSame || d.Git.Editor != "" {
+	if d := Defaults(); d.Git.DefaultMode != ModeWorktree || d.Git.Editor != "" {
 		t.Fatalf("defaults %+v", d.Git)
 	}
 	s, err := Parse([]byte("git:\n  editor: \" Visual Studio Code \"\n  default_mode: bogus\n"))
-	if err != nil || s.Git.Editor != "Visual Studio Code" || s.Git.DefaultMode != ModeSame {
+	if err != nil || s.Git.Editor != "Visual Studio Code" || s.Git.DefaultMode != ModeWorktree {
 		t.Fatalf("got %+v %v", s.Git, err)
 	}
-	// An empty mode is saved as "same".
+	// An explicit "same" is kept.
+	if s, _ := Parse([]byte("git:\n  default_mode: same\n")); s.Git.DefaultMode != ModeSame {
+		t.Fatalf("same not kept: %q", s.Git.DefaultMode)
+	}
+	// An empty mode is saved as the default.
 	p := filepath.Join(t.TempDir(), "settings.yaml")
 	if err := Save(p, Settings{}); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := Load(p); got.Git.DefaultMode != ModeSame {
+	if got, _ := Load(p); got.Git.DefaultMode != ModeWorktree {
 		t.Fatalf("saved mode = %q", got.Git.DefaultMode)
 	}
 }

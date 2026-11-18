@@ -148,7 +148,7 @@ Todas las claves son opcionales; las que faltan toman el valor por defecto.
 | `activity.stall_seconds` | `180` | segundos sin salida ni eventos para marcar «¿trabado?»; `0` lo desactiva |
 | `git.editor` | `""` | para «Abrir en editor»: un comando en el `PATH` (`code`, `cursor -n`, `zed`), una ruta absoluta o el nombre de una app de macOS (`Visual Studio Code`, `Cursor.app`). Vacío: `code` si está en el `PATH`, si no Finder |
 | `git.worktree_dir` | `""` | dónde crear los worktrees (ruta absoluta o `~/…`). Vacío: `~/.agenterm/worktrees` (o `$AGENTERM_HOME/worktrees`) |
-| `git.default_mode` | `same` | `same` o `worktree`: lo que propone el menú **+** (y ⌘N) en un proyecto donde aún no elegiste |
+| `git.default_mode` | `worktree` | `worktree` o `same`: dónde el menú **+** (y ⌘N) empieza un agente nuevo en un proyecto donde aún no elegiste. Las shells siempre empiezan en la carpeta del proyecto. Antes de 0.6.1 el default era `same`; un archivo que diga `same` lo conserva |
 | `sessions.restore` | `ask` | qué hace un daemon al arrancar con las sesiones que estaban vivas cuando se detuvo el anterior: `ask` (dejarlas `suspended` hasta que las reanudes o descartes), `always` (reanudarlas enseguida) o `never` (descartarlas). Ver [architecture.md](architecture.md#persistencia-y-reanudación) |
 | `messages.enabled` | `true` | mensajes entre las sesiones de un proyecto (`agenterm msg`): si se apaga, los envíos se rechazan y los hooks de los agentes no entregan nada. Ver [messages.md](messages.md) |
 | `messages.auto_deliver` | `false` | a una sesión de Claude inactiva en su prompt se le avisa de los mensajes nuevos sin el clic en **Entregar**; nunca sobre texto escrito sin enviar, y como mucho 5 veces por sesión hasta que vuelvas a intervenir en ella (y 20 por proyecto cada 10 minutos). Ver [messages.md](messages.md#entrega-automática) |
@@ -169,7 +169,7 @@ activity:
 git:
   editor: ""
   worktree_dir: ""
-  default_mode: same
+  default_mode: worktree
 sessions:
   restore: ask
 messages:

@@ -133,7 +133,8 @@ func runHook(agent, id, sock string, rest []string, stdin io.Reader, stdout io.W
 			}
 		}
 	}
-	if !ok && ref == "" {
+	model := hooks.Model(agent, payload)
+	if !ok && ref == "" && model == "" {
 		return inboxErr
 	}
 	p := protocol.NotifyParams{SessionID: id}
@@ -144,6 +145,7 @@ func runHook(agent, id, sock string, rest []string, stdin io.Reader, stdout io.W
 	if ref != "" {
 		p.Agent, p.AgentSessionID, p.TranscriptPath = agent, ref, transcript
 	}
+	p.Model = model
 	if _, err = send(ctx, sock, p); err != nil {
 		return err
 	}

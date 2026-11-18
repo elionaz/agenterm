@@ -24,6 +24,8 @@
   import type { ProjectPatch } from './badge'
   import { dropSlot, moveTo } from './reorder'
   import { SHELL_PROFILE, folderSharers, inProjectFolder, joinNames } from './shared'
+  import { proposedMode } from './spawnmode'
+  import { prettyModel } from './models'
 
   interface Props {
     projects: Project[]
@@ -152,7 +154,7 @@
   let mode = $state<SpawnMode>('same')
   let branch = $state('')
   let base = $state('')
-  let defaultMode: SpawnMode = 'same'
+  let defaultMode: SpawnMode = 'worktree'
 
   // Drag & drop: a project among projects, or a session among its project's
   // sessions. dropAt is the gap the pointer is over (see reorder.ts).
@@ -254,7 +256,7 @@
       .catch(() => menuFor === projectId && (projGit = { isRepo: false, branches: [], error: t('git.unavailable') }))
     void api
       .getSettings()
-      .then((st) => (defaultMode = st.git?.defaultMode === 'worktree' ? 'worktree' : 'same'))
+      .then((st) => (defaultMode = st.git?.defaultMode === 'same' ? 'same' : 'worktree'))
       .catch(() => {})
   }
 
@@ -292,8 +294,9 @@
     picked = prof
     // Another agent already works in the project folder: suggest a worktree,
     // so the two don't share a branch and changes.
-    const busy = prof.id !== SHELL_PROFILE && folderSharers(sessions, projectId).length > 0
-    mode = busy ? 'worktree' : rememberedMode(projectId, defaultMode)
+    const shell = prof.id === SHELL_PROFILE
+    const busy = !shell && folderSharers(sessions, projectId).length > 0
+    mode = proposedMode({ shell, busy, remembered: rememberedMode(projectId, defaultMode), fallback: defaultMode })
     if (mode === 'worktree' && projGit && !canWorktree) mode = 'same'
     branch = `agent/${prof.id}-${randomSuffix()}`
     base = projGit?.defaultBase || projGit?.currentBranch || ''
@@ -302,8 +305,9 @@
   function launch(projectId: string) {
     if (!picked) return
     const wt = mode === 'worktree' && canWorktree
-    // A suggested worktree (the folder was busy) is not a preference.
-    if (!suggestWorktree) rememberMode(projectId, wt ? 'worktree' : 'same')
+    // A suggested worktree (the folder was busy) is not a preference, and a
+    // shell always starts in the folder.
+    if (!suggestWorktree && picked.id !== SHELL_PROFILE) rememberMode(projectId, wt ? 'worktree' : 'same')
     const prof = picked
     closeMenu()
     onSpawn(projectId, prof.id, wt ? { mode: 'worktree', branch: branch.trim(), base } : { mode: 'same' })
@@ -584,6 +588,8 @@
                     {/if}
                     {#if s.mode === 'worktree' && s.branch}
                       <span class="chip" title={branchTitle(s)}>⎇ {s.branch.replace(/^agent\//, '')}</span>
+                    {:else if s.git?.head}
+                      <span class="chip same" title={t('sidebar.folderBranch', { branch: s.git.head })}>⎇ {s.git.head}</span>
                     {/if}
                     {#if s.git && s.git.files > 0}
                       <span class="changes" title={changesTitle(s)}>{changesLabel(s.git)}</span>
@@ -631,8 +637,9 @@
                       >
                     {/if}
                   </div>
-                  {#if (s.activity && s.state !== 'exited') || timer.text}
+                  {#if (s.activity && s.state !== 'exited') || timer.text || s.model}
                     <div class="sub">
+                      {#if s.model}<span class="model" title={t('sidebar.model', { model: s.model })}>{prettyModel(s.model)}</span>{/if}
                       <span class="activity">{s.state !== 'exited' ? activityText(s) : ''}</span>
                       {#if timer.text}<span class="timer" class:stalled={timer.stalled}>{timer.text}</span>{/if}
                     </div>
@@ -956,6 +963,15 @@
   }
   /* The name keeps its width; the branch chip shrinks first (longer state
      words, e.g. "esperando", would otherwise squeeze the name to "s…"). */
+  .model {
+    flex: none;
+    max-width: 45%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 10.5px;
+    color: var(--muted);
+  }
   .session-name {
     flex: 0 0 auto;
     max-width: 50%;
@@ -1252,6 +1268,11 @@
     line-height: 15px;
     color: var(--blue);
     background: color-mix(in srgb, var(--blue) 12%, transparent);
+  }
+  /* The project folder's own branch (not a worktree of the session's). */
+  .chip.same {
+    color: var(--fg-dim);
+    background: color-mix(in srgb, var(--fg-dim) 10%, transparent);
   }
   .changes {
     flex: none;

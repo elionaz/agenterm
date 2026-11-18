@@ -212,6 +212,16 @@ cualquier salida o evento.
   Claude el aviso detecta sobre todo cuelgues completos (proceso parado, terminal congelada), no una
   herramienta lenta.
 
+### Modelo
+
+La fila de la sesión y su barra de título muestran el modelo del agente junto a su nombre (*Opus
+5.5*; el id completo en el tooltip). Claude Code lo informa con sus hooks: el `model` del payload
+del hook cuando lo trae, y si no, el modelo del último mensaje del asistente en el transcript de la
+sesión (leído desde el final, como mucho 256 KiB, al empezar la sesión, en cada prompt y al terminar
+cada turno), así que `/model` se ve en el siguiente turno. Los demás agentes solo muestran uno si su
+línea de comandos lo nombra (`--model X`, `-m X`, `--model=X` o `-c model=X` de codex en los `args`
+del perfil). Se conserva entre reinicios del daemon.
+
 ### Progreso
 
 `OSC 9 ; 4 ; st ; pr` (ConEmu / Windows Terminal / Ghostty; `st`: 0 borra, 1 normal, 2 error, 3

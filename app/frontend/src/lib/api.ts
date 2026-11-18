@@ -81,6 +81,7 @@ export interface DaemonEvent extends Live {
     | 'project.changed'
     | 'session.reordered'
     | 'message.changed'
+    | 'session.model'
   sessionId: string
   /** The session's display name (session.renamed: the new one; absent: reset). */
   sessionName?: string
@@ -103,6 +104,8 @@ export interface DaemonEvent extends Live {
   projectId?: string
   /** message.changed: messages waiting for sessionId. */
   msgPending?: number
+  /** session.model: the agent's model id. */
+  model?: string
 }
 
 /** What a session is called: its given name, else its profile. */
@@ -232,9 +235,14 @@ export function changesLabel(g: GitInfo | undefined | null): string {
 }
 
 /** Last spawn mode chosen for a project (localStorage), else the default. */
+// Per project, the mode last picked for an agent. The key changed in 0.6.1,
+// when worktree became the default: choices made before (mostly the then
+// default "same") no longer win over it.
+const modeKey = (projectId: string) => `agenterm.spawnMode2.${projectId}`
+
 export function rememberedMode(projectId: string, fallback: SpawnMode): SpawnMode {
   try {
-    const v = localStorage.getItem(`agenterm.spawnMode.${projectId}`)
+    const v = localStorage.getItem(modeKey(projectId))
     if (v === 'same' || v === 'worktree') return v
   } catch {
     /* storage unavailable */
@@ -244,7 +252,7 @@ export function rememberedMode(projectId: string, fallback: SpawnMode): SpawnMod
 
 export function rememberMode(projectId: string, mode: SpawnMode) {
   try {
-    localStorage.setItem(`agenterm.spawnMode.${projectId}`, mode)
+    localStorage.setItem(modeKey(projectId), mode)
   } catch {
     /* storage unavailable */
   }

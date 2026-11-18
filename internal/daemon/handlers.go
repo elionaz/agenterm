@@ -200,6 +200,16 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 		if err != nil {
 			return nil, err
 		}
+		if p.Model != "" {
+			sess, err := s.lookup(p.SessionID)
+			if err != nil {
+				return nil, err
+			}
+			s.setModel(sess, p.Model)
+			if p.State == "" && p.Activity == "" && p.AgentSessionID == "" {
+				return s.sessionInfo(sess), nil
+			}
+		}
 		if p.AgentSessionID != "" {
 			sess, err := s.lookup(p.SessionID)
 			if err != nil {
@@ -529,6 +539,11 @@ func (s *Server) startSession(sp startSpec) (protocol.SessionInfo, error) {
 	if old != nil {
 		old.Release() // attached viewers of the suspended session reattach
 	}
+	if m := argsModel(sp.args); m != "" && s.sessionModel(id) == "" {
+		s.namesMu.Lock()
+		s.models[id] = m
+		s.namesMu.Unlock()
+	}
 	s.recordSession(sess, g, sp.resume)
 	s.log.Info("session spawned", "id", id, "project", proj.Name, "profile", prof.ID, "pid", sess.Pid, "mode", g.Mode, "cwd", sp.cwd,
 		"resumed", old != nil)
@@ -628,6 +643,7 @@ func (s *Server) kill(id string) (protocol.SessionInfo, error) {
 		s.mu.Unlock()
 		info := s.sessionInfo(sess)
 		s.setName(id, "")
+		s.forgetModel(id)
 		s.forgetMessages(sess)
 		s.bus.publish(protocol.Event{Type: protocol.EventSessionRemoved, SessionID: id, At: time.Now().UTC()})
 		return info, nil

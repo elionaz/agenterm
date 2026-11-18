@@ -457,7 +457,7 @@
     git = {
       editor: s.git?.editor ?? '',
       worktreeDir: s.git?.worktreeDir ?? '',
-      defaultMode: s.git?.defaultMode === 'worktree' ? 'worktree' : 'same',
+      defaultMode: s.git?.defaultMode === 'same' ? 'same' : 'worktree',
     }
     savedGit = JSON.stringify(git)
     setLangSetting(s.ui?.language)
