@@ -197,7 +197,7 @@ func (s *Server) msgPeers(caller *session.Session, sessionID string) (protocol.M
 		}
 		ref = sess
 	}
-	out := protocol.MsgPeers{ProjectID: ref.ProjectID, ProjectName: ref.ProjectName, Peers: []protocol.MsgPeer{}, Enabled: s.messagesEnabled()}
+	out := protocol.MsgPeers{ProjectID: ref.ProjectID, ProjectName: s.projectName(ref.ProjectID, ref.ProjectName), Peers: []protocol.MsgPeer{}, Enabled: s.messagesEnabled()}
 	for _, sess := range s.projectSessions(ref.ProjectID) {
 		p := s.msgPeer(sess, caller)
 		if caller != nil && sess.ID == caller.ID {
