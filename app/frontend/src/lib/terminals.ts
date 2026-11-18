@@ -362,11 +362,14 @@ export class TerminalManager {
   /** Files dropped at (x, y): their paths are pasted, escaped, into the
    * terminal under the pointer, which takes the keyboard (Claude Code turns
    * dropped image paths into attachments). */
-  private dropFiles(x: number, y: number, paths: string[]) {
-    const text = dropText(paths ?? [])
+  private async dropFiles(x: number, y: number, paths: string[]) {
+    if (!dropText(paths ?? [])) return
     const hit = document.elementFromPoint(x, y)
     const e = hit ? [...this.entries.values()].find((v) => v.el.contains(hit)) : undefined
-    if (!text || !e || e.exited) return
+    if (!e || e.exited) return
+    const staged = await api.stageDrops(paths).catch(() => paths)
+    const text = dropText(staged)
+    if (!text || e.disposed || e.exited) return
     e.term.paste(text)
     e.term.focus()
   }

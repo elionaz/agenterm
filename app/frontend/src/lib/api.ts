@@ -197,6 +197,8 @@ export const api = {
   discardAll: (): Promise<SessionBatch> => App.DiscardAll(),
   attach: (id: string, cols: number, rows: number) => App.Attach(id, cols, rows),
   detach: (id: string) => App.Detach(id),
+  /** Lasting paths for dropped files (screenshot thumbnails live in a temp folder macOS empties on drop). */
+  stageDrops: async (paths: string[]): Promise<string[]> => (await App.StageDrops(paths)) ?? paths,
   /** Raw bytes to the PTY (keystrokes are UTF-8 encoded by the caller). */
   inputBytes: (id: string, data: Uint8Array) => App.InputBase64(id, bytesToB64(data)),
   resize: (id: string, cols: number, rows: number) => App.Resize(id, cols, rows),
