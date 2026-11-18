@@ -198,6 +198,8 @@ export const es: Dict = {
   'sidebar.discard': 'Descartar (olvidar la sesión y su historial)',
   'sidebar.suspendedSince': 'Suspendida desde {at} (el daemon se reinició)',
   'sidebar.resumeFailed': 'El último intento de reanudar falló: {msg}',
+  'sidebar.model': 'Modelo: {model}',
+  'sidebar.folderBranch': 'Rama de la carpeta del proyecto: {branch} (compartida con las otras sesiones de la carpeta)',
   'sidebar.msgPending': { one: '{n} mensaje de otra sesión esperando', other: '{n} mensajes de otras sesiones esperando' },
   'sidebar.restoredBanner': { one: '{n} sesión de la ejecución anterior', other: '{n} sesiones de la ejecución anterior' },
   'sidebar.resumeAll': 'Reanudar todas',
@@ -492,7 +494,7 @@ export const es: Dict = {
 
   'settings.g.mode': 'Modo por defecto al lanzar',
   'settings.g.modeHelp':
-    'Lo que el menú <b>+</b> propone si aún no elegiste nada en ese proyecto (se recuerda la última elección por proyecto).',
+    'Dónde empieza un <b>agente</b> nuevo si aún no elegiste nada en ese proyecto (se recuerda la última elección por proyecto). Un worktree nuevo le da a cada agente su propia rama y carpeta, así no se pisan; las shells siempre empiezan en la carpeta del proyecto.',
   'settings.g.same': 'Misma carpeta',
   'settings.g.worktree': 'Worktree nuevo',
   'settings.g.editor': 'Editor',

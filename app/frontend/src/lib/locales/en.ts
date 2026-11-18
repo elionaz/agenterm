@@ -219,6 +219,8 @@ export const en = {
   'sidebar.discard': 'Discard (forget the session and its scrollback)',
   'sidebar.suspendedSince': 'Suspended since {at} (the daemon restarted)',
   'sidebar.resumeFailed': 'Last resume failed: {msg}',
+  'sidebar.model': 'Model: {model}',
+  'sidebar.folderBranch': 'Branch of the project folder: {branch} (shared with the other sessions in the folder)',
   'sidebar.msgPending': { one: '{n} message from another session waiting', other: '{n} messages from other sessions waiting' },
   'sidebar.restoredBanner': { one: '{n} session from the previous run', other: '{n} sessions from the previous run' },
   'sidebar.resumeAll': 'Resume all',
@@ -528,7 +530,7 @@ export const en = {
   'settings.g.mode': 'Default launch mode',
   /** (html) */
   'settings.g.modeHelp':
-    'What the <b>+</b> menu suggests when you have not chosen anything in that project yet (the last choice is remembered per project).',
+    'Where a new <b>agent</b> starts when you have not chosen anything in that project yet (the last choice is remembered per project). A new worktree gives each agent its own branch and folder, so they never step on each other; shells always start in the project folder.',
   'settings.g.same': 'Same folder',
   'settings.g.worktree': 'New worktree',
   'settings.g.editor': 'Editor',

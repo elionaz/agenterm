@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { prettyModel } from './models'
   // Overview of every session as a card: status, activity, timers, progress
   // and the last lines of output (plain text from session.tail — no xterm).
   import { onDestroy, onMount } from 'svelte'
@@ -124,6 +125,7 @@
           <div class="card-head">
             <span class="dot {badgeClass(s)}"></span>
             <span class="name">{sessionTitle(s)}</span>
+            {#if s.model}<span class="model" title={s.model}>{prettyModel(s.model)}</span>{/if}
             {#if allProjects || !projectId}
               {@const proj = projects.find((p) => p.id === s.projectId)}
               <span class="proj">{#if proj}<ProjectBadge project={proj} size={13} />{/if}<span class="proj-name"
@@ -133,9 +135,10 @@
             {/if}
             <span class="badge {badgeClass(s)}">{stateLabel(s)}</span>
           </div>
-          {#if (s.mode === 'worktree' && s.branch) || (s.git && s.git.files > 0)}
+          {#if (s.mode === 'worktree' && s.branch) || s.git?.head || (s.git && s.git.files > 0)}
             <div class="git">
-              {#if s.mode === 'worktree' && s.branch}<span class="branch">⎇ {s.branch}</span>{/if}
+              {#if s.mode === 'worktree' && s.branch}<span class="branch">⎇ {s.branch}</span>
+              {:else if s.git?.head}<span class="branch same">⎇ {s.git.head}</span>{/if}
               {#if s.git && s.git.files > 0}<span class="changes">{changesLabel(s.git)}</span>{/if}
               {#if s.git?.ahead}<span class="ahead">↑{s.git.ahead}</span>{/if}
             </div>
@@ -166,6 +169,18 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     color: var(--blue);
+  }
+  .git .branch.same {
+    color: var(--fg-dim);
+  }
+  .model {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    color: var(--muted);
   }
   .git .changes {
     flex: none;

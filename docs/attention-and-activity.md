@@ -210,6 +210,16 @@ without output or events, the session is marked `stalled` (a `session.activity` 
 - Claude Code's spinner redraws every second while it works, and that counts as output: with Claude
   the warning mostly catches complete hangs (stopped process, frozen terminal), not a slow tool.
 
+### Model
+
+The session's row and its title bar show the agent's model next to its name (*Opus 5.5*; the full
+id in the tooltip). Claude Code reports it through its hooks: the `model` of the hook payload when
+there is one, otherwise the model of the last assistant message in the session's transcript (read
+from its end, at most 256 KiB, at the start of the session, on each prompt and at the end of each
+turn), so `/model` shows up by the next turn. Other agents show one only when their command line
+names it (`--model X`, `-m X`, `--model=X` or codex's `-c model=X` in the profile's `args`). It is
+kept across daemon restarts.
+
 ### Progress
 
 `OSC 9 ; 4 ; st ; pr` (ConEmu / Windows Terminal / Ghostty; `st`: 0 clears, 1 normal, 2 error, 3

@@ -73,7 +73,9 @@ type Git struct {
 	// WorktreeDir overrides where worktrees are created (default
 	// ~/.agenterm/worktrees; "~/" is expanded).
 	WorktreeDir string `json:"worktreeDir"`
-	// DefaultMode is what the spawn menu preselects: same | worktree.
+	// DefaultMode is what the spawn menu preselects for agents: worktree
+	// (the default: each one on its own branch) or same. Shells always
+	// start in the project folder.
 	DefaultMode string `json:"defaultMode"`
 }
 
@@ -387,7 +389,7 @@ func Defaults() Settings {
 	return Settings{
 		Notify:   Notify{Enabled: true, Sound: true, OnDone: true, OnStall: true, Fallback: FallbackNone},
 		Activity: Activity{StallSeconds: DefaultStallSeconds},
-		Git:      Git{DefaultMode: ModeSame},
+		Git:      Git{DefaultMode: ModeWorktree},
 		UI:       UI{Language: i18n.Auto, Appearance: AppearanceSystem},
 		Sessions: Sessions{Restore: RestoreAsk},
 		Terminal: normTerminal(Terminal{}),
@@ -395,11 +397,13 @@ func Defaults() Settings {
 	}
 }
 
+// normMode: same or worktree; anything else is the default (worktree:
+// each new agent gets its own branch and folder).
 func normMode(m string) string {
-	if strings.TrimSpace(m) == ModeWorktree {
-		return ModeWorktree
+	if strings.TrimSpace(m) == ModeSame {
+		return ModeSame
 	}
-	return ModeSame
+	return ModeWorktree
 }
 
 // Parse decodes YAML, filling missing keys with defaults. A file written by

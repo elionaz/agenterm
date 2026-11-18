@@ -970,6 +970,7 @@ export namespace protocol {
 	    attentionAt?: any;
 	    unread?: boolean;
 	    msgPending?: number;
+	    model?: string;
 	    mode?: string;
 	    worktreeId?: string;
 	    worktreePath?: string;
@@ -1027,6 +1028,7 @@ export namespace protocol {
 	        this.attentionAt = this.convertValues(source["attentionAt"], null);
 	        this.unread = source["unread"];
 	        this.msgPending = source["msgPending"];
+	        this.model = source["model"];
 	        this.mode = source["mode"];
 	        this.worktreeId = source["worktreeId"];
 	        this.worktreePath = source["worktreePath"];

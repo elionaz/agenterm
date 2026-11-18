@@ -271,7 +271,7 @@ activity:
 git:
   editor: ""             # para «Abrir en editor»; vacío: code si existe, si no Finder
   worktree_dir: ""       # dónde crear worktrees; vacío: ~/.agenterm/worktrees
-  default_mode: same     # same | worktree
+  default_mode: worktree # worktree | same
 ```
 
 Todas las reglas y el catálogo completo: [docs/es/configuration.md](docs/es/configuration.md). Worktrees

@@ -7,6 +7,25 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- **The model of each session** next to its name in the sidebar, the title bar and split panes
+  (*Opus 5.5*). Claude Code reports it through agenterm's hooks (the payload, or the end of the
+  session's transcript), so a `/model` change shows up by the next turn; other agents show it when
+  their profile's command line names it (`--model`, `-m`, `-c model=`). See
+  [docs/attention-and-activity.md](docs/attention-and-activity.md#model).
+- **The branch of every session in the sidebar**: worktree sessions keep their blue branch chip, and
+  sessions in the project folder now show that folder's current branch in grey (it is shared with
+  the other sessions there), also in the title bar.
+
+### Changed
+
+- **New agents start in their own worktree by default** (`git.default_mode: worktree`), so agents
+  working in parallel never share a branch or step on each other's changes; **Same folder** is one
+  click away in the **+** menu. Shells always start in the project folder. A `settings.yaml` that
+  already says `same` keeps it (change it in **Settings → Git**), and the per-project choice made
+  before this version is no longer remembered. `agenterm spawn` is unchanged (`--worktree`).
+
 ## [0.6.0] - 2026-11-18
 
 ### Added
