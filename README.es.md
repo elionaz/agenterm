@@ -50,7 +50,8 @@ vivos aunque cierres la app y te avisa cuando alguno te necesita.
   propia sesión de `gh` / `glab`; agenterm no guarda tokens.
 - **Mensajes entre sesiones**: los agentes de un proyecto pueden escribirse
   (`agenterm msg send`, `agenterm wait`); Claude Code recibe sus mensajes solo, los demás agentes
-  los leen con `agenterm msg read` o reciben un aviso desde la pestaña **Mensajes**. Los mensajes
+  los leen con `agenterm msg read` o reciben un aviso desde la pestaña **Mensajes** (opcionalmente
+  automático para las sesiones de Claude en espera). Los mensajes
   nunca salen de su proyecto y el daemon decide quién envió cada uno.
 - **Ajustes en la app**: activar, ordenar y editar agentes, y configurar el idioma, la apariencia,
   las notificaciones y git.

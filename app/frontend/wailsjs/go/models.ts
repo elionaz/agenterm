@@ -1220,6 +1220,7 @@ export namespace settings {
 	}
 	export class Messages {
 	    enabled: boolean;
+	    autoDeliver: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Messages(source);
@@ -1228,6 +1229,7 @@ export namespace settings {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.enabled = source["enabled"];
+	        this.autoDeliver = source["autoDeliver"];
 	    }
 	}
 	export class Notify {

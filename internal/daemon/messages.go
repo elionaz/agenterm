@@ -287,6 +287,12 @@ func (s *Server) msgSend(caller *session.Session, p protocol.MsgSendParams) (pro
 		s.log.Info("message sent", "id", m.ID, "from", from, "to", sess.ID, "bytes", len(m.Body))
 		s.publishMessages(sess.ProjectID, sess.ID)
 	}
+	for _, sess := range to {
+		if caller == nil {
+			s.userActed(sess.ID) // a message from the user starts a new chain
+		}
+		s.scheduleAutoDeliver(sess.ID)
+	}
 	if caller != nil {
 		s.publishMessages(caller.ProjectID, caller.ID)
 	}
@@ -356,6 +362,10 @@ const nudgeGap = 150 * time.Millisecond
 // errNotAgent: msg.deliver to a shell.
 var errNotAgent = errors.New("this session is a shell: read its messages in the app")
 
+// errNudgeInterrupted: input arrived between the nudge line and its Enter,
+// so the Enter was not sent (it would send the user's text with the line).
+var errNudgeInterrupted = errors.New("you typed while the line was going in: it was left unsent in the terminal")
+
 // errNotIdle: msg.deliver to a session that is not at its prompt.
 var errNotIdle = errors.New("the session is busy or waiting for an answer: deliver when it is idle")
 
@@ -392,6 +402,25 @@ func (s *Server) msgDeliver(caller *session.Session, id string) (map[string]any,
 	if sess.State() != status.Idle {
 		return nil, errNotIdle
 	}
+	s.userActed(sess.ID)
+	l := s.nudgeLockFor(sess.ID)
+	l.Lock()
+	defer l.Unlock()
+	// An automatic nudge just went in: a second line would garble the
+	// first (it is still idle until the agent reports its turn).
+	if time.Since(l.last) < autoQuiet {
+		return map[string]any{"pending": n}, nil
+	}
+	if err := s.nudge(sess); err != nil {
+		return nil, err
+	}
+	l.last = time.Now()
+	s.log.Info("messages nudged", "to", sess.ID, "pending", n)
+	return map[string]any{"pending": n}, nil
+}
+
+// nudge types the fixed "you have messages" line into sess and submits it.
+func (s *Server) nudge(sess *session.Session) error {
 	st, _ := settings.Load(s.cfg.Paths.Settings())
 	// Agents whose hooks hand messages over (Claude) see them as soon as
 	// the line is submitted; the others are told to read them.
@@ -401,14 +430,18 @@ func (s *Server) msgDeliver(caller *session.Session, id string) (map[string]any,
 	}
 	line := i18n.T(st.UI.Lang(), key)
 	if _, err := sess.Write([]byte(line)); err != nil {
-		return nil, err
+		return err
 	}
+	_, typed := sess.Draft()
 	time.Sleep(nudgeGap)
-	if _, err := sess.Write([]byte("\r")); err != nil {
-		return nil, err
+	// Someone typed meanwhile: their text follows the line, and an Enter
+	// would send it with the line. Leave both there for them to see.
+	if _, at := sess.Draft(); !at.Equal(typed) {
+		s.log.Info("nudge left unsent: input arrived meanwhile", "to", sess.ID)
+		return errNudgeInterrupted
 	}
-	s.log.Info("messages nudged", "to", sess.ID, "pending", n)
-	return map[string]any{"pending": n}, nil
+	_, err := sess.Write([]byte("\r"))
+	return err
 }
 
 func (s *Server) publishMessages(projectID, sessionID string) {
@@ -419,6 +452,7 @@ func (s *Server) publishMessages(projectID, sessionID string) {
 // forgetMessages drops what was still waiting for a session that is gone
 // for good (delivered messages stay as the project's history).
 func (s *Server) forgetMessages(sess *session.Session) {
+	s.forgetAuto(sess.ID)
 	if n, err := s.mail.DropTo(sess.ID); err != nil {
 		s.log.Warn("messages", "err", err)
 	} else if n > 0 {
