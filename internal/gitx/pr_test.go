@@ -192,3 +192,45 @@ func TestRunTimeoutKillsHelpers(t *testing.T) {
 		t.Fatalf("err = %v, want a timeout", err)
 	}
 }
+
+func TestRemoteOf(t *testing.T) {
+	for _, tc := range []struct {
+		url            string
+		host, path     string
+		github, gitlab bool
+	}{
+		{"git@github.com:elionaz/agenterm.git", "github.com", "elionaz/agenterm", true, false},
+		{"https://github.com/elionaz/agenterm", "github.com", "elionaz/agenterm", true, false},
+		{"git@github.com-work:acme/app.git", "github.com", "acme/app", true, false},
+		{"https://gitlab.com/group/sub/proj.git", "gitlab.com", "group/sub/proj", false, true},
+		{"ssh://git@gitlab.example.org/team/proj.git", "gitlab.example.org", "team/proj", false, true},
+		{"https://bitbucket.org/a/b.git", "bitbucket.org", "a/b", false, false},
+	} {
+		r, ok := RemoteOf(tc.url)
+		if !ok || r.Host != tc.host || r.Path != tc.path || r.GitHub != tc.github || r.GitLab != tc.gitlab {
+			t.Errorf("RemoteOf(%q) = %+v, %v", tc.url, r, ok)
+		}
+		if ok && r.Web != "https://"+tc.host+"/"+tc.path {
+			t.Errorf("RemoteOf(%q).Web = %q", tc.url, r.Web)
+		}
+	}
+	if _, ok := RemoteOf("not a url"); ok {
+		t.Error("RemoteOf accepted junk")
+	}
+}
+
+func TestRemoteDefaultBranch(t *testing.T) {
+	c := ctx(t)
+	repo := newRepo(t)
+	if got := RemoteDefaultBranch(c, repo, "origin"); got != "main" {
+		t.Fatalf("no remote: %q, want main (local fallback)", got)
+	}
+	bare := filepath.Join(canon(t.TempDir()), "remote.git")
+	sh(t, repo, "init", "-q", "--bare", "-b", "trunk", bare)
+	sh(t, repo, "remote", "add", "origin", bare)
+	sh(t, repo, "push", "-q", "origin", "main:trunk")
+	sh(t, repo, "remote", "set-head", "origin", "trunk")
+	if got := RemoteDefaultBranch(c, repo, "origin"); got != "trunk" {
+		t.Fatalf("remote HEAD: %q, want trunk", got)
+	}
+}

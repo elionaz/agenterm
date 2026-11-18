@@ -68,6 +68,21 @@ const (
 	// folders and agents use DirMissing / ProfileNotInstalled.
 	// Data: {sessionId, reason, pid?}.
 	ResumeFailed = "resume_failed"
+	// ForgeUnsupported: the remote is not on GitHub or GitLab. Data: {host}.
+	ForgeUnsupported = "forge_unsupported"
+	// ForgeCLIMissing: gh / glab is not installed. Data: {tool, host, install}.
+	ForgeCLIMissing = "forge_cli_missing"
+	// ForgeNotAuthed: gh / glab is not logged in to the host. Data: {tool, host}.
+	ForgeNotAuthed = "forge_not_authed"
+	// ForgeOnBase: the folder is on its base branch (or a detached HEAD):
+	// there is no pull request to show. Data: {branch}.
+	ForgeOnBase = "forge_on_base"
+	// ForgeHeadMismatch: the pull request to merge is not the branch the
+	// user saw (the folder moved to another branch, or it is a fork's
+	// branch of the same name). Data: {number, branch, head}.
+	ForgeHeadMismatch = "forge_head_mismatch"
+	// ForgeFailed: gh / glab failed. Data: {tool, stderr}.
+	ForgeFailed = "forge_failed"
 	// UnknownMethod: the daemon does not know the method, usually because
 	// it is older than the client. Data: {method}.
 	UnknownMethod = "unknown_method"

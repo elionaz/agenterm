@@ -38,6 +38,22 @@ export function DiscardAll() {
   return window['go']['main']['App']['DiscardAll']();
 }
 
+export function ForgeComments(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ForgeComments'](arg1, arg2, arg3);
+}
+
+export function ForgeCreate(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['ForgeCreate'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function ForgeMerge(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['ForgeMerge'](arg1, arg2, arg3, arg4, arg5, arg6);
+}
+
+export function ForgeStatus(arg1, arg2) {
+  return window['go']['main']['App']['ForgeStatus'](arg1, arg2);
+}
+
 export function GetSettings() {
   return window['go']['main']['App']['GetSettings']();
 }

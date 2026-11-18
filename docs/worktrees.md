@@ -108,6 +108,36 @@ folder the first time.
   **Open in Finder** (`agenterm worktree open [--finder] <id>`).
 - **Copy branch** (app only, to the clipboard).
 
+## Pull requests on GitHub and GitLab
+
+The **Changes** tab shows the pull request of the branch, for worktree sessions and for sessions in
+the main folder (the branch it is on; nothing on the base branch). It goes through the host's own
+CLI with your login: [`gh`](https://cli.github.com) for GitHub and
+[`glab`](https://gitlab.com/gitlab-org/cli) for GitLab (gitlab.com and hosts whose name contains
+`gitlab`). agenterm stores no tokens. Without the CLI, or logged out, Changes says how to set it up
+(`brew install gh`, `gh auth login`) and keeps the push-and-open-the-page flow above.
+
+- **State**: number, open / draft / merged / closed, checks (passing, failing with their names,
+  running; GitLab: the pipeline) and the review decision. The title links to the host.
+- **Comments**: conversation comments, reviews with text (approved, changes requested) and line
+  comments with `file:line`, which select that file in the diff.
+- **Merge on the host**: with the methods the repository allows (squash, merge commit, rebase) and
+  *delete the branch on the host afterwards*. Warnings for drafts, conflicts, failing or running
+  checks and merges the host may refuse; the host has the last word. Local folders and branches are
+  never touched (`gh pr merge` runs without `--delete-branch`, which would check out the base in
+  your folder). The merge is refused if the folder moved to another branch since the pull request
+  was shown, or if it is a fork's branch of the same name (forks' pull requests are never shown as
+  yours). When the host only queues it (a merge queue, GitLab's auto-merge once the pipeline
+  passes), Changes says so and the branch is kept until it really merges.
+- **Create pull request**: pushes the branch (never forced) and opens it into the base (the
+  worktree's base, or the remote's default branch for the main folder) with an editable title and
+  description suggested from the commits, optionally as a draft.
+
+Everything reloads when Changes opens, with ⟳ and when the branch moves (commits, pushes); there is
+no polling. The CLIs are found through the login shell's `PATH`, like the agents. The repository
+is the one the branch is pushed to: in a fork setup where that is your fork, pull requests are
+looked up (and opened) there. Comments are read in pages of 100, all of them.
+
 ## In the app
 
 - A project's **+** menu: after picking the agent, choose same folder or new worktree (an editable,

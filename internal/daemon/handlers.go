@@ -275,6 +275,30 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 			return nil, err
 		}
 		return s.worktreePR(p)
+	case protocol.MethodForgeStatus:
+		p, err := decode[protocol.ForgeRef](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.forgeStatus(p)
+	case protocol.MethodForgeComments:
+		p, err := decode[protocol.ForgeCommentsParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.forgeComments(p)
+	case protocol.MethodForgeMerge:
+		p, err := decode[protocol.ForgeMergeParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.forgeMerge(p)
+	case protocol.MethodForgeCreate:
+		p, err := decode[protocol.ForgeCreateParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.forgeCreate(p)
 	case protocol.MethodWorktreeOpen:
 		p, err := decode[protocol.WorktreeOpenParams](req.Params)
 		if err != nil {

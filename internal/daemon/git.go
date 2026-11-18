@@ -206,6 +206,7 @@ func gitInfoFor(ctx context.Context, g sessGit) (*protocol.GitInfo, error) {
 		return nil, err
 	}
 	info.Uncommitted = st.Changed()
+	info.Head, _ = gitx.CurrentBranch(ctx, g.Dir)
 	return info, nil
 }
 

@@ -10,6 +10,7 @@
   import { BrowserOpenURL, ClipboardSetText } from '../../wailsjs/runtime/runtime'
   import { api, errorMessage, type DiffFile, type DiffResult, type LossInfo, type PRResult } from './api'
   import { locale, t, th } from './i18n.svelte'
+  import PullRequest from './PullRequest.svelte'
 
   interface Props {
     /** What to diff: a session, or a worktree without one. */
@@ -19,6 +20,10 @@
     live?: boolean
     /** Changes whenever the daemon reports new git info: reload. */
     gitStamp?: string
+    /** Changes when the branch moves (checkout, commits ahead): reloads the
+     * pull request block, which talks to the host (gitStamp changes on every
+     * edited file). */
+    prStamp?: string
     /** Open the remove confirmation right away. */
     startRemove?: boolean
     onError: (msg: string) => void
@@ -28,7 +33,7 @@
     onClose?: () => void
   }
 
-  let { sessionId, worktreeId, live = false, gitStamp, startRemove = false, onError, onRemoved, onClose }: Props = $props()
+  let { sessionId, worktreeId, live = false, gitStamp, prStamp, startRemove = false, onError, onRemoved, onClose }: Props = $props()
 
   const STYLE_KEY = 'agenterm.diffStyle'
   let diff = $state<DiffResult | null>(null)
@@ -57,6 +62,14 @@
   let prLoading = $state(false)
   let prCheckError = $state<string | null>(null)
   let prSeq = 0 // drops stale dry-run answers
+  /** gh / glab work for this branch: the PR block handles pull requests. */
+  let forgeAvailable = $state(false)
+  /** ⟳ also reloads the PR block. */
+  let refreshTick = $state(0)
+  // No block, no PR flow of its own: the push-and-browse button is back.
+  $effect(() => {
+    if (!diff?.branch) forgeAvailable = false
+  })
 
   const wtId = $derived(diff?.worktreeId || worktreeId || '')
   const isWorktree = $derived(diff?.mode === 'worktree' || !!worktreeId)
@@ -283,7 +296,10 @@
         {#if diff.git.ahead}<span class="ahead">{t('changes.ahead', { n: diff.git.ahead })}</span>{/if}
       </span>
     {/if}
-    <button class="icon" class:spin={loading} title={t('changes.refresh')} aria-label={t('changes.refresh')} onclick={load}>⟳</button>
+    <button class="icon" class:spin={loading} title={t('changes.refresh')} aria-label={t('changes.refresh')} onclick={() => {
+        refreshTick++
+        void load()
+      }}>⟳</button>
     <span class="seg">
       <button class:on={style === 'side-by-side'} onclick={() => setStyle('side-by-side')}>{t('changes.sideBySide')}</button>
       <button class:on={style === 'line-by-line'} onclick={() => setStyle('line-by-line')}>{t('changes.unified')}</button>
@@ -295,7 +311,7 @@
       {#if diff?.branch}<button class="btn" onclick={copyBranch}>{t('changes.copyBranch')}</button>{/if}
       {#if isWorktree && wtId}
         <button class="btn" disabled={busy} onclick={toggleMerge}>{t('changes.mergeInto', { base: diff?.base || 'base' })}</button>
-        <button class="btn" disabled={busy} onclick={togglePR}>{t('changes.createPR')}</button>
+        {#if !forgeAvailable}<button class="btn" disabled={busy} onclick={togglePR}>{t('changes.createPR')}</button>{/if}
         <button
           class="btn danger"
           disabled={busy || live}
@@ -306,6 +322,26 @@
       {#if onClose}<button class="icon close" title={t('changes.close')} aria-label={t('changes.closeLabel')} onclick={onClose}>×</button>{/if}
     </span>
   </header>
+
+  {#if diff?.branch}
+    <PullRequest
+      {sessionId}
+      {worktreeId}
+      reloadKey={`${prStamp ?? diff.branch}|${refreshTick}`}
+      {onError}
+      onSelectFile={(p) => {
+        if (diff?.files.some((f) => f.path === p)) selectedPath = p
+      }}
+      onMerged={isWorktree
+        ? (msg) => {
+            mergedMsg = msg
+            merging = prOpen = removing = false
+            removeOffer = true
+          }
+        : undefined}
+      bind:available={forgeAvailable}
+    />
+  {/if}
 
   {#if notice}<div class="notice ok">{notice}</div>{/if}
 

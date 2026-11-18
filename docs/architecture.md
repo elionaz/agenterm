@@ -49,6 +49,7 @@ internal/hooks          per-session hook setup (claude, codex) and payload parsi
 internal/profile        agent catalog, detection, merging with profiles.yaml and writing
 internal/settings       settings.yaml (reading with defaults and in-place editing)
 internal/gitx           git via the CLI: repo, branches, status, worktrees, diff, merge, open in editor
+internal/forge          pull requests on GitHub / GitLab through gh / glab (the user's login)
 internal/worktree       agenterm worktree registry (worktrees.json)
 internal/project        project registry (projects.json)
 internal/desktopnotify  notification texts + osascript fallback

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -34,7 +35,16 @@ const testProfiles = `
 `
 
 // hermeticPath keeps detection off the login shell (and the user's rc files).
-func hermeticPath() string { return "/usr/bin:/bin" }
+// testExtraPath puts fake tools first (set by a test, read by the daemon's
+// goroutines, hence atomic).
+func hermeticPath() string {
+	if p, _ := testExtraPath.Load().(string); p != "" {
+		return p + ":/usr/bin:/bin"
+	}
+	return "/usr/bin:/bin"
+}
+
+var testExtraPath atomic.Value // string
 
 // startDaemon runs a daemon in-process on a short temp dir (unix socket paths
 // are limited to ~104 bytes on macOS, so t.TempDir() can be too long).

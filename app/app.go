@@ -14,6 +14,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/elionaz/agenterm/internal/client"
+	"github.com/elionaz/agenterm/internal/forge"
 	"github.com/elionaz/agenterm/internal/gitx"
 	"github.com/elionaz/agenterm/internal/i18n"
 	"github.com/elionaz/agenterm/internal/paths"
@@ -725,6 +726,56 @@ func (a *App) PullRequestWorktree(id string, dryRun bool) (gitx.PRResult, error)
 	var out gitx.PRResult
 	err := a.callTimeout(pushTO, func(ctx context.Context) (err error) {
 		out, err = a.client.WorktreePR(ctx, id, dryRun)
+		return err
+	})
+	return out, err
+}
+
+// ForgeStatus is the pull request of a session's (sessionID) or a
+// worktree's (worktreeID) branch on GitHub / GitLab, or why it cannot be
+// shown (ForgeStatus.Unavailable).
+func (a *App) ForgeStatus(sessionID, worktreeID string) (protocol.ForgeStatus, error) {
+	var out protocol.ForgeStatus
+	err := a.callTimeout(pushTO, func(ctx context.Context) (err error) {
+		out, err = a.client.ForgeStatus(ctx, protocol.ForgeRef{SessionID: sessionID, WorktreeID: worktreeID})
+		return err
+	})
+	return out, err
+}
+
+// ForgeComments lists the comments and reviews of pull request number.
+func (a *App) ForgeComments(sessionID, worktreeID string, number int) ([]forge.Comment, error) {
+	var out []forge.Comment
+	err := a.callTimeout(pushTO, func(ctx context.Context) (err error) {
+		out, err = a.client.ForgeComments(ctx, protocol.ForgeCommentsParams{
+			ForgeRef: protocol.ForgeRef{SessionID: sessionID, WorktreeID: worktreeID}, Number: number})
+		return err
+	})
+	if out == nil {
+		out = []forge.Comment{}
+	}
+	return out, err
+}
+
+// ForgeMerge merges pull request number on the host (method: squash, merge
+// or rebase; head: the branch it was shown for; deleteBranch removes the
+// branch there, never locally).
+func (a *App) ForgeMerge(sessionID, worktreeID string, number int, method, head string, deleteBranch bool) (protocol.ForgeStatus, error) {
+	var out protocol.ForgeStatus
+	err := a.callTimeout(pushTO, func(ctx context.Context) (err error) {
+		out, err = a.client.ForgeMerge(ctx, protocol.ForgeMergeParams{
+			ForgeRef: protocol.ForgeRef{SessionID: sessionID, WorktreeID: worktreeID}, Number: number, Method: method, DeleteBranch: deleteBranch, Head: head})
+		return err
+	})
+	return out, err
+}
+
+// ForgeCreate pushes the branch and opens its pull request.
+func (a *App) ForgeCreate(sessionID, worktreeID, title, body string, draft bool) (protocol.ForgeStatus, error) {
+	var out protocol.ForgeStatus
+	err := a.callTimeout(pushTO, func(ctx context.Context) (err error) {
+		out, err = a.client.ForgeCreate(ctx, protocol.ForgeCreateParams{
+			ForgeRef: protocol.ForgeRef{SessionID: sessionID, WorktreeID: worktreeID}, Title: title, Body: body, Draft: draft})
 		return err
 	})
 	return out, err

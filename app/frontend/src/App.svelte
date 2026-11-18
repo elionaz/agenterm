@@ -1000,7 +1000,8 @@
                   <Changes
                     sessionId={selected.id}
                     live={selected.state !== 'exited'}
-                    gitStamp={selected.git ? `${selected.git.files}|${selected.git.uncommitted}|${selected.git.ahead}` : ''}
+                    gitStamp={selected.git ? `${selected.git.head ?? ''}|${selected.git.files}|${selected.git.uncommitted}|${selected.git.ahead}` : ''}
+                    prStamp={selected.git ? `${selected.git.head ?? ''}|${selected.git.ahead}` : ''}
                     onError={showError}
                     onRemoved={() => {
                       setView('terminal')

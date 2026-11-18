@@ -48,6 +48,7 @@ internal/hooks          configuración de hooks por sesión (claude, codex) y pa
 internal/profile        catálogo de agentes, detección, combinación con profiles.yaml y escritura
 internal/settings       settings.yaml (lectura con valores por defecto y edición en su sitio)
 internal/gitx           git por CLI: repo, ramas, status, worktrees, diff, merge, abrir en editor
+internal/forge          pull requests en GitHub / GitLab con gh / glab (la sesión del usuario)
 internal/worktree       registro de worktrees de agenterm (worktrees.json)
 internal/project        registro de proyectos (projects.json)
 internal/desktopnotify  textos de las notificaciones + respaldo con osascript
