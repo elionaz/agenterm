@@ -44,7 +44,7 @@ type Live struct {
 type tracker struct {
 	mu       sync.Mutex
 	live     Live
-	hookSeen bool // hook activity wins over output for the session's life
+	hookSeen bool // hook activity wins over output for the session's life (set from the start for hook-driven sessions)
 	dirty    bool // changed since the last emission
 	outSince bool // output seen since the last emission (heartbeat)
 	lastEmit time.Time

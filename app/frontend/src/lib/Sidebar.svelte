@@ -26,6 +26,8 @@
   import { SHELL_PROFILE, folderSharers, inProjectFolder, joinNames } from './shared'
   import { proposedMode } from './spawnmode'
   import { prettyModel } from './models'
+  import { shortBranch } from './branch'
+  import { clampSidebar, loadSidebarWidth, saveSidebarWidth, SIDEBAR_DEFAULT } from './sidebarwidth'
 
   interface Props {
     projects: Project[]
@@ -223,10 +225,39 @@
     return s.state
   }
 
+  // Width: drag the right edge (double-click: back to the default).
+  let width = $state(loadSidebarWidth())
+  let resizing: { x: number; w: number } | null = null
+  function resizeStart(e: PointerEvent) {
+    if (e.button !== 0) return
+    e.preventDefault()
+    resizing = { x: e.clientX, w: width }
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+  }
+  function resizeMove(e: PointerEvent) {
+    if (resizing) width = clampSidebar(resizing.w + e.clientX - resizing.x)
+  }
+  function resizeEnd() {
+    if (!resizing) return
+    resizing = null
+    saveSidebarWidth(width)
+  }
+  function resizeReset() {
+    width = SIDEBAR_DEFAULT
+    saveSidebarWidth(width)
+  }
+
+  /** The state word, when it says more than the dot's color: attention,
+   * a wait, an exit or a suspended session. Working / idle are in the
+   * tooltip. */
+  function showsState(s: Session): boolean {
+    return needsAttention(s) || s.state === 'waiting_input' || s.state === 'exited' || s.state === 'suspended'
+  }
+
   const suspendedCount = $derived(sessions.filter((s) => s.state === 'suspended').length)
 
   function tooltip(s: Session): string {
-    let base = `${s.cmd} · ${s.cwd} · ${s.id}`
+    let base = `${stateLabel(s)} · ${s.cmd} · ${s.cwd} · ${s.id}`
     if (s.state === 'suspended') {
       const at = s.suspendedAt ? new Date(s.suspendedAt).toLocaleString() : ''
       base = `${t('sidebar.suspendedSince', { at })}\n${base}`
@@ -357,7 +388,7 @@
   }}
 />
 
-<aside class="sidebar">
+<aside class="sidebar" style:width="{width}px" style:min-width="{width}px">
   <div class="titlebar drag">
     <span class="brand">agenterm</span>
   </div>
@@ -536,6 +567,7 @@
             {#each list as s, i (s.id)}
               {@const timer = shortTimer(s, now)}
               {@const prog = s.state !== 'exited' ? progressOf(s) : undefined}
+              {@const head = s.mode === 'worktree' && s.branch ? s.branch : s.git?.head}
               <li>
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -586,11 +618,6 @@
                         }}>{sessionTitle(s)}</span
                       >
                     {/if}
-                    {#if s.mode === 'worktree' && s.branch}
-                      <span class="chip" title={branchTitle(s)}>⎇ {s.branch.replace(/^agent\//, '')}</span>
-                    {:else if s.git?.head}
-                      <span class="chip same" title={t('sidebar.folderBranch', { branch: s.git.head })}>⎇ {s.git.head}</span>
-                    {/if}
                     {#if s.git && s.git.files > 0}
                       <span class="changes" title={changesTitle(s)}>{changesLabel(s.git)}</span>
                     {/if}
@@ -607,7 +634,8 @@
                         >{s.msgPending}</span
                       >
                     {/if}
-                    <span class="state {badgeClass(s)}">{stateLabel(s)}</span>
+                    <span class="grow"></span>
+                    {#if showsState(s)}<span class="state {badgeClass(s)}">{stateLabel(s)}</span>{/if}
                     {#if s.state === 'suspended'}
                       <button
                         class="resume"
@@ -626,7 +654,7 @@
                         }}>×</button
                       >
                     {:else}
-                      {#if i < 9 && p.id === currentProjectId}<span class="kbd">⌘{i + 1}</span>{/if}
+                      {#if i < 9 && p.id === currentProjectId && s.id === selectedId}<span class="kbd">⌘{i + 1}</span>{/if}
                       <button
                         class="icon kill"
                         title={s.state === 'exited' ? t('sidebar.removeFromList') : t('sidebar.stopSession')}
@@ -637,10 +665,15 @@
                       >
                     {/if}
                   </div>
-                  {#if (s.activity && s.state !== 'exited') || timer.text || s.model}
+                  {#if head || timer.text || s.model}
                     <div class="sub">
-                      {#if s.model}<span class="model" title={t('sidebar.model', { model: s.model })}>{prettyModel(s.model)}</span>{/if}
-                      <span class="activity">{s.state !== 'exited' ? activityText(s) : ''}</span>
+                      {#if s.mode === 'worktree' && s.branch}
+                        <span class="chip" title={branchTitle(s)}>⎇ {shortBranch(s.branch)}</span>
+                      {:else if s.git?.head}
+                        <span class="chip same" title={t('sidebar.folderBranch', { branch: s.git.head })}>⎇ {shortBranch(s.git.head)}</span>
+                      {/if}
+                      {#if s.model}<span class="model" title={t('sidebar.model', { model: s.model })}>{head ? '· ' : ''}{prettyModel(s.model)}</span>{/if}
+                      <span class="grow"></span>
                       {#if timer.text}<span class="timer" class:stalled={timer.stalled}>{timer.text}</span>{/if}
                     </div>
                   {/if}
@@ -660,7 +693,7 @@
               {#each orphans as w (w.id)}
                 <div class="orphan" title={t('sidebar.orphanTitle', { path: w.path, branch: w.branch, base: w.base })}>
                   <div class="line">
-                    <span class="chip">⎇ {w.branch.replace(/^agent\//, '')}</span>
+                    <span class="chip">⎇ {shortBranch(w.branch)}</span>
                     {#if w.git}<span class="changes">{changesLabel(w.git)}{w.git.ahead ? ` ↑${w.git.ahead}` : ''}</span>{/if}
                   </div>
                   <div class="orphan-actions">
@@ -681,14 +714,23 @@
     <button class="add-project" onclick={onAddProject}>{t('sidebar.addProject')}</button>
     <button class="gear" title={t('sidebar.settings')} aria-label={t('sidebar.settingsLabel')} onclick={onOpenSettings}>⚙</button>
   </div>
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="resizer"
+    title={t('sidebar.resizeHint')}
+    onpointerdown={resizeStart}
+    onpointermove={resizeMove}
+    onpointerup={resizeEnd}
+    onpointercancel={resizeEnd}
+    ondblclick={resizeReset}
+  ></div>
 </aside>
 
 <style>
   .sidebar {
+    position: relative;
     display: flex;
     flex-direction: column;
-    width: 248px;
-    min-width: 248px;
     background: var(--sidebar-bg);
     border-right: 1px solid var(--border);
     user-select: none;
@@ -913,19 +955,17 @@
   }
   .sub {
     display: flex;
-    align-items: baseline;
-    gap: 6px;
+    align-items: center;
+    gap: 5px;
     margin: -2px 0 2px 14px;
     font-size: 10.5px;
     color: var(--muted);
     min-width: 0;
   }
-  .activity {
+  /* Pushes what follows to the row's right edge. */
+  .grow {
     flex: 1;
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
   .timer {
     flex: none;
@@ -961,11 +1001,11 @@
     border-radius: 4px;
     outline: none;
   }
-  /* The name keeps its width; the branch chip shrinks first (longer state
-     words, e.g. "esperando", would otherwise squeeze the name to "s…"). */
+  /* Second line: the branch chip takes the room and shrinks first; the
+     model and the timer keep theirs. */
   .model {
     flex: none;
-    max-width: 45%;
+    max-width: 40%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -973,14 +1013,14 @@
     color: var(--muted);
   }
   .session-name {
-    flex: 0 0 auto;
-    max-width: 50%;
+    flex: 0 1 auto;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .state {
-    margin-left: auto;
+    flex: none;
     font-size: 10.5px;
     color: var(--muted);
   }
@@ -1256,9 +1296,8 @@
     background: var(--hover-strong);
   }
   .chip {
-    flex: 0 100 auto;
+    flex: 0 1 auto;
     min-width: 0;
-    max-width: 90px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1337,5 +1376,15 @@
   .add-project:hover {
     color: var(--fg);
     background: var(--hover);
+  }
+  /* The right edge, dragged to resize the sidebar. */
+  .resizer {
+    position: absolute;
+    top: 0;
+    right: -4px;
+    bottom: 0;
+    width: 8px;
+    cursor: col-resize;
+    z-index: 5;
   }
 </style>

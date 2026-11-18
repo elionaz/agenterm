@@ -190,6 +190,7 @@ export const es: Dict = {
   'sidebar.removeFromList': 'Quitar de la lista',
   'sidebar.stopSession': 'Terminar sesión',
   'sidebar.renameHint': 'Doble clic (o clic derecho) para renombrar',
+  'sidebar.resizeHint': 'Arrastra para cambiar el ancho de la barra; doble clic vuelve al ancho por defecto',
   'sidebar.renameLabel': 'Nombre de la sesión (vacío: el del perfil)',
   'sidebar.resume': 'Reanudar',
   'sidebar.resumeTitle.agent': 'Reanudar: el agente continúa la misma conversación',

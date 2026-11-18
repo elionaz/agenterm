@@ -2,6 +2,7 @@
 // title bar and the grid overview.
 import { attentionLabel, needsAttention, type DaemonEvent, type Live, type Progress, type Session } from './api'
 import { hasKey, t } from './i18n.svelte'
+import { isShellSession } from './messages'
 
 /** Merges the live fields of an event into a session. session.activity
  * carries all of them; session.state only the timers (activity text and
@@ -124,8 +125,10 @@ export function timerInfo(s: Session, now: number, verbose = false): TimerInfo {
 }
 
 /** Short compact timer for the sidebar row (a running turn: just the
- * elapsed time). */
+ * elapsed time; none for shells). */
 export function shortTimer(s: Session, now: number): TimerInfo {
+  // A shell's "turns" are whatever ran in it last: no timer in the row.
+  if (isShellSession(s)) return { text: '', stalled: false }
   const info = timerInfo(s, now)
   if (info.stalled) return { text: t('timer.stalledShort'), stalled: true }
   const start = ms(s.turnStartedAt)

@@ -244,3 +244,25 @@ func TestSubmits(t *testing.T) {
 		}
 	}
 }
+
+// Hook-driven sessions never take their screen's last line as activity: for
+// Claude Code that is its status line (a HUD like oh-my-claudecode's).
+func TestHookSessionsIgnoreOutputActivity(t *testing.T) {
+	hud := `printf '[OMC#4.13.5] | 5h:6%% session:143m ctx:15%%\n'; sleep 5`
+	heur := spawn(t, Options{ID: "heur", Cmd: "/bin/sh", Args: []string{"-c", hud}, StatusMode: status.ModeHeuristic, IdleAfter: time.Hour})
+	hooks := spawn(t, Options{ID: "hooks", Cmd: "/bin/sh", Args: []string{"-c", hud}, StatusMode: status.ModeHooks, IdleAfter: time.Hour})
+	deadline := time.Now().Add(5 * time.Second)
+	for !strings.Contains(heur.Live().Activity, "OMC") {
+		if time.Now().After(deadline) {
+			t.Fatalf("heuristic session: activity %q, want its output line", heur.Live().Activity)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if a := hooks.Live().Activity; a != "" {
+		t.Fatalf("hook session took output as activity: %q", a)
+	}
+	hooks.SetActivity("Bash: go test", "tool", "go test")
+	if a := hooks.Live(); a.Activity != "Bash: go test" || a.ActivitySource != ActivityHook {
+		t.Fatalf("hook activity: %+v", a)
+	}
+}

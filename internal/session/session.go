@@ -223,6 +223,9 @@ func newSession(o Options) *Session {
 		readDone:    make(chan struct{}),
 		patterns:    o.AttentionPatterns,
 		onActivity:  o.OnActivity,
+		// Hook-driven agents report what they do; their screen's last line
+		// is UI chrome (Claude Code's status line, a HUD), never activity.
+		act: tracker{hookSeen: o.StatusMode == status.ModeHooks},
 	}
 }
 
