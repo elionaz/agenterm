@@ -167,6 +167,13 @@ project you choose an agent and whether it runs in the project folder or in a ne
 launches the first agent in the list. When an agent needs you, you'll see an amber dot in the sidebar
 and get a notification.
 
+**Several agents in one project.** Sessions in the project folder share its branch and its changes:
+what one agent edits or commits, the others see, and a branch switch moves them all. Give each agent
+its own **worktree** to keep their work apart; when another agent is already working in the
+folder, the **+** menu (and ⌘N) picks a new worktree for you. You bring the work back with **Merge
+into the base** or **Create pull request** in the Changes tab. More in
+[docs/worktrees.md](docs/worktrees.md#several-agents-in-one-project).
+
 **CLI.** Any command starts the daemon if it isn't running:
 
 ```sh

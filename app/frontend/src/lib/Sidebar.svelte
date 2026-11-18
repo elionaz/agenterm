@@ -20,6 +20,7 @@
   import GridIcon from './GridIcon.svelte'
   import ProgressBar from './ProgressBar.svelte'
   import { dropSlot, moveTo } from './reorder'
+  import { SHELL_PROFILE, folderSharers, inProjectFolder, joinNames } from './shared'
 
   interface Props {
     projects: Project[]
@@ -235,6 +236,30 @@
   }
 
   const canWorktree = $derived(!!projGit?.isRepo && !projGit.error)
+  /** Live agents already in the folder of the project whose menu is open. */
+  const menuSharers = $derived(menuFor ? folderSharers(sessions, menuFor) : [])
+  /** Suggest a worktree: an agent (not a plain shell) is being started where
+   * another one already works. */
+  const suggestWorktree = $derived(!!picked && picked.id !== SHELL_PROFILE && menuSharers.length > 0)
+
+  // The repo info can arrive after the profile was picked: no worktree
+  // outside git, and the base it reports.
+  $effect(() => {
+    if (!picked || !projGit) return
+    if (mode === 'worktree' && !canWorktree) mode = 'same'
+    if (!base) base = projGit.defaultBase || projGit.currentBranch || ''
+  })
+
+  function names(list: Session[]): string {
+    return joinNames(list.map(sessionTitle))
+  }
+
+  /** The ±N tooltip: a session in the project folder shares it with the others there. */
+  function changesTitle(s: Session): string {
+    const n = s.git?.files ?? 0
+    const others = inProjectFolder(s) ? folderSharers(sessions, s.projectId, s.id) : []
+    return others.length ? t('sidebar.sharedTitle', { n, names: names(others) }) : t('sidebar.filesChanged', { n })
+  }
 
   function randomSuffix(): string {
     return Math.random().toString(16).slice(2, 6)
@@ -242,7 +267,10 @@
 
   function pick(projectId: string, prof: Profile) {
     picked = prof
-    mode = rememberedMode(projectId, defaultMode)
+    // Another agent already works in the project folder: suggest a worktree,
+    // so the two don't share a branch and changes.
+    const busy = prof.id !== SHELL_PROFILE && folderSharers(sessions, projectId).length > 0
+    mode = busy ? 'worktree' : rememberedMode(projectId, defaultMode)
     if (mode === 'worktree' && projGit && !canWorktree) mode = 'same'
     branch = `agent/${prof.id}-${randomSuffix()}`
     base = projGit?.defaultBase || projGit?.currentBranch || ''
@@ -251,7 +279,8 @@
   function launch(projectId: string) {
     if (!picked) return
     const wt = mode === 'worktree' && canWorktree
-    rememberMode(projectId, wt ? 'worktree' : 'same')
+    // A suggested worktree (the folder was busy) is not a preference.
+    if (!suggestWorktree) rememberMode(projectId, wt ? 'worktree' : 'same')
     const prof = picked
     closeMenu()
     onSpawn(projectId, prof.id, wt ? { mode: 'worktree', branch: branch.trim(), base } : { mode: 'same' })
@@ -409,6 +438,11 @@
                       ></span
                     >
                   </label>
+                  {#if suggestWorktree && canWorktree}
+                    <p class="shared-hint" class:warn={mode === 'same'}>
+                      {t('sidebar.sharedHint', { n: menuSharers.length, names: names(menuSharers) })}
+                    </p>
+                  {/if}
                   {#if mode === 'worktree' && canWorktree}
                     <label class="fld">
                       <span>{t('sidebar.branch')}</span>
@@ -491,7 +525,7 @@
                       <span class="chip" title={branchTitle(s)}>⎇ {s.branch.replace(/^agent\//, '')}</span>
                     {/if}
                     {#if s.git && s.git.files > 0}
-                      <span class="changes" title={t('sidebar.filesChanged', { n: s.git.files })}>{changesLabel(s.git)}</span>
+                      <span class="changes" title={changesTitle(s)}>{changesLabel(s.git)}</span>
                     {/if}
                     <span class="state {badgeClass(s)}">{stateLabel(s)}</span>
                     {#if s.state === 'suspended'}
@@ -1065,6 +1099,16 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     max-width: 200px;
+  }
+  .shared-hint {
+    margin: 2px 6px 4px 28px;
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--muted);
+    max-width: 260px;
+  }
+  .shared-hint.warn {
+    color: var(--amber);
   }
   .fld {
     display: flex;

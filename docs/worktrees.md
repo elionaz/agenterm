@@ -9,6 +9,27 @@ Everything goes through the `git` CLI (with timeouts; never libgit2). Read-only 
 `GIT_OPTIONAL_LOCKS=0`, so they never take `index.lock` while the agent is using git in the same
 folder.
 
+## Several agents in one project
+
+Sessions in **the same folder** share everything git keeps per folder: the current branch, the
+uncommitted changes and the index. What one agent edits or commits, the others see; if one switches
+branch, stashes or commits, it takes the others' half-done work with it. The **±N** in the sidebar
+and the Changes tab show that folder, so every session there shows the same files.
+
+For agents working in parallel, give each one its own **worktree**:
+
+- In a git repository, when an agent (not exited or suspended) is already working in the project
+  folder, the **+** menu picks **New worktree** for the next agent and says which session is there;
+  you can still pick **Same folder**. **⌘N** and splitting a pane (⌘D) do the same. The suggestion
+  isn't remembered as the project's mode. A plain **Shell** neither counts nor gets the suggestion:
+  a terminal next to an agent in its folder is fine.
+- A session that does share the folder says so: the Changes tab shows *Shared folder* with the
+  other agents, and so does the **±N** tooltip.
+- `agenterm spawn` without `--worktree` prints a note on stderr when the new session shares the
+  folder (stdout is still just the id).
+
+Each worktree's work comes back with **Merge into the base** or **Create pull request** (below).
+
 ## Session modes
 
 - **Same folder** (`same`, the default): the agent works in the project folder.
