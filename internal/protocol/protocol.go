@@ -41,14 +41,16 @@ const (
 	MethodProjectRemove = "project.remove"
 	// MethodProjectReorder sets the project order (the sidebar's).
 	MethodProjectReorder = "project.reorder"
-	MethodSessionSpawn   = "session.spawn"
-	MethodSessionList    = "session.list"
-	MethodSessionKill    = "session.kill"
-	MethodSessionResize  = "session.resize"
-	MethodSessionNotify  = "session.notify"
-	MethodSessionAck     = "session.ack"
-	MethodSessionAttach  = "session.attach"
-	MethodSessionTail    = "session.tail"
+	// MethodProjectUpdate renames a project or changes its badge.
+	MethodProjectUpdate = "project.update"
+	MethodSessionSpawn  = "session.spawn"
+	MethodSessionList   = "session.list"
+	MethodSessionKill   = "session.kill"
+	MethodSessionResize = "session.resize"
+	MethodSessionNotify = "session.notify"
+	MethodSessionAck    = "session.ack"
+	MethodSessionAttach = "session.attach"
+	MethodSessionTail   = "session.tail"
 	// MethodSessionRename sets (or, with an empty name, clears) a
 	// session's display name.
 	MethodSessionRename = "session.rename"
@@ -161,6 +163,15 @@ type ProfileRef struct {
 // ProfileReorderParams moves IDs to the front, in order.
 type ProfileReorderParams struct {
 	IDs []string `json:"ids"`
+}
+
+// ProjectUpdateParams changes a project's name, badge color or badge icon;
+// a nil field is left as is, an empty Color or Icon goes back to automatic.
+type ProjectUpdateParams struct {
+	ID    string  `json:"id"`
+	Name  *string `json:"name,omitempty"`
+	Color *string `json:"color,omitempty"`
+	Icon  *string `json:"icon,omitempty"`
 }
 
 // ProjectReorderParams moves project IDs to the front, in order.

@@ -524,6 +524,8 @@ export namespace project {
 	    path: string;
 	    // Go type: time
 	    addedAt: any;
+	    color?: string;
+	    icon?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Project(source);
@@ -535,6 +537,8 @@ export namespace project {
 	        this.name = source["name"];
 	        this.path = source["path"];
 	        this.addedAt = this.convertValues(source["addedAt"], null);
+	        this.color = source["color"];
+	        this.icon = source["icon"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -790,6 +794,24 @@ export namespace protocol {
 	        this.branches = source["branches"];
 	        this.error = source["error"];
 	        this.errorCode = source["errorCode"];
+	    }
+	}
+	export class ProjectUpdateParams {
+	    id: string;
+	    name?: string;
+	    color?: string;
+	    icon?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProjectUpdateParams(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.color = source["color"];
+	        this.icon = source["icon"];
 	    }
 	}
 	export class Progress {

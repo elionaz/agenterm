@@ -21,6 +21,7 @@ import (
 	"github.com/elionaz/agenterm/internal/notifycmd"
 	"github.com/elionaz/agenterm/internal/paths"
 	"github.com/elionaz/agenterm/internal/profile"
+	"github.com/elionaz/agenterm/internal/project"
 	"github.com/elionaz/agenterm/internal/protocol"
 	"github.com/elionaz/agenterm/internal/version"
 )
@@ -34,6 +35,7 @@ Usage:
   agenterm project add <dir> [--name N]
   agenterm project list
   agenterm project rm <id>
+  agenterm project set <id|name> [--name N] [--color C|auto] [--icon E|none]
   agenterm profiles                   list agent profiles (catalog + profiles.yaml)
   agenterm profiles scan              re-detect installed agents and list them
   agenterm spawn [--cols C --rows R] [--worktree [--branch B] [--base X] | --in-worktree ID]
@@ -239,7 +241,7 @@ func cmdStop(ctx context.Context, args []string) error {
 
 func cmdProject(ctx context.Context, c *client.Client, args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: agenterm project add|list|rm")
+		return errors.New("usage: agenterm project add|list|rm|set")
 	}
 	switch args[0] {
 	case "add":
@@ -278,8 +280,57 @@ func cmdProject(ctx context.Context, c *client.Client, args []string) error {
 			return errors.New("usage: agenterm project rm <id>")
 		}
 		return c.ProjectRemove(ctx, args[1])
+	case "set":
+		return cmdProjectSet(ctx, c, args[1:])
 	}
 	return fmt.Errorf("unknown project subcommand %q", args[0])
+}
+
+const projectSetUsage = "usage: agenterm project set <id|name> [--name N] [--color C|auto] [--icon E|none]"
+
+// cmdProjectSet renames a project or changes its sidebar badge.
+func cmdProjectSet(ctx context.Context, c *client.Client, args []string) error {
+	fs := flag.NewFlagSet("project set", flag.ContinueOnError)
+	name := fs.String("name", "", "new display name")
+	color := fs.String("color", "", "badge color: "+strings.Join(project.Colors, ", ")+", or auto")
+	icon := fs.String("icon", "", "an emoji shown instead of the initials, or none")
+	if err := parseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return errors.New(projectSetUsage)
+	}
+	params := protocol.ProjectUpdateParams{}
+	fs.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "name":
+			params.Name = name
+		case "color":
+			v := autoNone(*color, "auto")
+			params.Color = &v
+		case "icon":
+			v := autoNone(*icon, "none")
+			params.Icon = &v
+		}
+	})
+	if params.Name == nil && params.Color == nil && params.Icon == nil {
+		return errors.New(projectSetUsage)
+	}
+	params.ID = fs.Arg(0) // an id or a name: the daemon resolves it
+	p, err := c.UpdateProject(ctx, params)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("%s\t%s\t%s\t%s\n", p.ID, p.Name, cmp.Or(p.Color, "auto"), cmp.Or(p.Icon, "-"))
+	return nil
+}
+
+// autoNone maps the "back to automatic" keyword to "".
+func autoNone(v, keyword string) string {
+	if strings.EqualFold(strings.TrimSpace(v), keyword) {
+		return ""
+	}
+	return v
 }
 
 func cmdProfiles(ctx context.Context, c *client.Client, args []string) error {

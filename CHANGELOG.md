@@ -7,6 +7,14 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- **Project badges**: each project in the sidebar shows a small badge with its initials on a color
+  picked from its id, also next to the title and in the overview of all sessions. Click the badge
+  (or right-click the project) to rename the project, pick one of eight colors or put an emoji in
+  place of the initials; `agenterm project set <project> --name/--color/--icon` does the same from
+  the CLI. Notifications of running sessions use the new name.
+
 ## [0.5.0] - 2026-11-17
 
 ### Added

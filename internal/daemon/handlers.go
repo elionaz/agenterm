@@ -53,6 +53,21 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 		}
 		s.projectsChanged()
 		return protocol.ProjectList{Projects: list}, nil
+	case protocol.MethodProjectUpdate:
+		p, err := decode[protocol.ProjectUpdateParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		cur, err := s.projects.Get(p.ID) // an id or a name, like spawn
+		if err != nil {
+			return nil, err
+		}
+		proj, err := s.projects.Update(cur.ID, project.Patch{Name: p.Name, Color: p.Color, Icon: p.Icon})
+		if err != nil {
+			return nil, err
+		}
+		s.projectsChanged()
+		return proj, nil
 	case protocol.MethodProjectList:
 		return protocol.ProjectList{Projects: s.projects.List()}, nil
 	case protocol.MethodProjectRemove:
@@ -492,7 +507,7 @@ func (s *Server) startSession(sp startSpec) (protocol.SessionInfo, error) {
 		CreatedAt:   sp.createdAt,
 		StatusMode:  prof.Status,
 		IdleAfter:   sp.lp.idle,
-		OnState:     func(c status.Change) { s.publishState(id, proj.Name, prof.ID, c) },
+		OnState:     func(c status.Change) { s.publishState(id, s.projectName(proj.ID, proj.Name), prof.ID, c) },
 		OnActivity:  s.publishActivity,
 		StallAfter:  st.Activity.StallAfter(),
 
@@ -538,6 +553,15 @@ func (s *Server) startSession(sp startSpec) (protocol.SessionInfo, error) {
 
 func (s *Server) projectsChanged() {
 	s.bus.publish(protocol.Event{Type: protocol.EventProjects, At: time.Now().UTC()})
+}
+
+// projectName is project id's current name (it can be renamed while its
+// sessions run), or fallback once the project is gone.
+func (s *Server) projectName(id, fallback string) string {
+	if p, err := s.projects.Get(id); err == nil && p.ID == id {
+		return p.Name
+	}
+	return fallback
 }
 
 // reorderSessions moves ids to the front of projectID's sessions (others

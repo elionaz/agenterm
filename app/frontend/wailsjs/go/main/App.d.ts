@@ -112,6 +112,8 @@ export function Tail(arg1:string,arg2:number):Promise<Array<string>>;
 
 export function TakePendingFocus():Promise<string>;
 
+export function UpdateProject(arg1:protocol.ProjectUpdateParams):Promise<project.Project>;
+
 export function UpdaterState():Promise<main.UpdaterState>;
 
 export function WorktreeDiff(arg1:string):Promise<protocol.DiffResult>;

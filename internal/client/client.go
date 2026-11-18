@@ -207,6 +207,13 @@ func (c *Client) ProjectRemove(ctx context.Context, id string) error {
 	return c.Call(ctx, protocol.MethodProjectRemove, protocol.ProjectRef{ID: id}, nil)
 }
 
+// UpdateProject changes a project's name or badge (nil fields stay).
+func (c *Client) UpdateProject(ctx context.Context, p protocol.ProjectUpdateParams) (project.Project, error) {
+	var r project.Project
+	err := c.Call(ctx, protocol.MethodProjectUpdate, p, &r)
+	return r, err
+}
+
 // ReorderProjects moves ids to the front of the project list, in order.
 func (c *Client) ReorderProjects(ctx context.Context, ids []string) ([]project.Project, error) {
 	var r protocol.ProjectList
