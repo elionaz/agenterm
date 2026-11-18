@@ -33,7 +33,7 @@ Agentes* la refrescan.
 | `codex` | Codex CLI | `codex` | `heuristic` | `codex` | `notify` solo avisa el fin de turno, así que "trabajando" lo decide la heurística |
 | `opencode` | opencode | `opencode` | `heuristic` | | |
 | `gemini` | Gemini CLI | `gemini` | `heuristic` | | |
-| `cursor-agent` | Cursor CLI | `cursor-agent` | `heuristic` | | |
+| `cursor-agent` | Cursor CLI | `cursor-agent` | `heuristic` | | patrones de atención `Run this command\?` y `Skip & tell the agent what to do instead` (sus menús de aprobación) |
 | `copilot` | GitHub Copilot CLI | `copilot` | `heuristic` | | |
 | `aider` | Aider | `aider` | `heuristic` | | patrón de atención `\(Y\)es/\(N\)o` |
 | `amp` | Amp | `amp` | `heuristic` | | |

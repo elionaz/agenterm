@@ -35,7 +35,9 @@ There are two sources:
 
 - `unread` is cleared when the session is **on screen** in the app, selected or in any split pane,
   while the window is active (RPC `session.ack`), when you
-  **type into it** or with `agenterm ack <id>`.
+  **type into it** or with `agenterm ack <id>`. A session still waiting for an approval or an
+  answer (`waiting_input`) is the exception: looking at it doesn't answer it, so it stays flagged
+  until you type into it or the agent moves on.
 - An explicit `idle` after a turn (Claude Code's `Stop` hook, codex's `agent-turn-complete`) is a
   `done`. A heuristic `idle` does **not** notify: no output doesn't mean it's finished.
 

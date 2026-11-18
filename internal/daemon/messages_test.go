@@ -149,6 +149,21 @@ func TestMessagesBetweenSessions(t *testing.T) {
 	if info := findSession(t, c, a.ID); info.MsgPending != 0 {
 		t.Fatalf("A msgPending after read = %d", info.MsgPending)
 	}
+
+	// "all" skips shells: they never read messages by themselves.
+	sent, err := c.MsgSend(ctx, protocol.MsgSendParams{To: "all", ProjectID: proj.ID, Body: "everyone"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sent) != 1 || sent[0].To != b.ID {
+		t.Fatalf("all reached %+v, want only B", sent)
+	}
+	if info := findSession(t, c, a.ID); info.MsgPending != 0 {
+		t.Fatalf("shell got a broadcast: msgPending = %d", info.MsgPending)
+	}
+	if _, err := c.MsgSend(ctx, protocol.MsgSendParams{To: "all", ProjectID: other.ID, Body: "x"}); !hasCode(err, apierr.MsgNoSession) {
+		t.Fatalf("all with only shells: %v", err)
+	}
 }
 
 func TestClaudeHookDeliversMessages(t *testing.T) {
