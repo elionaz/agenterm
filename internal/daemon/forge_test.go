@@ -24,8 +24,8 @@ esac
 	if err := os.WriteFile(filepath.Join(dir, "gh"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	testExtraPath = dir
-	t.Cleanup(func() { testExtraPath = "" })
+	testExtraPath.Store(dir)
+	t.Cleanup(func() { testExtraPath.Store("") })
 }
 
 func TestForgeStatusInMainFolder(t *testing.T) {
@@ -84,7 +84,7 @@ func TestForgeStatusInMainFolder(t *testing.T) {
 	}
 
 	// Without gh: the integration is off, not an error.
-	testExtraPath = ""
+	testExtraPath.Store("")
 	st, err = c.ForgeStatus(ctxT(t), ref)
 	if err != nil || st.Unavailable != apierr.ForgeCLIMissing {
 		t.Fatalf("no gh: %+v, %v", st, err)
