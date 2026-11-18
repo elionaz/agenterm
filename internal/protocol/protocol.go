@@ -97,6 +97,7 @@ const (
 	MethodMsgList    = "msg.list"
 	MethodMsgTake    = "msg.take"
 	MethodMsgDeliver = "msg.deliver"
+	MethodMsgAck     = "msg.ack"
 )
 
 // Session modes (SpawnParams.Mode, SessionInfo.Mode).
@@ -750,6 +751,14 @@ type MsgList struct {
 // session start).
 type MsgTakeParams struct {
 	Intro bool `json:"intro,omitempty"`
+	// Peek: return them without marking them delivered; msg.ack does,
+	// once they were handed over (agent hooks).
+	Peek bool `json:"peek,omitempty"`
+}
+
+// MsgAckParams marks the calling session's messages IDs delivered.
+type MsgAckParams struct {
+	IDs []int `json:"ids"`
 }
 
 // MsgTakeResult is what msg.take returns.

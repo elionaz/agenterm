@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/elionaz/agenterm/internal/hooks"
 	"github.com/elionaz/agenterm/internal/mailbox"
 	"github.com/elionaz/agenterm/internal/protocol"
 )
@@ -29,11 +30,18 @@ func inboxEvent(event string) bool {
 	return false
 }
 
-// claudeOutput is what the hook prints for event (nil: nothing). Messages
-// in r are already marked delivered: they must be printed.
-func claudeOutput(event string, stopActive bool, r protocol.MsgTakeResult) []byte {
-	if !r.Enabled {
-		return nil
+// claudeOutput is what the hook prints for h (nil: nothing) and the
+// messages that output hands over (to acknowledge once printed).
+func claudeOutput(h hooks.ClaudeHook, r protocol.MsgTakeResult) ([]byte, []int) {
+	event := h.Event
+	if !r.Enabled || h.AgentID != "" {
+		return nil, nil // a subagent's context is not the conversation's
+	}
+	// Claude already goes on because of a Stop hook: let this turn end;
+	// what is pending arrives with the next prompt or tool call (two
+	// agents must not keep each other's turns going forever).
+	if event == evStop && h.StopActive {
+		return nil, nil
 	}
 	var ctx []string
 	if event == evSessionStart && r.Peers != nil {
@@ -43,20 +51,21 @@ func claudeOutput(event string, stopActive bool, r protocol.MsgTakeResult) []byt
 		ctx = append(ctx, mailbox.Preamble+"\n\n"+mailbox.ForAgent(r.Messages))
 	}
 	if len(ctx) == 0 {
-		return nil
+		return nil, nil
 	}
 	text := strings.Join(ctx, "\n\n")
 	var v any
 	if event == evStop {
-		if stopActive && len(r.Messages) == 0 {
-			return nil
-		}
 		v = map[string]any{"decision": "block", "reason": text}
 	} else {
 		v = map[string]any{"hookSpecificOutput": map[string]any{"hookEventName": event, "additionalContext": text}}
 	}
+	ids := make([]int, len(r.Messages))
+	for i, m := range r.Messages {
+		ids[i] = m.ID
+	}
 	b, _ := json.Marshal(v)
-	return append(b, '\n')
+	return append(b, '\n'), ids
 }
 
 // intro tells a starting agent where it runs and how to reach the others.

@@ -74,7 +74,7 @@ JSON delimitado por `\n`. Petición `{"id":1,"method":"session.list","params":{�
 | ajustes | `settings.get`, `settings.save` |
 | sesiones | `session.spawn`, `session.list`, `session.kill`, `session.resize`, `session.notify`, `session.ack`, `session.rename`, `session.reorder`, `session.attach`, `session.tail`, `session.diff`, `session.resume`, `session.discard` |
 | worktrees | `worktree.list`, `worktree.diff`, `worktree.remove`, `worktree.merge`, `worktree.pr`, `worktree.open` |
-| mensajes | `msg.peers`, `msg.send`, `msg.list`, `msg.take`, `msg.deliver` (el remitente es la sesión en la que corre el proceso que llama; ver [messages.md](messages.md)) |
+| mensajes | `msg.peers`, `msg.send`, `msg.list`, `msg.take`, `msg.ack`, `msg.deliver` (el remitente es la sesión en la que corre el proceso que llama; ver [messages.md](messages.md)) |
 | daemon | `events.subscribe`, `daemon.ping`, `daemon.shutdown` |
 
 `daemon.ping` devuelve la `version`, el `commit` y la versión de `protocol` del daemon; un método que

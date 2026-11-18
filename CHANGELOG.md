@@ -19,8 +19,8 @@ releases may include breaking changes.
   one with `agenterm wait <id>`. Claude Code gets its messages by itself through agenterm's hooks
   (an introduction at start, then new messages at each step, and a turn that would end goes on
   when one arrives); other agents read them with `agenterm msg read`. The new **Messages** tab
-  lists a session's messages, lets you write to it and, for an idle agent, **Deliver** types one
-  fixed line asking it to read them (never the message). The sidebar shows an envelope while
+  lists a session's messages, lets you write to it and, for an agent idle at its prompt, **Deliver**
+  types one fixed line asking it to read them (never the message). The sidebar shows an envelope while
   messages wait. The daemon decides who sent each message from the calling process, messages never
   leave their project, and **Settings → General** turns it off (`messages.enabled`). See
   [docs/messages.md](docs/messages.md).

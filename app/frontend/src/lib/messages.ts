@@ -60,9 +60,11 @@ export function pendingFor(ms: Message[], self: string): number {
 }
 
 /** The Deliver button: something waits, the session can be told (not a shell),
- * and it is not mid-turn (an agent's hooks hand messages over by themselves then). */
+ * and it is at its prompt. Not mid-turn (hooks hand messages over by themselves
+ * then) and never while it waits for an answer: a permission dialog or a
+ * question would take the typed line and its Enter as the answer. */
 export function canDeliver(s: Pick<Session, 'profileId' | 'cmd' | 'state'>, pending: number): boolean {
-  return pending > 0 && !isShellSession(s) && (s.state === 'idle' || s.state === 'waiting_input')
+  return pending > 0 && !isShellSession(s) && s.state === 'idle'
 }
 
 /** The Messages tab is offered when the project has another open session or

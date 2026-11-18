@@ -11,12 +11,15 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/elionaz/agenterm/internal/apierr"
+	"github.com/elionaz/agenterm/internal/hooks"
 	"github.com/elionaz/agenterm/internal/i18n"
 	"github.com/elionaz/agenterm/internal/mailbox"
 	"github.com/elionaz/agenterm/internal/peercred"
+	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/protocol"
 	"github.com/elionaz/agenterm/internal/session"
 	"github.com/elionaz/agenterm/internal/settings"
+	"github.com/elionaz/agenterm/internal/status"
 )
 
 // Messages between the sessions of a project (msg.*). Who sends is never
@@ -60,11 +63,11 @@ func (s *Server) callerSession(conn net.Conn) *session.Session {
 		if sess := byPid[p]; sess != nil {
 			return sess
 		}
-		proc, err := peercred.Lookup(p)
+		pp, err := peercred.Parent(p)
 		if err != nil {
 			return nil
 		}
-		p = proc.PPID
+		p = pp
 	}
 	return nil
 }
@@ -106,6 +109,26 @@ func (s *Server) handleMsg(conn net.Conn, req protocol.Request) (any, error) {
 			return nil, err
 		}
 		return s.msgTake(caller, p)
+	case protocol.MethodMsgAck:
+		p, err := decode[protocol.MsgAckParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		if caller == nil {
+			return nil, apierr.New(apierr.MsgNotInSession, nil, "only a session can acknowledge its messages")
+		}
+		n, err := s.mail.Ack(caller.ID, p.IDs)
+		if err != nil {
+			return nil, err
+		}
+		if n > 0 {
+			s.log.Info("messages delivered", "to", caller.ID, "count", n, "via", "hook")
+			s.publishMessages(caller.ProjectID, caller.ID)
+			for _, from := range senders(s.mail.List(mailbox.Filter{To: caller.ID})) {
+				s.publishMessages(caller.ProjectID, from)
+			}
+		}
+		return map[string]any{"acked": n}, nil
 	case protocol.MethodMsgDeliver:
 		p, err := decode[protocol.MsgDeliverParams](req.Params)
 		if err != nil {
@@ -279,6 +302,15 @@ func (s *Server) msgTake(caller *session.Session, p protocol.MsgTakeParams) (pro
 	if !res.Enabled {
 		return res, nil
 	}
+	if p.Peek {
+		res.Messages = s.mail.Peek(caller.ID)
+		if p.Intro {
+			if peers, err := s.msgPeers(caller, ""); err == nil {
+				res.Peers = &peers
+			}
+		}
+		return res, nil
+	}
 	ms, err := s.mail.Take(caller.ID)
 	if err != nil {
 		return res, err
@@ -324,6 +356,19 @@ const nudgeGap = 150 * time.Millisecond
 // errNotAgent: msg.deliver to a shell.
 var errNotAgent = errors.New("this session is a shell: read its messages in the app")
 
+// errNotIdle: msg.deliver to a session that is not at its prompt.
+var errNotIdle = errors.New("the session is busy or waiting for an answer: deliver when it is idle")
+
+// hookDelivers reports whether profileID's hooks hand messages over.
+func (s *Server) hookDelivers(profileID string) bool {
+	ps, err := s.profiles.List()
+	if err != nil {
+		return false
+	}
+	p, ok := profile.Find(ps, profileID)
+	return ok && p.SetupHooks == hooks.AgentClaude
+}
+
 func (s *Server) msgDeliver(caller *session.Session, id string) (map[string]any, error) {
 	if caller != nil {
 		return nil, apierr.New(apierr.MsgFromSession, nil, "only the user can nudge a session, not another session")
@@ -332,6 +377,9 @@ func (s *Server) msgDeliver(caller *session.Session, id string) (map[string]any,
 	if err != nil {
 		return nil, err
 	}
+	if !s.messagesEnabled() {
+		return nil, apierr.New(apierr.MsgDisabled, nil, "messages between sessions are off (Settings › Messages)")
+	}
 	n := s.mail.Pending(sess.ID)
 	if n == 0 {
 		return map[string]any{"pending": 0}, nil
@@ -339,11 +387,19 @@ func (s *Server) msgDeliver(caller *session.Session, id string) (map[string]any,
 	if isShell(sess) {
 		return nil, errNotAgent
 	}
-	st, _ := settings.Load(s.cfg.Paths.Settings())
-	line := i18n.T(st.UI.Lang(), i18n.MsgNudgeOne)
-	if n > 1 {
-		line = i18n.T(st.UI.Lang(), i18n.MsgNudgeMany, n)
+	// Only at its prompt: a permission dialog or a question would take
+	// the line, and its Enter, as an answer.
+	if sess.State() != status.Idle {
+		return nil, errNotIdle
 	}
+	st, _ := settings.Load(s.cfg.Paths.Settings())
+	// Agents whose hooks hand messages over (Claude) see them as soon as
+	// the line is submitted; the others are told to read them.
+	key := i18n.MsgNudgeRead
+	if s.hookDelivers(sess.ProfileID) {
+		key = i18n.MsgNudgeHook
+	}
+	line := i18n.T(st.UI.Lang(), key)
 	if _, err := sess.Write([]byte(line)); err != nil {
 		return nil, err
 	}

@@ -159,9 +159,12 @@ func New(cfg Config) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Message history is not worth refusing to start over: an unreadable
+	// (or newer) messages.json is left alone and messages live in memory.
 	mail, err := mailbox.Open(cfg.Paths.Messages())
 	if err != nil {
-		return nil, err
+		cfg.Logger.Warn("messages.json unreadable: messages are kept in memory until the next start", "err", err)
+		mail = mailbox.Memory()
 	}
 	bg, bgCancel := context.WithCancel(context.Background())
 	return &Server{
@@ -323,7 +326,7 @@ func (s *Server) serveConn(conn net.Conn) {
 				return
 			}
 			continue
-		case protocol.MethodMsgPeers, protocol.MethodMsgSend, protocol.MethodMsgList, protocol.MethodMsgTake, protocol.MethodMsgDeliver:
+		case protocol.MethodMsgPeers, protocol.MethodMsgSend, protocol.MethodMsgList, protocol.MethodMsgTake, protocol.MethodMsgDeliver, protocol.MethodMsgAck:
 			// Need the connection (the caller is who sends or reads).
 			result, err := s.handleMsg(conn, req)
 			if werr := writeResponse(conn, req.ID, result, err); werr != nil {

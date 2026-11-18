@@ -33,10 +33,10 @@ describe('deliver', () => {
   it('counts pending messages for a session', () => {
     expect(pendingFor([msg({ to: 'b' }), msg({ to: 'b', deliveredAt: 'x' }), msg({ to: 'c' })], 'b')).toBe(1)
   })
-  it('is offered to idle or waiting agents with pending messages, never shells', () => {
+  it('is offered to idle agents with pending messages, never shells or prompts', () => {
     const agent = { profileId: 'codex', cmd: '/usr/local/bin/codex', state: 'idle' }
     expect(canDeliver(agent, 1)).toBe(true)
-    expect(canDeliver({ ...agent, state: 'waiting_input' }, 2)).toBe(true)
+    expect(canDeliver({ ...agent, state: 'waiting_input' }, 2)).toBe(false)
     expect(canDeliver({ ...agent, state: 'running' }, 1)).toBe(false)
     expect(canDeliver(agent, 0)).toBe(false)
     expect(canDeliver({ profileId: 'myshell', cmd: '/bin/zsh', state: 'idle' }, 1)).toBe(false)

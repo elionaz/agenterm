@@ -555,6 +555,18 @@ func (c *Client) MsgTake(ctx context.Context, intro bool) (protocol.MsgTakeResul
 	return r, err
 }
 
+// MsgTakePeek is MsgTake without marking them delivered (see MsgAck).
+func (c *Client) MsgTakePeek(ctx context.Context, intro bool) (protocol.MsgTakeResult, error) {
+	var r protocol.MsgTakeResult
+	err := c.Call(ctx, protocol.MethodMsgTake, protocol.MsgTakeParams{Intro: intro, Peek: true}, &r)
+	return r, err
+}
+
+// MsgAck marks the calling session's messages ids delivered.
+func (c *Client) MsgAck(ctx context.Context, ids []int) error {
+	return c.Call(ctx, protocol.MethodMsgAck, protocol.MsgAckParams{IDs: ids}, nil)
+}
+
 // MsgDeliver nudges sessionID about its pending messages (the user only).
 func (c *Client) MsgDeliver(ctx context.Context, sessionID string) (int, error) {
 	var r struct {

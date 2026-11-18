@@ -1,0 +1,65 @@
+package notifycmd
+
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/elionaz/agenterm/internal/hooks"
+	"github.com/elionaz/agenterm/internal/mailbox"
+	"github.com/elionaz/agenterm/internal/protocol"
+)
+
+func take(ms ...mailbox.Message) protocol.MsgTakeResult {
+	return protocol.MsgTakeResult{Enabled: true, Self: "me", Messages: ms}
+}
+
+var msg = mailbox.Message{ID: 7, From: "ab12", FromName: "claude", To: "me", Body: "rebase", At: time.Now()}
+
+func TestClaudeOutput(t *testing.T) {
+	out, ids := claudeOutput(hooks.ClaudeHook{Event: evPostToolUse}, take(msg))
+	var v struct {
+		H struct {
+			Event string `json:"hookEventName"`
+			Ctx   string `json:"additionalContext"`
+		} `json:"hookSpecificOutput"`
+	}
+	if err := json.Unmarshal(out, &v); err != nil || v.H.Event != evPostToolUse || !strings.Contains(v.H.Ctx, `session="ab12"`) {
+		t.Fatalf("PostToolUse: %s (%v)", out, err)
+	}
+	if len(ids) != 1 || ids[0] != 7 {
+		t.Fatalf("ids %v", ids)
+	}
+
+	out, _ = claudeOutput(hooks.ClaudeHook{Event: evStop}, take(msg))
+	if !strings.Contains(string(out), `"decision":"block"`) {
+		t.Fatalf("Stop: %s", out)
+	}
+}
+
+func TestClaudeOutputHoldsBack(t *testing.T) {
+	for name, h := range map[string]hooks.ClaudeHook{
+		"stop already continued": {Event: evStop, StopActive: true},
+		"subagent tool call":     {Event: evPostToolUse, AgentID: "sub1"},
+	} {
+		if out, ids := claudeOutput(h, take(msg)); out != nil || ids != nil {
+			t.Errorf("%s: printed %s (ids %v); the messages must stay pending", name, out, ids)
+		}
+	}
+	if out, _ := claudeOutput(hooks.ClaudeHook{Event: evUserPromptSubmit}, protocol.MsgTakeResult{Messages: []mailbox.Message{msg}}); out != nil {
+		t.Errorf("messages off: printed %s", out)
+	}
+	if out, _ := claudeOutput(hooks.ClaudeHook{Event: evPostToolUse}, take()); out != nil {
+		t.Errorf("nothing pending: printed %s", out)
+	}
+}
+
+func TestIntroOnlyAtStart(t *testing.T) {
+	r := take()
+	r.Peers = &protocol.MsgPeers{ProjectName: "demo", Peers: []protocol.MsgPeer{{ID: "x1", Name: "codex", ProfileID: "codex", State: "idle"}}}
+	out, ids := claudeOutput(hooks.ClaudeHook{Event: evSessionStart}, r)
+	if !strings.Contains(string(out), "x1") || len(ids) != 0 {
+		t.Fatalf("intro: %s %v", out, ids)
+	}
+}

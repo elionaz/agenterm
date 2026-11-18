@@ -11,7 +11,9 @@ import (
 	"testing"
 
 	"github.com/elionaz/agenterm/internal/apierr"
+	"github.com/elionaz/agenterm/internal/daemon"
 	"github.com/elionaz/agenterm/internal/mailbox"
+	"github.com/elionaz/agenterm/internal/paths"
 	"github.com/elionaz/agenterm/internal/protocol"
 )
 
@@ -103,7 +105,18 @@ func TestMessagesBetweenSessions(t *testing.T) {
 		t.Fatalf("take from outside: %v", err)
 	}
 
-	// Deliver: B (cat) gets the fixed line, never the message.
+	// Deliver: never while B waits for an answer (the line and its Enter
+	// would answer the prompt); at its prompt B (cat) gets the fixed line,
+	// never the message.
+	if _, err := c.NotifyEvent(ctx, protocol.NotifyParams{SessionID: b.ID, State: "waiting_input", Kind: "permission"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.MsgDeliver(ctx, b.ID); err == nil {
+		t.Fatal("delivered into a permission prompt")
+	}
+	if _, err := c.Notify(ctx, b.ID, "idle"); err != nil {
+		t.Fatal(err)
+	}
 	st, err := c.Attach(ctx, b.ID, 0, 0)
 	if err != nil {
 		t.Fatal(err)
@@ -213,9 +226,21 @@ func TestClaudeHookDeliversMessages(t *testing.T) {
 	if info := findSession(t, c, a.ID); info.State == "idle" && info.AttentionKind == "done" {
 		t.Fatalf("a continued turn was reported done: %+v", info)
 	}
-	// Stop again with nothing new: let it stop.
+	// Stop again, already continued: let it stop, even with a new message
+	// (two agents must not keep each other going); it stays pending.
+	send("and another")
 	if v := hook("stop2", `{"hook_event_name":"Stop","session_id":"s1","stop_hook_active":true}`); v != nil {
 		t.Fatalf("second stop: %v", v)
+	}
+	// A subagent's tool call doesn't take it either.
+	if v := hook("sub", `{"hook_event_name":"PostToolUse","session_id":"s1","agent_id":"x","tool_name":"Read"}`); v != nil {
+		t.Fatalf("subagent PostToolUse: %v", v)
+	}
+	if info := findSession(t, c, a.ID); info.MsgPending != 1 {
+		t.Fatalf("held-back message: msgPending = %d", info.MsgPending)
+	}
+	if v := hook("tool1", `{"hook_event_name":"PostToolUse","session_id":"s1","tool_name":"Bash"}`); !strings.Contains(context(v), "and another") {
+		t.Fatalf("next tool call: %v", v)
 	}
 
 	// Messages off: nothing is handed over, nothing can be sent.
@@ -234,4 +259,35 @@ func TestClaudeHookDeliversMessages(t *testing.T) {
 		t.Fatalf("intro while off: %v", v)
 	}
 	_ = mailbox.User
+}
+
+func TestUnreadableMessagesFileIsLeftAlone(t *testing.T) {
+	dir, err := os.MkdirTemp("/tmp", "agt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	p := paths.In(dir)
+	os.MkdirAll(p.RuntimeDir, 0o700)
+	newer := []byte(`{"version": 99, "messages": []}`)
+	if err := os.WriteFile(p.Messages(), newer, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p.Profiles(), []byte(testProfiles), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c, stop := startDaemonIn(t, p, func(daemon.Notification) {})
+	ctx := ctxT(t)
+	proj, _ := c.ProjectAdd(ctx, t.TempDir(), "")
+	s, err := c.Spawn(ctx, protocol.SpawnParams{ProjectID: proj.ID, ProfileID: "cat"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.MsgSend(ctx, protocol.MsgSendParams{To: s.ID, Body: "in memory"}); err != nil {
+		t.Fatal(err)
+	}
+	stop()
+	if b, _ := os.ReadFile(p.Messages()); string(b) != string(newer) {
+		t.Fatalf("messages.json was overwritten: %s", b)
+	}
 }

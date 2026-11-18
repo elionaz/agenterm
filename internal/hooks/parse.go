@@ -257,16 +257,20 @@ func clipTo(s string, n int) string {
 	return s
 }
 
-// ClaudeEvent is the hook_event_name of a Claude Code payload and, for
-// Stop, whether Claude is already continuing because of a Stop hook
-// (stop_hook_active: blocking again could loop).
-func ClaudeEvent(payload []byte) (event string, stopActive bool) {
-	var p struct {
-		HookEventName  string `json:"hook_event_name"`
-		StopHookActive bool   `json:"stop_hook_active"`
-	}
-	if json.Unmarshal(payload, &p) != nil {
-		return "", false
-	}
-	return p.HookEventName, p.StopHookActive
+// ClaudeHook is what a Claude Code payload says about where it fired.
+type ClaudeHook struct {
+	Event string `json:"hook_event_name"`
+	// StopActive (Stop): Claude already goes on because of a Stop hook;
+	// blocking again could loop.
+	StopActive bool `json:"stop_hook_active"`
+	// AgentID: set when the event fired inside a subagent (its tool
+	// calls), not the main conversation.
+	AgentID string `json:"agent_id"`
+}
+
+// ClaudeEvent decodes the fields of ClaudeHook from a payload.
+func ClaudeEvent(payload []byte) ClaudeHook {
+	var h ClaudeHook
+	_ = json.Unmarshal(payload, &h)
+	return h
 }

@@ -125,8 +125,8 @@ const (
 
 	// Typed into an agent's terminal by the app's "Deliver" button
 	// (messages from other sessions are waiting).
-	MsgNudgeOne  = "msg.nudge.one"
-	MsgNudgeMany = "msg.nudge.many" // %d: count
+	MsgNudgeRead = "msg.nudge.read" // agents that read them with agenterm msg read
+	MsgNudgeHook = "msg.nudge.hook" // agents whose hooks hand them over (Claude)
 )
 
 var messages = map[string]map[Lang]string{
@@ -147,10 +147,10 @@ var messages = map[string]map[Lang]string{
 
 	PermissionFor: {EN: "Permission for %s", ES: "Permiso para %s"},
 	TermRestored:  {EN: "session restored · %s", ES: "sesión restaurada · %s"},
-	MsgNudgeOne: {EN: "[agenterm] You have a new message from another session of this project: run `agenterm msg read` to read it.",
-		ES: "[agenterm] Tienes un mensaje nuevo de otra sesión de este proyecto: ejecuta `agenterm msg read` para leerlo."},
-	MsgNudgeMany: {EN: "[agenterm] You have %d new messages from other sessions of this project: run `agenterm msg read` to read them.",
-		ES: "[agenterm] Tienes %d mensajes nuevos de otras sesiones de este proyecto: ejecuta `agenterm msg read` para leerlos."},
+	MsgNudgeRead: {EN: "[agenterm] There are new messages for you from other sessions of this project: run `agenterm msg read` to read them.",
+		ES: "[agenterm] Hay mensajes nuevos para ti de otras sesiones de este proyecto: ejecuta `agenterm msg read` para leerlos."},
+	MsgNudgeHook: {EN: "[agenterm] There are new messages for you from other sessions of this project.",
+		ES: "[agenterm] Hay mensajes nuevos para ti de otras sesiones de este proyecto."},
 	TermSuspended: {EN: "suspended since %s (daemon restarted) · resume to continue", ES: "suspendida desde %s (el daemon se reinició) · reanúdala para continuar"},
 
 	// Activity lines: "activity.<kind>" takes the target, ".bare" is used

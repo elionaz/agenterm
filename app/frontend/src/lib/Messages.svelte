@@ -29,6 +29,8 @@
   let listEl = $state<HTMLDivElement>()
   let seq = 0
 
+  // The session object changes on every activity event: reload on its id.
+  const sessionId = $derived(session.id)
   const rows = $derived(messageRows(messages, session.id, sessions))
   const pending = $derived(pendingFor(messages, session.id))
   const shell = $derived(isShellSession(session))
@@ -48,7 +50,7 @@
 
   $effect(() => {
     void stamp
-    void load(session.id)
+    void load(sessionId)
   })
 
   async function send() {
@@ -101,8 +103,10 @@
       {:else if canDeliver(session, pending)}
         <button class="btn primary" disabled={delivering} onclick={deliver} title={t('msg.deliverHelp')}>{t('msg.deliver')}</button>
         <span class="help">{t('msg.deliverHelp')}</span>
-      {:else if session.profileId === 'claude' || session.state === 'running'}
-        <span class="help">{session.state === 'running' ? t('msg.autoHelp') : t('msg.manualHelp')}</span>
+      {:else if session.state === 'running'}
+        <span class="help">{t('msg.autoHelp')}</span>
+      {:else}
+        <span class="help">{t('msg.manualHelp')}</span>
       {/if}
     </div>
   {/if}

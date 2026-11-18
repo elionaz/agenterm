@@ -62,7 +62,7 @@ export const es: Dict = {
   'msg.deliver': 'Entregar',
   'msg.deliverHelp': 'Escribe en su terminal una línea corta que le pide ejecutar agenterm msg read (nunca el mensaje).',
   'msg.autoHelp': 'Los recibe solo en su siguiente paso.',
-  'msg.manualHelp': 'Cuando deje de trabajar, Entregar le avisa que los lea.',
+  'msg.manualHelp': 'Entregar aparece cuando vuelva a su prompt (no mientras espera una respuesta).',
   'msg.shellHelp': 'Una shell no lee mensajes sola: se quedan aquí.',
   'msg.compose': 'Escríbele a esta sesión…',
   'msg.send': 'Enviar',

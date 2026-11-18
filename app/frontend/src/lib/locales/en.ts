@@ -78,7 +78,7 @@ export const en = {
   'msg.deliver': 'Deliver',
   'msg.deliverHelp': 'Types a short line into its terminal telling it to run agenterm msg read (never the message itself).',
   'msg.autoHelp': 'It gets them at its next step, by itself.',
-  'msg.manualHelp': 'When it stops working, Deliver tells it to read them.',
+  'msg.manualHelp': 'Deliver shows up once it is back at its prompt (not while it waits for an answer).',
   'msg.shellHelp': 'A shell does not read messages by itself: they stay here.',
   'msg.compose': 'Write to this session…',
   'msg.send': 'Send',

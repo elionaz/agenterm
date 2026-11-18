@@ -122,26 +122,15 @@ func runHook(agent, id, sock string, rest []string, stdin io.Reader, stdout io.W
 	defer cancel()
 	// Messages from other sessions (Claude only: its hooks can add to the
 	// conversation). The daemon knows this session from the connection.
-	var out []byte
+	// They are only marked delivered once printed (msg.ack): a hook that
+	// times out or fails leaves them pending.
 	var inboxErr error
 	if agent == hooks.AgentClaude {
-		if event, stopActive := hooks.ClaudeEvent(payload); inboxEvent(event) {
-			c, err := hookClient(sock)
-			if err == nil {
-				var r protocol.MsgTakeResult
-				if r, err = c.MsgTake(ctx, event == evSessionStart); err == nil {
-					out = claudeOutput(event, stopActive, r)
-				}
+		if h := hooks.ClaudeEvent(payload); inboxEvent(h.Event) {
+			inboxErr = deliverInbox(ctx, sock, h, stdout)
+			if h.Event == evStop && inboxErr == errContinued {
+				ok, inboxErr = false, nil // the turn goes on: not idle
 			}
-			inboxErr = err
-			if event == evStop && out != nil {
-				ok = false // the turn goes on: not idle
-			}
-		}
-	}
-	if out != nil {
-		if _, err := stdout.Write(out); err != nil {
-			return err
 		}
 	}
 	if !ok && ref == "" {
@@ -198,4 +187,36 @@ func hookClient(sock string) (*client.Client, error) {
 		}
 	}
 	return client.New(sock), nil
+}
+
+// errContinued: the Stop hook blocked, the turn goes on.
+var errContinued = errors.New("turn continued")
+
+// deliverInbox prints the session's pending messages for hook h and
+// acknowledges them. It returns errContinued when a Stop was blocked.
+func deliverInbox(ctx context.Context, sock string, h hooks.ClaudeHook, stdout io.Writer) error {
+	c, err := hookClient(sock)
+	if err != nil {
+		return err
+	}
+	r, err := c.MsgTakePeek(ctx, h.Event == evSessionStart)
+	if err != nil {
+		return err
+	}
+	out, ids := claudeOutput(h, r)
+	if out == nil {
+		return nil
+	}
+	if _, err := stdout.Write(out); err != nil {
+		return err
+	}
+	if len(ids) > 0 {
+		if err := c.MsgAck(ctx, ids); err != nil {
+			return err
+		}
+	}
+	if h.Event == evStop {
+		return errContinued
+	}
+	return nil
 }
