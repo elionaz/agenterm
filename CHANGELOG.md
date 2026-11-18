@@ -7,6 +7,8 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-17
+
 ### Added
 
 - **Pull requests on GitHub and GitLab in Changes**, for worktrees and for the branch the main
@@ -254,7 +256,8 @@ First public release: a macOS desktop app (universal: Apple Silicon and Intel, m
   `.zip` downloads, CLI archives for macOS and Linux, and a Homebrew cask
   (`brew install --cask elionaz/tap/agenterm`).
 
-[Unreleased]: https://github.com/elionaz/agenterm/compare/v0.4.3...HEAD
+[Unreleased]: https://github.com/elionaz/agenterm/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/elionaz/agenterm/compare/v0.4.3...v0.5.0
 [0.4.3]: https://github.com/elionaz/agenterm/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/elionaz/agenterm/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/elionaz/agenterm/compare/v0.4.0...v0.4.1
