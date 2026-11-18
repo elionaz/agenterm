@@ -913,6 +913,7 @@
     onReorderSessions={reorderSessions}
     onOpenSettings={openSettings}
     onOpenGrid={openGrid}
+    overviewOpen={gridOpen && !gridProjectId}
     {now}
     {worktrees}
     onOpenWorktree={openOrphan}

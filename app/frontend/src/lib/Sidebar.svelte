@@ -17,6 +17,7 @@
   } from './api'
   import { activityText, progressOf, shortTimer, stateLabel } from './activity'
   import { hasKey, t } from './i18n.svelte'
+  import GridIcon from './GridIcon.svelte'
   import ProgressBar from './ProgressBar.svelte'
   import { dropSlot, moveTo } from './reorder'
 
@@ -52,6 +53,8 @@
     onOpenSettings: () => void
     /** Opens the grid overview (focused on a project when given). */
     onOpenGrid: (projectId?: string) => void
+    /** The overview of every project is open (its row is highlighted). */
+    overviewOpen?: boolean
     /** Current time (ms), ticking once per second, for the timers. */
     now: number
   }
@@ -73,6 +76,7 @@
     onResumeAll,
     onDiscardAll,
     onAddProject,
+    overviewOpen = false,
     onRemoveProject,
     onReorderProjects,
     onReorderSessions,
@@ -289,8 +293,15 @@
 
 <aside class="sidebar">
   <div class="titlebar drag">
-    <button class="icon grid-btn" title={t('sidebar.overview')} aria-label={t('sidebar.overviewLabel')} onclick={() => onOpenGrid()}>▦</button>
     <span class="brand">agenterm</span>
+  </div>
+
+  <div class="nav">
+    <button class="overview" class:active={overviewOpen} title={t('sidebar.overview')} onclick={() => onOpenGrid()}>
+      <span class="overview-icon"><GridIcon size={13} /></span>
+      <span class="overview-label">{t('sidebar.overviewLabel')}</span>
+      <kbd>⌘0</kbd>
+    </button>
   </div>
 
   {#if suspendedCount}
@@ -339,10 +350,10 @@
             >
           {:else if list.length}<span class="count">{list.length}</span>{/if}
           <span class="row-actions">
-            <button class="icon" title={t('sidebar.projectOverview')} onclick={(e) => {
+            <button class="icon" title={t('sidebar.projectOverview')} aria-label={t('sidebar.projectOverview')} onclick={(e) => {
               e.stopPropagation()
               onOpenGrid(p.id)
-            }}>▦</button>
+            }}><GridIcon size={12} /></button>
             <button class="icon" title={t('sidebar.removeProject')} onclick={(e) => {
               e.stopPropagation()
               onRemoveProject(p.id)
@@ -581,6 +592,51 @@
     color: var(--muted);
     text-transform: lowercase;
   }
+  /* The overview row: lined up with the project rows below (its icon in
+   * the chevrons' column). */
+  .nav {
+    flex: none;
+    padding: 2px 6px 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .overview {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    height: 28px;
+    padding: 0 6px 0 4px;
+    border-radius: 6px;
+    color: var(--fg-dim);
+    text-align: left;
+  }
+  .overview:hover {
+    background: var(--hover);
+    color: var(--fg);
+  }
+  .overview.active {
+    background: var(--accent-bg);
+    color: var(--fg);
+  }
+  .overview-icon {
+    width: 16px;
+    display: flex;
+    justify-content: center;
+    color: var(--muted);
+  }
+  .overview:hover .overview-icon,
+  .overview.active .overview-icon {
+    color: var(--fg);
+  }
+  .overview-label {
+    flex: 1;
+    font-weight: 500;
+  }
+  .overview kbd {
+    font: inherit;
+    font-size: 11px;
+    color: var(--muted);
+  }
   .projects {
     flex: 1;
     overflow-y: auto;
@@ -666,6 +722,9 @@
     color: var(--muted);
     font-size: 15px;
     line-height: 1;
+  }
+  .icon :global(svg) {
+    margin: auto;
   }
   .icon:hover {
     background: var(--hover-strong);
@@ -754,10 +813,6 @@
   }
   .row-progress {
     margin: 0 0 2px 14px;
-  }
-  .grid-btn {
-    margin-right: auto;
-    font-size: 13px;
   }
   .session:hover {
     background: var(--hover);
