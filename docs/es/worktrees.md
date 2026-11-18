@@ -18,7 +18,7 @@ barra lateral y la pestaña Cambios muestran esa carpeta, así que todas las ses
 los mismos archivos.
 
 Para agentes trabajando en paralelo, dale a cada uno su propio **worktree**. Es lo que agenterm
-hace por defecto (`git.default_mode: worktree`, desde 0.6.1): un agente nuevo empieza en su propia
+hace por defecto (`git.default_mode: worktree`, desde 0.7.0): un agente nuevo empieza en su propia
 rama y carpeta, y un **Shell** simple empieza en la carpeta del proyecto. **Misma carpeta** sigue a
 un clic en el menú **+**.
 
@@ -171,7 +171,7 @@ requests se buscan (y se abren) ahí. Los comentarios se leen en páginas de 100
 - Menú **+** del proyecto: tras elegir el agente, *Misma carpeta* o *Worktree nuevo* (rama editable
   ya rellena y selector de base con la rama actual por defecto). Se recuerda la última elección por
   proyecto (para agentes; las shells siempre empiezan en la carpeta), y ⌘N la usa; si no hay
-  ninguna, se usa `git.default_mode` (`worktree` por defecto). Las elecciones de antes de 0.6.1 ya
+  ninguna, se usa `git.default_mode` (`worktree` por defecto). Las elecciones de antes de 0.7.0 ya
   no se recuerdan.
 - Fila de la sesión: chip con la rama (sin el prefijo `agent/`): azul para el worktree propio de la
   sesión, gris para la rama actual de la carpeta del proyecto (compartida con las otras sesiones de
