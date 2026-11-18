@@ -40,15 +40,21 @@ func (s *Server) callerSession(conn net.Conn) *session.Session {
 		return nil
 	}
 	byPid := make(map[int]*session.Session)
+	// ExitCode takes the session's status lock, whose change callbacks take
+	// s.mu (publishState): never call it with s.mu held.
 	s.mu.Lock()
+	all := make([]*session.Session, 0, len(s.sessions))
 	for _, sess := range s.sessions {
+		all = append(all, sess)
+	}
+	s.mu.Unlock()
+	for _, sess := range all {
 		if sess.Pid > 0 && !sess.Suspended() {
 			if _, exited := sess.ExitCode(); !exited {
 				byPid[sess.Pid] = sess
 			}
 		}
 	}
-	s.mu.Unlock()
 	if len(byPid) == 0 {
 		return nil
 	}
@@ -152,13 +158,16 @@ func (s *Server) displayName(sess *session.Session) string {
 // the sidebar's order.
 func (s *Server) projectSessions(projectID string) []*session.Session {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	var out []*session.Session
+	var mine []*session.Session
 	for _, id := range s.order {
-		sess := s.sessions[id]
-		if sess == nil || sess.ProjectID != projectID {
-			continue
+		if sess := s.sessions[id]; sess != nil && sess.ProjectID == projectID {
+			mine = append(mine, sess)
 		}
+	}
+	s.mu.Unlock()
+	// Outside s.mu: see callerSession.
+	var out []*session.Session
+	for _, sess := range mine {
 		if _, exited := sess.ExitCode(); exited && !sess.Suspended() {
 			continue
 		}

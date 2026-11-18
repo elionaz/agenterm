@@ -7,6 +7,12 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The daemon could hang** when a message call (`agenterm msg …`, the Messages tab, Claude's
+  hooks) came in just as a session changed state. Two locks were taken in opposite orders, so
+  every session froze until the daemon was killed. Present since session messages (0.6.0).
+
 ## [0.8.0] - 2026-11-18
 
 ### Added

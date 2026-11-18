@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/elionaz/agenterm/internal/apierr"
 	"github.com/elionaz/agenterm/internal/daemon"
@@ -304,5 +305,50 @@ func TestUnreadableMessagesFileIsLeftAlone(t *testing.T) {
 	stop()
 	if b, _ := os.ReadFile(p.Messages()); string(b) != string(newer) {
 		t.Fatalf("messages.json was overwritten: %s", b)
+	}
+}
+
+// Message calls (which look up the calling session under the server lock)
+// racing state changes (whose callbacks take the server lock while the
+// session's status lock is held) must not deadlock the daemon.
+func TestMessageCallsDuringStateChanges(t *testing.T) {
+	c, _, stop := startDaemon(t)
+	defer stop()
+	ctx := ctxT(t)
+	proj, err := c.ProjectAdd(ctx, t.TempDir(), "race")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sess, err := c.Spawn(ctx, protocol.SpawnParams{ProjectID: proj.ID, ProfileID: "shell"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		states := []string{"running", "idle", "waiting_input"}
+		for i := 0; i < 300; i++ {
+			if _, err := c.Notify(ctx, sess.ID, states[i%len(states)]); err != nil {
+				t.Errorf("notify: %v", err)
+				return
+			}
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 300; i++ {
+			if _, err := c.MsgList(ctx, protocol.MsgListParams{ProjectID: proj.ID}); err != nil {
+				t.Errorf("msg list: %v", err)
+				return
+			}
+		}
+	}()
+	go func() { wg.Wait(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(8 * time.Second):
+		t.Fatal("daemon deadlocked: message calls and state changes did not finish")
 	}
 }
