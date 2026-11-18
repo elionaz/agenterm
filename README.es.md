@@ -13,13 +13,14 @@ y cuál está esperando tu aprobación. agenterm agrupa las sesiones por proyect
 vivos aunque cierres la app y te avisa cuando alguno te necesita.
 
 <p align="center">
-  <img src="docs/img/screenshot.png" alt="agenterm: proyectos y sesiones en la barra lateral, actividad en vivo, una aprobación pendiente y la terminal" width="900">
+  <img src="docs/img/screenshot-es.png" alt="agenterm: proyectos con sus insignias y sesiones en la barra lateral, cada una con su modelo, su rama y su actividad en vivo, una aprobación pendiente, un mensaje esperando y la terminal" width="900">
 </p>
 
 ## Funciones
 
 - **Proyectos y sesiones** en una barra lateral: cada proyecto es una carpeta y cada sesión una
-  terminal (xterm.js) con un agente o una shell. Doble clic en una sesión para ponerle nombre;
+  terminal (xterm.js) con un agente o una shell, con su modelo (*Opus 5.5*) y su rama. Doble clic
+  en una sesión para ponerle nombre;
   arrastra proyectos y sesiones para ordenarlos. Cada proyecto tiene una insignia con sus iniciales y
   un color; haz clic en ella (o clic derecho en el proyecto) para renombrarlo, elegir el color o
   poner un emoji en su lugar. Suelta archivos (p. ej. capturas) en una terminal
@@ -40,17 +41,19 @@ vivos aunque cierres la app y te avisa cuando alguno te necesita.
 - **Detección de atención**: aprobaciones, preguntas, turnos terminados y errores (hooks del agente
   o señales de terminal), con notificaciones nativas de macOS, badge del Dock y marcas en la sidebar.
 - **Actividad en vivo**: qué está haciendo cada agente ("Editando main.go"), cronómetro del turno,
-  aviso de «¿trabado?», barras de progreso (OSC 9;4) y una vista general en rejilla (⌘0).
-- **Worktrees de git por sesión**: cada agente puede trabajar en su propia rama y carpeta; la
-  pestaña **Cambios** muestra el diff y permite hacer merge a la base o eliminar el worktree de forma
-  segura.
+  aviso de «¿trabado?», barras de progreso (OSC 9;4) y una **Vista general** de todas las sesiones
+  (⌘0).
+- **Worktrees de git por sesión**: los agentes nuevos empiezan por defecto en su propia rama y
+  carpeta, así los que trabajan en paralelo nunca comparten cambios; la pestaña **Cambios** muestra
+  el diff y permite hacer merge a la base o eliminar el worktree de forma segura.
 - **Pull requests en GitHub y GitLab** desde la pestaña **Cambios**, para worktrees y para la rama
   en la que está tu carpeta principal: estado, checks y review, los comentarios (los de línea llevan
   al archivo), merge en el servidor y crear uno nuevo con título y descripción sugeridos. Usa tu
   propia sesión de `gh` / `glab`; agenterm no guarda tokens.
 - **Mensajes entre sesiones**: los agentes de un proyecto pueden escribirse
   (`agenterm msg send`, `agenterm wait`); Claude Code recibe sus mensajes solo, los demás agentes
-  los leen con `agenterm msg read` o reciben un aviso desde la pestaña **Mensajes**. Los mensajes
+  los leen con `agenterm msg read` o reciben un aviso desde la pestaña **Mensajes** (opcionalmente
+  automático para las sesiones de Claude en espera). Los mensajes
   nunca salen de su proyecto y el daemon decide quién envió cada uno.
 - **Ajustes en la app**: activar, ordenar y editar agentes, y configurar el idioma, la apariencia,
   las notificaciones y git.
@@ -59,6 +62,13 @@ vivos aunque cierres la app y te avisa cuando alguno te necesita.
   también en las instalaciones con Homebrew.
 - **En inglés y español**: la app sigue los idiomas preferidos de macOS (con inglés como respaldo)
   o el idioma que elijas en *Ajustes → General*.
+
+## Capturas
+
+| | | |
+|---|---|---|
+| <img src="docs/img/overview-es.png" alt="La Vista general: una tarjeta por sesión con su estado, modelo, rama, actividad y el final de su terminal" width="280"> | <img src="docs/img/changes-es.png" alt="La pestaña Cambios de una sesión con worktree: archivos cambiados, diff lado a lado y Merge a main / Crear pull request" width="280"> | <img src="docs/img/messages-es.png" alt="La pestaña Mensajes: un mensaje entregado a otra sesión y una respuesta esperando, con el botón Entregar" width="280"> |
+| **Vista general** (⌘0): todas las sesiones de un vistazo | **Cambios**: el diff, merge o pull request | **Mensajes** entre las sesiones de un proyecto |
 
 ## Instalación
 
@@ -176,14 +186,15 @@ añaden a cada sesión que abre, no se instalan) ni toca las carpetas de tus pro
 **App.** La primera vez, una pantalla de bienvenida muestra qué CLIs de agentes se encontraron, te
 deja permitir las notificaciones y explica cómo poner el comando `agenterm` en tu `PATH`. Haz clic en
 **+ Añadir tu primer proyecto** (o en **+ Proyecto** de la barra lateral) y elige una carpeta. Con el **+** junto al proyecto eliges un agente
-y si corre en la misma carpeta o en un worktree nuevo; **⌘N** lanza el primer agente de la lista.
+y si corre en un worktree nuevo (por defecto) o en la carpeta del proyecto; **⌘N** lanza el primer
+agente de la lista.
 Cuando un agente te necesita verás un punto ámbar en la sidebar y una notificación.
 
-**Varios agentes en un proyecto.** Las sesiones en la carpeta del proyecto comparten su rama y sus
-cambios: lo que edita o commitea un agente lo ven los demás, y un cambio de rama los mueve a todos.
-Dale a cada agente su propio **worktree** para mantener su trabajo aparte; si ya hay otro agente
-trabajando en la carpeta, el menú **+** (y ⌘N) elige un worktree nuevo por ti. El trabajo vuelve con
-**Merge a la base** o **Crear pull request** en la pestaña Cambios. Más en
+**Varios agentes en un proyecto.** Cada agente nuevo tiene por defecto su propio **worktree** (su
+rama y su carpeta), así su trabajo queda aparte; una **Shell** simple empieza en la carpeta del
+proyecto. Las sesiones que sí comparten la carpeta del proyecto (**Misma carpeta** en el menú **+**)
+comparten su rama y sus cambios: lo que edita o commitea un agente lo ven los demás. El trabajo
+vuelve con **Merge a la base** o **Crear pull request** en la pestaña Cambios. Más en
 [docs/es/worktrees.md](docs/es/worktrees.md#varios-agentes-en-un-proyecto).
 
 **CLI.** Cualquier comando arranca el daemon si no está corriendo:
@@ -271,7 +282,7 @@ activity:
 git:
   editor: ""             # para «Abrir en editor»; vacío: code si existe, si no Finder
   worktree_dir: ""       # dónde crear worktrees; vacío: ~/.agenterm/worktrees
-  default_mode: same     # same | worktree
+  default_mode: worktree # worktree | same
 ```
 
 Todas las reglas y el catálogo completo: [docs/es/configuration.md](docs/es/configuration.md). Worktrees

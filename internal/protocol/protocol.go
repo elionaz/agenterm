@@ -368,6 +368,11 @@ type ForgeStatus struct {
 	Ahead int    `json:"ahead"`
 	Title string `json:"title,omitempty"`
 	Body  string `json:"body,omitempty"`
+	// Session is a suggested "Agent sessions" section for a new pull
+	// request (the agents that worked on the branch, their models and
+	// prompts, secrets removed); the app appends it to Body if the user
+	// keeps it. Empty when there is an open pull request or no agent.
+	Session string `json:"session,omitempty"`
 	// After forge.merge: "merged", or "queued" when the host only
 	// scheduled it (merge queue, auto-merge once checks pass).
 	Result string `json:"result,omitempty"`
@@ -498,6 +503,9 @@ type NotifyParams struct {
 	Agent          string `json:"agent,omitempty"`
 	AgentSessionID string `json:"agentSessionId,omitempty"`
 	TranscriptPath string `json:"transcriptPath,omitempty"`
+	// Model is the agent's model (claude-opus-5-5…), from its hooks. Alone
+	// (no State, Activity or AgentSessionID) only that is recorded.
+	Model string `json:"model,omitempty"`
 }
 
 // TailParams asks for the last Lines lines of a session's output.
@@ -592,6 +600,8 @@ type SessionInfo struct {
 	Unread           bool       `json:"unread,omitempty"`
 	// MsgPending: messages from other sessions it has not got yet.
 	MsgPending int `json:"msgPending,omitempty"`
+	// Model: the agent's model id, when known (hooks or command line).
+	Model string `json:"model,omitempty"`
 	// Mode is same | worktree; worktree sessions name their worktree.
 	Mode         string   `json:"mode,omitempty"`
 	WorktreeID   string   `json:"worktreeId,omitempty"`
@@ -649,6 +659,8 @@ const (
 	// EventMessages: messages to or from SessionID (in ProjectID) changed:
 	// sent or delivered. MsgPending is how many wait for SessionID.
 	EventMessages = "message.changed"
+	// EventSessionModel: the session's agent reported another model (Model).
+	EventSessionModel = "session.model"
 )
 
 // Event is pushed to events.subscribe streams.
@@ -684,6 +696,8 @@ type Event struct {
 	ProjectID string `json:"projectId,omitempty"`
 	// MsgPending (message.changed): messages waiting for SessionID.
 	MsgPending int `json:"msgPending,omitempty"`
+	// Model (session.model): the agent's model id.
+	Model string `json:"model,omitempty"`
 	// Live is filled in session.activity and session.state events.
 	Live
 }

@@ -17,7 +17,10 @@ cambia de rama, hace stash o commitea, se lleva el trabajo a medias de los otros
 barra lateral y la pestaña Cambios muestran esa carpeta, así que todas las sesiones de ahí muestran
 los mismos archivos.
 
-Para agentes trabajando en paralelo, dale a cada uno su propio **worktree**:
+Para agentes trabajando en paralelo, dale a cada uno su propio **worktree**. Es lo que agenterm
+hace por defecto (`git.default_mode: worktree`, desde 0.7.0): un agente nuevo empieza en su propia
+rama y carpeta, y un **Shell** simple empieza en la carpeta del proyecto. **Misma carpeta** sigue a
+un clic en el menú **+**.
 
 - En un repositorio git, si ya hay un agente (no terminado ni suspendido) trabajando en la carpeta
   del proyecto, el menú **+** elige **Worktree nuevo** para el siguiente agente y dice qué sesión está
@@ -157,6 +160,14 @@ arriba.
 - **Crear pull request**: sube la rama (nunca forzado) y lo abre hacia la base (la del worktree, o
   la rama por defecto del remoto en la carpeta principal) con título y descripción editables
   sugeridos a partir de los commits, opcionalmente como borrador.
+- **Añadir las sesiones de los agentes** (activado por defecto, con vista previa): añade a la
+  descripción una sección *Agent sessions* con los agentes que trabajaron en esa carpeta (sin las
+  shells), su modelo y, en Claude Code, las peticiones que escribiste en cada sesión (leídas de su
+  transcript; sin salidas de herramientas, subagentes ni comandos con /). Las peticiones van en
+  bloques de código, así que sus enlaces y @menciones no se muestran ni avisan a nadie. Lo que
+  parece un secreto (claves de API, tokens, claves privadas, `password=…`) se sustituye por
+  `[redacted]`: es un filtro aproximado, revisa la vista previa antes de crear. Desmárcalo para no
+  añadir la sección.
 
 Todo se recarga al abrir Cambios, con ⟳ y cuando la rama cambia (commits, pushes); no hay
 sondeo periódico. Las CLIs se buscan en el `PATH` del shell de login, como los agentes. El
@@ -167,9 +178,13 @@ requests se buscan (y se abren) ahí. Los comentarios se leen en páginas de 100
 
 - Menú **+** del proyecto: tras elegir el agente, *Misma carpeta* o *Worktree nuevo* (rama editable
   ya rellena y selector de base con la rama actual por defecto). Se recuerda la última elección por
-  proyecto, y ⌘N la usa; si no hay ninguna, se usa `git.default_mode`.
-- Fila de la sesión: chip con la rama (sin el prefijo `agent/`) y `±N` archivos cambiados; igual en
-  las tarjetas de la vista general, con `↑N` commits por delante.
+  proyecto (para agentes; las shells siempre empiezan en la carpeta), y ⌘N la usa; si no hay
+  ninguna, se usa `git.default_mode` (`worktree` por defecto). Las elecciones de antes de 0.7.0 ya
+  no se recuerdan.
+- Fila de la sesión: chip con la rama (sin el prefijo `agent/`): azul para el worktree propio de la
+  sesión, gris para la rama actual de la carpeta del proyecto (compartida con las otras sesiones de
+  ahí); después `±N` archivos cambiados. Igual en las tarjetas de la vista general, con `↑N` commits
+  por delante.
 - Pestañas **Terminal | Cambios (N)** en las sesiones con git: lista de archivos a la izquierda
   (estado, `+`/`−`), commits por delante, diff a la derecha con diff2html (lado a lado o unificado),
   ⟳ para recargar, aviso de diff truncado y la barra de acciones (*Abrir en editor*, *Abrir en

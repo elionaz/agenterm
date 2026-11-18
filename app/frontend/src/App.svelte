@@ -66,6 +66,8 @@
     type DaemonStatus,
   } from './lib/api'
   import { SHELL_PROFILE, folderSharers, inProjectFolder } from './lib/shared'
+  import { proposedMode } from './lib/spawnmode'
+  import { prettyModel } from './lib/models'
 
   let projects = $state<Project[]>([])
   let sessions = $state<Session[]>([])
@@ -94,7 +96,7 @@
   /** An orphaned worktree's changes shown over the main area. */
   let orphanView = $state<{ id: string; remove: boolean } | null>(null)
   /** settings git.default_mode (what ⌘N / the + menu start with). */
-  let defaultMode: SpawnMode = 'same'
+  let defaultMode: SpawnMode = 'worktree'
   /** Split-pane layout per project (kept in localStorage). */
   let layouts = $state<Record<string, Layout>>({})
   /** The divider being dragged (its split id). */
@@ -507,7 +509,7 @@
     void api
       .getSettings()
       .then((st) => {
-        defaultMode = st.git?.defaultMode === 'worktree' ? 'worktree' : 'same'
+        defaultMode = st.git?.defaultMode === 'same' ? 'same' : 'worktree'
         setLangSetting(st.ui?.language)
         setAppearance(st.ui?.appearance)
         setTermPrefs(st.terminal)
@@ -771,6 +773,9 @@
       case 'session.git':
         sessions = sessions.map((s) => (s.id === ev.sessionId ? { ...s, git: ev.git as Session['git'] } : s))
         break
+      case 'session.model':
+        sessions = sessions.map((s) => (s.id === ev.sessionId ? { ...s, model: ev.model } : s))
+        break
       case 'message.changed':
         sessions = sessions.map((s) => (s.id === ev.sessionId ? { ...s, msgPending: ev.msgPending ?? 0 } : s))
         msgStamps[ev.sessionId] = (msgStamps[ev.sessionId] ?? 0) + 1
@@ -869,8 +874,9 @@
    * shell being started), and the same folder when the project cannot use
    * worktrees (not a git repo…). */
   async function defaultModeFor(projectId: string, profileId: string): Promise<SpawnMode> {
-    const busy = profileId !== SHELL_PROFILE && folderSharers(sessions, projectId).length > 0
-    const mode = busy ? 'worktree' : rememberedMode(projectId, defaultMode)
+    const shell = profileId === SHELL_PROFILE
+    const busy = !shell && folderSharers(sessions, projectId).length > 0
+    const mode = proposedMode({ shell, busy, remembered: rememberedMode(projectId, defaultMode), fallback: defaultMode })
     if (mode === 'worktree') {
       const g = await api.projectGit(projectId).catch(() => null)
       if (!g?.isRepo || g.error) return 'same'
@@ -972,8 +978,11 @@
         {#if proj}<span class="title-badge" title={proj.name}><ProjectBadge project={proj} size={18} /></span>{/if}
         <span class="title">{sessionTitle(selected)}</span>
         {#if selected.name}<span class="profile">{selected.profileId}</span>{/if}
+        {#if selected.model}<span class="profile" title={selected.model}>{prettyModel(selected.model)}</span>{/if}
         {#if selected.mode === 'worktree' && selected.branch}
           <span class="branch" title={selected.worktreePath}>⎇ {selected.branch}</span>
+        {:else if selected.git?.head}
+          <span class="branch same" title={t('sidebar.folderBranch', { branch: selected.git.head })}>⎇ {selected.git.head}</span>
         {/if}
         {#if selected.attentionKind && selected.state !== 'exited'}
           <span class="attn {selected.attentionKind}" title={selected.attentionMessage ?? ''}>
@@ -1024,6 +1033,7 @@
                 <div class="pane-head" title={s ? `${s.cmd} · ${s.cwd} · ${s.id}` : ''}>
                   <span class="pane-name">{s ? sessionTitle(s) : t('panes.empty')}</span>
                   {#if s?.name}<span class="pane-profile">{s.profileId}</span>{/if}
+                  {#if s?.model}<span class="pane-profile" title={s.model}>{prettyModel(s.model)}</span>{/if}
                   {#if s && needsAttention(s)}<span class="attn {s.attentionKind}">{attentionLabel(s.attentionKind)}</span>{/if}
                   <button
                     class="pane-close"
@@ -1179,7 +1189,7 @@
       <Settings
         {profiles}
         onProfiles={(ps) => (profiles = ps)}
-        onSettings={(st) => (defaultMode = st.git?.defaultMode === 'worktree' ? 'worktree' : 'same')}
+        onSettings={(st) => (defaultMode = st.git?.defaultMode === 'same' ? 'same' : 'worktree')}
         onClose={closeSettings}
       />
     {/if}
@@ -1313,6 +1323,9 @@
     flex: none;
     font: 11.5px var(--mono);
     color: var(--blue);
+  }
+  .branch.same {
+    color: var(--fg-dim);
   }
   .view-tabs {
     flex: none;

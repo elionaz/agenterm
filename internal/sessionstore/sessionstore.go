@@ -45,6 +45,8 @@ type Record struct {
 	ProfileID string `json:"profileId"`
 	// Name is the user-given display name (empty: the profile's).
 	Name string `json:"name,omitempty"`
+	// Model is the agent's model as last reported (empty: unknown).
+	Model string `json:"model,omitempty"`
 	// Mode is same | worktree; WorktreeID names the worktree record.
 	Mode       string `json:"mode,omitempty"`
 	WorktreeID string `json:"worktreeId,omitempty"`

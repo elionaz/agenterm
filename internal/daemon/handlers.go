@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -198,6 +199,16 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 		p, err := decode[protocol.NotifyParams](req.Params)
 		if err != nil {
 			return nil, err
+		}
+		if p.Model != "" {
+			sess, err := s.lookup(p.SessionID)
+			if err != nil {
+				return nil, err
+			}
+			s.setModel(sess, p.Model)
+			if p.State == "" && p.Activity == "" && p.AgentSessionID == "" {
+				return s.sessionInfo(sess), nil
+			}
 		}
 		if p.AgentSessionID != "" {
 			sess, err := s.lookup(p.SessionID)
@@ -528,6 +539,11 @@ func (s *Server) startSession(sp startSpec) (protocol.SessionInfo, error) {
 	if old != nil {
 		old.Release() // attached viewers of the suspended session reattach
 	}
+	if m := argsModel(sp.args); m != "" && s.sessionModel(id) == "" {
+		s.namesMu.Lock()
+		s.models[id] = m
+		s.namesMu.Unlock()
+	}
 	s.recordSession(sess, g, sp.resume)
 	s.log.Info("session spawned", "id", id, "project", proj.Name, "profile", prof.ID, "pid", sess.Pid, "mode", g.Mode, "cwd", sp.cwd,
 		"resumed", old != nil)
@@ -627,6 +643,7 @@ func (s *Server) kill(id string) (protocol.SessionInfo, error) {
 		s.mu.Unlock()
 		info := s.sessionInfo(sess)
 		s.setName(id, "")
+		s.forgetModel(id)
 		s.forgetMessages(sess)
 		s.bus.publish(protocol.Event{Type: protocol.EventSessionRemoved, SessionID: id, At: time.Now().UTC()})
 		return info, nil
@@ -649,6 +666,9 @@ func (s *Server) handleAttach(conn net.Conn, br *bufio.Reader, req protocol.Requ
 		writeResponse(conn, req.ID, nil, err)
 		return
 	}
+	// Input from a session (an agent running agenterm attach) is not the
+	// user acting: it doesn't reset automatic delivery's chain.
+	fromUser := s.callerSession(conn) == nil
 	if p.Cols > 0 && p.Rows > 0 {
 		_ = sess.Resize(p.Cols, p.Rows) // fails only if already exited
 	}
@@ -677,6 +697,12 @@ func (s *Server) handleAttach(conn net.Conn, br *bufio.Reader, req protocol.Requ
 			case protocol.FrameInput:
 				if _, err := sess.Write(f.Payload); err != nil && !sess.Suspended() {
 					return
+				}
+				if fromUser && bytes.IndexByte(f.Payload, '\r') >= 0 {
+					// The user submitted a prompt (not a newline in a draft).
+					if draft, _ := sess.Draft(); !draft {
+						s.userActed(sess.ID)
+					}
 				}
 			case protocol.FrameResize:
 				if cols, rows, err := protocol.ParseResize(f.Payload); err == nil {

@@ -219,6 +219,8 @@ export const en = {
   'sidebar.discard': 'Discard (forget the session and its scrollback)',
   'sidebar.suspendedSince': 'Suspended since {at} (the daemon restarted)',
   'sidebar.resumeFailed': 'Last resume failed: {msg}',
+  'sidebar.model': 'Model: {model}',
+  'sidebar.folderBranch': 'Branch of the project folder: {branch} (shared with the other sessions in the folder)',
   'sidebar.msgPending': { one: '{n} message from another session waiting', other: '{n} messages from other sessions waiting' },
   'sidebar.restoredBanner': { one: '{n} session from the previous run', other: '{n} sessions from the previous run' },
   'sidebar.resumeAll': 'Resume all',
@@ -317,6 +319,8 @@ export const en = {
   'pr.titleLabel': 'Title',
   'pr.bodyLabel': 'Description',
   'pr.draft': 'Open as draft',
+  'pr.withSession': 'Add the agent sessions (agent, model and prompts; secrets removed)',
+  'pr.sessionPreview': 'Preview',
   'pr.createInfo': 'Pushes {branch} (never forced) and opens the pull request into {base} on {host}.',
   'pr.doCreate': { one: 'Push and open (1 commit)', other: 'Push and open ({n} commits)' },
   'pr.nothingToCreate': 'No commits to open a pull request for',
@@ -528,7 +532,7 @@ export const en = {
   'settings.g.mode': 'Default launch mode',
   /** (html) */
   'settings.g.modeHelp':
-    'What the <b>+</b> menu suggests when you have not chosen anything in that project yet (the last choice is remembered per project).',
+    'Where a new <b>agent</b> starts when you have not chosen anything in that project yet (the last choice is remembered per project). A new worktree gives each agent its own branch and folder, so they never step on each other; shells always start in the project folder.',
   'settings.g.same': 'Same folder',
   'settings.g.worktree': 'New worktree',
   'settings.g.editor': 'Editor',
@@ -598,6 +602,9 @@ export const en = {
   'err.forge_head_mismatch': 'Pull request {number} is not for {branch} (its branch is {head}): reload and try again.',
   'err.forge_failed': '{tool} failed: {stderr}',
   'settings.messages': 'Messages between sessions',
+  'settings.autoDeliver': 'Deliver to idle Claude sessions by themselves',
+  'settings.autoDeliverHelp':
+    'Does what Deliver does when a Claude session is idle at its prompt, so a reply doesn\'t wait for you. Not over text you typed without sending, and at most 5 times per session before you act on it again (messages.auto_deliver).',
   'settings.messagesHelp': 'Agents of a project can write to each other (agenterm msg) and Claude gets their messages by itself (messages.enabled).',
   'err.msg_disabled': 'Messages between sessions are off (Settings › General).',
   'err.msg_no_session': 'No session of this project matches “{to}”.',

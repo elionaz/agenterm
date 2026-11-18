@@ -73,6 +73,7 @@ type Notification struct {
 
 // Server is the daemon.
 type Server struct {
+	auto     autoDeliver
 	cfg      Config
 	sock     string
 	projects *project.Registry
@@ -92,6 +93,7 @@ type Server struct {
 	// names are the sessions' display names (rename.go).
 	namesMu sync.Mutex
 	names   map[string]string
+	models  map[string]string // the agents' models (model.go), same lock
 
 	// Persistence: the session registry and when each scrollback was
 	// last saved (OutputTotal; guarded by persistMu).
@@ -181,6 +183,7 @@ func New(cfg Config) (*Server, error) {
 		susp:     make(map[string]*suspInfo),
 		resuming: make(map[string]bool),
 		names:    make(map[string]string),
+		models:   make(map[string]string),
 		store:    store,
 		mail:     mail,
 		saved:    make(map[string]int64),
@@ -403,6 +406,7 @@ func (s *Server) sessionInfo(sess *session.Session) protocol.SessionInfo {
 	info.Name = s.sessionName(sess.ID)
 	info.ProjectName = s.projectName(sess.ProjectID, sess.ProjectName)
 	info.MsgPending = s.mail.Pending(sess.ID)
+	info.Model = s.sessionModel(sess.ID)
 	if g := s.sessionGit(sess.ID); g != nil {
 		info.Mode, info.WorktreeID, info.Branch, info.Base = g.Mode, g.WorktreeID, g.Branch, g.Base
 		if g.Mode == protocol.ModeWorktree {
@@ -533,6 +537,11 @@ func (s *Server) publishState(id, projectName, profileID string, c status.Change
 		ev.ExitCode = &code
 	}
 	s.bus.publish(ev)
+	// Messages that came while it worked; not after a failed turn (an API
+	// error: rate limit, overload), which a nudge would only repeat.
+	if c.To == status.Idle && c.From != status.Idle && ev.AttentionKind != string(status.KindError) {
+		s.scheduleAutoDeliver(id)
+	}
 	if ev.Raised && s.bus.uiCount() == 0 {
 		s.fallbackNotify(ev)
 	}

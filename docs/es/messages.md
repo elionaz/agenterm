@@ -47,6 +47,26 @@ nombre o `all`. Esos mensajes vienen *del usuario*. `msg read` solo funciona den
   contestarían. Las shells no la reciben, porque ejecutarían la línea como un comando: sus mensajes
   se quedan en la app.
 
+## Entrega automática
+
+**Ajustes → General → Entregar solos a las sesiones de Claude en espera**
+(`messages.auto_deliver`, desactivado por defecto) hace lo que **Entregar** sin el clic: cuando un
+mensaje espera a una sesión de Claude inactiva en su prompt (una respuesta que llegó después de que
+terminó su turno, o una que se envió mientras estaba inactiva), agenterm escribe la misma línea fija
+un momento después. Se contiene, y el mensaje queda pendiente con el botón **Entregar**, cuando:
+
+- la sesión no es de Claude (los demás agentes y las shells siguen con el botón), o está trabajando,
+  o espera una aprobación o una respuesta;
+- lo último que se escribió en ella no fue un Enter solo (o Ctrl-C): su línea de entrada puede
+  tener texto que no enviaste, que la línea y su Enter enviarían. Una línea nueva en un borrador
+  (Shift+Enter, Option+Enter, `\` Enter) sigue contando como borrador. Enviarlo (o borrarlo con
+  Ctrl-C) lo destraba en unos segundos;
+- escribiste en ella en los últimos segundos;
+- ya se le entregó automáticamente 5 veces desde la última vez que interviniste en esa sesión
+  (enviaste un prompt en ella, le mandaste un mensaje desde la app o hiciste clic en **Entregar**),
+  lo que reinicia la cuenta; y, pase lo que pase, como mucho 20 entregas automáticas por proyecto
+  cada 10 minutos. Así los agentes no pueden despertarse entre sí sin fin.
+
 ## En la app
 
 - La pestaña **Mensajes**, junto a Terminal y Cambios, lista lo que la sesión envió y recibió, con

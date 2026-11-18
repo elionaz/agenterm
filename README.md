@@ -13,13 +13,14 @@ approval. agenterm groups sessions by project, keeps agents alive even after you
 tells you when one of them needs you.
 
 <p align="center">
-  <img src="docs/img/screenshot.png" alt="agenterm: projects and sessions in the sidebar, live activity, an approval waiting, and the terminal" width="900">
+  <img src="docs/img/screenshot.png" alt="agenterm: projects with their badges and sessions in the sidebar, each with its model, branch and live activity, an approval waiting, a message waiting, and the terminal" width="900">
 </p>
 
 ## Features
 
 - **Projects and sessions** in a sidebar: each project is a folder and each session is a terminal
-  (xterm.js) running an agent or a shell. Double-click a session to give it a name; drag projects
+  (xterm.js) running an agent or a shell, with its model (*Opus 5.5*) and its branch. Double-click
+  a session to give it a name; drag projects
   and sessions to reorder them. Each project has a badge with its initials and a color; click it (or
   right-click the project) to rename the project, pick a color or put an emoji instead. Drop files (e.g. screenshots) on a terminal to type their paths;
   Claude Code attaches dropped images.
@@ -39,16 +40,18 @@ tells you when one of them needs you.
 - **Attention detection**: approvals, questions, finished turns and errors (agent hooks or terminal
   signals), with native macOS notifications, a Dock badge and sidebar markers.
 - **Live activity**: what each agent is doing ("Editing main.go"), a turn timer, a "stalled?"
-  warning, progress bars (OSC 9;4) and a grid overview (⌘0).
-- **Per-session git worktrees**: each agent can work on its own branch and folder; the **Changes**
-  tab shows the diff and lets you merge into the base or safely remove the worktree.
+  warning, progress bars (OSC 9;4) and an **Overview** of every session (⌘0).
+- **Per-session git worktrees**: new agents start on their own branch and folder by default, so
+  agents working in parallel never share changes; the **Changes** tab shows the diff and lets you
+  merge into the base or safely remove the worktree.
 - **Pull requests on GitHub and GitLab** from the **Changes** tab, for worktrees and for the
   branch your main folder is on: state, checks and review, the comments (line comments jump to the
   file), merging on the host, and opening a new one with a suggested title and description. It
   uses your own `gh` / `glab` login; agenterm stores no tokens.
 - **Messages between sessions**: the agents of a project can write to each other
   (`agenterm msg send`, `agenterm wait`); Claude Code gets its messages by itself, other agents
-  read them with `agenterm msg read` or get a nudge from the **Messages** tab. Messages never leave
+  read them with `agenterm msg read` or get a nudge from the **Messages** tab (optionally automatic
+  for idle Claude sessions). Messages never leave
   their project and the daemon decides who sent each one.
 - **In-app settings**: enable, reorder and edit agents, and configure the language, appearance,
   notifications and git.
@@ -56,6 +59,13 @@ tells you when one of them needs you.
   and an *Updates* section in **Settings → General**, Homebrew installs included.
 - **English and Spanish**: the app follows your macOS preferred languages (falling back to English)
   or the language you pick in **Settings → General**.
+
+## Screenshots
+
+| | | |
+|---|---|---|
+| <img src="docs/img/overview.png" alt="The Overview: a card per session with its state, model, branch, activity and the end of its terminal" width="280"> | <img src="docs/img/changes.png" alt="The Changes tab of a worktree session: changed files, a side-by-side diff, and Merge into main / Create pull request" width="280"> | <img src="docs/img/messages.png" alt="The Messages tab: a message delivered to another session and a reply waiting, with the Deliver button" width="280"> |
+| **Overview** (⌘0): every session at a glance | **Changes**: the diff, merge or pull request | **Messages** between the sessions of a project |
 
 ## Install
 
@@ -168,14 +178,15 @@ each session it starts, not installed) and doesn't touch your project folders.
 **App.** The first time, a welcome screen shows which agent CLIs were found, lets you allow
 notifications and shows how to put the `agenterm` command on your `PATH`. Click **+ Add your first
 project** (or the sidebar's **+ Project** button) and pick a folder. With the **+** next to a
-project you choose an agent and whether it runs in the project folder or in a new worktree; **⌘N**
+project you choose an agent and whether it runs in a new worktree (the default) or in the project
+folder; **⌘N**
 launches the first agent in the list. When an agent needs you, you'll see an amber dot in the sidebar
 and get a notification.
 
-**Several agents in one project.** Sessions in the project folder share its branch and its changes:
-what one agent edits or commits, the others see, and a branch switch moves them all. Give each agent
-its own **worktree** to keep their work apart; when another agent is already working in the
-folder, the **+** menu (and ⌘N) picks a new worktree for you. You bring the work back with **Merge
+**Several agents in one project.** Each new agent gets its own **worktree** by default (its own
+branch and folder), so their work stays apart; a plain **Shell** starts in the project folder.
+Sessions that do share the project folder (**Same folder** in the **+** menu) share its branch and
+its changes: what one agent edits or commits, the others see. You bring the work back with **Merge
 into the base** or **Create pull request** in the Changes tab. More in
 [docs/worktrees.md](docs/worktrees.md#several-agents-in-one-project).
 
@@ -264,7 +275,7 @@ activity:
 git:
   editor: ""             # for "Open in editor"; empty: code if available, else Finder
   worktree_dir: ""       # where to create worktrees; empty: ~/.agenterm/worktrees
-  default_mode: same     # same | worktree
+  default_mode: worktree # worktree | same
 ```
 
 All the rules and the full catalog: [docs/configuration.md](docs/configuration.md). Worktrees and

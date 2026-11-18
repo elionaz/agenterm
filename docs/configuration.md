@@ -145,9 +145,10 @@ Every key is optional; missing ones take the default value.
 | `activity.stall_seconds` | `180` | seconds without output or events before marking "stalled?"; `0` disables it |
 | `git.editor` | `""` | for "Open in editor": a command on the `PATH` (`code`, `cursor -n`, `zed`), an absolute path or the name of a macOS app (`Visual Studio Code`, `Cursor.app`). Empty: `code` if it's on the `PATH`, otherwise Finder |
 | `git.worktree_dir` | `""` | where to create worktrees (absolute path or `~/…`). Empty: `~/.agenterm/worktrees` (or `$AGENTERM_HOME/worktrees`) |
-| `git.default_mode` | `same` | `same` or `worktree`: what the **+** menu (and ⌘N) suggests in a project where you haven't chosen yet |
+| `git.default_mode` | `worktree` | `worktree` or `same`: where the **+** menu (and ⌘N) starts a new agent in a project where you haven't chosen yet. Shells always start in the project folder. Before 0.7.0 the default was `same`; a file that says `same` keeps it |
 | `sessions.restore` | `ask` | what a starting daemon does with the sessions that were live when the previous one stopped: `ask` (keep them `suspended` until you resume or discard them), `always` (resume them right away) or `never` (discard them). See [architecture.md](architecture.md#persistence-and-resume) |
 | `messages.enabled` | `true` | messages between the sessions of a project (`agenterm msg`): when off, sending is refused and agent hooks hand nothing over. See [messages.md](messages.md) |
+| `messages.auto_deliver` | `false` | a Claude session idle at its prompt is told about new messages without the **Deliver** click; never over text typed without sending, at most 5 times per session until you act on it again (and 20 per project every 10 minutes). See [messages.md](messages.md#automatic-delivery) |
 
 ```yaml
 version: 1
@@ -165,11 +166,12 @@ activity:
 git:
   editor: ""
   worktree_dir: ""
-  default_mode: same
+  default_mode: worktree
 sessions:
   restore: ask
 messages:
   enabled: true
+  auto_deliver: false
 terminal:
   font_family: '"SF Mono", Menlo, Monaco, monospace'
   font_size: 13
@@ -185,7 +187,8 @@ When it's read:
 - `git.worktree_dir` is read when each worktree is created (and when listing a project's worktrees).
 - `git.editor` is read on every "Open in editor".
 - `sessions.restore` is read when the daemon starts.
-- `messages.enabled` is read on every message sent and every hook that could deliver one.
+- `messages.enabled` is read on every message sent and every hook that could deliver one;
+  `messages.auto_deliver` whenever a message arrives or a session goes idle.
 - `ui.appearance` and `terminal.*` are read by the app when it loads (and when Settings opens);
   changes made in the app apply at once to every open terminal. A hand edit applies on the next
   reload of the window.
@@ -196,7 +199,7 @@ fields a client doesn't send keep their value. If the file can't be parsed, the 
 (and this is logged); saving replaces it.
 
 **Settings → Git** edits `git.editor`, `git.worktree_dir` and `git.default_mode`. **Settings →
-General** edits `ui.language`, `sessions.restore` and `messages.enabled` (saved right away). **Settings →
+General** edits `ui.language`, `sessions.restore`, `messages.enabled` and `messages.auto_deliver` (saved right away). **Settings →
 Appearance** edits `ui.appearance` and `terminal.*`, with a live preview; changes apply to the open
 terminals at once and are saved right away.
 

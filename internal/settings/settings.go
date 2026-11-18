@@ -73,7 +73,9 @@ type Git struct {
 	// WorktreeDir overrides where worktrees are created (default
 	// ~/.agenterm/worktrees; "~/" is expanded).
 	WorktreeDir string `json:"worktreeDir"`
-	// DefaultMode is what the spawn menu preselects: same | worktree.
+	// DefaultMode is what the spawn menu preselects for agents: worktree
+	// (the default: each one on its own branch) or same. Shells always
+	// start in the project folder.
 	DefaultMode string `json:"defaultMode"`
 }
 
@@ -217,6 +219,9 @@ type Messages struct {
 	// Enabled: sessions may send each other messages, and agent hooks
 	// deliver them.
 	Enabled bool `json:"enabled"`
+	// AutoDeliver: a Claude session idle at its prompt is told about new
+	// messages without the Deliver click (see internal/daemon/autodeliver.go).
+	AutoDeliver bool `json:"autoDeliver"`
 }
 
 // Settings is the parsed file.
@@ -231,7 +236,8 @@ type Settings struct {
 }
 
 type fileMessages struct {
-	Enabled *bool `yaml:"enabled"`
+	Enabled     *bool `yaml:"enabled"`
+	AutoDeliver *bool `yaml:"auto_deliver"`
 }
 
 type fileNotify struct {
@@ -322,6 +328,7 @@ func Save(path string, s Settings) error {
 	setKey(root, []string{"ui", "appearance"}, normAppearance(s.UI.Appearance), "!!str")
 	setKey(root, []string{"sessions", "restore"}, normRestore(s.Sessions.Restore), "!!str")
 	setKey(root, []string{"messages", "enabled"}, b(s.Messages.Enabled), "!!bool")
+	setKey(root, []string{"messages", "auto_deliver"}, b(s.Messages.AutoDeliver), "!!bool")
 	term := normTerminal(s.Terminal)
 	setKey(root, []string{"terminal", "font_family"}, term.FontFamily, "!!str")
 	setKey(root, []string{"terminal", "font_size"}, strconv.Itoa(term.FontSize), "!!int")
@@ -387,7 +394,7 @@ func Defaults() Settings {
 	return Settings{
 		Notify:   Notify{Enabled: true, Sound: true, OnDone: true, OnStall: true, Fallback: FallbackNone},
 		Activity: Activity{StallSeconds: DefaultStallSeconds},
-		Git:      Git{DefaultMode: ModeSame},
+		Git:      Git{DefaultMode: ModeWorktree},
 		UI:       UI{Language: i18n.Auto, Appearance: AppearanceSystem},
 		Sessions: Sessions{Restore: RestoreAsk},
 		Terminal: normTerminal(Terminal{}),
@@ -395,11 +402,13 @@ func Defaults() Settings {
 	}
 }
 
+// normMode: same or worktree; anything else is the default (worktree:
+// each new agent gets its own branch and folder).
 func normMode(m string) string {
-	if strings.TrimSpace(m) == ModeWorktree {
-		return ModeWorktree
+	if strings.TrimSpace(m) == ModeSame {
+		return ModeSame
 	}
-	return ModeSame
+	return ModeWorktree
 }
 
 // Parse decodes YAML, filling missing keys with defaults. A file written by
@@ -433,6 +442,7 @@ func Parse(data []byte) (Settings, error) {
 	set(&s.Notify.OnDone, f.Notify.OnDone)
 	set(&s.Notify.OnStall, f.Notify.OnStall)
 	set(&s.Messages.Enabled, f.Messages.Enabled)
+	set(&s.Messages.AutoDeliver, f.Messages.AutoDeliver)
 	if f.Notify.Fallback != nil {
 		s.Notify.Fallback = normFallback(*f.Notify.Fallback)
 	}

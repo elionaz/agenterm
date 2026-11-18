@@ -198,6 +198,8 @@ export const es: Dict = {
   'sidebar.discard': 'Descartar (olvidar la sesión y su historial)',
   'sidebar.suspendedSince': 'Suspendida desde {at} (el daemon se reinició)',
   'sidebar.resumeFailed': 'El último intento de reanudar falló: {msg}',
+  'sidebar.model': 'Modelo: {model}',
+  'sidebar.folderBranch': 'Rama de la carpeta del proyecto: {branch} (compartida con las otras sesiones de la carpeta)',
   'sidebar.msgPending': { one: '{n} mensaje de otra sesión esperando', other: '{n} mensajes de otras sesiones esperando' },
   'sidebar.restoredBanner': { one: '{n} sesión de la ejecución anterior', other: '{n} sesiones de la ejecución anterior' },
   'sidebar.resumeAll': 'Reanudar todas',
@@ -293,6 +295,8 @@ export const es: Dict = {
   'pr.titleLabel': 'Título',
   'pr.bodyLabel': 'Descripción',
   'pr.draft': 'Abrir como borrador',
+  'pr.withSession': 'Añadir las sesiones de los agentes (agente, modelo y peticiones; sin secretos)',
+  'pr.sessionPreview': 'Vista previa',
   'pr.createInfo': 'Sube {branch} (nunca forzado) y abre el pull request hacia {base} en {host}.',
   'pr.doCreate': { one: 'Subir y abrir (1 commit)', other: 'Subir y abrir ({n} commits)' },
   'pr.nothingToCreate': 'No hay commits para un pull request',
@@ -492,7 +496,7 @@ export const es: Dict = {
 
   'settings.g.mode': 'Modo por defecto al lanzar',
   'settings.g.modeHelp':
-    'Lo que el menú <b>+</b> propone si aún no elegiste nada en ese proyecto (se recuerda la última elección por proyecto).',
+    'Dónde empieza un <b>agente</b> nuevo si aún no elegiste nada en ese proyecto (se recuerda la última elección por proyecto). Un worktree nuevo le da a cada agente su propia rama y carpeta, así no se pisan; las shells siempre empiezan en la carpeta del proyecto.',
   'settings.g.same': 'Misma carpeta',
   'settings.g.worktree': 'Worktree nuevo',
   'settings.g.editor': 'Editor',
@@ -558,6 +562,9 @@ export const es: Dict = {
   'err.forge_head_mismatch': 'El pull request {number} no es de {branch} (su rama es {head}): recarga y vuelve a intentarlo.',
   'err.forge_failed': '{tool} falló: {stderr}',
   'settings.messages': 'Mensajes entre sesiones',
+  'settings.autoDeliver': 'Entregar solos a las sesiones de Claude en espera',
+  'settings.autoDeliverHelp':
+    'Hace lo que Entregar cuando una sesión de Claude espera en su prompt, para que una respuesta no te espere a ti. Nunca sobre texto que escribiste sin enviar, y como mucho 5 veces por sesión hasta que vuelvas a intervenir en ella (messages.auto_deliver).',
   'settings.messagesHelp': 'Los agentes de un proyecto pueden escribirse (agenterm msg) y Claude recibe sus mensajes solo (messages.enabled).',
   'err.msg_disabled': 'Los mensajes entre sesiones están desactivados (Ajustes › General).',
   'err.msg_no_session': 'Ninguna sesión de este proyecto coincide con “{to}”.',

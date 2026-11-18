@@ -9,11 +9,51 @@ releases may include breaking changes.
 
 ### Added
 
+- **Agent sessions in new pull requests.** *Create pull request* in Changes can append an *Agent
+  sessions* section to the description: the agents that worked on the branch, their model and,
+  for Claude Code, the prompts typed in each session, with secrets (API keys, tokens, private
+  keys, `password=…`) replaced by `[redacted]`. On by default, with a preview; untick it to leave
+  it out. Prompts go in code blocks, so their links and @mentions don't render or notify.
 - **Hermes Agent** in the catalog (`hermes --cli`). It shows up in the **+** menu only when the
   `hermes` binary is installed and the profile stays enabled. The approval line
   `[o]nce | [s]ession` marks the session as waiting. After a daemon restart, resume appends
   `-c` (the latest session in that directory). `args`, `resume_args` and `enabled: false`
   change or hide it; agenterm does not write `~/.hermes`.
+
+### Fixed
+
+- **Screenshots dragged from the floating thumbnail onto a terminal** reach Claude Code again. macOS
+  hands over a temporary file and deletes it as soon as the drag ends, so the typed path no longer
+  existed and Claude Code dropped the image without a word (Cursor Agent, which reads the path
+  later, seemed to work). agenterm now keeps the file the moment it is dropped, in
+  `~/.agenterm/drops/` (kept for a day), and types that path. Files dropped from Finder are typed
+  as before.
+
+## [0.7.0] - 2026-11-18
+
+### Added
+
+- **The model of each session** next to its name in the sidebar, the title bar and split panes
+  (*Opus 5.5*). Claude Code reports it through agenterm's hooks (the payload, or the end of the
+  session's transcript), so a `/model` change shows up by the next turn; other agents show it when
+  their profile's command line names it (`--model`, `-m`, `-c model=`). See
+  [docs/attention-and-activity.md](docs/attention-and-activity.md#model).
+- **The branch of every session in the sidebar**: worktree sessions keep their blue branch chip, and
+  sessions in the project folder now show that folder's current branch in grey (it is shared with
+  the other sessions there), also in the title bar.
+- **Automatic delivery of messages** (Settings → General, `messages.auto_deliver`, off by default):
+  a Claude session idle at its prompt is told about new messages without the **Deliver** click, so
+  a reply that arrives after its turn ended doesn't wait for you. Never over text typed without
+  sending, never while it waits for an approval, at most 5 times per session until you act on it
+  again, and 20 per project every 10 minutes. See [docs/messages.md](docs/messages.md#automatic-delivery).
+
+### Changed
+
+- **New agents start in their own worktree by default** (`git.default_mode: worktree`), so agents
+  working in parallel never share a branch or step on each other's changes; **Same folder** is one
+  click away in the **+** menu. Shells always start in the project folder. A `settings.yaml` that
+  already says `same` keeps it (change it in **Settings → Git**), and the per-project choice made
+  before this version is no longer remembered. `agenterm spawn` is unchanged (`--worktree`).
 
 ## [0.6.0] - 2026-11-18
 
@@ -284,7 +324,8 @@ First public release: a macOS desktop app (universal: Apple Silicon and Intel, m
   `.zip` downloads, CLI archives for macOS and Linux, and a Homebrew cask
   (`brew install --cask elionaz/tap/agenterm`).
 
-[Unreleased]: https://github.com/elionaz/agenterm/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/elionaz/agenterm/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/elionaz/agenterm/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/elionaz/agenterm/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/elionaz/agenterm/compare/v0.4.3...v0.5.0
 [0.4.3]: https://github.com/elionaz/agenterm/compare/v0.4.2...v0.4.3

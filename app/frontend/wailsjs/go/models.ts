@@ -782,6 +782,7 @@ export namespace protocol {
 	    ahead: number;
 	    title?: string;
 	    body?: string;
+	    session?: string;
 	    result?: string;
 	    warning?: string;
 	
@@ -804,6 +805,7 @@ export namespace protocol {
 	        this.ahead = source["ahead"];
 	        this.title = source["title"];
 	        this.body = source["body"];
+	        this.session = source["session"];
 	        this.result = source["result"];
 	        this.warning = source["warning"];
 	    }
@@ -970,6 +972,7 @@ export namespace protocol {
 	    attentionAt?: any;
 	    unread?: boolean;
 	    msgPending?: number;
+	    model?: string;
 	    mode?: string;
 	    worktreeId?: string;
 	    worktreePath?: string;
@@ -1027,6 +1030,7 @@ export namespace protocol {
 	        this.attentionAt = this.convertValues(source["attentionAt"], null);
 	        this.unread = source["unread"];
 	        this.msgPending = source["msgPending"];
+	        this.model = source["model"];
 	        this.mode = source["mode"];
 	        this.worktreeId = source["worktreeId"];
 	        this.worktreePath = source["worktreePath"];
@@ -1220,6 +1224,7 @@ export namespace settings {
 	}
 	export class Messages {
 	    enabled: boolean;
+	    autoDeliver: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Messages(source);
@@ -1228,6 +1233,7 @@ export namespace settings {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.enabled = source["enabled"];
+	        this.autoDeliver = source["autoDeliver"];
 	    }
 	}
 	export class Notify {

@@ -1,0 +1,93 @@
+package hooks
+
+import (
+	"bytes"
+	"encoding/json"
+	"io"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+)
+
+// transcriptTail is how much of a transcript Model reads (from its end).
+const transcriptTail = 256 << 10
+
+// Model is the model Claude Code reports in payload: its "model" field
+// (a string, or an object with an id), else the last model an assistant
+// message used in the transcript (transcript_path). Only for the events
+// where it can change (start, a new prompt, end of turn); "" otherwise.
+func Model(agent string, payload []byte) string {
+	if agent != AgentClaude {
+		return ""
+	}
+	var p struct {
+		Event      string          `json:"hook_event_name"`
+		Model      json.RawMessage `json:"model"`
+		Transcript string          `json:"transcript_path"`
+	}
+	if json.Unmarshal(payload, &p) != nil {
+		return ""
+	}
+	switch p.Event {
+	case "SessionStart", "UserPromptSubmit", "Stop":
+	default:
+		return ""
+	}
+	if m := modelField(p.Model); m != "" {
+		return m
+	}
+	return transcriptModel(p.Transcript)
+}
+
+func modelField(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var s string
+	if json.Unmarshal(raw, &s) == nil {
+		return s
+	}
+	var o struct {
+		ID string `json:"id"`
+	}
+	if json.Unmarshal(raw, &o) == nil {
+		return o.ID
+	}
+	return ""
+}
+
+var modelRe = regexp.MustCompile(`"model":"([^"]{1,80})"`)
+
+// transcriptModel reads the end of a Claude Code transcript (JSONL) and
+// returns the model of its last assistant message.
+func transcriptModel(path string) string {
+	if !filepath.IsAbs(path) || filepath.Ext(path) != ".jsonl" {
+		return ""
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	fi, err := f.Stat()
+	if err != nil || !fi.Mode().IsRegular() {
+		return ""
+	}
+	off := max(fi.Size()-transcriptTail, 0)
+	buf := make([]byte, fi.Size()-off)
+	if _, err := f.ReadAt(buf, off); err != nil && err != io.EOF {
+		return ""
+	}
+	lines := bytes.Split(buf, []byte("\n"))
+	for i := len(lines) - 1; i >= 0; i-- {
+		l := lines[i]
+		if !bytes.Contains(l, []byte(`"assistant"`)) {
+			continue
+		}
+		if m := modelRe.FindSubmatch(l); m != nil && !strings.HasPrefix(string(m[1]), "<") {
+			return string(m[1])
+		}
+	}
+	return ""
+}

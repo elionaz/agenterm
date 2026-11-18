@@ -74,6 +74,8 @@ type App struct {
 	started       bool   // startup ran: focusSession may be used
 	frontendReady bool   // the frontend called TakePendingFocus
 	pendingFocus  string // session to select once the frontend is ready
+
+	grabs dropGrabs // dropped screenshot thumbnails (drops.go)
 }
 
 type attachment struct {
@@ -106,6 +108,8 @@ func (a *App) startup(ctx context.Context) {
 	// may be waiting for startup to return.
 	go a.startUpdater(p)
 	a.start(ctx, p)
+	// Before the frontend hears of a drop: screenshot thumbnails vanish (drops.go).
+	runtime.OnFileDrop(ctx, func(_, _ int, paths []string) { a.grabDrops(paths) })
 	a.focusMu.Lock()
 	a.started = true
 	a.focusMu.Unlock()

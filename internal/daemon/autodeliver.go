@@ -1,0 +1,287 @@
+package daemon
+
+import (
+	"errors"
+	"sync"
+	"time"
+
+	"github.com/elionaz/agenterm/internal/session"
+	"github.com/elionaz/agenterm/internal/settings"
+	"github.com/elionaz/agenterm/internal/status"
+)
+
+// Automatic delivery (settings messages.auto_deliver): when a Claude session
+// sits idle at its prompt with messages waiting, the daemon does what the
+// Deliver button does (types the fixed "you have messages" line and Enter),
+// so a reply that arrives after its turn ended doesn't wait for the user.
+//
+// It holds back when that could go wrong:
+//   - only Claude (its hooks hand the messages over) and only idle at its
+//     prompt, never while it waits for an approval or an answer;
+//   - never over a draft: when what was last typed into the session was not
+//     a submit (session.Draft), its input line may hold the user's unsent
+//     text, which the line and its Enter would send;
+//   - never right after typing (autoQuiet);
+//   - at most autoChainMax automatic deliveries to a session between two
+//     things the user does to it (a prompt submitted in it, a message sent
+//     to it from the app, a Deliver click), and at most autoRateMax in a
+//     project per autoRateWindow whatever happens, so agents can't keep
+//     waking each other up.
+//
+// What it holds back stays pending, with the Deliver button, as without it.
+// A hold that can lift by itself (a draft, recent typing) is checked again
+// every autoRetry while messages wait.
+var (
+	// autoDelay lets a burst of messages (msg send all) and the sender's
+	// own turn settle before typing.
+	autoDelay = 1500 * time.Millisecond
+	// autoQuiet: no automatic delivery this soon after input; also the
+	// window in which a second nudge (manual or automatic) is skipped.
+	autoQuiet = 3 * time.Second
+	// autoRetry re-checks a hold that can lift by itself, doubling up to
+	// autoRetryMax while it lasts.
+	autoRetry    = 3 * time.Second
+	autoRetryMax = time.Minute
+)
+
+const (
+	// autoChainMax bounds the automatic deliveries to one session without
+	// the user acting on it.
+	autoChainMax = 5
+	// autoRateMax per autoRateWindow bounds a project's automatic
+	// deliveries whatever resets the chains.
+	autoRateMax    = 20
+	autoRateWindow = 10 * time.Minute
+)
+
+type autoDeliver struct {
+	mu     sync.Mutex
+	timers map[string]*time.Timer // session id → pending check
+	chain  map[string]int         // session id → automatic deliveries since the user acted on it
+	why    map[string]string      // session id → last hold logged (to log changes only)
+	recent map[string][]time.Time // project id → automatic deliveries in the last autoRateWindow
+	nudges map[string]*nudgeLock  // session id → its nudge lock
+	retry  map[string]time.Duration
+}
+
+// forgetAuto drops what automatic delivery keeps for session id (gone).
+func (s *Server) forgetAuto(id string) {
+	s.auto.mu.Lock()
+	defer s.auto.mu.Unlock()
+	if t := s.auto.timers[id]; t != nil {
+		t.Stop()
+	}
+	delete(s.auto.timers, id)
+	delete(s.auto.chain, id)
+	delete(s.auto.why, id)
+	delete(s.auto.nudges, id)
+	delete(s.auto.retry, id)
+}
+
+// nudgeLock serializes the nudges to one session (manual and automatic) and
+// remembers the last one, so two never land on top of each other.
+type nudgeLock struct {
+	sync.Mutex
+	last time.Time
+}
+
+func (s *Server) nudgeLockFor(id string) *nudgeLock {
+	s.auto.mu.Lock()
+	defer s.auto.mu.Unlock()
+	if s.auto.nudges == nil {
+		s.auto.nudges = map[string]*nudgeLock{}
+	}
+	l := s.auto.nudges[id]
+	if l == nil {
+		l = &nudgeLock{}
+		s.auto.nudges[id] = l
+	}
+	return l
+}
+
+// userActed starts a new chain for session id: the user acted on it.
+func (s *Server) userActed(id string) {
+	s.auto.mu.Lock()
+	_, had := s.auto.chain[id]
+	delete(s.auto.chain, id)
+	s.auto.mu.Unlock()
+	if had {
+		s.scheduleAutoDeliver(id) // a delivery held at the limit may go now
+	}
+}
+
+// scheduleAutoDeliver checks session id for an automatic delivery after
+// delay (one check per session at a time; a new trigger postpones it).
+func (s *Server) scheduleAutoDeliver(id string) { s.scheduleAutoDeliverIn(id, autoDelay) }
+
+func (s *Server) scheduleAutoDeliverIn(id string, delay time.Duration) {
+	if !s.autoDeliverOn() {
+		return
+	}
+	s.auto.mu.Lock()
+	defer s.auto.mu.Unlock()
+	if s.auto.timers == nil {
+		s.auto.timers = map[string]*time.Timer{}
+	}
+	if t := s.auto.timers[id]; t != nil {
+		t.Stop()
+	}
+	var t *time.Timer
+	t = time.AfterFunc(delay, func() {
+		s.auto.mu.Lock()
+		if s.auto.timers[id] != t {
+			s.auto.mu.Unlock()
+			return // replaced meanwhile: that one runs instead
+		}
+		delete(s.auto.timers, id)
+		s.auto.mu.Unlock()
+		s.autoDeliverNow(id)
+	})
+	s.auto.timers[id] = t
+}
+
+func (s *Server) autoDeliverOn() bool {
+	st, _ := settings.Load(s.cfg.Paths.Settings())
+	return st.Messages.Enabled && st.Messages.AutoDeliver
+}
+
+// Hold reasons that lift by themselves (checked again every autoRetry).
+const (
+	holdDraft  = "unsent input"
+	holdTyping = "typed just now"
+)
+
+// autoDeliverNow nudges session id if every condition holds; it returns
+// why not otherwise ("" when it did).
+func (s *Server) autoDeliverNow(id string) string {
+	sess, err := s.lookup(id)
+	if err != nil {
+		return "gone"
+	}
+	l := s.nudgeLockFor(id)
+	l.Lock()
+	defer l.Unlock()
+	why := s.autoDeliverBlock(sess, l.last)
+	if why == "" {
+		why = s.takeAutoSlot(sess)
+	}
+	if why != "" {
+		s.noteHold(sess, why)
+		return why
+	}
+	if err := s.nudge(sess); err != nil {
+		s.giveAutoSlot(sess)
+		if errors.Is(err, errNudgeInterrupted) {
+			s.noteHold(sess, holdTyping) // the user's input goes first; try later
+			return holdTyping
+		}
+		s.log.Warn("automatic delivery", "to", id, "err", err)
+		return "write failed"
+	}
+	l.last = time.Now()
+	s.auto.mu.Lock()
+	n := s.auto.chain[id]
+	delete(s.auto.why, id)
+	delete(s.auto.retry, id)
+	s.auto.mu.Unlock()
+	s.log.Info("messages nudged", "to", id, "pending", s.mail.Pending(id), "via", "auto", "chain", n)
+	return ""
+}
+
+// noteHold logs a new hold reason and re-arms a check when it can lift.
+func (s *Server) noteHold(sess *session.Session, why string) {
+	switch why {
+	case "off", "gone", "nothing pending":
+		return
+	}
+	s.auto.mu.Lock()
+	if s.auto.why == nil {
+		s.auto.why = map[string]string{}
+	}
+	changed := s.auto.why[sess.ID] != why
+	s.auto.why[sess.ID] = why
+	s.auto.mu.Unlock()
+	if changed {
+		s.log.Info("automatic delivery held back", "to", sess.ID, "why", why)
+	}
+	if why == holdDraft || why == holdTyping {
+		s.auto.mu.Lock()
+		if s.auto.retry == nil {
+			s.auto.retry = map[string]time.Duration{}
+		}
+		d := s.auto.retry[sess.ID]
+		d = min(max(autoRetry, 2*d), autoRetryMax)
+		s.auto.retry[sess.ID] = d
+		s.auto.mu.Unlock()
+		s.scheduleAutoDeliverIn(sess.ID, d)
+	}
+}
+
+// takeAutoSlot counts an automatic delivery to sess against its chain and
+// its project's rate; it returns why there is no room ("" when there was).
+func (s *Server) takeAutoSlot(sess *session.Session) string {
+	s.auto.mu.Lock()
+	defer s.auto.mu.Unlock()
+	if s.auto.chain == nil {
+		s.auto.chain = map[string]int{}
+		s.auto.recent = map[string][]time.Time{}
+	}
+	if s.auto.chain[sess.ID] >= autoChainMax {
+		return "chain limit"
+	}
+	cutoff := time.Now().Add(-autoRateWindow)
+	recent := s.auto.recent[sess.ProjectID]
+	for len(recent) > 0 && recent[0].Before(cutoff) {
+		recent = recent[1:]
+	}
+	if len(recent) >= autoRateMax {
+		s.auto.recent[sess.ProjectID] = recent
+		return "project rate limit"
+	}
+	s.auto.chain[sess.ID]++
+	s.auto.recent[sess.ProjectID] = append(recent, time.Now())
+	return ""
+}
+
+// giveAutoSlot undoes takeAutoSlot (the nudge failed).
+func (s *Server) giveAutoSlot(sess *session.Session) {
+	s.auto.mu.Lock()
+	defer s.auto.mu.Unlock()
+	if s.auto.chain[sess.ID] > 0 {
+		s.auto.chain[sess.ID]--
+	}
+	if r := s.auto.recent[sess.ProjectID]; len(r) > 0 {
+		s.auto.recent[sess.ProjectID] = r[:len(r)-1]
+	}
+}
+
+// autoDeliverBlock is why sess can't get an automatic delivery now ("" when
+// it can); lastNudge is when it was last nudged.
+func (s *Server) autoDeliverBlock(sess *session.Session, lastNudge time.Time) string {
+	if !s.autoDeliverOn() {
+		return "off"
+	}
+	if sess.Suspended() {
+		return "gone"
+	}
+	if s.mail.Pending(sess.ID) == 0 {
+		return "nothing pending"
+	}
+	if isShell(sess) || !s.hookDelivers(sess.ProfileID) {
+		return "not claude"
+	}
+	if sess.State() != status.Idle {
+		return "not idle"
+	}
+	if time.Since(lastNudge) < autoQuiet {
+		return "nudged just now"
+	}
+	draft, at := sess.Draft()
+	if draft {
+		return holdDraft
+	}
+	if !at.IsZero() && time.Since(at) < autoQuiet {
+		return holdTyping
+	}
+	return ""
+}

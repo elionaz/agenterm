@@ -55,3 +55,12 @@ export function commentPlace(c: ForgeComment): string {
   if (!c.path) return ''
   return c.line ? `${c.path}:${c.line}` : c.path
 }
+
+/** The body a new pull request is opened with: what the user wrote, plus
+ * the daemon's "Agent sessions" section when they keep it. */
+export function prBody(body: string, session: string | undefined, include: boolean): string {
+  const extra = include ? (session ?? '').trim() : ''
+  const own = body.trimEnd()
+  if (!extra) return own
+  return own ? `${own}\n\n${extra}` : extra
+}

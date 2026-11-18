@@ -16,7 +16,10 @@ uncommitted changes and the index. What one agent edits or commits, the others s
 branch, stashes or commits, it takes the others' half-done work with it. The **±N** in the sidebar
 and the Changes tab show that folder, so every session there shows the same files.
 
-For agents working in parallel, give each one its own **worktree**:
+For agents working in parallel, give each one its own **worktree**. That is what agenterm does by
+default (`git.default_mode: worktree`, since 0.7.0): a new agent starts on its own branch and
+folder, and a plain **Shell** starts in the project folder. **Same folder** is still one click away
+in the **+** menu.
 
 - In a git repository, when an agent (not exited or suspended) is already working in the project
   folder, the **+** menu picks **New worktree** for the next agent and says which session is there;
@@ -153,6 +156,13 @@ CLI with your login: [`gh`](https://cli.github.com) for GitHub and
 - **Create pull request**: pushes the branch (never forced) and opens it into the base (the
   worktree's base, or the remote's default branch for the main folder) with an editable title and
   description suggested from the commits, optionally as a draft.
+- **Add the agent sessions** (on by default, with a preview): appends an *Agent sessions* section
+  to the description with the agents that worked in that folder (shells left out), their model
+  and, for Claude Code, the prompts you typed in each session (read from its transcript; tool
+  output, subagents and slash commands left out). Prompts go in code blocks, so links and
+  @mentions in them don't render or notify anyone. What looks like a secret (API keys, tokens,
+  private keys, `password=…`) is replaced with `[redacted]` — a best-effort filter: check the
+  preview before creating. Untick it to leave the section out.
 
 Everything reloads when Changes opens, with ⟳ and when the branch moves (commits, pushes); there is
 no polling. The CLIs are found through the login shell's `PATH`, like the agents. The repository
@@ -163,9 +173,12 @@ looked up (and opened) there. Comments are read in pages of 100, all of them.
 
 - A project's **+** menu: after picking the agent, choose same folder or new worktree (an editable,
   pre-filled branch and a base selector defaulting to the current branch). The last choice is
-  remembered per project, and ⌘N uses it; if there's none, `git.default_mode` is used.
-- Session row: a chip with the branch (without the `agent/` prefix) and `±N` changed files; the
-  same on the overview cards, with `↑N` commits ahead.
+  remembered per project (for agents; shells always start in the folder), and ⌘N uses it; if
+  there's none, `git.default_mode` is used (`worktree` by default). Choices made before 0.7.0 are
+  not remembered any more.
+- Session row: a chip with the branch (without the `agent/` prefix): blue for the session's own
+  worktree, grey for the project folder's current branch (shared with the other sessions there);
+  then `±N` changed files. The same on the overview cards, with `↑N` commits ahead.
 - **Terminal** and **Changes (N)** tabs on sessions with git: a file list on the left (status,
   `+`/`−`), commits ahead, the diff on the right with diff2html (side by side or unified), ⟳ to
   reload, a truncated-diff notice and the action bar (open in editor, open in Finder, copy branch,
