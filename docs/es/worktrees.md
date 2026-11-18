@@ -109,6 +109,32 @@ confianza la primera vez para la carpeta nueva.
   **Abrir en Finder** (`agenterm worktree open [--finder] <id>`).
 - **Copiar rama** (solo en la app, al portapapeles).
 
+## Pull requests en GitHub y GitLab
+
+La pestaña **Cambios** muestra el pull request de la rama, en sesiones con worktree y en sesiones
+de la carpeta principal (la rama en la que está; nada en la rama base). Pasa por la CLI del propio
+servidor con tu sesión: [`gh`](https://cli.github.com) para GitHub y
+[`glab`](https://gitlab.com/gitlab-org/cli) para GitLab (gitlab.com y servidores cuyo nombre
+contiene `gitlab`). agenterm no guarda tokens. Sin la CLI, o sin sesión, Cambios explica cómo
+activarla (`brew install gh`, `gh auth login`) y mantiene el flujo de subir y abrir la página de
+arriba.
+
+- **Estado**: número, abierto / borrador / mergeado / cerrado, checks (en verde, fallando con sus
+  nombres, en curso; en GitLab, el pipeline) y la decisión de review. El título enlaza al servidor.
+- **Comentarios**: comentarios de la conversación, reviews con texto (aprobado, cambios pedidos) y
+  comentarios de línea con `archivo:línea`, que seleccionan ese archivo en el diff.
+- **Merge en el servidor**: con los métodos que permite el repositorio (squash, commit de merge,
+  rebase) y *borrar la rama en el servidor después*. Avisa de borradores, conflictos, checks que
+  fallan o siguen en curso y merges que el servidor podría rechazar; la última palabra es del
+  servidor. Nunca toca carpetas ni ramas locales (`gh pr merge` corre sin `--delete-branch`, que
+  cambiaría tu carpeta a la base).
+- **Crear pull request**: sube la rama (nunca forzado) y lo abre hacia la base (la del worktree, o
+  la rama por defecto del remoto en la carpeta principal) con título y descripción editables
+  sugeridos a partir de los commits, opcionalmente como borrador.
+
+Todo se recarga al abrir Cambios, con ⟳ y cuando la rama cambia (commits, pushes); no hay
+sondeo periódico. Las CLIs se buscan en el `PATH` del shell de login, como los agentes.
+
 ## En la app
 
 - Menú **+** del proyecto: tras elegir el agente, *Misma carpeta* o *Worktree nuevo* (rama editable

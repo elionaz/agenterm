@@ -42,6 +42,10 @@ vivos aunque cierres la app y te avisa cuando alguno te necesita.
 - **Worktrees de git por sesión**: cada agente puede trabajar en su propia rama y carpeta; la
   pestaña **Cambios** muestra el diff y permite hacer merge a la base o eliminar el worktree de forma
   segura.
+- **Pull requests en GitHub y GitLab** desde la pestaña **Cambios**, para worktrees y para la rama
+  en la que está tu carpeta principal: estado, checks y review, los comentarios (los de línea llevan
+  al archivo), merge en el servidor y crear uno nuevo con título y descripción sugeridos. Usa tu
+  propia sesión de `gh` / `glab`; agenterm no guarda tokens.
 - **Ajustes en la app**: activar, ordenar y editar agentes, y configurar el idioma, la apariencia,
   las notificaciones y git.
 - **Actualizaciones integradas** (Sparkle): una comprobación diaria en segundo plano, **Buscar

@@ -7,6 +7,15 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- **Pull requests on GitHub and GitLab in Changes**, for worktrees and for the branch the main
+  folder is on: state, checks and review decision, the comments (line comments select their file),
+  merging on the host (with the repository's methods and *delete the branch on the host*), and
+  creating one with a title and description suggested from the commits. It runs through your own
+  `gh` / `glab` login (agenterm stores no tokens); without it Changes says how to set it up and
+  keeps the push-and-open-the-page flow.
+
 ### Changed
 
 - **Choosing something in the sidebar closes Settings** (a session, a project, a new session, the

@@ -250,3 +250,49 @@ func PullRequest(ctx context.Context, repo, branch, base, aheadOf, worktree stri
 	res.Output = out
 	return res, nil
 }
+
+// Remote is a remote URL as a code host sees it (see RemoteOf).
+type Remote struct {
+	Host string // lower case (with port for http(s) remotes)
+	Path string // owner/repo or group/subgroup/project, without .git
+	// Web is the repository page (https://host/path).
+	Web    string
+	GitHub bool // github.com (ssh aliases like github.com-work included)
+	GitLab bool // gitlab.com or a host whose name contains "gitlab"
+}
+
+// RemoteOf splits a remote URL (https, ssh or scp-like) for the code host
+// integrations; ok is false when it does not parse.
+func RemoteOf(remoteURL string) (Remote, bool) {
+	ri, ok := parseRemote(remoteURL)
+	if !ok {
+		return Remote{}, false
+	}
+	host := ri.host
+	if ri.isGitHub() {
+		host = "github.com"
+	}
+	return Remote{
+		Host: host, Path: ri.path, Web: ri.scheme + "://" + host + "/" + ri.path,
+		GitHub: ri.isGitHub(), GitLab: !ri.isGitHub() && strings.Contains(ri.host, "gitlab"),
+	}, true
+}
+
+// RemoteDefaultBranch is the branch remote's HEAD points to (refs/remotes/
+// <remote>/HEAD, set by clone or `git remote set-head`), else main or
+// master if they exist locally; "" when none is known.
+func RemoteDefaultBranch(ctx context.Context, dir, remote string) string {
+	if remote != "" {
+		if out, err := git(ctx, dir, "symbolic-ref", "--quiet", "--short", "refs/remotes/"+remote+"/HEAD"); err == nil {
+			if b := strings.TrimPrefix(strings.TrimSpace(out), remote+"/"); b != "" {
+				return b
+			}
+		}
+	}
+	for _, b := range []string{"main", "master"} {
+		if BranchExists(ctx, dir, b) {
+			return b
+		}
+	}
+	return ""
+}

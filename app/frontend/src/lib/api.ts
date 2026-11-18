@@ -1,6 +1,6 @@
 // Thin typed layer over the generated Wails bindings.
 import * as App from '../../wailsjs/go/main/App'
-import type { gitx, main, profile, project, protocol, settings } from '../../wailsjs/go/models'
+import type { forge, gitx, main, profile, project, protocol, settings } from '../../wailsjs/go/models'
 import { hasKey, t, type Params } from './i18n.svelte'
 
 // Plain data (the generated classes carry a convertValues helper we never use).
@@ -28,6 +28,10 @@ export type LossInfo = Omit<gitx.LossError, 'convertValues'>
 export type MergeResult = gitx.MergeResult
 /** url '' = a host we cannot build a pull request page for (pushed only). */
 export type PRResult = gitx.PRResult
+/** The pull request of a branch on GitHub / GitLab (forge.status). */
+export type ForgeStatus = Omit<protocol.ForgeStatus, 'convertValues'>
+export type ForgePR = Omit<forge.PR, 'convertValues'>
+export type ForgeComment = Omit<forge.Comment, 'convertValues'>
 /** In-app updates (Sparkle). reason: '' (enabled) | unsupported | nobundle | nokey | error | starting. */
 export type UpdaterState = Omit<main.UpdaterState, 'convertValues'>
 /** A newer release: ready = downloaded (installs on quit or via installUpdateNow). */
@@ -154,6 +158,14 @@ export const api = {
   mergeWorktree: (id: string): Promise<MergeResult> => App.MergeWorktree(id),
   /** Pushes the branch and returns the pull request page; dryRun: only remote and URL. */
   pullRequest: (id: string, dryRun = false): Promise<PRResult> => App.PullRequestWorktree(id, dryRun),
+  /** Code host pull requests, for a session's (sessionId) or a worktree's branch. */
+  forgeStatus: (sessionId: string, worktreeId: string): Promise<ForgeStatus> => App.ForgeStatus(sessionId, worktreeId),
+  forgeComments: (sessionId: string, worktreeId: string, n: number): Promise<ForgeComment[]> =>
+    App.ForgeComments(sessionId, worktreeId, n),
+  forgeMerge: (sessionId: string, worktreeId: string, n: number, method: string, deleteBranch: boolean): Promise<ForgeStatus> =>
+    App.ForgeMerge(sessionId, worktreeId, n, method, deleteBranch),
+  forgeCreate: (sessionId: string, worktreeId: string, title: string, body: string, draft: boolean): Promise<ForgeStatus> =>
+    App.ForgeCreate(sessionId, worktreeId, title, body, draft),
   /** Opens a worktree (id) or a session's folder in the editor or Finder. */
   openFolder: (target: 'editor' | 'finder', ref: { worktreeId?: string; sessionId?: string }) =>
     App.OpenWorktree(ref.worktreeId ?? '', ref.sessionId ?? '', target),

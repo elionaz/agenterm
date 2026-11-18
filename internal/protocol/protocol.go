@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/elionaz/agenterm/internal/forge"
 	"github.com/elionaz/agenterm/internal/gitx"
 	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/project"
@@ -77,6 +78,13 @@ const (
 	MethodWorktreeMerge  = "worktree.merge"
 	MethodWorktreePR     = "worktree.pr"
 	MethodWorktreeOpen   = "worktree.open"
+
+	// Pull requests on the code host (GitHub through gh, GitLab through
+	// glab), for a session's or worktree's branch.
+	MethodForgeStatus   = "forge.status"
+	MethodForgeComments = "forge.comments"
+	MethodForgeMerge    = "forge.merge"
+	MethodForgeCreate   = "forge.create"
 )
 
 // Session modes (SpawnParams.Mode, SessionInfo.Mode).
@@ -303,6 +311,62 @@ type WorktreeRef struct {
 type WorktreePRParams struct {
 	ID     string `json:"id"`
 	DryRun bool   `json:"dryRun,omitempty"`
+}
+
+// ForgeRef names the branch a forge.* method is about: a session's (the
+// branch its folder is on) or a worktree's.
+type ForgeRef struct {
+	SessionID  string `json:"sessionId,omitempty"`
+	WorktreeID string `json:"worktreeId,omitempty"`
+}
+
+// ForgeStatus is forge.status's result (also returned by forge.merge and
+// forge.create, refreshed).
+type ForgeStatus struct {
+	// Unavailable: why there is no integration for this branch, as an
+	// apierr code (forge_unsupported, forge_cli_missing, forge_not_authed,
+	// forge_on_base, pr_no_remote…); Message is its English text and
+	// UnavailableData its data. The other fields may then be empty.
+	Unavailable     string `json:"unavailable,omitempty"`
+	Message         string `json:"message,omitempty"`
+	UnavailableData any    `json:"unavailableData,omitempty"`
+	Kind            string `json:"kind,omitempty"` // forge.GitHub | forge.GitLab
+	Tool            string `json:"tool,omitempty"` // gh | glab
+	Host            string `json:"host,omitempty"`
+	Branch          string `json:"branch,omitempty"`
+	Base            string `json:"base,omitempty"`
+	// PR is the branch's pull request (nil: none yet).
+	PR *forge.PR `json:"pr,omitempty"`
+	// MergeMethods the repository allows (open PRs only), preferred first.
+	MergeMethods []string `json:"mergeMethods,omitempty"`
+	// For a new pull request: commits not in Base yet, and a suggested
+	// title and body (from those commits).
+	Ahead int    `json:"ahead"`
+	Title string `json:"title,omitempty"`
+	Body  string `json:"body,omitempty"`
+}
+
+// ForgeCommentsParams lists the comments of pull request Number.
+type ForgeCommentsParams struct {
+	ForgeRef
+	Number int `json:"number"`
+}
+
+// ForgeMergeParams merges pull request Number on the host (Method: squash,
+// merge or rebase; DeleteBranch removes the branch on the host only).
+type ForgeMergeParams struct {
+	ForgeRef
+	Number       int    `json:"number"`
+	Method       string `json:"method"`
+	DeleteBranch bool   `json:"deleteBranch,omitempty"`
+}
+
+// ForgeCreateParams pushes the branch and opens its pull request.
+type ForgeCreateParams struct {
+	ForgeRef
+	Title string `json:"title"`
+	Body  string `json:"body,omitempty"`
+	Draft bool   `json:"draft,omitempty"`
 }
 
 // WorktreeOpenParams opens a worktree (ID) or a session's folder

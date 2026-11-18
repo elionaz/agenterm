@@ -15,6 +15,7 @@ import (
 	"sync/atomic"
 
 	"github.com/elionaz/agenterm/internal/apierr"
+	"github.com/elionaz/agenterm/internal/forge"
 	"github.com/elionaz/agenterm/internal/gitx"
 	"github.com/elionaz/agenterm/internal/paths"
 	"github.com/elionaz/agenterm/internal/profile"
@@ -479,6 +480,34 @@ func (c *Client) WorktreeMerge(ctx context.Context, id string) (gitx.MergeResult
 func (c *Client) WorktreePR(ctx context.Context, id string, dryRun bool) (gitx.PRResult, error) {
 	var r gitx.PRResult
 	err := c.Call(ctx, protocol.MethodWorktreePR, protocol.WorktreePRParams{ID: id, DryRun: dryRun}, &r)
+	return r, err
+}
+
+// ForgeStatus reports the pull request of a session's or worktree's branch.
+func (c *Client) ForgeStatus(ctx context.Context, ref protocol.ForgeRef) (protocol.ForgeStatus, error) {
+	var r protocol.ForgeStatus
+	err := c.Call(ctx, protocol.MethodForgeStatus, ref, &r)
+	return r, err
+}
+
+// ForgeComments lists the comments of a pull request.
+func (c *Client) ForgeComments(ctx context.Context, p protocol.ForgeCommentsParams) ([]forge.Comment, error) {
+	var r []forge.Comment
+	err := c.Call(ctx, protocol.MethodForgeComments, p, &r)
+	return r, err
+}
+
+// ForgeMerge merges a pull request on the host.
+func (c *Client) ForgeMerge(ctx context.Context, p protocol.ForgeMergeParams) (protocol.ForgeStatus, error) {
+	var r protocol.ForgeStatus
+	err := c.Call(ctx, protocol.MethodForgeMerge, p, &r)
+	return r, err
+}
+
+// ForgeCreate pushes the branch and opens its pull request.
+func (c *Client) ForgeCreate(ctx context.Context, p protocol.ForgeCreateParams) (protocol.ForgeStatus, error) {
+	var r protocol.ForgeStatus
+	err := c.Call(ctx, protocol.MethodForgeCreate, p, &r)
 	return r, err
 }
 

@@ -1,3 +1,123 @@
+export namespace forge {
+	
+	export class Checks {
+	    state: string;
+	    total: number;
+	    passed: number;
+	    failed: number;
+	    pending: number;
+	    failing?: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Checks(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.state = source["state"];
+	        this.total = source["total"];
+	        this.passed = source["passed"];
+	        this.failed = source["failed"];
+	        this.pending = source["pending"];
+	        this.failing = source["failing"];
+	    }
+	}
+	export class Comment {
+	    kind: string;
+	    author: string;
+	    body: string;
+	    // Go type: time
+	    at: any;
+	    url?: string;
+	    review?: string;
+	    path?: string;
+	    line?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Comment(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.kind = source["kind"];
+	        this.author = source["author"];
+	        this.body = source["body"];
+	        this.at = this.convertValues(source["at"], null);
+	        this.url = source["url"];
+	        this.review = source["review"];
+	        this.path = source["path"];
+	        this.line = source["line"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class PR {
+	    number: number;
+	    title: string;
+	    state: string;
+	    url: string;
+	    base: string;
+	    head: string;
+	    review?: string;
+	    conflicts?: boolean;
+	    blocked?: boolean;
+	    checks: Checks;
+	
+	    static createFrom(source: any = {}) {
+	        return new PR(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.number = source["number"];
+	        this.title = source["title"];
+	        this.state = source["state"];
+	        this.url = source["url"];
+	        this.base = source["base"];
+	        this.head = source["head"];
+	        this.review = source["review"];
+	        this.conflicts = source["conflicts"];
+	        this.blocked = source["blocked"];
+	        this.checks = this.convertValues(source["checks"], Checks);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace gitx {
 	
 	export class Commit {
@@ -134,11 +254,11 @@ export namespace gitx {
 	    commits: number;
 	    output?: string;
 	    uncommitted?: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PRResult(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.branch = source["branch"];
@@ -156,22 +276,6 @@ export namespace gitx {
 
 export namespace main {
 	
-	export class OnboardingInfo {
-	    notifications: string;
-	    cliPath: string;
-	    bundledCli: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new OnboardingInfo(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.notifications = source["notifications"];
-	        this.cliPath = source["cliPath"];
-	        this.bundledCli = source["bundledCli"];
-	    }
-	}
 	export class DaemonStatus {
 	    appVersion: string;
 	    daemonVersion: string;
@@ -188,6 +292,22 @@ export namespace main {
 	        this.daemonVersion = source["daemonVersion"];
 	        this.mismatch = source["mismatch"];
 	        this.newer = source["newer"];
+	    }
+	}
+	export class OnboardingInfo {
+	    notifications: string;
+	    cliPath: string;
+	    bundledCli: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new OnboardingInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.notifications = source["notifications"];
+	        this.cliPath = source["cliPath"];
+	        this.bundledCli = source["bundledCli"];
 	    }
 	}
 	export class SettingsPatch {
@@ -251,11 +371,11 @@ export namespace main {
 	export class UpdateInfo {
 	    version: string;
 	    ready: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new UpdateInfo(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.version = source["version"];
@@ -271,11 +391,11 @@ export namespace main {
 	    reason: string;
 	    version: string;
 	    available?: UpdateInfo;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new UpdaterState(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.enabled = source["enabled"];
@@ -287,7 +407,7 @@ export namespace main {
 	        this.version = source["version"];
 	        this.available = this.convertValues(source["available"], UpdateInfo);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -567,6 +687,60 @@ export namespace protocol {
 	        this.base = source["base"];
 	        this.commits = this.convertValues(source["commits"], gitx.Commit);
 	        this.git = this.convertValues(source["git"], GitInfo);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ForgeStatus {
+	    unavailable?: string;
+	    message?: string;
+	    unavailableData?: any;
+	    kind?: string;
+	    tool?: string;
+	    host?: string;
+	    branch?: string;
+	    base?: string;
+	    pr?: forge.PR;
+	    mergeMethods?: string[];
+	    ahead: number;
+	    title?: string;
+	    body?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ForgeStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.unavailable = source["unavailable"];
+	        this.message = source["message"];
+	        this.unavailableData = source["unavailableData"];
+	        this.kind = source["kind"];
+	        this.tool = source["tool"];
+	        this.host = source["host"];
+	        this.branch = source["branch"];
+	        this.base = source["base"];
+	        this.pr = this.convertValues(source["pr"], forge.PR);
+	        this.mergeMethods = source["mergeMethods"];
+	        this.ahead = source["ahead"];
+	        this.title = source["title"];
+	        this.body = source["body"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -901,11 +1075,11 @@ export namespace settings {
 	    notifyOnDone: boolean;
 	    notifyOnStall: boolean;
 	    fallback?: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new Notify(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.enabled = source["enabled"];

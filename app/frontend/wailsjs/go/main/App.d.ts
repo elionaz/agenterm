@@ -4,6 +4,7 @@ import {project} from '../models';
 import {protocol} from '../models';
 import {main} from '../models';
 import {profile} from '../models';
+import {forge} from '../models';
 import {settings} from '../models';
 import {gitx} from '../models';
 
@@ -24,6 +25,14 @@ export function Detach(arg1:string):Promise<void>;
 export function Discard(arg1:string):Promise<protocol.SessionInfo>;
 
 export function DiscardAll():Promise<protocol.SessionBatch>;
+
+export function ForgeComments(arg1:string,arg2:string,arg3:number):Promise<Array<forge.Comment>>;
+
+export function ForgeCreate(arg1:string,arg2:string,arg3:string,arg4:string,arg5:boolean):Promise<protocol.ForgeStatus>;
+
+export function ForgeMerge(arg1:string,arg2:string,arg3:number,arg4:string,arg5:boolean):Promise<protocol.ForgeStatus>;
+
+export function ForgeStatus(arg1:string,arg2:string):Promise<protocol.ForgeStatus>;
 
 export function GetSettings():Promise<settings.Settings>;
 

@@ -41,6 +41,10 @@ tells you when one of them needs you.
   warning, progress bars (OSC 9;4) and a grid overview (⌘0).
 - **Per-session git worktrees**: each agent can work on its own branch and folder; the **Changes**
   tab shows the diff and lets you merge into the base or safely remove the worktree.
+- **Pull requests on GitHub and GitLab** from the **Changes** tab, for worktrees and for the
+  branch your main folder is on: state, checks and review, the comments (line comments jump to the
+  file), merging on the host, and opening a new one with a suggested title and description. It
+  uses your own `gh` / `glab` login; agenterm stores no tokens.
 - **In-app settings**: enable, reorder and edit agents, and configure the language, appearance,
   notifications and git.
 - **In-app updates** (Sparkle): a daily background check, **Check for Updates…** in the app menu

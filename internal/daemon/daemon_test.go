@@ -34,7 +34,15 @@ const testProfiles = `
 `
 
 // hermeticPath keeps detection off the login shell (and the user's rc files).
-func hermeticPath() string { return "/usr/bin:/bin" }
+// testExtraPath (tests never run in parallel here) puts fake tools first.
+func hermeticPath() string {
+	if testExtraPath != "" {
+		return testExtraPath + ":/usr/bin:/bin"
+	}
+	return "/usr/bin:/bin"
+}
+
+var testExtraPath string
 
 // startDaemon runs a daemon in-process on a short temp dir (unix socket paths
 // are limited to ~104 bytes on macOS, so t.TempDir() can be too long).
