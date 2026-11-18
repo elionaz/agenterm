@@ -5,6 +5,9 @@ import (
 	"errors"
 	"os"
 	"strings"
+	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/elionaz/agenterm/internal/apierr"
 	"github.com/elionaz/agenterm/internal/forge"
@@ -81,7 +84,9 @@ func (s *Server) forgeTarget(ctx context.Context, ref protocol.ForgeRef) (forgeT
 	}
 	t.remoteURL = strings.TrimSpace(t.remoteURL)
 	if t.g.Mode == protocol.ModeWorktree {
-		t.base = t.g.Base
+		// A worktree's base may be a remote branch (origin/main): the host
+		// knows it as main.
+		t.base = strings.TrimPrefix(t.g.Base, remote+"/")
 		t.baseRef = baseRef(ctx, t.dir, t.g.Base, t.g.BaseCommit)
 	} else {
 		t.base = gitx.RemoteDefaultBranch(ctx, t.dir, remote)
@@ -144,9 +149,8 @@ func (s *Server) forgeStatusCtx(ctx context.Context, ref protocol.ForgeRef) (pro
 		res.Base = pr.Base
 	}
 	if pr != nil && (pr.State == forge.StateOpen || pr.State == forge.StateDraft) {
-		if res.MergeMethods, err = f.MergeMethods(ctx); err != nil {
-			return res, err
-		}
+		// Without them the merge button is just not offered.
+		res.MergeMethods, _ = f.MergeMethods(ctx)
 	}
 	if t.baseRef != "" {
 		if cs, err := gitx.CommitsAhead(ctx, t.dir, t.baseRef, "refs/heads/"+t.branch); err == nil {
@@ -169,8 +173,8 @@ func suggestPR(branch string, cs []gitx.Commit) (title, body string) {
 		name = name[i+1:]
 	}
 	title = strings.TrimSpace(strings.NewReplacer("-", " ", "_", " ").Replace(name))
-	if title != "" {
-		title = strings.ToUpper(title[:1]) + title[1:]
+	if r, n := utf8.DecodeRuneInString(title); n > 0 {
+		title = string(unicode.ToUpper(r)) + title[n:]
 	}
 	var b strings.Builder
 	for i := len(cs) - 1; i >= 0; i-- { // CommitsAhead lists newest first
@@ -204,12 +208,49 @@ func (s *Server) forgeMerge(p protocol.ForgeMergeParams) (protocol.ForgeStatus, 
 	if err != nil {
 		return protocol.ForgeStatus{}, err
 	}
-	if err := f.Merge(ctx, p.Number, p.Method, t.branch, p.DeleteBranch); err != nil {
+	if p.Head != "" && p.Head != t.branch {
+		return protocol.ForgeStatus{}, apierr.New(apierr.ForgeHeadMismatch, map[string]any{"number": p.Number, "branch": p.Head, "head": t.branch},
+			"the folder is on %s now, not %s: reload and try again", t.branch, p.Head)
+	}
+	mr, err := f.Merge(ctx, p.Number, p.Method, t.branch, p.DeleteBranch)
+	if err != nil {
 		return protocol.ForgeStatus{}, err
 	}
-	s.log.Info("pull request merged", "branch", t.branch, "number", p.Number, "method", p.Method, "tool", f.Tool())
+	s.log.Info("pull request merge", "branch", t.branch, "number", p.Number, "method", p.Method, "tool", f.Tool(), "merged", mr.Merged)
 	s.forgeChanged(t)
-	return s.forgeStatusCtx(ctx, p.ForgeRef)
+	res := s.forgeRefresh(p.ForgeRef, t)
+	res.Result = "queued"
+	if mr.Merged {
+		res.Result = "merged"
+	}
+	res.Warning = joinWarn(mr.Warning, res.Warning)
+	return res, nil
+}
+
+// forgeRefresh is the status after an action that succeeded, read with
+// a context of its own (the action may have used most of its time). A
+// failure there is only a warning: the action is done.
+func (s *Server) forgeRefresh(ref protocol.ForgeRef, t forgeTarget) protocol.ForgeStatus {
+	ctx, cancel := context.WithTimeout(s.bg, forgeRefreshTO)
+	defer cancel()
+	res, err := s.forgeStatusCtx(ctx, ref)
+	if err != nil {
+		res = protocol.ForgeStatus{Branch: t.branch, Base: t.base, Warning: err.Error()}
+	}
+	return res
+}
+
+// forgeRefreshTO bounds the status read after a merge or a create.
+const forgeRefreshTO = 30 * time.Second
+
+func joinWarn(a, b string) string {
+	switch {
+	case a == "":
+		return b
+	case b == "":
+		return a
+	}
+	return a + "; " + b
 }
 
 func (s *Server) forgeCreate(p protocol.ForgeCreateParams) (protocol.ForgeStatus, error) {
@@ -244,7 +285,7 @@ func (s *Server) forgeCreate(p protocol.ForgeCreateParams) (protocol.ForgeStatus
 	}
 	s.log.Info("pull request created", "branch", t.branch, "base", t.base, "tool", f.Tool())
 	s.forgeChanged(t)
-	return s.forgeStatusCtx(ctx, p.ForgeRef)
+	return s.forgeRefresh(p.ForgeRef, t), nil
 }
 
 // forgeChanged refreshes what a push or a merge on the host may change:

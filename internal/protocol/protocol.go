@@ -205,8 +205,10 @@ type GitInfo struct {
 	// Uncommitted paths (git status).
 	Uncommitted int `json:"uncommitted"`
 	// Ahead: commits on the branch that the base does not have.
-	Ahead int       `json:"ahead"`
-	At    time.Time `json:"at"`
+	Ahead int `json:"ahead"`
+	// Head: the branch checked out (empty: detached HEAD).
+	Head string    `json:"head,omitempty"`
+	At   time.Time `json:"at"`
 }
 
 // ProjectGitParams / ProjectGit: what the spawn menu needs to offer the
@@ -344,6 +346,12 @@ type ForgeStatus struct {
 	Ahead int    `json:"ahead"`
 	Title string `json:"title,omitempty"`
 	Body  string `json:"body,omitempty"`
+	// After forge.merge: "merged", or "queued" when the host only
+	// scheduled it (merge queue, auto-merge once checks pass).
+	Result string `json:"result,omitempty"`
+	// Warning: a step after the action failed (deleting the branch,
+	// reading the new state); the action itself succeeded.
+	Warning string `json:"warning,omitempty"`
 }
 
 // ForgeCommentsParams lists the comments of pull request Number.
@@ -359,6 +367,9 @@ type ForgeMergeParams struct {
 	Number       int    `json:"number"`
 	Method       string `json:"method"`
 	DeleteBranch bool   `json:"deleteBranch,omitempty"`
+	// Head is the branch the user saw the pull request for: the merge is
+	// refused (forge_head_mismatch) if the folder is on another one now.
+	Head string `json:"head,omitempty"`
 }
 
 // ForgeCreateParams pushes the branch and opens its pull request.

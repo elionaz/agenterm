@@ -137,6 +137,7 @@ func TestGitHubComments(t *testing.T) {
 func TestGitHubMergeAndCreate(t *testing.T) {
 	f := newFake(t, "gh", [][2]string{
 		{"repo view", `{"mergeCommitAllowed":false,"rebaseMergeAllowed":true,"squashMergeAllowed":true}`},
+		{"pr view 12 -R acme/app --json state", `{"state":"MERGED","headRefName":"feat/x","isCrossRepository":false}`},
 		{"pr merge", ""},
 		{"-X DELETE", "!gh: Reference does not exist (HTTP 422)"},
 		{"pr create", "https://github.com/acme/app/pull/13\n"},
@@ -147,21 +148,26 @@ func TestGitHubMergeAndCreate(t *testing.T) {
 		t.Fatalf("methods = %v, %v", ms, err)
 	}
 	// The branch was already deleted by the repository: not an error.
-	if err := fg.Merge(ctxT(t), 12, "squash", "feat/x", true); err != nil {
-		t.Fatal(err)
+	if r, err := fg.Merge(ctxT(t), 12, "squash", "feat/x", true); err != nil || !r.Merged || r.Warning != "" {
+		t.Fatalf("merge: %+v, %v", r, err)
 	}
-	if err := fg.Merge(ctxT(t), 12, "octopus", "feat/x", false); err == nil {
+	if _, err := fg.Merge(ctxT(t), 12, "octopus", "feat/x", false); err == nil {
 		t.Fatal("unknown method accepted")
+	}
+	// Not the branch the user saw: refused before merging anything.
+	if _, err := fg.Merge(ctxT(t), 12, "squash", "feat/other", true); code(err) != apierr.ForgeHeadMismatch {
+		t.Fatalf("other head: %v", err)
 	}
 	if err := fg.Create(ctxT(t), CreateParams{Head: "feat/x", Base: "main", Title: "Add x", Body: "- one\n- two", Draft: true}); err != nil {
 		t.Fatal(err)
 	}
 	calls := f.calls()
-	if !strings.Contains(calls[1], "pr merge 12 -R acme/app --squash") || strings.Contains(calls[1], "--delete-branch") {
-		t.Fatalf("merge call = %q", calls[1])
+	// repo view, pr view (head), pr merge, pr view (state), api DELETE…
+	if !strings.Contains(calls[2], "pr merge 12 -R acme/app --squash") || strings.Contains(calls[2], "--delete-branch") {
+		t.Fatalf("merge call = %q", calls[2])
 	}
-	if !strings.Contains(calls[2], "api -X DELETE repos/acme/app/git/refs/heads/feat/x") {
-		t.Fatalf("delete call = %q", calls[2])
+	if !strings.Contains(calls[4], "api -X DELETE repos/acme/app/git/refs/heads/feat/x") {
+		t.Fatalf("delete call = %q", calls[4])
 	}
 	// The multi-line body spans log lines: look at the whole log.
 	if all := strings.Join(calls, "\n"); !strings.Contains(all, "pr create -R acme/app --head feat/x --base main --title Add x --body - one\n- two --draft") {
@@ -181,21 +187,51 @@ func TestErrors(t *testing.T) {
 	if _, err := fg.Status(ctxT(t), "x"); code(err) != apierr.ForgeNotAuthed {
 		t.Fatalf("not logged in: %v", err)
 	}
-	f = newFake(t, "gh", [][2]string{{"pr merge", "!Pull request is not mergeable: the base branch policy prohibits the merge."}})
+	f = newFake(t, "gh", [][2]string{
+		{"pr view", `{"state":"OPEN","headRefName":"x"}`},
+		{"pr merge", "!Pull request is not mergeable: the base branch policy prohibits the merge."},
+	})
 	fg, _ = For("https://github.com/a/b", t.TempDir(), f.path)
-	err := fg.Merge(ctxT(t), 1, "squash", "", false)
+	_, err := fg.Merge(ctxT(t), 1, "squash", "x", false)
 	if code(err) != apierr.ForgeFailed || !strings.Contains(err.Error(), "not mergeable") {
 		t.Fatalf("merge refused: %v", err)
 	}
 }
 
+func TestGitHubForksAndQueues(t *testing.T) {
+	// A fork's PR with the same branch name is not this branch's PR.
+	f := newFake(t, "gh", [][2]string{
+		{"pr list", `[{"number":3,"state":"OPEN","headRefName":"patch-1","isCrossRepository":true,"statusCheckRollup":[]}]`},
+		{"pr view 3", `{"state":"OPEN","headRefName":"patch-1","isCrossRepository":true}`},
+		{"pr view 4", `{"state":"OPEN","headRefName":"patch-1","isCrossRepository":false}`},
+		{"pr merge 4", ""},
+	})
+	fg, _ := For("https://github.com/acme/app", t.TempDir(), f.path)
+	if pr, err := fg.Status(ctxT(t), "patch-1"); err != nil || pr != nil {
+		t.Fatalf("fork PR picked: %+v, %v", pr, err)
+	}
+	if _, err := fg.Merge(ctxT(t), 3, "squash", "patch-1", true); code(err) != apierr.ForgeHeadMismatch {
+		t.Fatalf("fork merge: %v", err)
+	}
+	// Still open after merging: queued, and the branch is kept.
+	r, err := fg.Merge(ctxT(t), 4, "squash", "patch-1", true)
+	if err != nil || r.Merged {
+		t.Fatalf("queued merge: %+v, %v", r, err)
+	}
+	for _, c := range f.calls() {
+		if strings.Contains(c, "DELETE") {
+			t.Fatalf("branch deleted for a queued merge: %q", c)
+		}
+	}
+}
+
 func TestGitLab(t *testing.T) {
 	f := newFake(t, "glab", [][2]string{
-		{"merge_requests?", `[{"iid":3,"state":"merged"},{"iid":5,"state":"opened"}]`},
+		{"merge_requests?", `[{"iid":9,"state":"opened","source_project_id":2,"target_project_id":1},{"iid":3,"state":"merged","source_project_id":1,"target_project_id":1},{"iid":5,"state":"opened","source_project_id":1,"target_project_id":1}]`},
 		{"merge_requests/5/discussions", `[{"notes":[
 		   {"id":1,"author":{"username":"ana"},"body":"assigned to @bo","system":true,"created_at":"2026-01-01T00:00:00Z"},
 		   {"id":2,"author":{"username":"bo"},"body":"rename this","system":false,"created_at":"2026-01-02T00:00:00Z","position":{"new_path":"b.go","new_line":7}}]}]`},
-		{"merge_requests/5", `{"iid":5,"title":"Add y","state":"opened","draft":true,"web_url":"https://gitlab.example.org/team/proj/-/merge_requests/5",
+		{"merge_requests/5", `{"iid":5,"title":"Add y","state":"opened","draft":true,"source_project_id":1,"target_project_id":1,"web_url":"https://gitlab.example.org/team/proj/-/merge_requests/5",
 		   "target_branch":"main","source_branch":"feat/y","detailed_merge_status":"not_approved","head_pipeline":{"status":"running"}}`},
 		{"mr merge", ""},
 		{"mr create", ""},
@@ -220,8 +256,12 @@ func TestGitLab(t *testing.T) {
 	if err != nil || strings.Join(ms, ",") != "squash,merge" {
 		t.Fatalf("methods = %v, %v", ms, err)
 	}
-	if err := fg.Merge(ctxT(t), 5, "squash", "feat/y", true); err != nil {
-		t.Fatal(err)
+	// Still opened afterwards: glab scheduled it (auto-merge).
+	if r, err := fg.Merge(ctxT(t), 5, "squash", "feat/y", true); err != nil || r.Merged {
+		t.Fatalf("merge: %+v, %v", r, err)
+	}
+	if _, err := fg.Merge(ctxT(t), 5, "squash", "feat/other", true); code(err) != apierr.ForgeHeadMismatch {
+		t.Fatalf("other head: %v", err)
 	}
 	if err := fg.Create(ctxT(t), CreateParams{Head: "feat/y", Base: "main", Title: "Add y", Body: "b"}); err != nil {
 		t.Fatal(err)

@@ -46,8 +46,8 @@ export function ForgeCreate(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['ForgeCreate'](arg1, arg2, arg3, arg4, arg5);
 }
 
-export function ForgeMerge(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['ForgeMerge'](arg1, arg2, arg3, arg4, arg5);
+export function ForgeMerge(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['ForgeMerge'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
 export function ForgeStatus(arg1, arg2) {

@@ -47,29 +47,51 @@
     available = view === 'pr'
   })
 
+  /** The target as a key: results that come back for another one are
+   * dropped (the user switched session while gh was running). */
+  const target = () => `${sessionId ?? ''}|${worktreeId ?? ''}`
+
+  // One status request in flight per block: reloads asked for meanwhile
+  // run once it is back.
   let seq = 0
+  let inFlight = false
+  let again = false
   async function load() {
+    if (inFlight) {
+      again = true
+      return
+    }
+    inFlight = true
     const my = ++seq
+    const tgt = target()
     try {
       const s = await api.forgeStatus(sessionId ?? '', worktreeId ?? '')
-      if (my !== seq) return
+      if (my !== seq || tgt !== target()) return
       status = s
       if (!merging) method = s.mergeMethods?.[0] ?? ''
     } catch (e) {
-      if (my === seq) status = null
-      // A failing host (network, gh error) is reported once per change,
-      // not on every reload of the diff.
-      if (my === seq && reloadKey !== lastErrorKey) {
-        lastErrorKey = reloadKey
-        onError(errorMessage(e))
+      if (my !== seq || tgt !== target()) return
+      status = null
+      // A failing host (network, gh error) is reported once, not on every
+      // reload.
+      const msg = errorMessage(e)
+      if (`${tgt}|${msg}` !== lastError) {
+        lastError = `${tgt}|${msg}`
+        onError(msg)
+      }
+    } finally {
+      inFlight = false
+      if (again) {
+        again = false
+        void load()
       }
     }
   }
-  let lastErrorKey = ''
+  let lastError = ''
 
   let lastKey = ''
   $effect(() => {
-    const key = `${sessionId ?? ''}|${worktreeId ?? ''}|${reloadKey}`
+    const key = `${target()}|${reloadKey}`
     if (key === lastKey) return
     const targetChanged = lastKey.split('|').slice(0, 2).join('|') !== key.split('|').slice(0, 2).join('|')
     lastKey = key
@@ -78,6 +100,8 @@
       comments = null
       commentsOpen = merging = creating = false
       notice = ''
+      seq++ // an answer for the previous target is not this one's
+      inFlight = again = false
     } else if (commentsOpen) {
       void loadComments()
     }
@@ -114,14 +138,22 @@
     if (!pr || !method) return
     busy = true
     const r = ref
+    const tgt = target()
     try {
-      status = await api.forgeMerge(sessionId ?? '', worktreeId ?? '', pr.number, method, deleteBranch)
+      const s = await api.forgeMerge(sessionId ?? '', worktreeId ?? '', pr.number, method, pr.head, deleteBranch)
+      if (tgt !== target()) return
+      seq++ // a status read started before the merge is older than this
+      status = s
       merging = false
-      const msg = t('pr.merged', { ref: r, host })
-      if (onMerged) onMerged(msg)
-      else notice = msg
+      if (s.result === 'queued') {
+        notice = t('pr.queued', { ref: r, host })
+      } else {
+        const msg = t('pr.merged', { ref: r, host })
+        if (onMerged) onMerged(msg)
+        else notice = msg
+      }
     } catch (e) {
-      onError(errorMessage(e))
+      if (tgt === target()) onError(errorMessage(e))
     } finally {
       busy = false
     }
@@ -139,12 +171,16 @@
 
   async function doCreate() {
     busy = true
+    const tgt = target()
     try {
-      status = await api.forgeCreate(sessionId ?? '', worktreeId ?? '', title, body, draft)
+      const s = await api.forgeCreate(sessionId ?? '', worktreeId ?? '', title, body, draft)
+      if (tgt !== target()) return
+      seq++
+      status = s
       creating = false
-      if (status.pr) notice = t('pr.created', { ref: prRef(status.kind, status.pr.number), host })
+      if (s.pr) notice = t('pr.created', { ref: prRef(s.kind, s.pr.number), host })
     } catch (e) {
-      onError(errorMessage(e))
+      if (tgt === target()) onError(errorMessage(e))
     } finally {
       busy = false
     }
@@ -173,6 +209,7 @@
 {:else if view === 'pr' && status}
   <div class="pr">
     {#if notice}<p class="ok">{notice}</p>{/if}
+    {#if status.warning}<p class="warn">{status.warning}</p>{/if}
     {#if pr}
       <div class="line">
         <button class="ref" title={t('pr.openOn', { host })} onclick={() => BrowserOpenURL(pr.url)}>{ref}</button>

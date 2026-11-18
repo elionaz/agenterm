@@ -758,12 +758,13 @@ func (a *App) ForgeComments(sessionID, worktreeID string, number int) ([]forge.C
 }
 
 // ForgeMerge merges pull request number on the host (method: squash, merge
-// or rebase; deleteBranch removes the branch there, never locally).
-func (a *App) ForgeMerge(sessionID, worktreeID string, number int, method string, deleteBranch bool) (protocol.ForgeStatus, error) {
+// or rebase; head: the branch it was shown for; deleteBranch removes the
+// branch there, never locally).
+func (a *App) ForgeMerge(sessionID, worktreeID string, number int, method, head string, deleteBranch bool) (protocol.ForgeStatus, error) {
 	var out protocol.ForgeStatus
 	err := a.callTimeout(pushTO, func(ctx context.Context) (err error) {
 		out, err = a.client.ForgeMerge(ctx, protocol.ForgeMergeParams{
-			ForgeRef: protocol.ForgeRef{SessionID: sessionID, WorktreeID: worktreeID}, Number: number, Method: method, DeleteBranch: deleteBranch})
+			ForgeRef: protocol.ForgeRef{SessionID: sessionID, WorktreeID: worktreeID}, Number: number, Method: method, DeleteBranch: deleteBranch, Head: head})
 		return err
 	})
 	return out, err

@@ -19,16 +19,19 @@ func (g *github) Kind() string { return GitHub }
 func (g *github) Tool() string { return "gh" }
 func (g *github) repo() string { return g.remote.Path }
 
-const ghPRFields = "number,title,state,isDraft,url,baseRefName,headRefName,reviewDecision,mergeable,mergeStateStatus,statusCheckRollup"
+const ghPRFields = "number,title,state,isDraft,url,baseRefName,headRefName,isCrossRepository,reviewDecision,mergeable,mergeStateStatus,statusCheckRollup"
 
 type ghPR struct {
-	Number            int    `json:"number"`
-	Title             string `json:"title"`
-	State             string `json:"state"` // OPEN | CLOSED | MERGED
-	IsDraft           bool   `json:"isDraft"`
-	URL               string `json:"url"`
-	BaseRefName       string `json:"baseRefName"`
-	HeadRefName       string `json:"headRefName"`
+	Number      int    `json:"number"`
+	Title       string `json:"title"`
+	State       string `json:"state"` // OPEN | CLOSED | MERGED
+	IsDraft     bool   `json:"isDraft"`
+	URL         string `json:"url"`
+	BaseRefName string `json:"baseRefName"`
+	HeadRefName string `json:"headRefName"`
+	// IsCrossRepository: the head is a fork's branch (same name, someone
+	// else's pull request).
+	IsCrossRepository bool   `json:"isCrossRepository"`
 	ReviewDecision    string `json:"reviewDecision"`   // APPROVED | CHANGES_REQUESTED | REVIEW_REQUIRED | ""
 	Mergeable         string `json:"mergeable"`        // MERGEABLE | CONFLICTING | UNKNOWN
 	MergeStateStatus  string `json:"mergeStateStatus"` // CLEAN | BLOCKED | BEHIND | DIRTY | UNSTABLE | …
@@ -100,7 +103,13 @@ func (g *github) Status(ctx context.Context, branch string) (*PR, error) {
 	if err := json.Unmarshal(out, &prs); err != nil {
 		return nil, fmt.Errorf("gh pr list: %w", err)
 	}
-	return pickPR(prs, func(p ghPR) bool { return p.State == "OPEN" }, func(p ghPR) *PR { return p.toPR() }), nil
+	own := prs[:0]
+	for _, p := range prs {
+		if !p.IsCrossRepository {
+			own = append(own, p)
+		}
+	}
+	return pickPR(own, func(p ghPR) bool { return p.State == "OPEN" }, func(p ghPR) *PR { return p.toPR() }), nil
 }
 
 // pickPR is the first open one, else the first (lists come newest first).
@@ -152,11 +161,11 @@ func (g *github) Comments(ctx context.Context, number int) ([]Comment, error) {
 		}
 		cs = append(cs, Comment{Kind: "review", Author: r.Author.Login, Body: r.Body, At: r.SubmittedAt, URL: v.URL, Review: state})
 	}
-	lines, err := g.run(ctx, "api", "repos/"+escapePath(g.repo())+"/pulls/"+n+"/comments?per_page=100")
+	lines, err := g.run(ctx, "api", "--paginate", "repos/"+escapePath(g.repo())+"/pulls/"+n+"/comments?per_page=100")
 	if err != nil {
 		return nil, err
 	}
-	var lc []struct {
+	lc, err := decodeArrays[struct {
 		User         struct{ Login string } `json:"user"`
 		Body         string                 `json:"body"`
 		Path         string                 `json:"path"`
@@ -164,8 +173,8 @@ func (g *github) Comments(ctx context.Context, number int) ([]Comment, error) {
 		OriginalLine int                    `json:"original_line"`
 		HTMLURL      string                 `json:"html_url"`
 		CreatedAt    time.Time              `json:"created_at"`
-	}
-	if err := json.Unmarshal(lines, &lc); err != nil {
+	}](lines)
+	if err != nil {
 		return nil, fmt.Errorf("gh api pulls comments: %w", err)
 	}
 	for _, c := range lc {
@@ -204,24 +213,56 @@ func (g *github) MergeMethods(ctx context.Context) ([]string, error) {
 	return ms, nil
 }
 
-func (g *github) Merge(ctx context.Context, number int, method, head string, deleteBranch bool) error {
+// prHead is what Merge checks before and after: the head and the state.
+func (g *github) prHead(ctx context.Context, number int) (ghPR, error) {
+	out, err := g.run(ctx, "pr", "view", strconv.Itoa(number), "-R", g.repo(), "--json", "state,headRefName,isCrossRepository")
+	if err != nil {
+		return ghPR{}, err
+	}
+	var p ghPR
+	if err := json.Unmarshal(out, &p); err != nil {
+		return ghPR{}, fmt.Errorf("gh pr view: %w", err)
+	}
+	return p, nil
+}
+
+func (g *github) Merge(ctx context.Context, number int, method, head string, deleteBranch bool) (MergeResult, error) {
+	var res MergeResult
 	flag, err := methodFlag(method)
 	if err != nil {
-		return err
+		return res, err
+	}
+	p, err := g.prHead(ctx, number)
+	if err != nil {
+		return res, err
+	}
+	if p.HeadRefName != head || p.IsCrossRepository {
+		got := p.HeadRefName
+		if p.IsCrossRepository {
+			got += " (a fork)"
+		}
+		return res, headMismatch(number, head, got)
 	}
 	// Not --delete-branch: gh would also delete the local branch and check
 	// out the base in this folder, under the user's (or the agent's) feet.
 	if _, err := g.run(ctx, "pr", "merge", strconv.Itoa(number), "-R", g.repo(), flag); err != nil {
-		return err
+		return res, err
 	}
-	if deleteBranch && head != "" {
+	// A merge queue only enqueues it: deleting the branch then would close
+	// the pull request.
+	if p, err = g.prHead(ctx, number); err != nil {
+		res.Warning = err.Error()
+		return res, nil
+	}
+	res.Merged = p.State == "MERGED"
+	if res.Merged && deleteBranch {
 		// The repository may delete merged branches itself: a 422 (already
 		// gone) is fine.
 		if _, err := g.run(ctx, "api", "-X", "DELETE", "repos/"+escapePath(g.repo())+"/git/refs/heads/"+escapePath(head)); err != nil && !strings.Contains(err.Error(), "Reference does not exist") {
-			return err
+			res.Warning = err.Error()
 		}
 	}
-	return nil
+	return res, nil
 }
 
 func (g *github) Create(ctx context.Context, p CreateParams) error {

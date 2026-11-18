@@ -20,6 +20,10 @@
     live?: boolean
     /** Changes whenever the daemon reports new git info: reload. */
     gitStamp?: string
+    /** Changes when the branch moves (checkout, commits ahead): reloads the
+     * pull request block, which talks to the host (gitStamp changes on every
+     * edited file). */
+    prStamp?: string
     /** Open the remove confirmation right away. */
     startRemove?: boolean
     onError: (msg: string) => void
@@ -29,7 +33,7 @@
     onClose?: () => void
   }
 
-  let { sessionId, worktreeId, live = false, gitStamp, startRemove = false, onError, onRemoved, onClose }: Props = $props()
+  let { sessionId, worktreeId, live = false, gitStamp, prStamp, startRemove = false, onError, onRemoved, onClose }: Props = $props()
 
   const STYLE_KEY = 'agenterm.diffStyle'
   let diff = $state<DiffResult | null>(null)
@@ -60,8 +64,12 @@
   let prSeq = 0 // drops stale dry-run answers
   /** gh / glab work for this branch: the PR block handles pull requests. */
   let forgeAvailable = $state(false)
-  /** ⟳ also reloads the PR block (gitStamp changes reload both). */
+  /** ⟳ also reloads the PR block. */
   let refreshTick = $state(0)
+  // No block, no PR flow of its own: the push-and-browse button is back.
+  $effect(() => {
+    if (!diff?.branch) forgeAvailable = false
+  })
 
   const wtId = $derived(diff?.worktreeId || worktreeId || '')
   const isWorktree = $derived(diff?.mode === 'worktree' || !!worktreeId)
@@ -319,7 +327,7 @@
     <PullRequest
       {sessionId}
       {worktreeId}
-      reloadKey={`${gitStamp ?? ''}|${refreshTick}`}
+      reloadKey={`${prStamp ?? diff.branch}|${refreshTick}`}
       {onError}
       onSelectFile={(p) => {
         if (diff?.files.some((f) => f.path === p)) selectedPath = p

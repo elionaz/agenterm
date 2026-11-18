@@ -620,6 +620,7 @@ export namespace protocol {
 	    files: number;
 	    uncommitted: number;
 	    ahead: number;
+	    head?: string;
 	    // Go type: time
 	    at: any;
 	
@@ -632,6 +633,7 @@ export namespace protocol {
 	        this.files = source["files"];
 	        this.uncommitted = source["uncommitted"];
 	        this.ahead = source["ahead"];
+	        this.head = source["head"];
 	        this.at = this.convertValues(source["at"], null);
 	    }
 	
@@ -721,6 +723,8 @@ export namespace protocol {
 	    ahead: number;
 	    title?: string;
 	    body?: string;
+	    result?: string;
+	    warning?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ForgeStatus(source);
@@ -741,6 +745,8 @@ export namespace protocol {
 	        this.ahead = source["ahead"];
 	        this.title = source["title"];
 	        this.body = source["body"];
+	        this.result = source["result"];
+	        this.warning = source["warning"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

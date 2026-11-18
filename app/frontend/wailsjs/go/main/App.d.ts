@@ -30,7 +30,7 @@ export function ForgeComments(arg1:string,arg2:string,arg3:number):Promise<Array
 
 export function ForgeCreate(arg1:string,arg2:string,arg3:string,arg4:string,arg5:boolean):Promise<protocol.ForgeStatus>;
 
-export function ForgeMerge(arg1:string,arg2:string,arg3:number,arg4:string,arg5:boolean):Promise<protocol.ForgeStatus>;
+export function ForgeMerge(arg1:string,arg2:string,arg3:number,arg4:string,arg5:string,arg6:boolean):Promise<protocol.ForgeStatus>;
 
 export function ForgeStatus(arg1:string,arg2:string):Promise<protocol.ForgeStatus>;
 

@@ -127,13 +127,19 @@ arriba.
   rebase) y *borrar la rama en el servidor después*. Avisa de borradores, conflictos, checks que
   fallan o siguen en curso y merges que el servidor podría rechazar; la última palabra es del
   servidor. Nunca toca carpetas ni ramas locales (`gh pr merge` corre sin `--delete-branch`, que
-  cambiaría tu carpeta a la base).
+  cambiaría tu carpeta a la base). El merge se rechaza si la carpeta cambió de rama desde que se
+  mostró el pull request, o si es la rama de un fork con el mismo nombre (los pull requests de forks
+  nunca se muestran como tuyos). Si el servidor solo lo encola (una cola de merge, el auto-merge de
+  GitLab cuando pase el pipeline), Cambios lo dice y la rama se conserva hasta que se mergee de
+  verdad.
 - **Crear pull request**: sube la rama (nunca forzado) y lo abre hacia la base (la del worktree, o
   la rama por defecto del remoto en la carpeta principal) con título y descripción editables
   sugeridos a partir de los commits, opcionalmente como borrador.
 
 Todo se recarga al abrir Cambios, con ⟳ y cuando la rama cambia (commits, pushes); no hay
-sondeo periódico. Las CLIs se buscan en el `PATH` del shell de login, como los agentes.
+sondeo periódico. Las CLIs se buscan en el `PATH` del shell de login, como los agentes. El
+repositorio es aquel al que se sube la rama: si en un esquema con fork ese es tu fork, los pull
+requests se buscan (y se abren) ahí. Los comentarios se leen en páginas de 100, todos.
 
 ## En la app
 

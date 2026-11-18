@@ -162,8 +162,9 @@ export const api = {
   forgeStatus: (sessionId: string, worktreeId: string): Promise<ForgeStatus> => App.ForgeStatus(sessionId, worktreeId),
   forgeComments: (sessionId: string, worktreeId: string, n: number): Promise<ForgeComment[]> =>
     App.ForgeComments(sessionId, worktreeId, n),
-  forgeMerge: (sessionId: string, worktreeId: string, n: number, method: string, deleteBranch: boolean): Promise<ForgeStatus> =>
-    App.ForgeMerge(sessionId, worktreeId, n, method, deleteBranch),
+  /** head: the branch the PR was shown for (refused if the folder moved). */
+  forgeMerge: (sessionId: string, worktreeId: string, n: number, method: string, head: string, deleteBranch: boolean): Promise<ForgeStatus> =>
+    App.ForgeMerge(sessionId, worktreeId, n, method, head, deleteBranch),
   forgeCreate: (sessionId: string, worktreeId: string, title: string, body: string, draft: boolean): Promise<ForgeStatus> =>
     App.ForgeCreate(sessionId, worktreeId, title, body, draft),
   /** Opens a worktree (id) or a session's folder in the editor or Finder. */

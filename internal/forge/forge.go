@@ -8,7 +8,7 @@ package forge
 import (
 	"bytes"
 	"context"
-	"errors"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -89,6 +89,15 @@ type Comment struct {
 	Line int    `json:"line,omitempty"`
 }
 
+// MergeResult is what a merge did.
+type MergeResult struct {
+	// Merged: the host reports the pull request merged; otherwise it only
+	// queued the merge (it happens when checks pass or the queue gets to it).
+	Merged bool
+	// Warning: something after the merge failed (deleting the branch).
+	Warning string
+}
+
 // CreateParams opens a pull request from Head into Base.
 type CreateParams struct {
 	Head  string
@@ -109,9 +118,13 @@ type Forge interface {
 	// MergeMethods are the ones the repository allows (squash, merge,
 	// rebase), the preferred first.
 	MergeMethods(ctx context.Context) ([]string, error)
-	// Merge merges the pull request with method; deleteBranch removes the
-	// branch on the host (never the local one).
-	Merge(ctx context.Context, number int, method, head string, deleteBranch bool) error
+	// Merge merges the pull request with method, refusing (apierr.
+	// ForgeHeadMismatch) unless its head is branch head of this very
+	// repository (not a fork's branch of the same name). deleteBranch
+	// removes the branch on the host once the merge is done, never the
+	// local one; a merge the host only queued (merge queue, GitLab's
+	// auto-merge) keeps it.
+	Merge(ctx context.Context, number int, method, head string, deleteBranch bool) (MergeResult, error)
 	Create(ctx context.Context, p CreateParams) error
 }
 
@@ -182,8 +195,10 @@ func lookPath(tool, path string) string {
 	return ""
 }
 
-// errNoPR is a command's "this branch has no pull request" answer.
-var errNoPR = errors.New("no pull request")
+func headMismatch(number int, want, got string) error {
+	return apierr.New(apierr.ForgeHeadMismatch, map[string]any{"number": number, "branch": want, "head": got},
+		"pull request %d is not this repository's %s (its head is %s): reload and try again", number, want, got)
+}
 
 // run executes the tool and returns its stdout. Failures become coded
 // errors: not logged in (ForgeNotAuthed) or anything else (ForgeFailed,
@@ -254,6 +269,22 @@ func (l *limited) Write(p []byte) (int, error) {
 		}
 	}
 	return len(p), nil
+}
+
+// decodeArrays reads one or more JSON arrays written back to back (what
+// `gh api --paginate` / `glab api --paginate` print, one per page) into a
+// single slice.
+func decodeArrays[T any](b []byte) ([]T, error) {
+	var all []T
+	dec := json.NewDecoder(bytes.NewReader(b))
+	for dec.More() {
+		var page []T
+		if err := dec.Decode(&page); err != nil {
+			return nil, err
+		}
+		all = append(all, page...)
+	}
+	return all, nil
 }
 
 // summarize counts check results by state.

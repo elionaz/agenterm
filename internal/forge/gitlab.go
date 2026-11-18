@@ -31,6 +31,8 @@ type glMR struct {
 	WebURL              string `json:"web_url"`
 	TargetBranch        string `json:"target_branch"`
 	SourceBranch        string `json:"source_branch"`
+	SourceProjectID     int    `json:"source_project_id"`
+	TargetProjectID     int    `json:"target_project_id"`
 	HasConflicts        bool   `json:"has_conflicts"`
 	DetailedMergeStatus string `json:"detailed_merge_status"`
 	HeadPipeline        *struct {
@@ -86,21 +88,36 @@ func (g *gitlab) Status(ctx context.Context, branch string) (*PR, error) {
 	if err := json.Unmarshal(out, &mrs); err != nil {
 		return nil, fmt.Errorf("glab api merge_requests: %w", err)
 	}
-	if len(mrs) == 0 {
+	// Merge requests from forks may use the same branch name.
+	own := mrs[:0]
+	for _, m := range mrs {
+		if m.SourceProjectID == m.TargetProjectID {
+			own = append(own, m)
+		}
+	}
+	if len(own) == 0 {
 		return nil, nil
 	}
 	// The list leaves out the pipeline and merge status details: ask for the
 	// chosen one.
-	pick := pickPR(mrs, func(m glMR) bool { return m.State == "opened" }, func(m glMR) *PR { return &PR{Number: m.IID} })
-	one, err := g.api(ctx, g.project()+"/merge_requests/"+strconv.Itoa(pick.Number))
+	pick := pickPR(own, func(m glMR) bool { return m.State == "opened" }, func(m glMR) *PR { return &PR{Number: m.IID} })
+	m, err := g.mr(ctx, pick.Number)
 	if err != nil {
 		return nil, err
 	}
-	var m glMR
-	if err := json.Unmarshal(one, &m); err != nil {
-		return nil, fmt.Errorf("glab api merge_request: %w", err)
-	}
 	return m.toPR(), nil
+}
+
+func (g *gitlab) mr(ctx context.Context, iid int) (glMR, error) {
+	out, err := g.api(ctx, g.project()+"/merge_requests/"+strconv.Itoa(iid))
+	if err != nil {
+		return glMR{}, err
+	}
+	var m glMR
+	if err := json.Unmarshal(out, &m); err != nil {
+		return glMR{}, fmt.Errorf("glab api merge_request: %w", err)
+	}
+	return m, nil
 }
 
 func (g *gitlab) api(ctx context.Context, path string, extra ...string) ([]byte, error) {
@@ -108,11 +125,11 @@ func (g *gitlab) api(ctx context.Context, path string, extra ...string) ([]byte,
 }
 
 func (g *gitlab) Comments(ctx context.Context, number int) ([]Comment, error) {
-	out, err := g.api(ctx, g.project()+"/merge_requests/"+strconv.Itoa(number)+"/discussions?per_page=100")
+	out, err := g.api(ctx, g.project()+"/merge_requests/"+strconv.Itoa(number)+"/discussions?per_page=100", "--paginate")
 	if err != nil {
 		return nil, err
 	}
-	var ds []struct {
+	ds, err := decodeArrays[struct {
 		Notes []struct {
 			ID        int                       `json:"id"`
 			Author    struct{ Username string } `json:"author"`
@@ -126,8 +143,8 @@ func (g *gitlab) Comments(ctx context.Context, number int) ([]Comment, error) {
 				OldLine int    `json:"old_line"`
 			} `json:"position"`
 		} `json:"notes"`
-	}
-	if err := json.Unmarshal(out, &ds); err != nil {
+	}](out)
+	if err != nil {
 		return nil, fmt.Errorf("glab api discussions: %w", err)
 	}
 	web := g.remote.Web + "/-/merge_requests/" + strconv.Itoa(number)
@@ -173,7 +190,8 @@ func (g *gitlab) MergeMethods(ctx context.Context) ([]string, error) {
 	return []string{"merge", "squash"}, nil
 }
 
-func (g *gitlab) Merge(ctx context.Context, number int, method, _ string, deleteBranch bool) error {
+func (g *gitlab) Merge(ctx context.Context, number int, method, head string, deleteBranch bool) (MergeResult, error) {
+	var res MergeResult
 	args := []string{"mr", "merge", strconv.Itoa(number), "-R", g.repo(), "--yes"}
 	switch method {
 	case "squash":
@@ -182,13 +200,33 @@ func (g *gitlab) Merge(ctx context.Context, number int, method, _ string, delete
 		args = append(args, "--rebase")
 	case "merge":
 	default:
-		return fmt.Errorf("unknown merge method %q (squash, merge or rebase)", method)
+		return res, fmt.Errorf("unknown merge method %q (squash, merge or rebase)", method)
 	}
 	if deleteBranch {
+		// GitLab removes it when the merge actually happens.
 		args = append(args, "--remove-source-branch")
 	}
-	_, err := g.run(ctx, args...)
-	return err
+	m, err := g.mr(ctx, number)
+	if err != nil {
+		return res, err
+	}
+	if m.SourceBranch != head || m.SourceProjectID != m.TargetProjectID {
+		got := m.SourceBranch
+		if m.SourceProjectID != m.TargetProjectID {
+			got += " (a fork)"
+		}
+		return res, headMismatch(number, head, got)
+	}
+	if _, err := g.run(ctx, args...); err != nil {
+		return res, err
+	}
+	// glab may only schedule it (auto-merge once the pipeline succeeds).
+	if m, err = g.mr(ctx, number); err != nil {
+		res.Warning = err.Error()
+		return res, nil
+	}
+	res.Merged = m.State == "merged"
+	return res, nil
 }
 
 func (g *gitlab) Create(ctx context.Context, p CreateParams) error {

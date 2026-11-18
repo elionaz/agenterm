@@ -70,6 +70,19 @@ func TestForgeStatusInMainFolder(t *testing.T) {
 		t.Fatalf("suggestion: ahead %d, %q / %q", st.Ahead, st.Title, st.Body)
 	}
 
+	// The folder moved to another branch since the PR was shown: no merge.
+	if _, err := c.ForgeMerge(ctxT(t), protocol.ForgeMergeParams{ForgeRef: ref, Number: 12, Method: "squash", Head: "feat/other"}); !hasCode(err, apierr.ForgeHeadMismatch) {
+		t.Fatalf("merge for another branch: %v", err)
+	}
+
+	// Suggested titles keep non-ASCII branch names whole.
+	gitT(t, repo, "switch", "-q", "-c", "ñandú-fix")
+	gitT(t, repo, "commit", "-q", "--allow-empty", "-m", "one")
+	gitT(t, repo, "commit", "-q", "--allow-empty", "-m", "two")
+	if st, err = c.ForgeStatus(ctxT(t), ref); err != nil || st.Title != "Ñandú fix" {
+		t.Fatalf("non-ASCII title: %q, %v", st.Title, err)
+	}
+
 	// Without gh: the integration is off, not an error.
 	testExtraPath = ""
 	st, err = c.ForgeStatus(ctxT(t), ref)
