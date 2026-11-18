@@ -7,6 +7,14 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- **Hermes Agent** in the catalog (`hermes --cli`). It shows up in the **+** menu only when the
+  `hermes` binary is installed and the profile stays enabled. The approval line
+  `[o]nce | [s]ession` marks the session as waiting. After a daemon restart, resume appends
+  `-c` (the latest session in that directory). `args`, `resume_args` and `enabled: false`
+  change or hide it; agenterm does not write `~/.hermes`.
+
 ## [0.6.0] - 2026-11-18
 
 ### Added

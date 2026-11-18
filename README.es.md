@@ -31,7 +31,7 @@ vivos aunque cierres la app y te avisa cuando alguno te necesita.
   *Z*, *It Still Moves*, *Alphabetical* y *Hot Fuss*), fuente, tamaño, interlineado y cursor, y la
   app en claro u oscuro (o siguiendo a macOS).
 - **Cualquier CLI de agente**: catálogo integrado (Claude Code, codex, opencode, Gemini, Cursor,
-  Copilot, aider, Amp, goose, Qwen, Crush, Kiro, shell) con detección automática de los instalados,
+  Copilot, aider, Amp, goose, Qwen, Crush, Kiro, Hermes, shell) con detección automática de los instalados,
   más perfiles propios y variantes en `profiles.yaml`.
 - **Las sesiones sobreviven a la app**: un daemon es dueño de las PTYs; cierras la ventana, la
   reabres y todo sigue ahí con su scrollback. La CLI y la app comparten el mismo daemon. Si el
