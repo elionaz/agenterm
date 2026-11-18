@@ -14,6 +14,11 @@ releases may include breaking changes.
   for Claude Code, the prompts typed in each session, with secrets (API keys, tokens, private
   keys, `password=…`) replaced by `[redacted]`. On by default, with a preview; untick it to leave
   it out. Prompts go in code blocks, so their links and @mentions don't render or notify.
+- **Hermes Agent** in the catalog (`hermes --cli`). It shows up in the **+** menu only when the
+  `hermes` binary is installed and the profile stays enabled. The approval line
+  `[o]nce | [s]ession` marks the session as waiting. After a daemon restart, resume appends
+  `-c` (the latest session in that directory). `args`, `resume_args` and `enabled: false`
+  change or hide it; agenterm does not write `~/.hermes`.
 - **The notification permission in Settings → Notifications**: whether macOS allows agenterm's
   notifications, with **Ask macOS**, **Open System Settings** (on agenterm's entry) and **Send a
   test notification**, which shows one right away or says why it can't.
@@ -26,6 +31,14 @@ releases may include breaking changes.
   later, seemed to work). agenterm now keeps the file the moment it is dropped, in
   `~/.agenterm/drops/` (kept for a day), and types that path. Files dropped from Finder are typed
   as before.
+- **A pending approval no longer clears itself when you look at it.** Opening a session that waits
+  for an approval or an answer marked it as seen, so after switching tabs nothing said it was still
+  stuck. It now stays flagged until you type into it or the agent moves on; finished turns and
+  errors are still cleared once seen.
+- **Cursor CLI's approval menus** (*Run this command?*, ending in *Skip & tell the agent what to do
+  instead*) mark the session as waiting and notify; it showed as idle.
+- **`agenterm msg send all` skips shells.** They never read messages by themselves, so a broadcast
+  stayed in their Messages tab for good. Name a shell to write to it.
 - **A notification permission granted after launch now applies without restarting the app.** The
   app checked it only at startup, so after allowing agenterm in System Settings its notifications
   were still dropped until a relaunch.

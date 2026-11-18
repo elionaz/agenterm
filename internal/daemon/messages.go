@@ -212,7 +212,7 @@ func (s *Server) msgPeers(caller *session.Session, sessionID string) (protocol.M
 
 // resolveTo finds the recipients of a message from (nil: the user) in
 // projectID: a session id, a display name unique in the project (any
-// case), or "all".
+// case), or "all" (every other session except shells).
 func (s *Server) resolveTo(from *session.Session, projectID, to string) ([]*session.Session, error) {
 	to = strings.TrimSpace(to)
 	if to == "" {
@@ -239,13 +239,20 @@ func (s *Server) resolveTo(from *session.Session, projectID, to string) ([]*sess
 		if from != nil && sess.ID == from.ID {
 			continue
 		}
-		if strings.EqualFold(to, "all") || strings.EqualFold(s.displayName(sess), to) {
+		switch {
+		case strings.EqualFold(to, "all"):
+			// Shells never read messages: a broadcast would sit in their
+			// Messages tab for good. Name one to write to it.
+			if !isShell(sess) {
+				out = append(out, sess)
+			}
+		case strings.EqualFold(s.displayName(sess), to):
 			out = append(out, sess)
 		}
 	}
 	switch {
 	case len(out) == 0 && strings.EqualFold(to, "all"):
-		return nil, apierr.New(apierr.MsgNoSession, map[string]any{"to": to}, "there are no other sessions in this project")
+		return nil, apierr.New(apierr.MsgNoSession, map[string]any{"to": to}, "there are no other agent sessions in this project (all skips shells)")
 	case len(out) == 0:
 		return nil, apierr.New(apierr.MsgNoSession, map[string]any{"to": to},
 			"no session of this project is called %q (agenterm msg peers lists them)", to)

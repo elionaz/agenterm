@@ -62,8 +62,11 @@ var catalog = []CatalogEntry{
 		Homepage: "https://github.com/google-gemini/gemini-cli",
 		Install:  "npm i -g @google/gemini-cli   (or brew install gemini-cli)"},
 	{ID: "cursor-agent", Name: "Cursor CLI", Binaries: []string{"cursor-agent"}, Status: status.ModeHeuristic,
-		Homepage: "https://cursor.com/cli",
-		Install:  "curl https://cursor.com/install -fsS | bash"},
+		// Its approval menus ("Run this command?", file edits…) end with
+		// "Skip & tell the agent what to do instead (esc or n)".
+		AttentionPatterns: []string{`Run this command\?`, `Skip & tell the agent what to do instead`},
+		Homepage:          "https://cursor.com/cli",
+		Install:           "curl https://cursor.com/install -fsS | bash"},
 	{ID: "copilot", Name: "GitHub Copilot CLI", Binaries: []string{"copilot"}, Status: status.ModeHeuristic,
 		Homepage: "https://github.com/github/copilot-cli",
 		Install:  "npm i -g @github/copilot"},
@@ -92,6 +95,17 @@ var catalog = []CatalogEntry{
 	{ID: "kiro", Name: "Kiro CLI", Binaries: []string{"kiro-cli"}, Args: []string{"chat"}, Status: status.ModeHeuristic,
 		Homepage: "https://kiro.dev/cli",
 		Install:  "curl -fsSL https://cli.kiro.dev/install | bash"},
+	// Hermes Agent (Nous Research). `--cli` keeps the classic REPL even
+	// when the user set display.interface: tui. `-c` on resume reattaches
+	// the latest session in this directory. It only launches when `hermes`
+	// is installed and the profile stays enabled; args and resume_args
+	// are overridable from profiles.yaml.
+	{ID: "hermes", Name: "Hermes Agent", Binaries: []string{"hermes"}, Args: []string{"--cli"}, Status: status.ModeHeuristic,
+		// "      [o]nce  |  [s]ession  |  [a]lways  |  [d]eny"
+		AttentionPatterns: []string{`\[o\]nce\s+\|\s+\[s\]ession`},
+		ResumeArgs:        []string{"-c"},
+		Homepage:          "https://hermes-agent.nousresearch.com/",
+		Install:           "curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash"},
 	{ID: "shell", Name: "Shell", Cmd: "$SHELL", Status: status.ModeHeuristic},
 }
 

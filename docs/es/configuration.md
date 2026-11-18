@@ -33,7 +33,7 @@ Agentes* la refrescan.
 | `codex` | Codex CLI | `codex` | `heuristic` | `codex` | `notify` solo avisa el fin de turno, así que "trabajando" lo decide la heurística |
 | `opencode` | opencode | `opencode` | `heuristic` | | |
 | `gemini` | Gemini CLI | `gemini` | `heuristic` | | |
-| `cursor-agent` | Cursor CLI | `cursor-agent` | `heuristic` | | |
+| `cursor-agent` | Cursor CLI | `cursor-agent` | `heuristic` | | patrones de atención `Run this command\?` y `Skip & tell the agent what to do instead` (sus menús de aprobación) |
 | `copilot` | GitHub Copilot CLI | `copilot` | `heuristic` | | |
 | `aider` | Aider | `aider` | `heuristic` | | patrón de atención `\(Y\)es/\(N\)o` |
 | `amp` | Amp | `amp` | `heuristic` | | |
@@ -41,6 +41,7 @@ Agentes* la refrescan.
 | `qwen` | Qwen Code | `qwen` | `heuristic` | | |
 | `crush` | Crush | `crush` | `heuristic` | | |
 | `kiro` | Kiro CLI | `kiro-cli chat` | `heuristic` | | nombre del binario sin verificar |
+| `hermes` | Hermes Agent | `hermes --cli` | `heuristic` | | patrón de atención `\[o\]nce\s+\|\s+\[s\]ession`; al reanudar se añade `-c` (la última sesión de esa carpeta). Solo se lanza si `hermes` está instalado y el perfil sigue activado; `args` y `resume_args` se pueden cambiar |
 | `shell` | Shell | `$SHELL` (o `/bin/sh`) | `heuristic` | | siempre disponible |
 
 - **estado** (`status`): `hooks` = el estado lo deciden eventos explícitos (hooks / `notify`) y la
@@ -70,7 +71,7 @@ tiene un `id` obligatorio y único, y se **superpone** al catálogo:
 | `setup_hooks` | `claude`, `codex` o `none` |
 | `idle_seconds` | segundos sin salida para pasar a inactivo (sobrescribe el valor del daemon, 3 s) |
 | `attention_patterns` | expresiones regulares (sintaxis de Go) sobre la salida reciente sin ANSI; una coincidencia marca la sesión como esperando tu respuesta |
-| `resume_args` | argumentos que se añaden (después de `args`) al reanudar una sesión de este perfil tras un reinicio del daemon cuando no hay id de sesión del agente que reanudar; p. ej. `["--continue"]`. El catálogo lo define para opencode (`--continue`: la última sesión del proyecto). claude y codex reanudan por id y solo lo usan como alternativa. No aparece en el editor de la app (guardar desde la app lo conserva) |
+| `resume_args` | argumentos que se añaden (después de `args`) al reanudar una sesión de este perfil tras un reinicio del daemon cuando no hay id de sesión del agente que reanudar; p. ej. `["--continue"]`. El catálogo lo define para opencode (`--continue`) y Hermes (`-c`): la última sesión del proyecto. claude y codex reanudan por id y solo lo usan como alternativa. No aparece en el editor de la app (guardar desde la app lo conserva) |
 
 ### Reglas de combinación
 

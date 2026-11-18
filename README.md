@@ -31,7 +31,7 @@ tells you when one of them needs you.
   *It Still Moves*, *Alphabetical* and *Hot Fuss*), font, size, line height and cursor, plus a light
   or dark app (or follow macOS).
 - **Any agent CLI**: a built-in catalog (Claude Code, codex, opencode, Gemini, Cursor, Copilot,
-  aider, Amp, goose, Qwen, Crush, Kiro, shell) that detects which ones are installed, plus your own
+  aider, Amp, goose, Qwen, Crush, Kiro, Hermes, shell) that detects which ones are installed, plus your own
   profiles and variants in `profiles.yaml`.
 - **Sessions outlive the app**: a daemon owns the PTYs; close the window, reopen it and everything
   is still there, scrollback included. The CLI and the app share the same daemon. If the daemon
