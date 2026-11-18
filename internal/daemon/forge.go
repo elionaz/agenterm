@@ -158,6 +158,9 @@ func (s *Server) forgeStatusCtx(ctx context.Context, ref protocol.ForgeRef) (pro
 			res.Title, res.Body = suggestPR(t.branch, cs)
 		}
 	}
+	if res.Ahead > 0 && (pr == nil || pr.State == forge.StateMerged || pr.State == forge.StateClosed) {
+		res.Session = s.prSessionNotes(t)
+	}
 	return res, nil
 }
 

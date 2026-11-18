@@ -5,7 +5,7 @@
   // shows how to set it up, and on the base branch it shows nothing.
   import { BrowserOpenURL } from '../../wailsjs/runtime/runtime'
   import { api, errorMessage, type ForgeComment, type ForgeStatus } from './api'
-  import { canMerge, commentPlace, forgeView, hostName, mergeWarnings, prRef } from './forge'
+  import { canMerge, commentPlace, forgeView, hostName, mergeWarnings, prBody, prRef } from './forge'
   import { hasKey, locale, t, type Params } from './i18n.svelte'
 
   interface Props {
@@ -35,6 +35,7 @@
   let title = $state('')
   let body = $state('')
   let draft = $state(false)
+  let withSession = $state(true)
   let busy = $state(false)
   let notice = $state('')
 
@@ -166,6 +167,7 @@
       title = status?.title ?? ''
       body = status?.body ?? ''
       draft = false
+      withSession = true
     }
   }
 
@@ -173,7 +175,7 @@
     busy = true
     const tgt = target()
     try {
-      const s = await api.forgeCreate(sessionId ?? '', worktreeId ?? '', title, body, draft)
+      const s = await api.forgeCreate(sessionId ?? '', worktreeId ?? '', title, prBody(body, status?.session, withSession), draft)
       if (tgt !== target()) return
       seq++
       status = s
@@ -269,6 +271,15 @@
         <p>{t('pr.createInfo', { branch: status.branch ?? '', base: status.base ?? '', host })}</p>
         <label class="field">{t('pr.titleLabel')}<input type="text" bind:value={title} /></label>
         <label class="field">{t('pr.bodyLabel')}<textarea rows="5" bind:value={body}></textarea></label>
+        {#if status.session}
+          <label class="check"><input type="checkbox" bind:checked={withSession} /> {t('pr.withSession')}</label>
+          {#if withSession}
+            <details class="session">
+              <summary>{t('pr.sessionPreview')}</summary>
+              <pre>{status.session}</pre>
+            </details>
+          {/if}
+        {/if}
         <label class="check"><input type="checkbox" bind:checked={draft} /> {t('pr.draft')}</label>
         <div class="row">
           <button class="btn primary" disabled={busy || !status.ahead || !title.trim()} onclick={doCreate}>
@@ -435,6 +446,27 @@
   .field textarea {
     resize: vertical;
     font-family: inherit;
+  }
+  .session {
+    margin: 2px 0 6px 22px;
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  .session summary {
+    cursor: pointer;
+  }
+  .session pre {
+    max-height: 180px;
+    overflow: auto;
+    margin: 4px 0 0;
+    padding: 6px 8px;
+    font-size: 11px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--fg);
+    background: var(--bg);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
   }
   .check {
     display: flex;

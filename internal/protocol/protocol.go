@@ -368,6 +368,11 @@ type ForgeStatus struct {
 	Ahead int    `json:"ahead"`
 	Title string `json:"title,omitempty"`
 	Body  string `json:"body,omitempty"`
+	// Session is a suggested "Agent sessions" section for a new pull
+	// request (the agents that worked on the branch, their models and
+	// prompts, secrets removed); the app appends it to Body if the user
+	// keeps it. Empty when there is an open pull request or no agent.
+	Session string `json:"session,omitempty"`
 	// After forge.merge: "merged", or "queued" when the host only
 	// scheduled it (merge queue, auto-merge once checks pass).
 	Result string `json:"result,omitempty"`

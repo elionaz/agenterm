@@ -7,6 +7,14 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- **Agent sessions in new pull requests.** *Create pull request* in Changes can append an *Agent
+  sessions* section to the description: the agents that worked on the branch, their model and,
+  for Claude Code, the prompts typed in each session, with secrets (API keys, tokens, private
+  keys, `password=…`) replaced by `[redacted]`. On by default, with a preview; untick it to leave
+  it out. Prompts go in code blocks, so their links and @mentions don't render or notify.
+
 ### Fixed
 
 - **Screenshots dragged from the floating thumbnail onto a terminal** reach Claude Code again. macOS

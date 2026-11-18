@@ -782,6 +782,7 @@ export namespace protocol {
 	    ahead: number;
 	    title?: string;
 	    body?: string;
+	    session?: string;
 	    result?: string;
 	    warning?: string;
 	
@@ -804,6 +805,7 @@ export namespace protocol {
 	        this.ahead = source["ahead"];
 	        this.title = source["title"];
 	        this.body = source["body"];
+	        this.session = source["session"];
 	        this.result = source["result"];
 	        this.warning = source["warning"];
 	    }
