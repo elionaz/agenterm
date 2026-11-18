@@ -606,6 +606,15 @@
     terms.focus()
   }
 
+  /** A sidebar action that goes somewhere (a session, a project, the
+   * overview…) closes Settings first, as × does (unsaved edits included). */
+  function leavingSettings<A extends unknown[], R>(fn: (...args: A) => R): (...args: A) => R {
+    return (...args) => {
+      if (settingsOpen) closeSettings()
+      return fn(...args)
+    }
+  }
+
   async function spawn(projectId: string, profileId: string, opts?: Partial<SpawnOptions>) {
     const { cols, rows } = paneSize()
     const info = await guard(api.spawn(projectId, profileId, cols, rows, opts))
@@ -898,9 +907,9 @@
     {selectedId}
     {visibleIds}
     {currentProjectId}
-    onSelect={select}
-    onSelectProject={selectProject}
-    onSpawn={spawn}
+    onSelect={leavingSettings(select)}
+    onSelectProject={leavingSettings(selectProject)}
+    onSpawn={leavingSettings(spawn)}
     onKill={kill}
     onRename={rename}
     onResume={resume}
@@ -912,11 +921,11 @@
     onReorderProjects={reorderProjects}
     onReorderSessions={reorderSessions}
     onOpenSettings={openSettings}
-    onOpenGrid={openGrid}
+    onOpenGrid={leavingSettings(openGrid)}
     overviewOpen={gridOpen && !gridProjectId}
     {now}
     {worktrees}
-    onOpenWorktree={openOrphan}
+    onOpenWorktree={leavingSettings(openOrphan)}
   />
 
   <main class="main">

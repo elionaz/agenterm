@@ -9,6 +9,8 @@ releases may include breaking changes.
 
 ### Changed
 
+- **Choosing something in the sidebar closes Settings** (a session, a project, a new session, the
+  overview), as × does, instead of leaving Settings covering it.
 - **The overview has its own row** at the top of the sidebar (**Overview ⌘0**, highlighted while
   open) instead of a ▦ glyph in the title bar that sat off its line and said nothing. The project
   rows' overview button gets the same drawn icon.
