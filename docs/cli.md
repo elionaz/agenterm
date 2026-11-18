@@ -151,6 +151,18 @@ Forgets `suspended` sessions: they leave the list and their record and saved scr
 
 Marks the session's attention as seen (same as selecting it in the app).
 
+## Messages
+
+Messages between the sessions of a project; see [messages.md](messages.md).
+
+| command | |
+|---|---|
+| `agenterm msg peers [--session ID]` | the other sessions of this project (outside a session: of `--session`'s) |
+| `agenterm msg send [--project ID] <to> <text…>` | to a session id, a name or `all`; text `-` reads stdin |
+| `agenterm msg read` | your new messages (inside a session only); marks them delivered |
+| `agenterm msg list [--pending] [--session ID \| --project ID]` | message history (a session sees only its own) |
+| `agenterm wait <sessionId> [--timeout 30m]` | until the session is idle, waiting for input or exited; exit status 2 on timeout |
+
 ## Git
 
 | command | |

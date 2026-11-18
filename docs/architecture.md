@@ -50,6 +50,7 @@ internal/profile        agent catalog, detection, merging with profiles.yaml and
 internal/settings       settings.yaml (reading with defaults and in-place editing)
 internal/gitx           git via the CLI: repo, branches, status, worktrees, diff, merge, open in editor
 internal/forge          pull requests on GitHub / GitLab through gh / glab (the user's login)
+internal/mailbox        messages between the sessions of a project (messages.json)
 internal/worktree       agenterm worktree registry (worktrees.json)
 internal/project        project registry (projects.json)
 internal/desktopnotify  notification texts + osascript fallback
@@ -74,6 +75,7 @@ internal/paths          directory resolution (AGENTERM_HOME)
 | settings | `settings.get`, `settings.save` |
 | sessions | `session.spawn`, `session.list`, `session.kill`, `session.resize`, `session.notify`, `session.ack`, `session.rename`, `session.reorder`, `session.attach`, `session.tail`, `session.diff`, `session.resume`, `session.discard` |
 | worktrees | `worktree.list`, `worktree.diff`, `worktree.remove`, `worktree.merge`, `worktree.pr`, `worktree.open` |
+| messages | `msg.peers`, `msg.send`, `msg.list`, `msg.take`, `msg.deliver` (the sender is the session the calling process runs in; see [messages.md](messages.md)) |
 | daemon | `events.subscribe`, `daemon.ping`, `daemon.shutdown` |
 
 `daemon.ping` returns the daemon's `version`, `commit` and `protocol` version; a method the daemon
@@ -142,6 +144,7 @@ JSON event per line.
 | `session.reordered` | the sessions of `projectId` were reordered (`session.list` has the new order) |
 | `project.changed` | the project list changed: added, removed, reordered, renamed or its badge changed |
 | `session.removed` | the session was removed from the list |
+| `message.changed` | messages to or from `sessionId` (in `projectId`) were sent or delivered; `msgPending` is how many wait for it |
 | `worktree.changed` | a project's worktree list changed (`projectId`) |
 
 `raised: true` marks a new attention (one worth notifying about); `stallRaised: true` (in

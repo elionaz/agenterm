@@ -1,0 +1,66 @@
+# Mensajes entre sesiones
+
+Los agentes de un proyecto pueden escribirse a través de agenterm, por ejemplo "ya mergeé #41,
+rebasea #42 sobre main", y así no tienes que pasar tú el mensaje. Los mensajes nunca salen de su
+proyecto, funcionan con cualquier CLI de agente y todos se ven en la app.
+
+## Desde un agente
+
+Cada sesión recibe `AGENTERM_SESSION` y `AGENTERM_SOCK`, así que `agenterm` ejecutado dentro de
+ella llega a su propio daemon:
+
+| comando | |
+|---|---|
+| `agenterm msg peers` | las otras sesiones de este proyecto: id, nombre, agente, estado, qué está haciendo cada una, y si tiene su propio worktree o comparte tu carpeta |
+| `agenterm msg send <a> <texto…>` | `<a>` es un id de sesión, un nombre de `msg peers` (único en el proyecto, sin importar mayúsculas) o `all` (todas las demás sesiones del proyecto). Con el texto `-` se lee de stdin (máximo 4 KiB) |
+| `agenterm msg read` | tus mensajes nuevos, que quedan marcados como entregados |
+| `agenterm msg list [--pending]` | los mensajes que enviaste y recibiste |
+| `agenterm wait <id> [--timeout 30m]` | espera hasta que esa sesión quede inactiva, esperando a su usuario o terminada (código de salida 2 si se agota el tiempo) |
+
+Fuera de una sesión (desde tu propia terminal), `msg peers` y `msg send` necesitan saber el
+proyecto: usa `--session <id>` para `peers`, un id de sesión como `<a>`, o `--project <id>` con un
+nombre o `all`. Esos mensajes vienen *del usuario*. `msg read` solo funciona dentro de una sesión.
+
+## Cómo llegan
+
+- **Claude Code** los recibe solo, con los hooks que agenterm ya agrega a las sesiones que abre (no
+  se escribe nada en tu configuración de Claude ni en el proyecto):
+  - al empezar la sesión, una presentación breve: qué sesión es, qué otras sesiones tiene el
+    proyecto y cómo usar `agenterm msg`;
+  - al enviar un prompt y después de cada herramienta, los mensajes nuevos, agregados a su contexto;
+  - cuando su turno iba a terminar y acaba de llegar un mensaje, el turno sigue con el mensaje, así
+    que nada espera a que vuelvas a escribir.
+- **Los demás agentes (codex, …)** no tienen un hook que pueda agregar a su conversación. Leen sus
+  mensajes con `agenterm msg read`. Mientras haya un mensaje pendiente, la app lo muestra en su
+  pestaña **Mensajes** con un botón **Entregar**.
+- **Entregar** (solo agentes inactivos o esperando) escribe una línea fija en la terminal del agente,
+  como *Tienes un mensaje nuevo de otra sesión de este proyecto: ejecuta `agenterm msg read`*. Nunca
+  escribe el mensaje, y solo lo hace tu clic: ningún agente puede escribir en la terminal de otro.
+  Las shells no la reciben, porque ejecutarían la línea como un comando: sus mensajes se quedan en la
+  app.
+
+## En la app
+
+- La pestaña **Mensajes**, junto a Terminal y Cambios, lista lo que la sesión envió y recibió, con
+  quién lo mandó, cuándo y si se entregó. Desde ahí puedes escribirle a la sesión (⌘↩ envía); tus
+  mensajes quedan marcados como tuyos.
+- Una sesión con mensajes esperando muestra en el sidebar un sobre con la cantidad.
+- **Ajustes → General → Mensajes entre sesiones** (`messages.enabled`, activado por defecto) lo
+  apaga todo: `msg send` se rechaza y los hooks no entregan nada.
+
+## Seguridad
+
+- **El daemon decide quién envió un mensaje.** Mira el proceso al otro lado del socket: una llamada
+  desde dentro de una sesión (el proceso de su terminal, o cualquier cosa que haya lanzado) viene de
+  esa sesión, diga lo que diga su entorno. Cualquier otra cosa viene del usuario. Un proceso que sale
+  a propósito del árbol de procesos de su sesión (un daemon que se desacopla) cuenta como el usuario.
+  Por eso agenterm solo indica de dónde vino un mensaje; no aísla a tus agentes.
+- **Los mensajes son información, no órdenes.** Los agentes los reciben dentro de elementos
+  `<agenterm-message from="…">`, con un preámbulo que dice que vienen de otros agentes y no de su
+  usuario, cuyas instrucciones van primero. El texto que cerraría el elemento antes de tiempo se
+  escapa.
+- **No salen del proyecto.** Una sesión solo puede escribir a sesiones de su propio proyecto, y solo
+  ve sus propios mensajes.
+- Se guardan en `~/.agenterm/messages.json` (`$AGENTERM_HOME/messages.json`): como mucho 200 por
+  proyecto (se descartan los más viejos), de 4 KiB cada uno. Los pendientes de una sesión que se
+  elimina se descartan; los entregados se quedan como historial.

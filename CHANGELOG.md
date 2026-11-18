@@ -14,6 +14,16 @@ releases may include breaking changes.
   (or right-click the project) to rename the project, pick one of eight colors or put an emoji in
   place of the initials; `agenterm project set <project> --name/--color/--icon` does the same from
   the CLI. Notifications of running sessions use the new name.
+- **Messages between the sessions of a project**: agents write to each other with
+  `agenterm msg send <id|name|all>`, see who else is working with `agenterm msg peers` and wait for
+  one with `agenterm wait <id>`. Claude Code gets its messages by itself through agenterm's hooks
+  (an introduction at start, then new messages at each step, and a turn that would end goes on
+  when one arrives); other agents read them with `agenterm msg read`. The new **Messages** tab
+  lists a session's messages, lets you write to it and, for an idle agent, **Deliver** types one
+  fixed line asking it to read them (never the message). The sidebar shows an envelope while
+  messages wait. The daemon decides who sent each message from the calling process, messages never
+  leave their project, and **Settings → General** turns it off (`messages.enabled`). See
+  [docs/messages.md](docs/messages.md).
 
 ## [0.5.0] - 2026-11-17
 

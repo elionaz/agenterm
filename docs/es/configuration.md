@@ -12,6 +12,7 @@
 | worktrees de las sesiones | `~/.agenterm/worktrees/<proyecto>-<projectId>/<sessionId>/` (o `git.worktree_dir`) | `/x/worktrees/…` |
 | registro de worktrees | `~/.agenterm/worktrees.json` | `/x/worktrees.json` |
 | sesiones a restaurar y su scrollback | `~/.agenterm/sessions.json`, `~/.agenterm/scrollback/<id>.log` | `/x/…` |
+| mensajes entre sesiones | `~/.agenterm/messages.json` | `/x/messages.json` |
 
 - Los directorios se crean con permisos `0700` y el socket con `0600`.
 - En macOS la ruta de un socket unix tiene un límite de unos 104 bytes: si usas `AGENTERM_HOME`,
@@ -149,6 +150,7 @@ Todas las claves son opcionales; las que faltan toman el valor por defecto.
 | `git.worktree_dir` | `""` | dónde crear los worktrees (ruta absoluta o `~/…`). Vacío: `~/.agenterm/worktrees` (o `$AGENTERM_HOME/worktrees`) |
 | `git.default_mode` | `same` | `same` o `worktree`: lo que propone el menú **+** (y ⌘N) en un proyecto donde aún no elegiste |
 | `sessions.restore` | `ask` | qué hace un daemon al arrancar con las sesiones que estaban vivas cuando se detuvo el anterior: `ask` (dejarlas `suspended` hasta que las reanudes o descartes), `always` (reanudarlas enseguida) o `never` (descartarlas). Ver [architecture.md](architecture.md#persistencia-y-reanudación) |
+| `messages.enabled` | `true` | mensajes entre las sesiones de un proyecto (`agenterm msg`): si se apaga, los envíos se rechazan y los hooks de los agentes no entregan nada. Ver [messages.md](messages.md) |
 
 ```yaml
 version: 1
@@ -169,6 +171,8 @@ git:
   default_mode: same
 sessions:
   restore: ask
+messages:
+  enabled: true
 terminal:
   font_family: '"SF Mono", Menlo, Monaco, monospace'
   font_size: 13
@@ -184,6 +188,7 @@ Cuándo se lee:
 - `git.worktree_dir` se lee al crear cada worktree (y al listar los de un proyecto).
 - `git.editor` se lee en cada «Abrir en editor».
 - `sessions.restore` se lee al arrancar el daemon.
+- `messages.enabled` se lee en cada mensaje enviado y en cada hook que podría entregar uno.
 - `ui.appearance` y `terminal.*` los lee la app al cargar (y al abrir Ajustes); los cambios hechos
   en la app se aplican al momento a todas las terminales abiertas. Una edición a mano se aplica al
   recargar la ventana.
@@ -195,7 +200,7 @@ archivo no se puede interpretar se usan los valores por defecto (y se anota en e
 se reemplaza.
 
 *Ajustes → Git* edita `git.editor`, `git.worktree_dir` y `git.default_mode`. *Ajustes → General*
-edita `ui.language` y `sessions.restore` (se guardan al momento). *Ajustes → Apariencia* edita
+edita `ui.language`, `sessions.restore` y `messages.enabled` (se guardan al momento). *Ajustes → Apariencia* edita
 `ui.appearance` y `terminal.*`, con vista previa; los cambios se aplican al momento a las terminales
 abiertas y se guardan enseguida.
 
