@@ -7,6 +7,8 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-18
+
 ### Added
 
 - **Agent sessions in new pull requests.** *Create pull request* in Changes can append an *Agent
@@ -338,7 +340,8 @@ First public release: a macOS desktop app (universal: Apple Silicon and Intel, m
   `.zip` downloads, CLI archives for macOS and Linux, and a Homebrew cask
   (`brew install --cask elionaz/tap/agenterm`).
 
-[Unreleased]: https://github.com/elionaz/agenterm/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/elionaz/agenterm/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/elionaz/agenterm/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/elionaz/agenterm/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/elionaz/agenterm/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/elionaz/agenterm/compare/v0.4.3...v0.5.0
