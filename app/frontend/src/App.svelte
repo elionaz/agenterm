@@ -4,6 +4,7 @@
   import Changes from './lib/Changes.svelte'
   import Messages from './lib/Messages.svelte'
   import { showMessagesTab } from './lib/messages'
+  import { ackOnView } from './lib/attention'
   import Grid from './lib/Grid.svelte'
   import ProgressBar from './lib/ProgressBar.svelte'
   import Settings from './lib/Settings.svelte'
@@ -181,11 +182,12 @@
     WindowSetTitle(attentionCount ? `agenterm (${attentionCount})` : 'agenterm')
   })
 
-  /** Acks a session if the user can actually see it (in a pane). */
+  /** Acks a session if the user can actually see it (in a pane); a pending
+   * approval or question stays flagged (ackOnView). */
   function ackIfVisible(id: string | null) {
     if (!id || !document.hasFocus() || !visibleIds.includes(id)) return
     const s = sessions.find((x) => x.id === id)
-    if (s && needsAttention(s)) void api.ack(id).catch(() => {})
+    if (s && ackOnView(s)) void api.ack(id).catch(() => {})
   }
 
   function isAppShortcut(e: KeyboardEvent): boolean {

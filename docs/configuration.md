@@ -32,7 +32,7 @@ found in the daemon's `PATH` or in your login shell's (`$SHELL -l -i -c`); that 
 | `codex` | Codex CLI | `codex` | `heuristic` | `codex` | `notify` only reports the end of a turn, so "working" is decided by the heuristic |
 | `opencode` | opencode | `opencode` | `heuristic` | | |
 | `gemini` | Gemini CLI | `gemini` | `heuristic` | | |
-| `cursor-agent` | Cursor CLI | `cursor-agent` | `heuristic` | | |
+| `cursor-agent` | Cursor CLI | `cursor-agent` | `heuristic` | | attention patterns `Run this command\?` and `Skip & tell the agent what to do instead` (its approval menus) |
 | `copilot` | GitHub Copilot CLI | `copilot` | `heuristic` | | |
 | `aider` | Aider | `aider` | `heuristic` | | attention pattern `\(Y\)es/\(N\)o` |
 | `amp` | Amp | `amp` | `heuristic` | | |

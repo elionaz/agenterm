@@ -12,7 +12,7 @@ own daemon:
 | command | |
 |---|---|
 | `agenterm msg peers` | the other sessions of this project: id, name, agent, state, what each is doing, and whether it has its own worktree or shares your folder |
-| `agenterm msg send <to> <text…>` | `<to>` is a session id, a name from `msg peers` (unique in the project, any case) or `all` (every other session of the project). Text `-` reads it from stdin (4 KiB max) |
+| `agenterm msg send <to> <text…>` | `<to>` is a session id, a name from `msg peers` (unique in the project, any case) or `all` (every other session of the project except shells, which never read messages by themselves). Text `-` reads it from stdin (4 KiB max) |
 | `agenterm msg read` | your new messages, which are then marked delivered |
 | `agenterm msg list [--pending]` | the messages you sent and received |
 | `agenterm wait <id> [--timeout 30m]` | blocks until that session is idle, waiting for its user or exited (exit status 2 on timeout) |

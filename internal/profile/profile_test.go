@@ -301,6 +301,22 @@ func TestAttentionPatterns(t *testing.T) {
 	if res, err := a.Patterns(); err != nil || !res[0].MatchString("Add file to the chat? (Y)es/(N)o/(D)on't ask again [Yes]:") {
 		t.Fatalf("aider patterns %v %v", res, err)
 	}
+	// Cursor CLI's approval menu (from a real session).
+	menu := " $  agenterm msg read in .\n\n Run this command?\n Not in allowlist: agenterm\n  → Run (once) (y)\n" +
+		"    Add Shell(agenterm) to allowlist? (tab)\n    Run Everything (shift+tab)\n    Skip & tell the agent what to do instead (esc or n)\n"
+	c := mustFind(t, Resolve(nil, nil), "cursor-agent")
+	res, err = c.Patterns()
+	if err != nil || len(res) == 0 {
+		t.Fatalf("cursor patterns %v %v", res, err)
+	}
+	for _, re := range res {
+		if !re.MatchString(menu) {
+			t.Errorf("cursor pattern %q misses its approval menu", re)
+		}
+		if re.MatchString("Ran agenterm msg read: no new messages\n> ") {
+			t.Errorf("cursor pattern %q matches plain output", re)
+		}
+	}
 }
 
 func TestCatalogSanity(t *testing.T) {

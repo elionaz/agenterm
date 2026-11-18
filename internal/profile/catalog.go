@@ -62,8 +62,11 @@ var catalog = []CatalogEntry{
 		Homepage: "https://github.com/google-gemini/gemini-cli",
 		Install:  "npm i -g @google/gemini-cli   (or brew install gemini-cli)"},
 	{ID: "cursor-agent", Name: "Cursor CLI", Binaries: []string{"cursor-agent"}, Status: status.ModeHeuristic,
-		Homepage: "https://cursor.com/cli",
-		Install:  "curl https://cursor.com/install -fsS | bash"},
+		// Its approval menus ("Run this command?", file edits…) end with
+		// "Skip & tell the agent what to do instead (esc or n)".
+		AttentionPatterns: []string{`Run this command\?`, `Skip & tell the agent what to do instead`},
+		Homepage:          "https://cursor.com/cli",
+		Install:           "curl https://cursor.com/install -fsS | bash"},
 	{ID: "copilot", Name: "GitHub Copilot CLI", Binaries: []string{"copilot"}, Status: status.ModeHeuristic,
 		Homepage: "https://github.com/github/copilot-cli",
 		Install:  "npm i -g @github/copilot"},

@@ -35,7 +35,9 @@ Hay dos fuentes:
 
 - `unread` se borra cuando la sesión está **a la vista** en la app, seleccionada o en cualquier
   panel, con la ventana activa (RPC `session.ack`), al **escribir en
-  ella** o con `agenterm ack <id>`.
+  ella** o con `agenterm ack <id>`. La excepción es una sesión que sigue esperando una aprobación o
+  una respuesta (`waiting_input`): mirarla no la responde, así que sigue marcada hasta que escribas
+  en ella o el agente avance.
 - Un `idle` explícito tras un turno (hook `Stop` de Claude Code, `agent-turn-complete` de codex) es
   un `done`. El `idle` heurístico **no** avisa: que no haya salida no significa que terminó.
 

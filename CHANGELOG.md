@@ -23,6 +23,14 @@ releases may include breaking changes.
   later, seemed to work). agenterm now keeps the file the moment it is dropped, in
   `~/.agenterm/drops/` (kept for a day), and types that path. Files dropped from Finder are typed
   as before.
+- **A pending approval no longer clears itself when you look at it.** Opening a session that waits
+  for an approval or an answer marked it as seen, so after switching tabs nothing said it was still
+  stuck. It now stays flagged until you type into it or the agent moves on; finished turns and
+  errors are still cleared once seen.
+- **Cursor CLI's approval menus** (*Run this command?*, ending in *Skip & tell the agent what to do
+  instead*) mark the session as waiting and notify; it showed as idle.
+- **`agenterm msg send all` skips shells.** They never read messages by themselves, so a broadcast
+  stayed in their Messages tab for good. Name a shell to write to it.
 
 ## [0.7.0] - 2026-11-18
 
