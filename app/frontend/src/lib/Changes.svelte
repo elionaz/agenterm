@@ -11,6 +11,7 @@
   import { api, errorMessage, type DiffFile, type DiffResult, type LossInfo, type PRResult } from './api'
   import { locale, t, th } from './i18n.svelte'
   import PullRequest from './PullRequest.svelte'
+  import { joinNames } from './shared'
 
   interface Props {
     /** What to diff: a session, or a worktree without one. */
@@ -18,6 +19,8 @@
     worktreeId?: string
     /** A live session uses the worktree (it cannot be removed). */
     live?: boolean
+    /** The other live sessions working in the same project folder. */
+    sharedWith?: string[]
     /** Changes whenever the daemon reports new git info: reload. */
     gitStamp?: string
     /** Changes when the branch moves (checkout, commits ahead): reloads the
@@ -33,7 +36,7 @@
     onClose?: () => void
   }
 
-  let { sessionId, worktreeId, live = false, gitStamp, prStamp, startRemove = false, onError, onRemoved, onClose }: Props = $props()
+  let { sessionId, worktreeId, live = false, sharedWith = [], gitStamp, prStamp, startRemove = false, onError, onRemoved, onClose }: Props = $props()
 
   const STYLE_KEY = 'agenterm.diffStyle'
   let diff = $state<DiffResult | null>(null)
@@ -323,6 +326,9 @@
     </span>
   </header>
 
+  {#if sharedWith.length && !isWorktree}
+    <div class="notice">{t('changes.shared', { n: sharedWith.length, names: joinNames(sharedWith) })}</div>
+  {/if}
   {#if diff?.branch}
     <PullRequest
       {sessionId}

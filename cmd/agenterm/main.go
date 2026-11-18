@@ -356,6 +356,15 @@ func cmdSpawn(ctx context.Context, c *client.Client, args []string) error {
 		return nil
 	}
 	fmt.Println(info.ID)
+	// Only a note on stderr (stdout stays the id), for agents: best effort.
+	if info.ProfileID == shellProfile {
+		return nil
+	}
+	if ss, err := c.Sessions(ctx); err == nil {
+		if note := sharedNote(folderSharers(ss, info.ProjectID, info.ID)); note != "" {
+			fmt.Fprintln(os.Stderr, note)
+		}
+	}
 	return nil
 }
 

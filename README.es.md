@@ -173,6 +173,13 @@ deja permitir las notificaciones y explica cómo poner el comando `agenterm` en 
 y si corre en la misma carpeta o en un worktree nuevo; **⌘N** lanza el primer agente de la lista.
 Cuando un agente te necesita verás un punto ámbar en la sidebar y una notificación.
 
+**Varios agentes en un proyecto.** Las sesiones en la carpeta del proyecto comparten su rama y sus
+cambios: lo que edita o commitea un agente lo ven los demás, y un cambio de rama los mueve a todos.
+Dale a cada agente su propio **worktree** para mantener su trabajo aparte; si ya hay otro agente
+trabajando en la carpeta, el menú **+** (y ⌘N) elige un worktree nuevo por ti. El trabajo vuelve con
+**Merge a la base** o **Crear pull request** en la pestaña Cambios. Más en
+[docs/es/worktrees.md](docs/es/worktrees.md#varios-agentes-en-un-proyecto).
+
 **CLI.** Cualquier comando arranca el daemon si no está corriendo:
 
 ```sh

@@ -135,6 +135,14 @@ export const es: Dict = {
   'sidebar.checkingGit': 'comprobando git…',
   'sidebar.unavailable': 'No disponible: {reason}',
   'sidebar.ownBranch': 'rama propia, carpeta aparte',
+  'sidebar.sharedHint': {
+    one: '{names} ya está trabajando en esta carpeta: en un worktree cada agente tiene su propia rama y sus cambios.',
+    other: '{names} ya están trabajando en esta carpeta: en un worktree cada agente tiene su propia rama y sus cambios.',
+  },
+  'sidebar.sharedTitle': {
+    one: '{n} archivo cambiado en la carpeta del proyecto, compartida con {names}',
+    other: '{n} archivos cambiados en la carpeta del proyecto, compartida con {names}',
+  },
   'sidebar.branch': 'Rama',
   'sidebar.base': 'Base',
   'sidebar.current': ' (actual)',
@@ -275,6 +283,10 @@ export const es: Dict = {
   'changes.removeOfferNo': 'Conservar',
   'changes.cancel': 'Cancelar',
   'changes.removeInfo': 'Se borra la carpeta del worktree. Tu carpeta del proyecto no se toca.',
+  'changes.shared': {
+    one: 'Carpeta compartida: {names} también trabaja aquí, con la misma rama y los mismos cambios. Para trabajar por separado, abre la siguiente sesión en un worktree nuevo.',
+    other: 'Carpeta compartida: {names} también trabajan aquí, con la misma rama y los mismos cambios. Para trabajar por separado, abre la siguiente sesión en un worktree nuevo.',
+  },
   'changes.removeInfoDir': 'Se borra la carpeta del worktree ({dir}). Tu carpeta del proyecto no se toca.',
   'changes.deleteBranch': 'Borrar también la rama {branch}',
   'changes.checkingLoss': 'Comprobando qué se perdería…',

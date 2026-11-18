@@ -9,6 +9,28 @@ Todo va por la CLI de `git` (con timeouts; nunca libgit2). Las consultas de solo
 `GIT_OPTIONAL_LOCKS=0`, así que nunca toman `index.lock` mientras el agente usa git en la misma
 carpeta.
 
+## Varios agentes en un proyecto
+
+Las sesiones en **la misma carpeta** comparten todo lo que git guarda por carpeta: la rama actual,
+los cambios sin commitear y el índice. Lo que edita o commitea un agente lo ven los demás; si uno
+cambia de rama, hace stash o commitea, se lleva el trabajo a medias de los otros. El **±N** de la
+barra lateral y la pestaña Cambios muestran esa carpeta, así que todas las sesiones de ahí muestran
+los mismos archivos.
+
+Para agentes trabajando en paralelo, dale a cada uno su propio **worktree**:
+
+- En un repositorio git, si ya hay un agente (no terminado ni suspendido) trabajando en la carpeta
+  del proyecto, el menú **+** elige **Worktree nuevo** para el siguiente agente y dice qué sesión está
+  ahí; igual puedes elegir **Misma carpeta**. **⌘N** y dividir un panel (⌘D) hacen lo mismo. La
+  sugerencia no se recuerda como el modo del proyecto. Un **Shell** simple ni cuenta ni recibe la
+  sugerencia: una terminal junto a un agente en su carpeta está bien.
+- Una sesión que sí comparte la carpeta lo dice: la pestaña Cambios muestra *Carpeta compartida* con
+  los otros agentes, y también el tooltip del **±N**.
+- `agenterm spawn` sin `--worktree` avisa en stderr cuando la sesión nueva comparte la carpeta
+  (stdout sigue siendo solo el id).
+
+El trabajo de cada worktree vuelve con **Merge a la base** o **Crear pull request** (abajo).
+
 ## Modos de una sesión
 
 - **Misma carpeta** (`same`, por defecto): el agente trabaja en la carpeta del proyecto.

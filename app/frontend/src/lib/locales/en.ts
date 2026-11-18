@@ -156,6 +156,14 @@ export const en = {
   'sidebar.checkingGit': 'checking git…',
   'sidebar.unavailable': 'Unavailable: {reason}',
   'sidebar.ownBranch': 'own branch, separate folder',
+  'sidebar.sharedHint': {
+    one: '{names} is already working in this folder: in a worktree each agent gets its own branch and changes.',
+    other: '{names} are already working in this folder: in a worktree each agent gets its own branch and changes.',
+  },
+  'sidebar.sharedTitle': {
+    one: '{n} file changed in the project folder, shared with {names}',
+    other: '{n} files changed in the project folder, shared with {names}',
+  },
   'sidebar.branch': 'Branch',
   'sidebar.base': 'Base',
   'sidebar.current': ' (current)',
@@ -300,6 +308,10 @@ export const en = {
   'changes.removeOfferNo': 'Keep',
   'changes.cancel': 'Cancel',
   'changes.removeInfo': 'The worktree folder is deleted. Your project folder is not touched.',
+  'changes.shared': {
+    one: 'Shared folder: {names} also works here, on the same branch and the same changes. To work apart, start the next session in a new worktree.',
+    other: 'Shared folder: {names} also work here, on the same branch and the same changes. To work apart, start the next session in a new worktree.',
+  },
   'changes.removeInfoDir': 'The worktree folder ({dir}) is deleted. Your project folder is not touched.',
   'changes.deleteBranch': 'Also delete branch {branch}',
   'changes.checkingLoss': 'Checking what would be lost…',

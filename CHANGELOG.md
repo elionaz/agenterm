@@ -15,6 +15,12 @@ releases may include breaking changes.
   creating one with a title and description suggested from the commits. It runs through your own
   `gh` / `glab` login (agenterm stores no tokens); without it Changes says how to set it up and
   keeps the push-and-open-the-page flow.
+- **Several agents in one project**: when an agent is already working in the project folder, the
+  **+** menu, ⌘N and split panes pick a new worktree for the next one (each agent gets its own
+  branch and changes) and say which session is there; **Same folder** is still one click away. Sessions that
+  do share the folder say so in the Changes tab and the **±N** tooltip, and `agenterm spawn` prints
+  a note on stderr. README and [docs/worktrees.md](docs/worktrees.md#several-agents-in-one-project)
+  explain what the folder's sessions share.
 
 ### Changed
 

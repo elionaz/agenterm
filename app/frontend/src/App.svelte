@@ -61,6 +61,7 @@
     type WorktreeInfo,
     type DaemonStatus,
   } from './lib/api'
+  import { SHELL_PROFILE, folderSharers, inProjectFolder } from './lib/shared'
 
   let projects = $state<Project[]>([])
   let sessions = $state<Session[]>([])
@@ -311,7 +312,12 @@
       showError(t('panes.noProfile'))
       return
     }
-    const mode = cur ? (cur.mode === 'worktree' ? 'worktree' : 'same') : await defaultModeFor(pid)
+    // Like the current session, but a second agent in a busy project folder
+    // gets a worktree (defaultModeFor), as with the + menu.
+    let mode: SpawnMode
+    if (cur?.mode === 'worktree') mode = 'worktree'
+    else if (cur && (prof.id === SHELL_PROFILE || !folderSharers(sessions, pid).length)) mode = 'same'
+    else mode = await defaultModeFor(pid, prof.id)
     const { cols, rows } = splitSize(dir)
     const info = await guard(api.spawn(pid, prof.id, cols, rows, { mode }))
     if (!info) return
@@ -831,10 +837,13 @@
     }
   }
 
-  /** The remembered (or default) mode, but like the + menu, the same
-   * folder when the project cannot use worktrees (not a git repo…). */
-  async function defaultModeFor(projectId: string): Promise<SpawnMode> {
-    const mode = rememberedMode(projectId, defaultMode)
+  /** The remembered (or default) mode, but like the + menu: a worktree when
+   * another agent already works in the project folder (unless it's a plain
+   * shell being started), and the same folder when the project cannot use
+   * worktrees (not a git repo…). */
+  async function defaultModeFor(projectId: string, profileId: string): Promise<SpawnMode> {
+    const busy = profileId !== SHELL_PROFILE && folderSharers(sessions, projectId).length > 0
+    const mode = busy ? 'worktree' : rememberedMode(projectId, defaultMode)
     if (mode === 'worktree') {
       const g = await api.projectGit(projectId).catch(() => null)
       if (!g?.isRepo || g.error) return 'same'
@@ -843,7 +852,7 @@
   }
 
   async function spawnDefault(projectId: string, profileId: string) {
-    await spawn(projectId, profileId, { mode: await defaultModeFor(projectId) })
+    await spawn(projectId, profileId, { mode: await defaultModeFor(projectId, profileId) })
   }
 
   function focusFromNotification(id: string) {
@@ -1000,6 +1009,7 @@
                   <Changes
                     sessionId={selected.id}
                     live={selected.state !== 'exited'}
+                    sharedWith={inProjectFolder(selected) ? folderSharers(sessions, selected.projectId, selected.id).map(sessionTitle) : []}
                     gitStamp={selected.git ? `${selected.git.head ?? ''}|${selected.git.files}|${selected.git.uncommitted}|${selected.git.ahead}` : ''}
                     prStamp={selected.git ? `${selected.git.head ?? ''}|${selected.git.ahead}` : ''}
                     onError={showError}
