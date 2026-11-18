@@ -627,6 +627,7 @@ func (s *Server) kill(id string) (protocol.SessionInfo, error) {
 		s.mu.Unlock()
 		info := s.sessionInfo(sess)
 		s.setName(id, "")
+		s.forgetMessages(sess)
 		s.bus.publish(protocol.Event{Type: protocol.EventSessionRemoved, SessionID: id, At: time.Now().UTC()})
 		return info, nil
 	}

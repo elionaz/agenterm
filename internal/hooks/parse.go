@@ -256,3 +256,17 @@ func clipTo(s string, n int) string {
 	}
 	return s
 }
+
+// ClaudeEvent is the hook_event_name of a Claude Code payload and, for
+// Stop, whether Claude is already continuing because of a Stop hook
+// (stop_hook_active: blocking again could loop).
+func ClaudeEvent(payload []byte) (event string, stopActive bool) {
+	var p struct {
+		HookEventName  string `json:"hook_event_name"`
+		StopHookActive bool   `json:"stop_hook_active"`
+	}
+	if json.Unmarshal(payload, &p) != nil {
+		return "", false
+	}
+	return p.HookEventName, p.StopHookActive
+}

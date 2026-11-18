@@ -212,6 +212,13 @@ func normRestore(v string) string {
 	return RestoreAsk
 }
 
+// Messages configures messages between sessions (agenterm msg).
+type Messages struct {
+	// Enabled: sessions may send each other messages, and agent hooks
+	// deliver them.
+	Enabled bool `json:"enabled"`
+}
+
 // Settings is the parsed file.
 type Settings struct {
 	Notify   Notify   `json:"notify"`
@@ -220,6 +227,11 @@ type Settings struct {
 	UI       UI       `json:"ui"`
 	Sessions Sessions `json:"sessions"`
 	Terminal Terminal `json:"terminal"`
+	Messages Messages `json:"messages"`
+}
+
+type fileMessages struct {
+	Enabled *bool `yaml:"enabled"`
 }
 
 type fileNotify struct {
@@ -270,6 +282,7 @@ type file struct {
 	UI       fileUI       `yaml:"ui"`
 	Sessions fileSessions `yaml:"sessions"`
 	Terminal fileTerminal `yaml:"terminal"`
+	Messages fileMessages `yaml:"messages"`
 }
 
 const header = "# agenterm settings (see README)\n"
@@ -308,6 +321,7 @@ func Save(path string, s Settings) error {
 	setKey(root, []string{"ui", "language"}, i18n.NormalizeSetting(s.UI.Language), "!!str")
 	setKey(root, []string{"ui", "appearance"}, normAppearance(s.UI.Appearance), "!!str")
 	setKey(root, []string{"sessions", "restore"}, normRestore(s.Sessions.Restore), "!!str")
+	setKey(root, []string{"messages", "enabled"}, b(s.Messages.Enabled), "!!bool")
 	term := normTerminal(s.Terminal)
 	setKey(root, []string{"terminal", "font_family"}, term.FontFamily, "!!str")
 	setKey(root, []string{"terminal", "font_size"}, strconv.Itoa(term.FontSize), "!!int")
@@ -377,6 +391,7 @@ func Defaults() Settings {
 		UI:       UI{Language: i18n.Auto, Appearance: AppearanceSystem},
 		Sessions: Sessions{Restore: RestoreAsk},
 		Terminal: normTerminal(Terminal{}),
+		Messages: Messages{Enabled: true},
 	}
 }
 
@@ -417,6 +432,7 @@ func Parse(data []byte) (Settings, error) {
 	set(&s.Notify.Sound, f.Notify.Sound)
 	set(&s.Notify.OnDone, f.Notify.OnDone)
 	set(&s.Notify.OnStall, f.Notify.OnStall)
+	set(&s.Messages.Enabled, f.Messages.Enabled)
 	if f.Notify.Fallback != nil {
 		s.Notify.Fallback = normFallback(*f.Notify.Fallback)
 	}

@@ -1,0 +1,372 @@
+package daemon
+
+import (
+	"errors"
+	"net"
+	"path/filepath"
+	"slices"
+	"strings"
+	"time"
+
+	"golang.org/x/sys/unix"
+
+	"github.com/elionaz/agenterm/internal/apierr"
+	"github.com/elionaz/agenterm/internal/i18n"
+	"github.com/elionaz/agenterm/internal/mailbox"
+	"github.com/elionaz/agenterm/internal/peercred"
+	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/agenterm/internal/session"
+	"github.com/elionaz/agenterm/internal/settings"
+)
+
+// Messages between the sessions of a project (msg.*). Who sends is never
+// taken from the request: a call from a process inside a session (its
+// PTY's session, or a descendant) is from that session; anything else (the
+// app, a terminal outside agenterm) is from the user. Messages are
+// delivered by agent hooks (msg.take from `notify --from-hook`), by
+// `agenterm msg read`, or nudged by the user (msg.deliver, which types a
+// fixed line, never the message, into the recipient's terminal).
+
+// maxAncestors bounds the walk up a caller's process tree.
+const maxAncestors = 32
+
+// callerSession is the live session conn's peer runs in, nil for none.
+func (s *Server) callerSession(conn net.Conn) *session.Session {
+	pid, err := peercred.PeerPID(conn)
+	if err != nil || pid <= 1 {
+		return nil
+	}
+	byPid := make(map[int]*session.Session)
+	s.mu.Lock()
+	for _, sess := range s.sessions {
+		if sess.Pid > 0 && !sess.Suspended() {
+			if _, exited := sess.ExitCode(); !exited {
+				byPid[sess.Pid] = sess
+			}
+		}
+	}
+	s.mu.Unlock()
+	if len(byPid) == 0 {
+		return nil
+	}
+	// A session's process leads its own (PTY) session: what runs in it
+	// shares that session id, unless it started one of its own.
+	if sid, err := unix.Getsid(pid); err == nil {
+		if sess := byPid[sid]; sess != nil {
+			return sess
+		}
+	}
+	for i, p := 0, pid; i < maxAncestors && p > 1; i++ {
+		if sess := byPid[p]; sess != nil {
+			return sess
+		}
+		proc, err := peercred.Lookup(p)
+		if err != nil {
+			return nil
+		}
+		p = proc.PPID
+	}
+	return nil
+}
+
+func (s *Server) messagesEnabled() bool {
+	st, _ := settings.Load(s.cfg.Paths.Settings())
+	return st.Messages.Enabled
+}
+
+// handleMsg serves a msg.* request (they need the connection: the caller).
+func (s *Server) handleMsg(conn net.Conn, req protocol.Request) (any, error) {
+	caller := s.callerSession(conn)
+	switch req.Method {
+	case protocol.MethodMsgPeers:
+		p, err := decode[protocol.MsgPeersParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.msgPeers(caller, p.SessionID)
+	case protocol.MethodMsgSend:
+		p, err := decode[protocol.MsgSendParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.msgSend(caller, p)
+	case protocol.MethodMsgList:
+		p, err := decode[protocol.MsgListParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		f := mailbox.Filter{Session: p.SessionID, ProjectID: p.ProjectID, PendingOnly: p.PendingOnly}
+		if caller != nil {
+			f = mailbox.Filter{Session: caller.ID, PendingOnly: p.PendingOnly}
+		}
+		return protocol.MsgList{Messages: s.mail.List(f)}, nil
+	case protocol.MethodMsgTake:
+		p, err := decode[protocol.MsgTakeParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.msgTake(caller, p)
+	case protocol.MethodMsgDeliver:
+		p, err := decode[protocol.MsgDeliverParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.msgDeliver(caller, p.SessionID)
+	}
+	return nil, apierr.New(apierr.UnknownMethod, map[string]string{"method": req.Method}, "unknown method %q", req.Method)
+}
+
+// displayName is how a session is named to other sessions: its user-given
+// name, else its profile.
+func (s *Server) displayName(sess *session.Session) string {
+	if n := s.sessionName(sess.ID); n != "" {
+		return n
+	}
+	return sess.ProfileID
+}
+
+// projectSessions are the sessions of projectID that are not exited, in
+// the sidebar's order.
+func (s *Server) projectSessions(projectID string) []*session.Session {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []*session.Session
+	for _, id := range s.order {
+		sess := s.sessions[id]
+		if sess == nil || sess.ProjectID != projectID {
+			continue
+		}
+		if _, exited := sess.ExitCode(); exited && !sess.Suspended() {
+			continue
+		}
+		out = append(out, sess)
+	}
+	return out
+}
+
+func (s *Server) msgPeer(sess *session.Session, self *session.Session) protocol.MsgPeer {
+	p := protocol.MsgPeer{ID: sess.ID, Name: s.displayName(sess), ProfileID: sess.ProfileID, State: string(sess.State()),
+		Activity: sess.Live().Activity}
+	if sess.Suspended() {
+		p.State = "suspended"
+	}
+	g, sg := s.sessionGit(sess.ID), (*sessGit)(nil)
+	if self != nil {
+		sg = s.sessionGit(self.ID)
+	}
+	if g != nil {
+		p.Mode, p.Branch = g.Mode, g.Branch
+		p.SameFolder = sg != nil && filepath.Clean(sg.Dir) == filepath.Clean(g.Dir)
+	}
+	return p
+}
+
+func (s *Server) msgPeers(caller *session.Session, sessionID string) (protocol.MsgPeers, error) {
+	ref := caller
+	if ref == nil {
+		if sessionID == "" {
+			return protocol.MsgPeers{}, apierr.New(apierr.MsgNotInSession, nil,
+				"not inside an agenterm session: name one (--session) to see its project")
+		}
+		sess, err := s.lookup(sessionID)
+		if err != nil {
+			return protocol.MsgPeers{}, err
+		}
+		ref = sess
+	}
+	out := protocol.MsgPeers{ProjectID: ref.ProjectID, ProjectName: ref.ProjectName, Peers: []protocol.MsgPeer{}, Enabled: s.messagesEnabled()}
+	for _, sess := range s.projectSessions(ref.ProjectID) {
+		p := s.msgPeer(sess, caller)
+		if caller != nil && sess.ID == caller.ID {
+			p.SameFolder = false
+			out.Self = &p
+			continue
+		}
+		out.Peers = append(out.Peers, p)
+	}
+	return out, nil
+}
+
+// resolveTo finds the recipients of a message from (nil: the user) in
+// projectID: a session id, a display name unique in the project (any
+// case), or "all".
+func (s *Server) resolveTo(from *session.Session, projectID, to string) ([]*session.Session, error) {
+	to = strings.TrimSpace(to)
+	if to == "" {
+		return nil, apierr.New(apierr.MsgNoSession, map[string]any{"to": to}, "say who the message is for (a session id, a name or all)")
+	}
+	if sess, err := s.lookup(to); err == nil {
+		if _, exited := sess.ExitCode(); exited && !sess.Suspended() {
+			return nil, apierr.New(apierr.MsgNoSession, map[string]any{"to": to}, "session %s has exited", to)
+		}
+		if projectID != "" && sess.ProjectID != projectID {
+			return nil, apierr.New(apierr.MsgOtherProject, map[string]any{"to": to},
+				"session %s is in another project: messages stay within a project", to)
+		}
+		if from != nil && sess.ID == from.ID {
+			return nil, apierr.New(apierr.MsgNoSession, map[string]any{"to": to}, "that is this session")
+		}
+		return []*session.Session{sess}, nil
+	}
+	if projectID == "" {
+		return nil, apierr.New(apierr.MsgNoSession, map[string]any{"to": to}, "no session %q", to)
+	}
+	var out []*session.Session
+	for _, sess := range s.projectSessions(projectID) {
+		if from != nil && sess.ID == from.ID {
+			continue
+		}
+		if strings.EqualFold(to, "all") || strings.EqualFold(s.displayName(sess), to) {
+			out = append(out, sess)
+		}
+	}
+	switch {
+	case len(out) == 0 && strings.EqualFold(to, "all"):
+		return nil, apierr.New(apierr.MsgNoSession, map[string]any{"to": to}, "there are no other sessions in this project")
+	case len(out) == 0:
+		return nil, apierr.New(apierr.MsgNoSession, map[string]any{"to": to},
+			"no session of this project is called %q (agenterm msg peers lists them)", to)
+	case len(out) > 1 && !strings.EqualFold(to, "all"):
+		ids := make([]string, len(out))
+		for i, sess := range out {
+			ids[i] = sess.ID
+		}
+		return nil, apierr.New(apierr.MsgAmbiguous, map[string]any{"to": to, "ids": ids},
+			"%d sessions are called %q: use the id (%s)", len(out), to, strings.Join(ids, ", "))
+	}
+	return out, nil
+}
+
+func (s *Server) msgSend(caller *session.Session, p protocol.MsgSendParams) (protocol.MsgList, error) {
+	if !s.messagesEnabled() {
+		return protocol.MsgList{}, apierr.New(apierr.MsgDisabled, nil, "messages between sessions are off (Settings › Messages)")
+	}
+	body := strings.TrimSpace(p.Body)
+	if body == "" {
+		return protocol.MsgList{}, mailbox.ErrEmpty
+	}
+	projectID, from, fromName := p.ProjectID, mailbox.User, ""
+	if caller != nil {
+		projectID, from, fromName = caller.ProjectID, caller.ID, s.displayName(caller)
+	}
+	to, err := s.resolveTo(caller, projectID, p.To)
+	if err != nil {
+		return protocol.MsgList{}, err
+	}
+	out := protocol.MsgList{Messages: []mailbox.Message{}}
+	for _, sess := range to {
+		m, err := s.mail.Add(mailbox.Message{ProjectID: sess.ProjectID, From: from, FromName: fromName,
+			To: sess.ID, ToName: s.displayName(sess), Body: body})
+		if err != nil {
+			return out, err
+		}
+		out.Messages = append(out.Messages, m)
+		s.log.Info("message sent", "id", m.ID, "from", from, "to", sess.ID, "bytes", len(m.Body))
+		s.publishMessages(sess.ProjectID, sess.ID)
+	}
+	if caller != nil {
+		s.publishMessages(caller.ProjectID, caller.ID)
+	}
+	return out, nil
+}
+
+func (s *Server) msgTake(caller *session.Session, p protocol.MsgTakeParams) (protocol.MsgTakeResult, error) {
+	if caller == nil {
+		return protocol.MsgTakeResult{}, apierr.New(apierr.MsgNotInSession, nil,
+			"only a session can read its messages: run it inside an agenterm session")
+	}
+	res := protocol.MsgTakeResult{Messages: []mailbox.Message{}, Enabled: s.messagesEnabled(), Self: caller.ID}
+	if !res.Enabled {
+		return res, nil
+	}
+	ms, err := s.mail.Take(caller.ID)
+	if err != nil {
+		return res, err
+	}
+	if len(ms) > 0 {
+		res.Messages = ms
+		s.log.Info("messages delivered", "to", caller.ID, "count", len(ms))
+		s.publishMessages(caller.ProjectID, caller.ID)
+		for _, from := range senders(ms) {
+			s.publishMessages(caller.ProjectID, from)
+		}
+	}
+	if p.Intro {
+		if peers, err := s.msgPeers(caller, ""); err == nil {
+			res.Peers = &peers
+		}
+	}
+	return res, nil
+}
+
+// senders are the distinct session senders of ms.
+func senders(ms []mailbox.Message) []string {
+	var out []string
+	for _, m := range ms {
+		if m.From != mailbox.User && !slices.Contains(out, m.From) {
+			out = append(out, m.From)
+		}
+	}
+	return out
+}
+
+// shells are commands that would run the nudge line as a command.
+var shells = map[string]bool{"sh": true, "bash": true, "zsh": true, "fish": true, "dash": true, "ksh": true, "tcsh": true, "csh": true, "nu": true}
+
+func isShell(sess *session.Session) bool {
+	return sess.ProfileID == "shell" || shells[filepath.Base(sess.Cmd)]
+}
+
+// nudgeGap separates the nudge's text from its Enter, so an agent's TUI
+// takes them as typing and a submit rather than one pasted chunk.
+const nudgeGap = 150 * time.Millisecond
+
+// errNotAgent: msg.deliver to a shell.
+var errNotAgent = errors.New("this session is a shell: read its messages in the app")
+
+func (s *Server) msgDeliver(caller *session.Session, id string) (map[string]any, error) {
+	if caller != nil {
+		return nil, apierr.New(apierr.MsgFromSession, nil, "only the user can nudge a session, not another session")
+	}
+	sess, err := s.lookup(id)
+	if err != nil {
+		return nil, err
+	}
+	n := s.mail.Pending(sess.ID)
+	if n == 0 {
+		return map[string]any{"pending": 0}, nil
+	}
+	if isShell(sess) {
+		return nil, errNotAgent
+	}
+	st, _ := settings.Load(s.cfg.Paths.Settings())
+	line := i18n.T(st.UI.Lang(), i18n.MsgNudgeOne)
+	if n > 1 {
+		line = i18n.T(st.UI.Lang(), i18n.MsgNudgeMany, n)
+	}
+	if _, err := sess.Write([]byte(line)); err != nil {
+		return nil, err
+	}
+	time.Sleep(nudgeGap)
+	if _, err := sess.Write([]byte("\r")); err != nil {
+		return nil, err
+	}
+	s.log.Info("messages nudged", "to", sess.ID, "pending", n)
+	return map[string]any{"pending": n}, nil
+}
+
+func (s *Server) publishMessages(projectID, sessionID string) {
+	s.bus.publish(protocol.Event{Type: protocol.EventMessages, SessionID: sessionID, ProjectID: projectID,
+		MsgPending: s.mail.Pending(sessionID), At: time.Now().UTC()})
+}
+
+// forgetMessages drops what was still waiting for a session that is gone
+// for good (delivered messages stay as the project's history).
+func (s *Server) forgetMessages(sess *session.Session) {
+	if n, err := s.mail.DropTo(sess.ID); err != nil {
+		s.log.Warn("messages", "err", err)
+	} else if n > 0 {
+		s.log.Info("pending messages dropped", "to", sess.ID, "count", n)
+		s.publishMessages(sess.ProjectID, sess.ID)
+	}
+}

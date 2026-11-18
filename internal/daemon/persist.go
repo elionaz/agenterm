@@ -488,6 +488,7 @@ func (s *Server) discard(id string) (protocol.SessionInfo, error) {
 	s.mu.Unlock()
 	s.forgetGit(id)
 	s.setName(id, "")
+	s.forgetMessages(sess)
 	sess.Release()
 	s.dropPersisted(id)
 	s.log.Info("suspended session discarded", "id", id)

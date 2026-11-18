@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/elionaz/agenterm/internal/apierr"
+	"github.com/elionaz/agenterm/internal/mailbox"
 	"github.com/elionaz/agenterm/internal/paths"
 	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/project"
@@ -103,6 +104,9 @@ type Server struct {
 
 	gitState
 
+	// mail holds the messages between sessions (messages.go).
+	mail *mailbox.Store
+
 	connMu sync.Mutex
 	conns  map[net.Conn]struct{}
 	wg     sync.WaitGroup
@@ -155,6 +159,10 @@ func New(cfg Config) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	mail, err := mailbox.Open(cfg.Paths.Messages())
+	if err != nil {
+		return nil, err
+	}
 	bg, bgCancel := context.WithCancel(context.Background())
 	return &Server{
 		gitState: gitState{wts: wts, git: make(map[string]sessGit), gitCache: make(map[string]*gitEntry),
@@ -171,6 +179,7 @@ func New(cfg Config) (*Server, error) {
 		resuming: make(map[string]bool),
 		names:    make(map[string]string),
 		store:    store,
+		mail:     mail,
 		saved:    make(map[string]int64),
 		conns:    make(map[net.Conn]struct{}),
 		stop:     make(chan struct{}),
@@ -314,6 +323,13 @@ func (s *Server) serveConn(conn net.Conn) {
 				return
 			}
 			continue
+		case protocol.MethodMsgPeers, protocol.MethodMsgSend, protocol.MethodMsgList, protocol.MethodMsgTake, protocol.MethodMsgDeliver:
+			// Need the connection (the caller is who sends or reads).
+			result, err := s.handleMsg(conn, req)
+			if werr := writeResponse(conn, req.ID, result, err); werr != nil {
+				return
+			}
+			continue
 		case protocol.MethodSessionAttach:
 			s.handleAttach(conn, br, req)
 			return
@@ -383,6 +399,7 @@ func (s *Server) sessionInfo(sess *session.Session) protocol.SessionInfo {
 	info := sessionInfo(sess)
 	info.Name = s.sessionName(sess.ID)
 	info.ProjectName = s.projectName(sess.ProjectID, sess.ProjectName)
+	info.MsgPending = s.mail.Pending(sess.ID)
 	if g := s.sessionGit(sess.ID); g != nil {
 		info.Mode, info.WorktreeID, info.Branch, info.Base = g.Mode, g.WorktreeID, g.Branch, g.Base
 		if g.Mode == protocol.ModeWorktree {

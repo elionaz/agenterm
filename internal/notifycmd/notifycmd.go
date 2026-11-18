@@ -52,7 +52,7 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return err
 	}
 	if *fromHook != "" {
-		if err := runHook(*fromHook, *id, *sock, fs.Args(), stdin); err != nil {
+		if err := runHook(*fromHook, *id, *sock, fs.Args(), stdin, stdout); err != nil {
 			fmt.Fprintln(stderr, "agenterm notify:", err)
 		}
 		return nil
@@ -97,7 +97,7 @@ func stateForKind(k status.Kind) string {
 	return ""
 }
 
-func runHook(agent, id, sock string, rest []string, stdin io.Reader) error {
+func runHook(agent, id, sock string, rest []string, stdin io.Reader, stdout io.Writer) error {
 	if id == "" {
 		return nil // not an agenterm session: nothing to report
 	}
@@ -118,8 +118,34 @@ func runHook(agent, id, sock string, rest []string, stdin io.Reader) error {
 	// The agent's own session id lets a restarted daemon resume the
 	// conversation; events without a state (SessionStart) carry only that.
 	ref, transcript := hooks.SessionRef(agent, payload)
+	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	defer cancel()
+	// Messages from other sessions (Claude only: its hooks can add to the
+	// conversation). The daemon knows this session from the connection.
+	var out []byte
+	var inboxErr error
+	if agent == hooks.AgentClaude {
+		if event, stopActive := hooks.ClaudeEvent(payload); inboxEvent(event) {
+			c, err := hookClient(sock)
+			if err == nil {
+				var r protocol.MsgTakeResult
+				if r, err = c.MsgTake(ctx, event == evSessionStart); err == nil {
+					out = claudeOutput(event, stopActive, r)
+				}
+			}
+			inboxErr = err
+			if event == evStop && out != nil {
+				ok = false // the turn goes on: not idle
+			}
+		}
+	}
+	if out != nil {
+		if _, err := stdout.Write(out); err != nil {
+			return err
+		}
+	}
 	if !ok && ref == "" {
-		return nil
+		return inboxErr
 	}
 	p := protocol.NotifyParams{SessionID: id}
 	if ok {
@@ -129,10 +155,10 @@ func runHook(agent, id, sock string, rest []string, stdin io.Reader) error {
 	if ref != "" {
 		p.Agent, p.AgentSessionID, p.TranscriptPath = agent, ref, transcript
 	}
-	ctx, cancel := context.WithDeadline(context.Background(), deadline)
-	defer cancel()
-	_, err = send(ctx, sock, p)
-	return err
+	if _, err = send(ctx, sock, p); err != nil {
+		return err
+	}
+	return inboxErr
 }
 
 // readBounded reads stdin until EOF, at most maxPayload bytes and d time.
@@ -157,11 +183,19 @@ func readBounded(r io.Reader, d time.Duration) ([]byte, error) {
 // send never starts a daemon: hooks must not spawn one. An explicit sock
 // (what generated hooks pass) wins over the environment.
 func send(ctx context.Context, sock string, p protocol.NotifyParams) (protocol.SessionInfo, error) {
+	c, err := hookClient(sock)
+	if err != nil {
+		return protocol.SessionInfo{}, err
+	}
+	return c.NotifyEvent(ctx, p)
+}
+
+func hookClient(sock string) (*client.Client, error) {
 	if sock == "" {
 		var err error
 		if sock, err = client.SocketFromEnv(); err != nil {
-			return protocol.SessionInfo{}, err
+			return nil, err
 		}
 	}
-	return client.New(sock).NotifyEvent(ctx, p)
+	return client.New(sock), nil
 }
