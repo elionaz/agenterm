@@ -127,10 +127,10 @@ notifications too.
 - Builds from source (`wails build`) don't include the updater.
 
 Sessions run in a background daemon that survives the app, so right after an update the daemon is
-still the old version: the window shows a banner with **Restart now**, which restarts the daemon
+still the old version. The app restarts it on its own when no agent is in the middle of a turn
 (the sessions running then are suspended and resumed, whatever `sessions.restore` says; sessions
-you had left suspended stay so). You can also do it later,
-or from a terminal with `agenterm stop --force`.
+you had left suspended stay so). If an agent is working, it shows a banner with **Restart now**
+instead, so you can do it when it suits you, or later from a terminal with `agenterm stop --force`.
 
 ## Uninstall
 

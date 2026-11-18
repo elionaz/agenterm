@@ -35,6 +35,7 @@
   import { arrangeWithin, moveBy } from './lib/reorder'
   import { shortcutOf, type Toward } from './lib/shortcuts'
   import { DEFAULT_FONT_SIZE, MAX_FONT_SIZE, MIN_FONT_SIZE, themeOf } from './lib/themes'
+  import { shouldAutoRestart } from './lib/daemon'
   import {
     availableUpdate,
     dismissUpdate,
@@ -495,13 +496,23 @@
       .catch(() => {})
     void api
       .daemonStatus()
-      .then((s) => (daemonOld = s.mismatch || s.newer ? s : null))
+      .then((s) => {
+        daemonOld = s.mismatch || s.newer ? s : null
+        // Right after an update: restart the old daemon unasked when no
+        // agent would be cut off (the banner shows "Restarting…").
+        if (shouldAutoRestart(s, busyCount, autoRestartTried)) {
+          autoRestartTried = true
+          void restartDaemon()
+        }
+      })
       .catch(() => {})
   }
 
   /** Agents in the middle of a turn, which a daemon restart interrupts. */
   const busyCount = $derived(sessions.filter((s) => s.state === 'running').length)
   let confirmRestart = $state(false)
+  /** The app already restarted an old daemon on its own this run. */
+  let autoRestartTried = false
 
   /** "Restart now": replace the old daemon; its sessions are resumed.
    * Asks first when agents are working. */
