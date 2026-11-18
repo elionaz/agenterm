@@ -14,6 +14,11 @@ releases may include breaking changes.
   for Claude Code, the prompts typed in each session, with secrets (API keys, tokens, private
   keys, `password=…`) replaced by `[redacted]`. On by default, with a preview; untick it to leave
   it out. Prompts go in code blocks, so their links and @mentions don't render or notify.
+- **Hermes Agent** in the catalog (`hermes --cli`). It shows up in the **+** menu only when the
+  `hermes` binary is installed and the profile stays enabled. The approval line
+  `[o]nce | [s]ession` marks the session as waiting. After a daemon restart, resume appends
+  `-c` (the latest session in that directory). `args`, `resume_args` and `enabled: false`
+  change or hide it; agenterm does not write `~/.hermes`.
 
 ### Fixed
 

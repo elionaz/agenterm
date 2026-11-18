@@ -40,6 +40,7 @@ found in the daemon's `PATH` or in your login shell's (`$SHELL -l -i -c`); that 
 | `qwen` | Qwen Code | `qwen` | `heuristic` | | |
 | `crush` | Crush | `crush` | `heuristic` | | |
 | `kiro` | Kiro CLI | `kiro-cli chat` | `heuristic` | | binary name not verified |
+| `hermes` | Hermes Agent | `hermes --cli` | `heuristic` | | attention pattern `\[o\]nce\s+\|\s+\[s\]ession`; resume appends `-c` (latest session in that directory). Only launches when `hermes` is installed and the profile is enabled; `args` / `resume_args` are overridable |
 | `shell` | Shell | `$SHELL` (or `/bin/sh`) | `heuristic` | | always available |
 
 - **status** (`status`): `hooks` = state is decided by explicit events (hooks / `notify`) and the
@@ -68,7 +69,7 @@ from before 0.4.0 are just the list, and are still read). Each entry has a requi
 | `setup_hooks` | `claude`, `codex` or `none` |
 | `idle_seconds` | seconds without output before going idle (overrides the daemon's value, 3 s) |
 | `attention_patterns` | regular expressions (Go syntax) over recent output with ANSI stripped; a match marks the session as waiting for your reply |
-| `resume_args` | arguments appended (after `args`) when a session of this profile is resumed after a daemon restart and there is no agent session id to resume; e.g. `["--continue"]`. The catalog sets it for opencode (`--continue`: the project's last session). claude and codex resume by id and only use it as a fallback. Not shown in the app's editor (saving from the app keeps it) |
+| `resume_args` | arguments appended (after `args`) when a session of this profile is resumed after a daemon restart and there is no agent session id to resume; e.g. `["--continue"]`. The catalog sets it for opencode (`--continue`) and Hermes (`-c`): the project's last session. claude and codex resume by id and only use it as a fallback. Not shown in the app's editor (saving from the app keeps it) |
 
 ### Merge rules
 

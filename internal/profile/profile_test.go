@@ -301,6 +301,10 @@ func TestAttentionPatterns(t *testing.T) {
 	if res, err := a.Patterns(); err != nil || !res[0].MatchString("Add file to the chat? (Y)es/(N)o/(D)on't ask again [Yes]:") {
 		t.Fatalf("aider patterns %v %v", res, err)
 	}
+	h := mustFind(t, Resolve(nil, nil), "hermes")
+	if res, err := h.Patterns(); err != nil || !res[0].MatchString("      [o]nce  |  [s]ession  |  [a]lways  |  [d]eny") {
+		t.Fatalf("hermes patterns %v %v", res, err)
+	}
 }
 
 func TestCatalogSanity(t *testing.T) {

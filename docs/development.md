@@ -348,9 +348,9 @@ On macOS the Inkscape CLI isn't on the `PATH`; it's at
 - The **Linux CLI** builds and is published, but is untested; there's no app or notifications there.
 - **A daemon restart (or a computer restart) kills the processes.** Sessions come back as
   `suspended`, with their scrollback, and are respawned on resume: Claude Code and codex continue
-  their conversation by id, opencode with `--continue` (the project's *last* session, which may not
-  be the same one if several run in one folder), other agents only with `resume_args`. A shell
-  comes back in its starting folder, without whatever was running in it. codex only reports its
+  their conversation by id, opencode with `--continue` and Hermes with `-c` (each project's *last*
+  session, which may not be the same one if several run in one folder), other agents only with
+  `resume_args`. A shell comes back in its starting folder, without whatever was running in it. codex only reports its
   thread id after the first turn, so a codex session that never finished a turn starts fresh.
 - **Scrollback persistence costs disk writes**: the whole ring (up to 8 MiB) is rewritten at most
   every 2 s per session while it produces output.
@@ -366,6 +366,11 @@ On macOS the Inkscape CLI isn't on the `PATH`; it's at
   which isn't always the most informative.
 - **Kiro CLI**: the binary name (`kiro-cli chat`) comes from its documentation and hasn't been
   verified against a real installation; you can fix it with `cmd:` in `profiles.yaml`.
+- **Hermes Agent** launches as `hermes --cli` and only from the **+** menu when the binary is
+  installed and the profile is enabled. The approval line `[o]nce | [s]ession` marks the session
+  as waiting. `args: ["--tui"]` or `args: []` replaces that default; `resume_args: []` skips the
+  `-c` reattach; `enabled: false` hides it. Closing the terminal detaches from Hermes's gateway
+  (the turn keeps running until `/exit` or Ctrl+D). agenterm does not write `~/.hermes`.
 - **`profiles.yaml` loses its comments** when the app saves it (it's rewritten in canonical form).
   `settings.yaml` keeps them.
 - Merging a worktree **doesn't stash**: the main folder must be clean and on the base branch.

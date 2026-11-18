@@ -92,6 +92,17 @@ var catalog = []CatalogEntry{
 	{ID: "kiro", Name: "Kiro CLI", Binaries: []string{"kiro-cli"}, Args: []string{"chat"}, Status: status.ModeHeuristic,
 		Homepage: "https://kiro.dev/cli",
 		Install:  "curl -fsSL https://cli.kiro.dev/install | bash"},
+	// Hermes Agent (Nous Research). `--cli` keeps the classic REPL even
+	// when the user set display.interface: tui. `-c` on resume reattaches
+	// the latest session in this directory. It only launches when `hermes`
+	// is installed and the profile stays enabled; args and resume_args
+	// are overridable from profiles.yaml.
+	{ID: "hermes", Name: "Hermes Agent", Binaries: []string{"hermes"}, Args: []string{"--cli"}, Status: status.ModeHeuristic,
+		// "      [o]nce  |  [s]ession  |  [a]lways  |  [d]eny"
+		AttentionPatterns: []string{`\[o\]nce\s+\|\s+\[s\]ession`},
+		ResumeArgs:        []string{"-c"},
+		Homepage:          "https://hermes-agent.nousresearch.com/",
+		Install:           "curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash"},
 	{ID: "shell", Name: "Shell", Cmd: "$SHELL", Status: status.ModeHeuristic},
 }
 
