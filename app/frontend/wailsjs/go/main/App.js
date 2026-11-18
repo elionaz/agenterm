@@ -214,6 +214,10 @@ export function SpawnIn(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['SpawnIn'](arg1, arg2, arg3, arg4, arg5);
 }
 
+export function StageDrops(arg1) {
+  return window['go']['main']['App']['StageDrops'](arg1);
+}
+
 export function SystemLanguage() {
   return window['go']['main']['App']['SystemLanguage']();
 }

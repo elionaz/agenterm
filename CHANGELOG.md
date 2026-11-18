@@ -7,6 +7,15 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Screenshots dragged from the floating thumbnail onto a terminal** reach Claude Code again. macOS
+  hands over a temporary file and deletes it as soon as the drag ends, so the typed path no longer
+  existed and Claude Code dropped the image without a word (Cursor Agent, which reads the path
+  later, seemed to work). agenterm now keeps the file the moment it is dropped, in
+  `~/.agenterm/drops/` (kept for a day), and types that path. Files dropped from Finder are typed
+  as before.
+
 ## [0.7.0] - 2026-11-18
 
 ### Added
