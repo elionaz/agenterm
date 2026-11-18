@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -649,6 +650,9 @@ func (s *Server) handleAttach(conn net.Conn, br *bufio.Reader, req protocol.Requ
 		writeResponse(conn, req.ID, nil, err)
 		return
 	}
+	// Input from a session (an agent running agenterm attach) is not the
+	// user acting: it doesn't reset automatic delivery's chain.
+	fromUser := s.callerSession(conn) == nil
 	if p.Cols > 0 && p.Rows > 0 {
 		_ = sess.Resize(p.Cols, p.Rows) // fails only if already exited
 	}
@@ -677,6 +681,12 @@ func (s *Server) handleAttach(conn net.Conn, br *bufio.Reader, req protocol.Requ
 			case protocol.FrameInput:
 				if _, err := sess.Write(f.Payload); err != nil && !sess.Suspended() {
 					return
+				}
+				if fromUser && bytes.IndexByte(f.Payload, '\r') >= 0 {
+					// The user submitted a prompt (not a newline in a draft).
+					if draft, _ := sess.Draft(); !draft {
+						s.userActed(sess.ID)
+					}
 				}
 			case protocol.FrameResize:
 				if cols, rows, err := protocol.ParseResize(f.Payload); err == nil {

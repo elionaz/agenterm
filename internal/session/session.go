@@ -118,7 +118,12 @@ type Session struct {
 	tail     []byte    // ANSI-free recent output, for patterns
 	tailAt   time.Time // last append
 	tailDirt bool      // appended since last pattern check
-	matched  string    // last line that matched (debounce)
+	// draft: what was typed last did not end with Enter (the agent's input
+	// line may hold unsent text); inputAt: when it was typed.
+	draft   bool
+	lastIn  byte // the last input byte (for "\" Enter split across writes)
+	inputAt time.Time
+	matched string // last line that matched (debounce)
 
 	act        tracker
 	lines      lineTracker
@@ -536,6 +541,37 @@ func (s *Session) OutputTotal() int64 { return s.ring.Total() }
 // RingCap is the scrollback capacity.
 func (s *Session) RingCap() int { return s.ring.Cap() }
 
+// Draft reports whether the input line may hold unsent text (what was last
+// typed was not a submit, see submits), and when input was last typed.
+func (s *Session) Draft() (draft bool, at time.Time) {
+	s.tailMu.Lock()
+	defer s.tailMu.Unlock()
+	return s.draft, s.inputAt
+}
+
+// submits reports whether input p, typed after a byte prev, leaves an
+// agent's input line empty: a lone Enter (CR), or Ctrl-C, which clears it.
+// LF (Shift+Enter in the app, Ctrl-J), Option+Enter (ESC CR) and "\" Enter
+// add a line to the draft instead. Anything else leaves a draft. Erring on
+// "draft" only holds automatic delivery back.
+func submits(prev byte, p []byte) bool {
+	if len(p) == 0 {
+		return false
+	}
+	last := p[len(p)-1]
+	if last == 0x03 {
+		return true
+	}
+	if last != '\r' {
+		return false
+	}
+	before := prev
+	if len(p) > 1 {
+		before = p[len(p)-2]
+	}
+	return before != 0x1b && before != '\\'
+}
+
 // Write sends input to the PTY. Input that is not just an automatic
 // terminal reply counts as the user answering: it acknowledges attention.
 func (s *Session) Write(p []byte) (int, error) {
@@ -551,6 +587,11 @@ func (s *Session) Write(p []byte) (int, error) {
 		s.status.Input()
 		s.tailMu.Lock()
 		s.tail, s.matched, s.tailDirt = s.tail[:0], "", false
+		if len(p) > 0 {
+			s.draft = !submits(s.lastIn, p)
+			s.lastIn = p[len(p)-1]
+			s.inputAt = time.Now()
+		}
 		s.tailMu.Unlock()
 	}
 	return s.ptmx.Write(p)

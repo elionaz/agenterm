@@ -48,7 +48,8 @@ tells you when one of them needs you.
   uses your own `gh` / `glab` login; agenterm stores no tokens.
 - **Messages between sessions**: the agents of a project can write to each other
   (`agenterm msg send`, `agenterm wait`); Claude Code gets its messages by itself, other agents
-  read them with `agenterm msg read` or get a nudge from the **Messages** tab. Messages never leave
+  read them with `agenterm msg read` or get a nudge from the **Messages** tab (optionally automatic
+  for idle Claude sessions). Messages never leave
   their project and the daemon decides who sent each one.
 - **In-app settings**: enable, reorder and edit agents, and configure the language, appearance,
   notifications and git.
