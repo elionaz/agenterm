@@ -9,6 +9,9 @@ releases may include breaking changes.
 
 ### Changed
 
+- **The overview has its own row** at the top of the sidebar (**Overview ⌘0**, highlighted while
+  open) instead of a ▦ glyph in the title bar that sat off its line and said nothing. The project
+  rows' overview button gets the same drawn icon.
 - **After an update the app restarts the old daemon on its own** when no agent is in the middle of
   a turn: the sessions are suspended and resumed, conversations included. While an agent is
   working it still asks, with **Restart now**.
