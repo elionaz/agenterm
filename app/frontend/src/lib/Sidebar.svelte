@@ -19,6 +19,9 @@
   import { hasKey, t } from './i18n.svelte'
   import GridIcon from './GridIcon.svelte'
   import ProgressBar from './ProgressBar.svelte'
+  import ProjectBadge from './ProjectBadge.svelte'
+  import ProjectCustomize from './ProjectCustomize.svelte'
+  import type { ProjectPatch } from './badge'
   import { dropSlot, moveTo } from './reorder'
   import { SHELL_PROFILE, folderSharers, inProjectFolder, joinNames } from './shared'
 
@@ -49,6 +52,8 @@
     onRemoveProject: (id: string) => void
     /** Drag & drop: the new project order. */
     onReorderProjects: (ids: string[]) => void
+    /** Renames a project or changes its badge; rejects with a message. */
+    onUpdateProject: (id: string, patch: ProjectPatch) => Promise<void>
     /** Drag & drop (or ⌘⇧↑/↓): the new order of a project's sessions. */
     onReorderSessions: (projectId: string, ids: string[]) => void
     onOpenSettings: () => void
@@ -80,6 +85,7 @@
     overviewOpen = false,
     onRemoveProject,
     onReorderProjects,
+    onUpdateProject,
     onReorderSessions,
     onOpenSettings,
     onOpenGrid,
@@ -89,6 +95,22 @@
   }: Props = $props()
 
   let collapsed = $state<Record<string, boolean>>({})
+  /** The project whose customize popover is open. */
+  let customizing = $state<string | null>(null)
+
+  function openCustomize(projectId: string, ev: MouseEvent) {
+    ev.preventDefault()
+    ev.stopPropagation()
+    closeMenu()
+    customizing = customizing === projectId ? null : projectId
+  }
+
+  /** Closes the popover and gives the focus back to the project's badge. */
+  function closeCustomize() {
+    const id = customizing
+    customizing = null
+    if (id) document.querySelector<HTMLElement>(`[data-badge="${CSS.escape(id)}"]`)?.focus()
+  }
   /** The session whose name is being edited, and the text typed. */
   let renaming = $state<string | null>(null)
   let renameText = $state('')
@@ -217,6 +239,7 @@
 
   function toggleMenu(projectId: string, ev: MouseEvent) {
     ev.stopPropagation()
+    customizing = null
     if (menuFor === projectId) {
       closeMenu()
       return
@@ -318,7 +341,17 @@
   }
 </script>
 
-<svelte:window onclick={closeMenu} onkeydown={(e) => e.key === 'Escape' && menuFor && closeMenu()} />
+<svelte:window
+  onclick={() => {
+    closeMenu()
+    customizing = null
+  }}
+  onkeydown={(e) => {
+    if (e.key !== 'Escape') return
+    if (menuFor) closeMenu()
+    if (customizing) closeCustomize()
+  }}
+/>
 
 <aside class="sidebar">
   <div class="titlebar drag">
@@ -356,12 +389,13 @@
           class:drop-before={dropBefore('project', '', pi)}
           class:drop-after={dropAfter('project', '', pi, projects.length)}
           title={p.path}
-          draggable="true"
+          draggable={customizing !== p.id}
           ondragstart={(e) => onDragStart(e, 'project', p.id, '')}
           ondragover={(e) => onDragOver(e, 'project', '', pi)}
           ondrop={onDrop}
           ondragend={onDragEnd}
           onclick={() => onSelectProject(p.id)}
+          oncontextmenu={(e) => openCustomize(p.id, e)}
         >
           <button
             class="chevron"
@@ -371,6 +405,14 @@
               e.stopPropagation()
               collapsed[p.id] = !collapsed[p.id]
             }}>▾</button
+          >
+          <button
+            class="badge-btn"
+            data-badge={p.id}
+            aria-expanded={customizing === p.id}
+            title={t('sidebar.customizeProject')}
+            aria-label={t('project.customize')}
+            onclick={(e) => openCustomize(p.id, e)}><ProjectBadge project={p} /></button
           >
           <span class="project-name">{p.name}</span>
           {#if pending}
@@ -389,6 +431,25 @@
             }}>−</button>
             <button class="icon" title={t('sidebar.newSession')} onclick={(e) => toggleMenu(p.id, e)}>+</button>
           </span>
+          {#if customizing === p.id}
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div
+              class="menu wide"
+              role="dialog"
+              aria-label={t('project.customize')}
+              tabindex="-1"
+              title=""
+              onclick={(e) => e.stopPropagation()}
+              oncontextmenu={(e) => e.stopPropagation()}
+            >
+              <ProjectCustomize
+                project={p}
+                onSave={(patch) => onUpdateProject(p.id, patch)}
+                onClose={closeCustomize}
+              />
+            </div>
+          {/if}
           {#if menuFor === p.id}
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -727,6 +788,15 @@
   }
   .chevron.closed {
     transform: rotate(-90deg);
+  }
+  .badge-btn {
+    display: flex;
+    padding: 0;
+    border-radius: 4px;
+  }
+  .badge-btn:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 1px;
   }
   .project-name {
     flex: 1;

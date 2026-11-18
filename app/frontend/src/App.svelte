@@ -6,6 +6,8 @@
   import ProgressBar from './lib/ProgressBar.svelte'
   import Settings from './lib/Settings.svelte'
   import Sidebar from './lib/Sidebar.svelte'
+  import ProjectBadge from './lib/ProjectBadge.svelte'
+  import type { ProjectPatch } from './lib/badge'
   import Welcome from './lib/Welcome.svelte'
   import { activityText, mergeLive, progressOf, timerInfo } from './lib/activity'
   import { setLangSetting, setSystemLang, t, th } from './lib/i18n.svelte'
@@ -700,6 +702,16 @@
     }
   }
 
+  /** The customize popover: rejects with the message it shows inline. */
+  async function updateProject(id: string, patch: ProjectPatch) {
+    try {
+      const p = await api.updateProject(id, patch)
+      projects = projects.map((x) => (x.id === p.id ? p : x))
+    } catch (e) {
+      throw new Error(errorMessage(e))
+    }
+  }
+
   async function reorderSessions(projectId: string, ids: string[]) {
     sessions = arrangeWithin(sessions, (s) => s.projectId === projectId, ids)
     try {
@@ -928,6 +940,7 @@
     onAddProject={addProject}
     onRemoveProject={removeProject}
     onReorderProjects={reorderProjects}
+    onUpdateProject={updateProject}
     onReorderSessions={reorderSessions}
     onOpenSettings={openSettings}
     onOpenGrid={leavingSettings(openGrid)}
@@ -940,6 +953,8 @@
   <main class="main">
     <header class="titlebar drag">
       {#if selected}
+        {@const proj = projects.find((p) => p.id === selected.projectId)}
+        {#if proj}<span class="title-badge" title={proj.name}><ProjectBadge project={proj} size={18} /></span>{/if}
         <span class="title">{sessionTitle(selected)}</span>
         {#if selected.name}<span class="profile">{selected.profileId}</span>{/if}
         {#if selected.mode === 'worktree' && selected.branch}
@@ -959,6 +974,7 @@
         {/if}
         <span class="subtitle">{selected.cwd}</span>
       {:else if currentProject}
+        <span class="title-badge"><ProjectBadge project={currentProject} size={18} /></span>
         <span class="title">{currentProject.name}</span>
         <span class="subtitle">{currentProject.path}</span>
       {/if}
@@ -1212,6 +1228,10 @@
   .title {
     font-weight: 600;
     color: var(--fg);
+  }
+  .title-badge {
+    display: flex;
+    margin-right: -4px;
   }
   .profile {
     color: var(--muted);

@@ -7,6 +7,7 @@
   import { activityText, progressOf, stateLabel, timerInfo } from './activity'
   import { t } from './i18n.svelte'
   import ProgressBar from './ProgressBar.svelte'
+  import ProjectBadge from './ProjectBadge.svelte'
 
   interface Props {
     projects: Project[]
@@ -123,7 +124,13 @@
           <div class="card-head">
             <span class="dot {badgeClass(s)}"></span>
             <span class="name">{sessionTitle(s)}</span>
-            {#if allProjects || !projectId}<span class="proj">{projectName(s.projectId)}</span>{/if}
+            {#if allProjects || !projectId}
+              {@const proj = projects.find((p) => p.id === s.projectId)}
+              <span class="proj">{#if proj}<ProjectBadge project={proj} size={13} />{/if}<span class="proj-name"
+                  >{projectName(s.projectId)}</span
+                ></span
+              >
+            {/if}
             <span class="badge {badgeClass(s)}">{stateLabel(s)}</span>
           </div>
           {#if (s.mode === 'worktree' && s.branch) || (s.git && s.git.files > 0)}
@@ -271,8 +278,14 @@
     white-space: nowrap;
   }
   .proj {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
     color: var(--muted);
     font-size: 11px;
+  }
+  .proj-name {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

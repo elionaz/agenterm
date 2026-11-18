@@ -415,7 +415,7 @@ func (s *Server) resume(id string) (protocol.SessionInfo, error) {
 		s.mu.Unlock()
 		s.log.Warn("resume failed", "id", id, "err", err)
 		s.bus.publish(protocol.Event{Type: protocol.EventSessionAttention, SessionID: id, State: string(old.State()), At: time.Now().UTC(),
-			ProjectName: old.ProjectName, ProfileID: old.ProfileID, SessionName: s.sessionName(id)})
+			ProjectName: s.projectName(old.ProjectID, old.ProjectName), ProfileID: old.ProfileID, SessionName: s.sessionName(id)})
 		return protocol.SessionInfo{}, err
 	}
 	return res, nil

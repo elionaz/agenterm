@@ -254,6 +254,20 @@ func (a *App) AddProject() (*project.Project, error) {
 	return &p, nil
 }
 
+// UpdateProject renames a project or changes its badge (fields left out
+// stay; an empty color or icon goes back to automatic).
+func (a *App) UpdateProject(p protocol.ProjectUpdateParams) (*project.Project, error) {
+	var out project.Project
+	err := a.call(func(ctx context.Context) (err error) {
+		out, err = a.client.UpdateProject(ctx, p)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // ReorderProjects sets the sidebar's project order (ids first, in order).
 func (a *App) ReorderProjects(ids []string) ([]project.Project, error) {
 	var out []project.Project

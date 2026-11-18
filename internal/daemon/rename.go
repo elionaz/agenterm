@@ -66,6 +66,6 @@ func (s *Server) rename(p protocol.RenameParams) (protocol.SessionInfo, error) {
 		s.log.Warn("sessions.json", "id", sess.ID, "err", err)
 	}
 	s.bus.publish(protocol.Event{Type: protocol.EventSessionRenamed, SessionID: sess.ID, State: string(sess.State()),
-		At: time.Now().UTC(), ProjectName: sess.ProjectName, ProfileID: sess.ProfileID, SessionName: name})
+		At: time.Now().UTC(), ProjectName: s.projectName(sess.ProjectID, sess.ProjectName), ProfileID: sess.ProfileID, SessionName: name})
 	return s.sessionInfo(sess), nil
 }

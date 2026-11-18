@@ -62,6 +62,7 @@ Cada petición (aceptada o rechazada) queda en `daemon.log` con el proceso que l
 | `agenterm project add <dir> [--name N]` | registra una carpeta (rutas relativas se resuelven desde tu directorio actual). Imprime `<id>  <nombre>  <ruta>`. El nombre por defecto es el de la carpeta. Si la carpeta ya estaba registrada devuelve el proyecto existente |
 | `agenterm project list` (o `ls`) | tabla `ID NAME PATH ADDED` |
 | `agenterm project rm <id>` (o `remove`) | quita el proyecto de la lista (no borra archivos) |
+| `agenterm project set <id\|nombre> [--name N] [--color C\|auto] [--icon E\|none]` | renombra el proyecto o cambia su insignia en la barra lateral. Colores: `blue`, `teal`, `green`, `amber`, `orange`, `red`, `pink`, `purple`; `auto` elige uno a partir del id del proyecto. `--icon` pone un emoji en lugar de las iniciales; `none` vuelve a las iniciales. Las ventanas abiertas se actualizan al instante. Imprime `<id>  <nombre>  <color>  <icono>` |
 
 ## Perfiles (agentes)
 

@@ -8,9 +8,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"sync"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
+	"github.com/elionaz/agenterm/internal/apierr"
 	"github.com/elionaz/agenterm/internal/fileformat"
 	"github.com/elionaz/agenterm/internal/order"
 )
@@ -24,6 +29,30 @@ type Project struct {
 	Name    string    `json:"name"`
 	Path    string    `json:"path"`
 	AddedAt time.Time `json:"addedAt"`
+	// Color is the badge color, one of Colors; empty picks one from the id.
+	Color string `json:"color,omitempty"`
+	// Icon replaces the badge initials: an emoji (or a short text).
+	Icon string `json:"icon,omitempty"`
+}
+
+// Colors are the badge colors a project can pick (the app maps each to a
+// theme token).
+var Colors = []string{"blue", "teal", "green", "amber", "orange", "red", "pink", "purple"}
+
+// Limits. An icon has room for one emoji, skin-toned ZWJ sequences and
+// tag flags included (the app also checks it is at most two graphemes).
+const (
+	maxNameRunes = 80
+	maxIconBytes = 64
+	maxIconRunes = 16
+)
+
+// Patch changes some of a project's fields; nil leaves a field as is.
+// An empty Color or Icon goes back to the automatic badge.
+type Patch struct {
+	Name  *string
+	Color *string
+	Icon  *string
 }
 
 // ErrNotFound is returned for unknown project ids.
@@ -156,6 +185,68 @@ func (r *Registry) Reorder(ids []string) ([]Project, error) {
 		return nil, err
 	}
 	return append([]Project(nil), r.projects...), nil
+}
+
+// Update applies patch to the project with id.
+func (r *Registry) Update(id string, patch Patch) (Project, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	i := slices.IndexFunc(r.projects, func(p Project) bool { return p.ID == id })
+	if i < 0 {
+		return Project{}, fmt.Errorf("%w: %s", ErrNotFound, id)
+	}
+	p := r.projects[i]
+	if patch.Name != nil {
+		name := strings.TrimSpace(*patch.Name)
+		if name == "" {
+			return Project{}, apierr.New(apierr.ProjectNameEmpty, nil, "a project name cannot be empty")
+		}
+		if utf8.RuneCountInString(name) > maxNameRunes || strings.ContainsFunc(name, unicode.IsControl) {
+			return Project{}, apierr.New(apierr.ProjectNameInvalid, map[string]any{"max": maxNameRunes},
+				"a project name has at most %d characters and no control characters", maxNameRunes)
+		}
+		for _, o := range r.projects {
+			// Another project's id counts too: references resolve ids first.
+			if o.ID != id && (o.Name == name || o.ID == name) {
+				return Project{}, apierr.New(apierr.ProjectNameTaken, map[string]any{"name": name},
+					"another project is already called %q", name)
+			}
+		}
+		p.Name = name
+	}
+	if patch.Color != nil {
+		c := strings.TrimSpace(*patch.Color)
+		if c != "" && !slices.Contains(Colors, c) {
+			return Project{}, apierr.New(apierr.ProjectColorInvalid, map[string]any{"color": c},
+				"unknown color %q (use one of %s)", c, strings.Join(Colors, ", "))
+		}
+		p.Color = c
+	}
+	if patch.Icon != nil {
+		icon, err := normIcon(*patch.Icon)
+		if err != nil {
+			return Project{}, err
+		}
+		p.Icon = icon
+	}
+	prev := r.projects
+	r.projects = slices.Clone(prev)
+	r.projects[i] = p
+	if err := r.saveLocked(); err != nil {
+		r.projects = prev
+		return Project{}, err
+	}
+	return p, nil
+}
+
+// normIcon trims icon and checks it fits a badge.
+func normIcon(icon string) (string, error) {
+	icon = strings.TrimSpace(icon)
+	if len(icon) > maxIconBytes || utf8.RuneCountInString(icon) > maxIconRunes || !utf8.ValidString(icon) ||
+		strings.ContainsFunc(icon, unicode.IsControl) {
+		return "", apierr.New(apierr.ProjectIconInvalid, nil, "icon %q does not fit a badge: use one emoji or two characters", icon)
+	}
+	return icon, nil
 }
 
 func (r *Registry) saveLocked() error {

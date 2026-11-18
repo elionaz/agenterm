@@ -1,5 +1,6 @@
 // Thin typed layer over the generated Wails bindings.
 import * as App from '../../wailsjs/go/main/App'
+import type { ProjectPatch } from './badge'
 import type { forge, gitx, main, profile, project, protocol, settings } from '../../wailsjs/go/models'
 import { hasKey, t, type Params } from './i18n.svelte'
 
@@ -128,6 +129,10 @@ export const api = {
   addProject: async (): Promise<Project | null> => (await App.AddProject()) ?? null,
   removeProject: (id: string) => App.RemoveProject(id),
   reorderProjects: (ids: string[]): Promise<Project[]> => App.ReorderProjects(ids),
+  /** Renames a project or changes its badge: fields left out stay, an empty
+   * color or icon goes back to automatic. */
+  updateProject: (id: string, patch: ProjectPatch): Promise<Project> =>
+    App.UpdateProject({ id, ...patch }),
   reorderSessions: (projectId: string, ids: string[]): Promise<Session[]> => App.ReorderSessions(projectId, ids),
   /** Every effective profile (hidden ones too), in menu order. */
   listProfiles: (): Promise<Profile[]> => App.ListProfiles(),

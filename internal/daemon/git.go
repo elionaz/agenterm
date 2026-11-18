@@ -557,13 +557,12 @@ func (s *Server) reconcile(ctx context.Context, proj project.Project) {
 	if err != nil {
 		return
 	}
-	dir := filepath.Join(root, worktree.ProjectSlug(proj.Name, proj.ID))
 	wts, err := gitx.ListWorktrees(ctx, repo)
 	if err != nil {
 		return
 	}
 	for _, w := range wts {
-		if w.Prunable || filepath.Dir(canonPath(w.Path)) != canonPath(dir) {
+		if w.Prunable || !projectWorktreeDir(canonPath(root), canonPath(filepath.Dir(w.Path)), proj.ID) {
 			continue
 		}
 		id := filepath.Base(w.Path)
@@ -581,6 +580,17 @@ func (s *Server) reconcile(ctx context.Context, proj project.Project) {
 	if changed {
 		s.publishWorktrees(proj.ID)
 	}
+}
+
+// projectWorktreeDir reports whether dir is one of project id's folders
+// under the worktrees root: ProjectSlug(name, id) for whatever name the
+// project had when the worktree was made (it may have been renamed since).
+func projectWorktreeDir(root, dir, id string) bool {
+	if filepath.Dir(dir) != root {
+		return false
+	}
+	base := filepath.Base(dir)
+	return base == id || strings.HasSuffix(base, "-"+id)
 }
 
 // liveSessionIn returns a running session using worktree id ("" if none).

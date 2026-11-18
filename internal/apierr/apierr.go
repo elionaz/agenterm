@@ -83,6 +83,16 @@ const (
 	ForgeHeadMismatch = "forge_head_mismatch"
 	// ForgeFailed: gh / glab failed. Data: {tool, stderr}.
 	ForgeFailed = "forge_failed"
+	// ProjectNameEmpty / ProjectNameTaken: renaming a project to nothing,
+	// or to another project's name. Data (taken): {name}.
+	ProjectNameEmpty = "project_name_empty"
+	ProjectNameTaken = "project_name_taken"
+	// ProjectNameInvalid: too long or with control characters. Data: {max}.
+	ProjectNameInvalid = "project_name_invalid"
+	// ProjectColorInvalid (data: {color}) / ProjectIconInvalid: not a badge
+	// color; an icon that is not one emoji or a couple of characters.
+	ProjectColorInvalid = "project_color_invalid"
+	ProjectIconInvalid  = "project_icon_invalid"
 	// UnknownMethod: the daemon does not know the method, usually because
 	// it is older than the client. Data: {method}.
 	UnknownMethod = "unknown_method"

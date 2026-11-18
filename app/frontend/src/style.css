@@ -19,6 +19,11 @@
   --red: light-dark(#c8424e, #e06c75);
   --orange: light-dark(#c4661c, #e08a3c);
   --grey: light-dark(#9a9daa, #5c6070);
+  /* Project badges also use these (see lib/badge.ts). */
+  --teal: light-dark(#167f86, #56b6c2);
+  --pink: light-dark(#b8407f, #e88bbd);
+  --purple: light-dark(#7a4fc4, #b48ef0);
+  --badge-fg: light-dark(#ffffff, #141518);
   --scrollbar: light-dark(#c8cad0, #2c2f36);
   --shadow: light-dark(rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.45));
   --warn-bg: light-dark(#fbefd2, #3a2f14);

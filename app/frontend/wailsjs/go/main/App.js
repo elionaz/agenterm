@@ -210,6 +210,10 @@ export function TakePendingFocus() {
   return window['go']['main']['App']['TakePendingFocus']();
 }
 
+export function UpdateProject(arg1) {
+  return window['go']['main']['App']['UpdateProject'](arg1);
+}
+
 export function UpdaterState() {
   return window['go']['main']['App']['UpdaterState']();
 }

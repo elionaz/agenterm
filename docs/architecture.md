@@ -69,7 +69,7 @@ internal/paths          directory resolution (AGENTERM_HOME)
 
 | group | methods |
 |---|---|
-| projects | `project.add`, `project.list`, `project.remove`, `project.reorder`, `project.git` |
+| projects | `project.add`, `project.list`, `project.remove`, `project.reorder`, `project.update`, `project.git` |
 | profiles | `profile.list`, `profile.catalog`, `profile.save`, `profile.delete`, `profile.reorder`, `profile.rescan` |
 | settings | `settings.get`, `settings.save` |
 | sessions | `session.spawn`, `session.list`, `session.kill`, `session.resize`, `session.notify`, `session.ack`, `session.rename`, `session.reorder`, `session.attach`, `session.tail`, `session.diff`, `session.resume`, `session.discard` |
@@ -140,7 +140,7 @@ JSON event per line.
 | `session.git` | new git summary (`git`) |
 | `session.renamed` | the session's display name changed (`sessionName`; absent: back to the profile's) |
 | `session.reordered` | the sessions of `projectId` were reordered (`session.list` has the new order) |
-| `project.changed` | the project list changed: added, removed or reordered |
+| `project.changed` | the project list changed: added, removed, reordered, renamed or its badge changed |
 | `session.removed` | the session was removed from the list |
 | `worktree.changed` | a project's worktree list changed (`projectId`) |
 
