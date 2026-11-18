@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/elionaz/agenterm/internal/desktopnotify"
 	"github.com/elionaz/agenterm/internal/macnotify"
+	"github.com/elionaz/agenterm/internal/settings"
 )
 
 // The welcome screen (shown while there are no projects) reports what a new
@@ -47,7 +49,40 @@ func (a *App) RequestNotifications() string {
 	if a.wailsCtx != nil {
 		_, _ = runtime.RequestNotificationAuthorization(a.wailsCtx)
 	}
-	return notificationState()
+	return a.NotificationStatus().State
+}
+
+// NotificationInfo is Settings → Notifications' permission line.
+type NotificationInfo struct {
+	// State: as OnboardingInfo.Notifications.
+	State string `json:"state"`
+	// Detail: why the app can't show notifications right now ("" when it
+	// can), in English (for the curious; the UI explains State).
+	Detail string `json:"detail,omitempty"`
+}
+
+// NotificationStatus reports macOS's permission for agenterm, re-reading it
+// (a change in System Settings applies without a relaunch).
+func (a *App) NotificationStatus() NotificationInfo {
+	if s := notificationState0(); s != "" {
+		return NotificationInfo{State: s}
+	}
+	st, detail := a.desk.Refresh()
+	return NotificationInfo{State: st.String(), Detail: detail}
+}
+
+// TestNotification shows a notification now (title and body come from the
+// UI, in its language), whatever window is in front. It reports why
+// nothing could be shown.
+// It looks like an approval request (the kind that plays a sound when
+// notify.sound is on).
+func (a *App) TestNotification(title, body string) error {
+	st, _ := settings.Load(a.paths.Settings())
+	if err := a.desk.Post(note{SessionID: "test", Kind: "question", Title: title, Body: body,
+		Sound: st.Notify.WantsSound("question"), Osascript: st.Notify.UsesOsascript()}); err != nil {
+		return fmt.Errorf("notifications can't be shown: %w", err)
+	}
+	return nil
 }
 
 // OpenNotificationSettings opens System Settings → Notifications on
@@ -61,13 +96,22 @@ func (a *App) OpenNotificationSettings() error {
 }
 
 func notificationState() string {
+	if s := notificationState0(); s != "" {
+		return s
+	}
+	return macnotify.AuthStatus(2 * time.Second).String()
+}
+
+// notificationState0 is the state that needs no query to macOS ("" when it
+// does: the permission).
+func notificationState0() string {
 	if desktopnotify.Disabled() {
 		return "off"
 	}
 	if !macnotify.HasBundle() {
 		return "unsupported"
 	}
-	return macnotify.AuthStatus(2 * time.Second).String()
+	return ""
 }
 
 // bundledCLI is Contents/Helpers/agenterm next to this executable.

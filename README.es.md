@@ -127,7 +127,8 @@ cd .. && go build -o agenterm ./cmd/agenterm
 ```
 
 La primera vez que abras la app, macOS pregunta si permites notificaciones. Si lo rechazaste:
-*Ajustes del Sistema → Notificaciones → agenterm* → "Permitir notificaciones". Sin ese permiso (o
+*Ajustes del Sistema → Notificaciones → agenterm* → "Permitir notificaciones" (**Ajustes →
+Notificaciones** en agenterm muestra el permiso, abre esa página y envía una notificación de prueba). Sin ese permiso (o
 desde un daemon fuera del `.app`) las notificaciones no se muestran, salvo que actives la
 alternativa con AppleScript (`notify.fallback: osascript`; entonces aparecen como *Editor de
 Scripts*). La CLI incluida en la app (la que Homebrew pone en tu `PATH`) arranca el daemon como la

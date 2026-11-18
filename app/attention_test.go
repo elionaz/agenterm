@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/elionaz/agenterm/internal/daemon"
+	"github.com/elionaz/agenterm/internal/macnotify"
 	"github.com/elionaz/agenterm/internal/paths"
 	"github.com/elionaz/agenterm/internal/protocol"
 )
@@ -21,6 +23,8 @@ type fakeDesktop struct {
 	badge     int
 	withdrawn []string
 	bounces   int
+	reason    string // what Refresh returns
+	postErr   error  // what Post fails with
 }
 
 func (f *fakeDesktop) Notify(n note) error {
@@ -50,6 +54,28 @@ func (f *fakeDesktop) IsActive() bool {
 	return f.active
 }
 func (f *fakeDesktop) Activate() {}
+func (f *fakeDesktop) Refresh() (macnotify.Status, string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.reason != "" {
+		return macnotify.StatusDenied, f.reason
+	}
+	return macnotify.StatusAuthorized, ""
+}
+
+// Post fails like the real one: denied without the fallback, or a post error.
+func (f *fakeDesktop) Post(n note) error {
+	f.mu.Lock()
+	reason, perr := f.reason, f.postErr
+	f.mu.Unlock()
+	if reason != "" && !n.Osascript {
+		return errors.New(reason)
+	}
+	if perr != nil {
+		return perr
+	}
+	return f.Notify(n)
+}
 
 func (f *fakeDesktop) snapshot() (notes []note, badge, bounces int) {
 	f.mu.Lock()

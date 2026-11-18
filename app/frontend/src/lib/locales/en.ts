@@ -511,6 +511,18 @@ export const en = {
   'settings.agentsFoot':
     'Saved to <code>profiles.yaml</code> (with a <code>.bak</code> copy); fields you do not change are inherited from the catalog.',
 
+  'settings.n.perm': 'Permission in macOS',
+  'settings.n.perm.authorized': 'Allowed: agenterm can show notifications.',
+  'settings.n.perm.denied': 'Not allowed for agenterm. Turn on "Allow notifications" in System Settings; it applies right away.',
+  'settings.n.perm.not-determined': 'macOS hasn\'t asked yet.',
+  'settings.n.perm.off': 'Disabled by AGENTERM_NOTIFY=off.',
+  'settings.n.perm.unsupported': 'Not available in this build (it is not running as agenterm.app).',
+  'settings.n.perm.unknown': 'macOS didn\'t say. Ask again, or check System Settings.',
+  'settings.n.permAsk': 'Ask macOS',
+  'settings.n.permOpen': 'Open System Settings',
+  'settings.n.test': 'Send a test notification',
+  'settings.n.testBody': 'Notifications work: this is a test.',
+  'settings.n.testSent': 'Sent: you should see it now.',
   'settings.n.enabled': 'Notifications',
   'settings.n.enabledHelp': 'Alert when an agent needs your approval, asks you something or fails.',
   'settings.n.sound': 'Sound',

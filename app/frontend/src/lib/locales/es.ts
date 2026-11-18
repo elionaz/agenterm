@@ -477,6 +477,18 @@ export const es: Dict = {
   'settings.agentsFoot':
     'Se guarda en <code>profiles.yaml</code> (con copia <code>.bak</code>); los campos que no cambies se heredan del catálogo.',
 
+  'settings.n.perm': 'Permiso en macOS',
+  'settings.n.perm.authorized': 'Permitido: agenterm puede mostrar notificaciones.',
+  'settings.n.perm.denied': 'No permitido para agenterm. Activa «Permitir notificaciones» en Ajustes del Sistema; se aplica al momento.',
+  'settings.n.perm.not-determined': 'macOS todavía no lo ha preguntado.',
+  'settings.n.perm.off': 'Desactivadas por AGENTERM_NOTIFY=off.',
+  'settings.n.perm.unsupported': 'No disponibles en esta compilación (no corre como agenterm.app).',
+  'settings.n.perm.unknown': 'macOS no respondió. Pídelo de nuevo o revisa Ajustes del Sistema.',
+  'settings.n.permAsk': 'Pedir a macOS',
+  'settings.n.permOpen': 'Abrir Ajustes del Sistema',
+  'settings.n.test': 'Enviar una notificación de prueba',
+  'settings.n.testBody': 'Las notificaciones funcionan: esto es una prueba.',
+  'settings.n.testSent': 'Enviada: deberías verla ahora.',
   'settings.n.enabled': 'Notificaciones',
   'settings.n.enabledHelp': 'Avisar cuando un agente necesita tu aprobación, te pregunta algo o falla.',
   'settings.n.sound': 'Sonido',

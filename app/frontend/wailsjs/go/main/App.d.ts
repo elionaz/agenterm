@@ -61,6 +61,8 @@ export function MergeWorktree(arg1:string):Promise<gitx.MergeResult>;
 
 export function MessagePeers(arg1:string):Promise<protocol.MsgPeers>;
 
+export function NotificationStatus():Promise<main.NotificationInfo>;
+
 export function Onboarding():Promise<main.OnboardingInfo>;
 
 export function OpenNotificationSettings():Promise<void>;
@@ -122,6 +124,8 @@ export function SystemLanguage():Promise<string>;
 export function Tail(arg1:string,arg2:number):Promise<Array<string>>;
 
 export function TakePendingFocus():Promise<string>;
+
+export function TestNotification(arg1:string,arg2:string):Promise<void>;
 
 export function UpdateProject(arg1:protocol.ProjectUpdateParams):Promise<project.Project>;
 

@@ -106,6 +106,10 @@ export function MessagePeers(arg1) {
   return window['go']['main']['App']['MessagePeers'](arg1);
 }
 
+export function NotificationStatus() {
+  return window['go']['main']['App']['NotificationStatus']();
+}
+
 export function Onboarding() {
   return window['go']['main']['App']['Onboarding']();
 }
@@ -228,6 +232,10 @@ export function Tail(arg1, arg2) {
 
 export function TakePendingFocus() {
   return window['go']['main']['App']['TakePendingFocus']();
+}
+
+export function TestNotification(arg1, arg2) {
+  return window['go']['main']['App']['TestNotification'](arg1, arg2);
 }
 
 export function UpdateProject(arg1) {

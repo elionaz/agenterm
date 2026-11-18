@@ -150,6 +150,12 @@ The first time you open the `.app`, macOS asks whether to allow notifications. I
 want them to stay on screen). With `notify.fallback: osascript`, those notifications are
 controlled under *Notifications → Script Editor*.
 
+**Settings → Notifications** shows that permission at the top (allowed, not allowed, not asked
+yet), with **Ask macOS** while it hasn't asked, **Open System Settings** on agenterm's entry, and
+**Send a test notification**, which shows one right away and says why when it can't. The app reads
+the permission again when you come back from System Settings, and before a notification it had to
+drop (at most every 30 seconds), so a permission granted after launch applies without restarting the app.
+
 ### URL scheme
 
 `agenterm://session/<id>` opens the app on that session. It's registered in `CFBundleURLTypes` (via

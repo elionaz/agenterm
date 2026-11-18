@@ -14,6 +14,9 @@ releases may include breaking changes.
   for Claude Code, the prompts typed in each session, with secrets (API keys, tokens, private
   keys, `password=…`) replaced by `[redacted]`. On by default, with a preview; untick it to leave
   it out. Prompts go in code blocks, so their links and @mentions don't render or notify.
+- **The notification permission in Settings → Notifications**: whether macOS allows agenterm's
+  notifications, with **Ask macOS**, **Open System Settings** (on agenterm's entry) and **Send a
+  test notification**, which shows one right away or says why it can't.
 
 ### Fixed
 
@@ -23,6 +26,9 @@ releases may include breaking changes.
   later, seemed to work). agenterm now keeps the file the moment it is dropped, in
   `~/.agenterm/drops/` (kept for a day), and types that path. Files dropped from Finder are typed
   as before.
+- **A notification permission granted after launch now applies without restarting the app.** The
+  app checked it only at startup, so after allowing agenterm in System Settings its notifications
+  were still dropped until a relaunch.
 
 ## [0.7.0] - 2026-11-18
 
