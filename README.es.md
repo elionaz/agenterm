@@ -132,10 +132,11 @@ app, así que también tiene notificaciones nativas.
 - Los builds desde el código fuente (`wails build`) no incluyen el actualizador.
 
 Las sesiones corren en un daemon en segundo plano que sobrevive a la app, así que justo después de
-actualizar el daemon sigue siendo la versión anterior: la ventana muestra un aviso con **Reiniciar
-ahora**, que reinicia el daemon (las sesiones en marcha se suspenden y se reanudan, diga lo que
-diga `sessions.restore`; las que habías dejado suspendidas siguen así). También puedes hacerlo más tarde, o desde una terminal con
-`agenterm stop --force`.
+actualizar el daemon sigue siendo la versión anterior. La app lo reinicia sola cuando ningún agente
+está en medio de un turno (las sesiones en marcha se suspenden y se reanudan, diga lo que diga
+`sessions.restore`; las que habías dejado suspendidas siguen así). Si hay un agente trabajando,
+muestra en su lugar un aviso con **Reiniciar ahora**, para que lo hagas cuando te convenga, o más
+tarde desde una terminal con `agenterm stop --force`.
 
 ## Desinstalar
 

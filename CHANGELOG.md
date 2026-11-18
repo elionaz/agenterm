@@ -7,6 +7,12 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Changed
+
+- **After an update the app restarts the old daemon on its own** when no agent is in the middle of
+  a turn: the sessions are suspended and resumed, conversations included. While an agent is
+  working it still asks, with **Restart now**.
+
 ## [0.4.3] - 2026-11-17
 
 ### Added

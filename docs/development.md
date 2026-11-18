@@ -301,7 +301,9 @@ next version has to be installed by hand.
 **The daemon after an update.** Sparkle replaces and relaunches the app, but the daemon (started
 from the old executable) keeps running, by design, with the sessions. On every (re)connection the
 app compares `daemon.ping`'s `version` (absent in daemons before 0.2.0) with its own and, if the
-daemon is older, shows a banner with **Restart now** (with a confirmation when agents are working).
+daemon is older, restarts it on its own when no session is `running` (once per app run, so a
+restart that leaves it old doesn't loop; `shouldAutoRestart` in `app/frontend/src/lib/daemon.ts`).
+Otherwise it shows a banner with **Restart now** (with a confirmation when agents are working).
 `RestartDaemon`:
 
 1. writes the ids of the live sessions to `restart.json` in the runtime dir;

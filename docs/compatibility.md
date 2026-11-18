@@ -69,8 +69,8 @@ version (`protocol`, currently 1; daemons before 0.4.0 don't send it and speak v
 - Adding methods, optional fields or event types keeps the protocol version. Removing or renaming
   them, or changing what they mean or the binary frames of `session.attach`, bumps it.
 - After an update the window runs the new build while the daemon, which outlives the window, may
-  still be the old one: the app says so and offers **Restart now**, which suspends and resumes the
-  sessions.
+  still be the old one: the app restarts it (suspending and resuming the sessions) on its own when
+  no agent is in a turn, and otherwise says so and offers **Restart now**.
 - If the daemon is **newer** than the app (a newer protocol), restarting it from the app would
   downgrade it, so the app asks you to update agenterm instead.
 - A command the daemon doesn't know (an older daemon) fails with a clear message (code
