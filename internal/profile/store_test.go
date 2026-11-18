@@ -203,6 +203,9 @@ func TestResumeArgs(t *testing.T) {
 	if p, _ := Find(ps, "opencode"); !slices.Equal(p.ResumeArgs, []string{"--continue"}) {
 		t.Fatalf("opencode default resume_args %q", p.ResumeArgs)
 	}
+	if p, _ := Find(ps, "hermes"); !slices.Equal(p.Args, []string{"--cli"}) || !slices.Equal(p.ResumeArgs, []string{"-c"}) || !p.Enabled {
+		t.Fatalf("hermes = args %q resume %q enabled %v", p.Args, p.ResumeArgs, p.Enabled)
+	}
 	if p, _ := Find(ps, "claude"); len(p.ResumeArgs) != 0 {
 		t.Fatalf("claude resume_args %q (resumes by session id)", p.ResumeArgs)
 	}

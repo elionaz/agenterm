@@ -301,6 +301,10 @@ func TestAttentionPatterns(t *testing.T) {
 	if res, err := a.Patterns(); err != nil || !res[0].MatchString("Add file to the chat? (Y)es/(N)o/(D)on't ask again [Yes]:") {
 		t.Fatalf("aider patterns %v %v", res, err)
 	}
+	h := mustFind(t, Resolve(nil, nil), "hermes")
+	if res, err := h.Patterns(); err != nil || !res[0].MatchString("      [o]nce  |  [s]ession  |  [a]lways  |  [d]eny") {
+		t.Fatalf("hermes patterns %v %v", res, err)
+	}
 	// Cursor CLI's approval menu (from a real session).
 	menu := " $  agenterm msg read in .\n\n Run this command?\n Not in allowlist: agenterm\n  → Run (once) (y)\n" +
 		"    Add Shell(agenterm) to allowlist? (tab)\n    Run Everything (shift+tab)\n    Skip & tell the agent what to do instead (esc or n)\n"

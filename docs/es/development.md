@@ -354,9 +354,9 @@ En macOS la CLI de Inkscape no queda en el `PATH`; está en
   notificaciones.
 - **Un reinicio del daemon (o de la computadora) mata los procesos.** Las sesiones vuelven como
   `suspended`, con su scrollback, y se relanzan al reanudarlas: Claude Code y codex continúan su
-  conversación por id, opencode con `--continue` (la *última* sesión del proyecto, que puede no ser
-  la misma si hay varias en una carpeta), otros agentes solo con `resume_args`. Una shell vuelve
-  en su carpeta inicial, sin lo que estuviera corriendo en ella. codex solo informa su thread id
+  conversación por id, opencode con `--continue` y Hermes con `-c` (la *última* sesión de cada
+  proyecto, que puede no ser la misma si hay varias en una carpeta), otros agentes solo con
+  `resume_args`. Una shell vuelve en su carpeta inicial, sin lo que estuviera corriendo en ella. codex solo informa su thread id
   tras el primer turno, así que una sesión de codex que nunca terminó un turno empieza de cero.
 - **Persistir el scrollback cuesta escrituras en disco**: se reescribe el ring entero (hasta 8 MiB)
   como mucho cada 2 s por sesión mientras produce salida.
@@ -372,6 +372,11 @@ En macOS la CLI de Inkscape no queda en el `PATH`; está en
   que pintaron, que no siempre es la más informativa.
 - **Kiro CLI**: el nombre del binario (`kiro-cli chat`) viene de la documentación y no se ha
   verificado con una instalación real; se puede corregir con `cmd:` en `profiles.yaml`.
+- **Hermes Agent** se lanza como `hermes --cli` y solo desde el menú **+** cuando el binario está
+  instalado y el perfil sigue activado. La línea de aprobación `[o]nce | [s]ession` marca la
+  sesión como esperando. `args: ["--tui"]` o `args: []` sustituye ese default; `resume_args: []`
+  omite el reenganche con `-c`; `enabled: false` lo oculta. Cerrar la terminal desconecta del
+  gateway de Hermes (el turno sigue hasta `/exit` o Ctrl+D). agenterm no escribe en `~/.hermes`.
 - **`profiles.yaml` pierde los comentarios** cuando la app lo guarda (se reescribe en formato
   canónico). `settings.yaml` sí los conserva.
 - El merge de un worktree **no hace stash**: la carpeta principal tiene que estar limpia y en la
