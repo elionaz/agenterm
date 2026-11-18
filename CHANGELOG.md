@@ -17,6 +17,11 @@ releases may include breaking changes.
 - **The branch of every session in the sidebar**: worktree sessions keep their blue branch chip, and
   sessions in the project folder now show that folder's current branch in grey (it is shared with
   the other sessions there), also in the title bar.
+- **Automatic delivery of messages** (Settings → General, `messages.auto_deliver`, off by default):
+  a Claude session idle at its prompt is told about new messages without the **Deliver** click, so
+  a reply that arrives after its turn ended doesn't wait for you. Never over text typed without
+  sending, never while it waits for an approval, at most 5 times per session until you act on it
+  again, and 20 per project every 10 minutes. See [docs/messages.md](docs/messages.md#automatic-delivery).
 
 ### Changed
 

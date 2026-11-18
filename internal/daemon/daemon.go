@@ -73,6 +73,7 @@ type Notification struct {
 
 // Server is the daemon.
 type Server struct {
+	auto     autoDeliver
 	cfg      Config
 	sock     string
 	projects *project.Registry
@@ -536,6 +537,11 @@ func (s *Server) publishState(id, projectName, profileID string, c status.Change
 		ev.ExitCode = &code
 	}
 	s.bus.publish(ev)
+	// Messages that came while it worked; not after a failed turn (an API
+	// error: rate limit, overload), which a nudge would only repeat.
+	if c.To == status.Idle && c.From != status.Idle && ev.AttentionKind != string(status.KindError) {
+		s.scheduleAutoDeliver(id)
+	}
 	if ev.Raised && s.bus.uiCount() == 0 {
 		s.fallbackNotify(ev)
 	}

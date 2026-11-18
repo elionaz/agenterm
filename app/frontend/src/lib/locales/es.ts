@@ -560,6 +560,9 @@ export const es: Dict = {
   'err.forge_head_mismatch': 'El pull request {number} no es de {branch} (su rama es {head}): recarga y vuelve a intentarlo.',
   'err.forge_failed': '{tool} falló: {stderr}',
   'settings.messages': 'Mensajes entre sesiones',
+  'settings.autoDeliver': 'Entregar solos a las sesiones de Claude en espera',
+  'settings.autoDeliverHelp':
+    'Hace lo que Entregar cuando una sesión de Claude espera en su prompt, para que una respuesta no te espere a ti. Nunca sobre texto que escribiste sin enviar, y como mucho 5 veces por sesión hasta que vuelvas a intervenir en ella (messages.auto_deliver).',
   'settings.messagesHelp': 'Los agentes de un proyecto pueden escribirse (agenterm msg) y Claude recibe sus mensajes solo (messages.enabled).',
   'err.msg_disabled': 'Los mensajes entre sesiones están desactivados (Ajustes › General).',
   'err.msg_no_session': 'Ninguna sesión de este proyecto coincide con “{to}”.',

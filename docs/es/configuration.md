@@ -151,6 +151,7 @@ Todas las claves son opcionales; las que faltan toman el valor por defecto.
 | `git.default_mode` | `worktree` | `worktree` o `same`: dónde el menú **+** (y ⌘N) empieza un agente nuevo en un proyecto donde aún no elegiste. Las shells siempre empiezan en la carpeta del proyecto. Antes de 0.6.1 el default era `same`; un archivo que diga `same` lo conserva |
 | `sessions.restore` | `ask` | qué hace un daemon al arrancar con las sesiones que estaban vivas cuando se detuvo el anterior: `ask` (dejarlas `suspended` hasta que las reanudes o descartes), `always` (reanudarlas enseguida) o `never` (descartarlas). Ver [architecture.md](architecture.md#persistencia-y-reanudación) |
 | `messages.enabled` | `true` | mensajes entre las sesiones de un proyecto (`agenterm msg`): si se apaga, los envíos se rechazan y los hooks de los agentes no entregan nada. Ver [messages.md](messages.md) |
+| `messages.auto_deliver` | `false` | a una sesión de Claude inactiva en su prompt se le avisa de los mensajes nuevos sin el clic en **Entregar**; nunca sobre texto escrito sin enviar, y como mucho 5 veces por sesión hasta que vuelvas a intervenir en ella (y 20 por proyecto cada 10 minutos). Ver [messages.md](messages.md#entrega-automática) |
 
 ```yaml
 version: 1
@@ -173,6 +174,7 @@ sessions:
   restore: ask
 messages:
   enabled: true
+  auto_deliver: false
 terminal:
   font_family: '"SF Mono", Menlo, Monaco, monospace'
   font_size: 13
@@ -188,7 +190,8 @@ Cuándo se lee:
 - `git.worktree_dir` se lee al crear cada worktree (y al listar los de un proyecto).
 - `git.editor` se lee en cada «Abrir en editor».
 - `sessions.restore` se lee al arrancar el daemon.
-- `messages.enabled` se lee en cada mensaje enviado y en cada hook que podría entregar uno.
+- `messages.enabled` se lee en cada mensaje enviado y en cada hook que podría entregar uno;
+  `messages.auto_deliver`, cada vez que llega un mensaje o una sesión queda inactiva.
 - `ui.appearance` y `terminal.*` los lee la app al cargar (y al abrir Ajustes); los cambios hechos
   en la app se aplican al momento a todas las terminales abiertas. Una edición a mano se aplica al
   recargar la ventana.
@@ -200,7 +203,7 @@ archivo no se puede interpretar se usan los valores por defecto (y se anota en e
 se reemplaza.
 
 *Ajustes → Git* edita `git.editor`, `git.worktree_dir` y `git.default_mode`. *Ajustes → General*
-edita `ui.language`, `sessions.restore` y `messages.enabled` (se guardan al momento). *Ajustes → Apariencia* edita
+edita `ui.language`, `sessions.restore`, `messages.enabled` y `messages.auto_deliver` (se guardan al momento). *Ajustes → Apariencia* edita
 `ui.appearance` y `terminal.*`, con vista previa; los cambios se aplican al momento a las terminales
 abiertas y se guardan enseguida.
 

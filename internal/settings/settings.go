@@ -219,6 +219,9 @@ type Messages struct {
 	// Enabled: sessions may send each other messages, and agent hooks
 	// deliver them.
 	Enabled bool `json:"enabled"`
+	// AutoDeliver: a Claude session idle at its prompt is told about new
+	// messages without the Deliver click (see internal/daemon/autodeliver.go).
+	AutoDeliver bool `json:"autoDeliver"`
 }
 
 // Settings is the parsed file.
@@ -233,7 +236,8 @@ type Settings struct {
 }
 
 type fileMessages struct {
-	Enabled *bool `yaml:"enabled"`
+	Enabled     *bool `yaml:"enabled"`
+	AutoDeliver *bool `yaml:"auto_deliver"`
 }
 
 type fileNotify struct {
@@ -324,6 +328,7 @@ func Save(path string, s Settings) error {
 	setKey(root, []string{"ui", "appearance"}, normAppearance(s.UI.Appearance), "!!str")
 	setKey(root, []string{"sessions", "restore"}, normRestore(s.Sessions.Restore), "!!str")
 	setKey(root, []string{"messages", "enabled"}, b(s.Messages.Enabled), "!!bool")
+	setKey(root, []string{"messages", "auto_deliver"}, b(s.Messages.AutoDeliver), "!!bool")
 	term := normTerminal(s.Terminal)
 	setKey(root, []string{"terminal", "font_family"}, term.FontFamily, "!!str")
 	setKey(root, []string{"terminal", "font_size"}, strconv.Itoa(term.FontSize), "!!int")
@@ -437,6 +442,7 @@ func Parse(data []byte) (Settings, error) {
 	set(&s.Notify.OnDone, f.Notify.OnDone)
 	set(&s.Notify.OnStall, f.Notify.OnStall)
 	set(&s.Messages.Enabled, f.Messages.Enabled)
+	set(&s.Messages.AutoDeliver, f.Messages.AutoDeliver)
 	if f.Notify.Fallback != nil {
 		s.Notify.Fallback = normFallback(*f.Notify.Fallback)
 	}

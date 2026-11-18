@@ -600,6 +600,9 @@ export const en = {
   'err.forge_head_mismatch': 'Pull request {number} is not for {branch} (its branch is {head}): reload and try again.',
   'err.forge_failed': '{tool} failed: {stderr}',
   'settings.messages': 'Messages between sessions',
+  'settings.autoDeliver': 'Deliver to idle Claude sessions by themselves',
+  'settings.autoDeliverHelp':
+    'Does what Deliver does when a Claude session is idle at its prompt, so a reply doesn\'t wait for you. Not over text you typed without sending, and at most 5 times per session before you act on it again (messages.auto_deliver).',
   'settings.messagesHelp': 'Agents of a project can write to each other (agenterm msg) and Claude gets their messages by itself (messages.enabled).',
   'err.msg_disabled': 'Messages between sessions are off (Settings › General).',
   'err.msg_no_session': 'No session of this project matches “{to}”.',

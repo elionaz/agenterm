@@ -47,6 +47,26 @@ or `all`. Such messages come from *the user*. `msg read` only works inside a ses
   answer. Shells don't get it, because they would run the line as a command: their messages stay in
   the app.
 
+## Automatic delivery
+
+**Settings → General → Deliver to idle Claude sessions by themselves** (`messages.auto_deliver`,
+off by default) does what **Deliver** does without the click: when a message waits for a Claude
+session that is idle at its prompt (a reply that came after its turn ended, or one sent while it
+was idle), agenterm types the same fixed line, a moment later. It holds back, leaving the message
+pending with the **Deliver** button, when:
+
+- the session is not Claude (other agents and shells keep the button), or is working, or waits for
+  an approval or an answer;
+- what was last typed into it was not a lone Enter (or Ctrl-C): its input line may hold text you
+  haven't sent, which the line and its Enter would send. A new line in a draft (Shift+Enter,
+  Option+Enter, `\` Enter) still counts as a draft. Sending it (or clearing it with Ctrl-C) lifts
+  this within a few seconds;
+- you typed into it in the last few seconds;
+- it was already delivered to automatically 5 times since you last acted on that session
+  (submitted a prompt in it, sent it a message from the app or clicked **Deliver**), which starts
+  the count again; and, whatever happens, at most 20 automatic deliveries in a project every 10
+  minutes. That keeps agents from waking each other up forever.
+
 ## In the app
 
 - The **Messages** tab, next to Terminal and Changes, lists what the session sent and received,

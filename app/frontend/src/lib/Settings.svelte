@@ -108,17 +108,22 @@
     }
   }
 
-  /** Messages between sessions (messages.enabled). */
+  /** Messages between sessions (messages.enabled, messages.auto_deliver). */
   let messagesOn = $state(true)
+  let autoDeliver = $state(false)
   let messagesError = $state<string | null>(null)
-  async function saveMessages(on: boolean) {
+  async function saveMessages(on: boolean, auto: boolean) {
+    const prev = { on: messagesOn, auto: autoDeliver }
     messagesOn = on
+    autoDeliver = auto
     messagesError = null
     try {
-      const s = await api.saveSettings({ messages: { enabled: on } })
+      // The section is saved whole: send both fields.
+      const s = await api.saveSettings({ messages: { enabled: on, autoDeliver: auto } })
       onSettings?.(s)
     } catch (e) {
-      messagesOn = !on
+      messagesOn = prev.on
+      autoDeliver = prev.auto
       messagesError = errorMessage(e)
     }
   }
@@ -460,6 +465,7 @@
     const r = s.sessions?.restore
     restore = r === 'always' || r === 'never' ? r : 'ask'
     messagesOn = s.messages?.enabled ?? true
+    autoDeliver = s.messages?.autoDeliver ?? false
     setAppearance(s.ui?.appearance)
     setTermPrefs(s.terminal)
     fontFamily = termPrefs().fontFamily
@@ -634,10 +640,26 @@
         </label>
         {#if restoreError}<div class="error">{restoreError}</div>{/if}
         <label class="check">
-          <input type="checkbox" checked={messagesOn} onchange={(e) => saveMessages((e.currentTarget as HTMLInputElement).checked)} />
+          <input
+            type="checkbox"
+            checked={messagesOn}
+            onchange={(e) => saveMessages((e.currentTarget as HTMLInputElement).checked, autoDeliver)}
+          />
           <span>
             <b>{t('settings.messages')}</b>
             <em>{t('settings.messagesHelp')}</em>
+          </span>
+        </label>
+        <label class="check" class:dim={!messagesOn}>
+          <input
+            type="checkbox"
+            checked={autoDeliver}
+            disabled={!messagesOn}
+            onchange={(e) => saveMessages(messagesOn, (e.currentTarget as HTMLInputElement).checked)}
+          />
+          <span>
+            <b>{t('settings.autoDeliver')}</b>
+            <em>{t('settings.autoDeliverHelp')}</em>
           </span>
         </label>
         {#if messagesError}<div class="error">{messagesError}</div>{/if}

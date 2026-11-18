@@ -219,3 +219,28 @@ func TestSpawnSeededScrollback(t *testing.T) {
 		t.Fatalf("scrollback %q", out)
 	}
 }
+
+func TestSubmits(t *testing.T) {
+	for _, c := range []struct {
+		prev byte
+		in   string
+		want bool
+	}{
+		{0, "\r", true},
+		{'a', "\r", true},
+		{0, "hello\r", true},
+		{0, "\x03", true},
+		{0, "half", false},
+		{0, "\n", false},     // Shift+Enter in the app
+		{0, "line\n", false}, // Ctrl-J
+		{0, "\x1b\r", false}, // Option+Enter
+		{'\\', "\r", false},  // "\" then Enter, two writes
+		{0, "x\\\r", false},  // "\" Enter in one write
+		{0, "\x1b[A", false}, // an arrow: maybe a recalled prompt
+		{0, "", false},
+	} {
+		if got := submits(c.prev, []byte(c.in)); got != c.want {
+			t.Errorf("submits(%q, %q) = %v, want %v", c.prev, c.in, got, c.want)
+		}
+	}
+}
