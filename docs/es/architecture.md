@@ -116,6 +116,7 @@ siguen funcionando), para que la app pueda mostrarlos en su idioma (ver
 | `worktree_not_found` | `{id}` |
 | `merge_main_dirty` | `{dir, count}` |
 | `merge_wrong_branch` | `{dir, current, base}` (`current` vacío = HEAD separado) |
+| `merge_base_behind` | `{dir, base, upstream, count}` |
 | `merge_nothing` | `{branch, base}` |
 | `merge_conflict` | `{branch, base, files}` |
 | `branch_missing`, `branch_exists`, `branch_invalid` | `{branch}` |

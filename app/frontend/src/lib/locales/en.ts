@@ -586,6 +586,10 @@ export const en = {
   'err.merge_wrong_branch': 'Cannot merge: the main folder ({dir}) is on branch {current}, not {base}; switch it to {base} and try again.',
   'err.merge_wrong_branch_detached':
     'Cannot merge: the main folder ({dir}) has a detached HEAD, not {base}; switch it to {base} and try again.',
+  'err.merge_base_behind': {
+    one: 'Cannot merge: {base} is 1 commit behind {upstream} (pull requests merged on the host); pull it first (git -C {dir} pull --ff-only).',
+    other: 'Cannot merge: {base} is {n} commits behind {upstream} (pull requests merged on the host); pull it first (git -C {dir} pull --ff-only).',
+  },
   'err.merge_nothing': 'Nothing to merge: {branch} has no commits that are not already in {base}.',
   'err.merge_conflict': 'Merging {branch} into {base} conflicts ({files}): the merge was aborted; resolve it by hand.',
   'err.pr_nothing': 'Nothing to open a pull request for: {branch} has no commits that are not already in {base}.',

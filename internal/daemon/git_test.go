@@ -1,7 +1,6 @@
 package daemon_test
 
 import (
-	"bytes"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -62,18 +61,41 @@ func tempRepo(t *testing.T) string {
 }
 
 // runIn types a command into a shell session and waits for its marker.
+// runIn types cmd into shell session id and waits until it has run. It
+// waits for a marker file, not for output: on a busy machine the daemon may
+// drop a slow attach stream (by design: it never blocks the PTY), and the
+// command's own echo is enough output to trigger that. The stream stays
+// open (and drained) until then: closing it right after the input could
+// make the daemon drop the input unread.
 func runIn(t *testing.T, c *client.Client, id, cmd string) {
 	t.Helper()
+	marker := filepath.Join(t.TempDir(), "done")
 	st, err := c.Attach(ctxT(t), id, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer st.Close()
-	readUntil(t, st, func(_ []byte, f protocol.Frame) bool { return f.Type == protocol.FrameReplayDone })
-	if err := st.Input([]byte(cmd + "; echo MARK''ER\n")); err != nil {
+	go func() {
+		for {
+			if _, err := st.Recv(); err != nil {
+				return
+			}
+		}
+	}()
+	if err := st.Input([]byte(cmd + "; touch '" + marker + "'\n")); err != nil {
 		t.Fatal(err)
 	}
-	readUntil(t, st, func(out []byte, _ protocol.Frame) bool { return bytes.Contains(out, []byte("MARKER")) })
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		if _, err := os.Stat(marker); err == nil {
+			return
+		}
+		if time.Now().After(deadline) {
+			tail, _ := c.Tail(ctxT(t), id, 12)
+			t.Fatalf("command did not finish in session %s: %q\nlast output:\n%s", id, cmd, strings.Join(tail, "\n"))
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
 }
 
 func listWorktrees(t *testing.T, c *client.Client, projectID string) []protocol.WorktreeInfo {

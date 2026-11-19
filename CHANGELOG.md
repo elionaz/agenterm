@@ -7,6 +7,21 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-18
+
+### Fixed
+
+- **The daemon could hang** when a message call (`agenterm msg …`, the Messages tab, Claude's
+  hooks) came in just as a session changed state. Two locks were taken in opposite orders, so
+  every session froze until the daemon was killed. Present since session messages (0.6.0).
+- **Changes counted work that was already merged.** A worktree was compared with the local base
+  branch, so pull requests merged on the host showed up as the branch's changes until someone
+  pulled `main`, and a squash-merged branch kept all its changes forever. Now the branch is
+  compared with the base's upstream (`origin/main`) when the local copy is behind it, the daemon
+  fetches that branch in the background (at most every 5 minutes, never prompting), and a branch
+  whose files are already in the base shows no changes. **Merge into the base** refuses a base
+  that is behind its upstream instead of making a merge commit the remote never gets.
+
 ## [0.8.0] - 2026-11-18
 
 ### Added
@@ -340,7 +355,8 @@ First public release: a macOS desktop app (universal: Apple Silicon and Intel, m
   `.zip` downloads, CLI archives for macOS and Linux, and a Homebrew cask
   (`brew install --cask elionaz/tap/agenterm`).
 
-[Unreleased]: https://github.com/elionaz/agenterm/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/elionaz/agenterm/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/elionaz/agenterm/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/elionaz/agenterm/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/elionaz/agenterm/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/elionaz/agenterm/compare/v0.5.0...v0.6.0

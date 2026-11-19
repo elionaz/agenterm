@@ -80,6 +80,13 @@ confianza la primera vez para la carpeta nueva.
   lista) más los archivos sin seguimiento no ignorados, y los commits por delante
   (`git log <base>..HEAD`, máximo 200). Si la rama base desaparece se usa el commit base guardado al
   crear el worktree.
+- **La base se mantiene al día**: si la rama base local va atrás de su upstream (`origin/main`: pull
+  requests mergeados en el servidor y nunca traídos) y la rama ya tiene esos commits, se compara con
+  el upstream, para que no cuenten como cambios de la rama. El daemon trae esa rama del upstream en
+  segundo plano (`git fetch <remoto> <base>`, como mucho cada 5 minutos por repositorio y sin pedir
+  credenciales nunca: sin red o sin credencial, simplemente no lo hace). Una rama cuyo pull request
+  se mergeó con **squash o rebase** (sus archivos ya están iguales en la base) no muestra commits
+  ni cambios, solo lo que quede sin commitear.
 - **Misma carpeta**: `git diff HEAD` más los archivos sin seguimiento (contra el árbol vacío si el
   repo no tiene commits).
 - Por archivo: ruta, ruta anterior (renombrados), estado `A`/`M`/`D`/`R`/`C`/`T`/`U`, líneas `+`/`−`,
@@ -99,6 +106,8 @@ confianza la primera vez para la carpeta nueva.
   - la carpeta principal está en la rama base;
   - no tiene cambios en archivos con seguimiento (los sin seguimiento no bloquean; no hay stash
     automático);
+  - la base no va atrás de su upstream (actualízala antes: un merge sobre una base vieja crea un
+    commit de merge que el remoto nunca recibe);
   - la rama tiene commits que la base no tiene.
 
   Si hay conflictos se hace `git merge --abort` y se informa qué archivos chocaron. Los cambios sin

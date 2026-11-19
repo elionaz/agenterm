@@ -3,6 +3,7 @@ package daemon_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -141,6 +142,12 @@ func readUntil(t *testing.T, st *client.Stream, pred func(out []byte, f protocol
 			}
 			if pred(out.Bytes(), f) {
 				done <- nil
+				return
+			}
+			if f.Type == protocol.FrameError {
+				// e.g. "client too slow; reattach to resync": say so
+				// instead of the bare EOF that follows.
+				done <- fmt.Errorf("daemon error frame %q", f.Payload)
 				return
 			}
 		}

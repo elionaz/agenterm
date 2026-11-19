@@ -546,6 +546,10 @@ export const es: Dict = {
     'No se puede hacer merge: la carpeta principal ({dir}) está en la rama {current}, no en {base}; cámbiala a {base} y vuelve a intentarlo.',
   'err.merge_wrong_branch_detached':
     'No se puede hacer merge: la carpeta principal ({dir}) tiene HEAD separado, no está en {base}; cámbiala a {base} y vuelve a intentarlo.',
+  'err.merge_base_behind': {
+    one: 'No se puede hacer merge: {base} va 1 commit atrás de {upstream} (pull requests mergeados en el servidor); actualízala antes (git -C {dir} pull --ff-only).',
+    other: 'No se puede hacer merge: {base} va {n} commits atrás de {upstream} (pull requests mergeados en el servidor); actualízala antes (git -C {dir} pull --ff-only).',
+  },
   'err.merge_nothing': 'Nada que mergear: {branch} no tiene commits que no estén ya en {base}.',
   'err.merge_conflict': 'El merge de {branch} en {base} tiene conflictos ({files}): se ha abortado; resuélvelo a mano.',
   'err.pr_nothing': 'No hay nada para un pull request: {branch} no tiene commits que no estén ya en {base}.',
