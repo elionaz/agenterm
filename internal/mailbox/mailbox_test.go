@@ -162,3 +162,52 @@ func TestMemoryStoreWritesNothing(t *testing.T) {
 		t.Fatal("not kept in memory")
 	}
 }
+
+func TestWakes(t *testing.T) {
+	s := Memory()
+	add := func(from, to string) {
+		t.Helper()
+		if _, err := s.Add(Message{ProjectID: "p", From: from, To: to, Body: "x"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	take := func(to string) {
+		t.Helper()
+		if _, err := s.Take(to); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if s.Wakes("r") {
+		t.Fatal("nothing pending wakes")
+	}
+	// A heads-up nobody asked for waits.
+	add("s", "r")
+	if s.Wakes("r") {
+		t.Fatal("an unasked message wakes")
+	}
+	take("r")
+	// r asks s: s's answer wakes it.
+	add("r", "s")
+	add("s", "r")
+	if !s.Wakes("r") {
+		t.Fatal("a reply does not wake")
+	}
+	take("r")
+	// Once answered, s's next message is a heads-up again.
+	add("s", "r")
+	if s.Wakes("r") {
+		t.Fatal("a second message after the answer wakes")
+	}
+	// Another session's reply wakes, the old heads-up still pending.
+	add("r", "o")
+	add("o", "r")
+	if !s.Wakes("r") {
+		t.Fatal("a reply from another session does not wake")
+	}
+	take("r")
+	// The user always wakes.
+	add(User, "r")
+	if !s.Wakes("r") {
+		t.Fatal("a message from the user does not wake")
+	}
+}

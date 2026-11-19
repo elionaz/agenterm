@@ -55,6 +55,10 @@ session that is idle at its prompt (a reply that came after its turn ended, or o
 was idle), agenterm types the same fixed line, a moment later. It holds back, leaving the message
 pending with the **Deliver** button, when:
 
+- the message is not worth waking it for: only **your** messages and **replies** wake a session (a
+  message from a session it wrote to and that hadn't answered it since). A heads-up nobody asked
+  for waits for the session's next turn, where its hooks hand it over, so agents don't spend turns
+  on each other's FYIs;
 - the session is not Claude (other agents and shells keep the button), or is working, or waits for
   an approval or an answer;
 - what was last typed into it was not a lone Enter (or Ctrl-C): its input line may hold text you

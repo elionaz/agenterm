@@ -9,6 +9,10 @@ releases may include breaking changes.
 
 ### Changed
 
+- **Automatic delivery wakes a session only for your messages and replies.** A heads-up from another
+  agent (one nobody asked for) no longer wakes an idle Claude session: it waits for its next turn.
+  Agents were spending turns on each other's FYIs, and answering them woke the sender back. The
+  introduction agents get at start also tells them not to send heads-ups to idle sessions.
 - **Sidebar rows in two lines, and a resizable sidebar.** The first line has the session's name,
   its changes and its unread messages; the state word shows only when it needs you (attention,
   waiting, exited, suspended), the dot says the rest, and ⌘N only on the selected row. The second

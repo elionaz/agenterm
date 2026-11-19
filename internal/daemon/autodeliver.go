@@ -16,6 +16,9 @@ import (
 // so a reply that arrives after its turn ended doesn't wait for the user.
 //
 // It holds back when that could go wrong:
+//   - only for a message worth waking it for: from the user, or a reply to
+//     what the session sent (mailbox.Wakes); a heads-up waits for its next
+//     turn, so agents don't spend turns on each other's FYIs;
 //   - only Claude (its hooks hand the messages over) and only idle at its
 //     prompt, never while it waits for an approval or an answer;
 //   - never over a draft: when what was last typed into the session was not
@@ -151,6 +154,12 @@ const (
 	holdTyping = "typed just now"
 )
 
+// holdNotReply: what waits is not from the user nor an answer to the
+// session (a heads-up): it gets it on its next turn, as without automatic
+// delivery. It lifts when a message that wakes arrives (a new send
+// schedules a check).
+const holdNotReply = "not a reply"
+
 // autoDeliverNow nudges session id if every condition holds; it returns
 // why not otherwise ("" when it did).
 func (s *Server) autoDeliverNow(id string) string {
@@ -266,6 +275,9 @@ func (s *Server) autoDeliverBlock(sess *session.Session, lastNudge time.Time) st
 	}
 	if s.mail.Pending(sess.ID) == 0 {
 		return "nothing pending"
+	}
+	if !s.mail.Wakes(sess.ID) {
+		return holdNotReply
 	}
 	if isShell(sess) || !s.hookDelivers(sess.ProfileID) {
 		return "not claude"

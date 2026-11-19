@@ -246,6 +246,28 @@ func (s *Store) Pending(to string) int {
 	return n
 }
 
+// Wakes reports whether a message pending for session to is worth waking
+// it up for (automatic delivery): one from the user, or a reply — from a
+// session that to wrote to and that had not answered it since. Anything
+// else (a heads-up nobody asked for) waits for to's next turn.
+func (s *Store) Wakes(to string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	asked := map[string]bool{} // sessions to wrote to and that haven't answered since
+	for _, m := range s.msgs {
+		switch {
+		case m.From == to:
+			asked[m.To] = true
+		case m.To == to:
+			if m.Pending() && (m.From == User || asked[m.From]) {
+				return true
+			}
+			delete(asked, m.From) // answered: a later message is not a reply
+		}
+	}
+	return false
+}
+
 // DropTo forgets the pending messages for session to (it is gone for
 // good) and returns how many there were. Delivered ones stay as history.
 func (s *Store) DropTo(to string) (int, error) {

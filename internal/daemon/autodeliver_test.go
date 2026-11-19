@@ -178,3 +178,64 @@ func TestAutoDeliver(t *testing.T) {
 	idle()
 	out.waitNudges(t, 3+daemon.AutoChainMax, "chain after the user acted")
 }
+
+// A heads-up from another session (nobody asked for it) does not wake an
+// idle Claude session: it waits for its next turn. A message from the
+// user still does.
+func TestAutoDeliverOnlyReplies(t *testing.T) {
+	defer daemon.SetAutoTiming(100*time.Millisecond, 300*time.Millisecond, 200*time.Millisecond)()
+	cli := agentermCLI(t)
+	c, p, stop := startDaemon(t)
+	defer stop()
+	ctx := ctxT(t)
+	if err := os.WriteFile(p.Settings(), []byte("ui:\n  language: en\nmessages:\n  enabled: true\n  auto_deliver: true\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	fake := t.TempDir() + "/fakeclaude"
+	if err := os.WriteFile(fake, []byte("#!/bin/sh\nstty -echo -isig\nexec cat\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	profs := testProfiles + "- id: fakeclaude\n  cmd: " + fake + "\n  status: hooks\n  setup_hooks: claude\n"
+	if err := os.WriteFile(p.Profiles(), []byte(profs), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.RescanProfiles(ctx); err != nil {
+		t.Fatal(err)
+	}
+	proj, err := c.ProjectAdd(ctx, t.TempDir(), "replies")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := c.Spawn(ctx, protocol.SpawnParams{ProjectID: proj.ID, ProfileID: "fakeclaude"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sh, err := c.Spawn(ctx, protocol.SpawnParams{ProjectID: proj.ID, ProfileID: "shell"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, err := c.Attach(ctx, b.ID, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	readUntil(t, st, func(_ []byte, f protocol.Frame) bool { return f.Type == protocol.FrameReplayDone })
+	out := collect(t, st)
+	if _, err := c.Notify(ctx, b.ID, "running"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Notify(ctx, b.ID, "idle"); err != nil {
+		t.Fatal(err)
+	}
+
+	runIn(t, c, sh.ID, cli+" msg send "+b.ID+" 'heads-up' >/dev/null")
+	out.waitNudges(t, 0, "a heads-up from another session")
+	if l, err := c.MsgList(ctx, protocol.MsgListParams{SessionID: b.ID}); err != nil || len(l) != 1 || !l[0].Pending() {
+		t.Fatalf("the heads-up should stay pending: %+v, %v", l, err)
+	}
+
+	if _, err := c.MsgSend(ctx, protocol.MsgSendParams{To: b.ID, Body: "from the user"}); err != nil {
+		t.Fatal(err)
+	}
+	out.waitNudges(t, 1, "a message from the user")
+}
