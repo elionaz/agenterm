@@ -39,11 +39,23 @@
   let { sessionId, worktreeId, live = false, sharedWith = [], gitStamp, prStamp, startRemove = false, onError, onRemoved, onClose }: Props = $props()
 
   const STYLE_KEY = 'agenterm.diffStyle'
+  /** Below this width (px) the automatic style is unified: two columns
+   * would cut most lines. */
+  const NARROW_DIFF = 900
+  type DiffStyle = 'side-by-side' | 'line-by-line'
   let diff = $state<DiffResult | null>(null)
   let loading = $state(false)
   let loadError = $state<string | null>(null)
   let selectedPath = $state<string | null>(null)
-  let style = $state<'side-by-side' | 'line-by-line'>(readStyle())
+  /** The user's choice; null: automatic (unified when the diff is narrow). */
+  let stylePref = $state<DiffStyle | null>(readStyle())
+  let diffWidth = $state(0)
+  const style = $derived<DiffStyle>(stylePref ?? (diffWidth > 0 && diffWidth < NARROW_DIFF ? 'line-by-line' : 'side-by-side'))
+  let menuOpen = $state(false)
+  let commitsOpen = $state(true)
+  let prBlock = $state<ReturnType<typeof PullRequest> | null>(null)
+  let hasPR = $state(false)
+  let prCreating = $state(false)
   let notice = $state<string | null>(null)
 
   // Remove confirmation.
@@ -91,16 +103,17 @@
     }
   })
 
-  function readStyle(): 'side-by-side' | 'line-by-line' {
+  function readStyle(): DiffStyle | null {
     try {
-      return localStorage.getItem(STYLE_KEY) === 'line-by-line' ? 'line-by-line' : 'side-by-side'
+      const v = localStorage.getItem(STYLE_KEY)
+      return v === 'line-by-line' || v === 'side-by-side' ? v : null
     } catch {
-      return 'side-by-side'
+      return null
     }
   }
 
-  function setStyle(s: 'side-by-side' | 'line-by-line') {
-    style = s
+  function setStyle(s: DiffStyle) {
+    stylePref = s
     try {
       localStorage.setItem(STYLE_KEY, s)
     } catch {
@@ -172,6 +185,20 @@
     if (!diff?.branch) return
     await ClipboardSetText(diff.branch)
     flash(t('changes.copied', { branch: diff.branch }))
+  }
+
+  /** Create pull request: the host's form when gh / glab work here, else
+   * push the branch and open the host's page. */
+  function createPR() {
+    if (forgeAvailable && prBlock) {
+      merging = removing = prOpen = removeOffer = false
+      prBlock.openCreate()
+    } else void togglePR()
+  }
+
+  function menu(action: () => void) {
+    menuOpen = false
+    action()
   }
 
   function toggleMerge() {
@@ -286,42 +313,77 @@
   })
 </script>
 
+<svelte:window
+  onclick={() => (menuOpen = false)}
+  onkeydown={(e) => {
+    if (e.key === 'Escape') menuOpen = false
+  }}
+/>
+
 <div class="changes">
   <header class="bar">
-    {#if diff?.branch}
-      <span class="branch" title={diff.dir}>⎇ {diff.branch}{#if isWorktree && diff.base}<span class="base">{` ← ${diff.base}`}</span>{/if}</span>
-    {/if}
-    {#if diff}
-      <span class="stats">
-        {t('changes.files', { n: diff.files.length })}
-        <span class="add">+{diff.additions}</span>
-        <span class="del">−{diff.deletions}</span>
-        {#if diff.git.ahead}<span class="ahead">{t('changes.ahead', { n: diff.git.ahead })}</span>{/if}
-      </span>
-    {/if}
-    <button class="icon" class:spin={loading} title={t('changes.refresh')} aria-label={t('changes.refresh')} onclick={() => {
-        refreshTick++
-        void load()
-      }}>⟳</button>
-    <span class="seg">
-      <button class:on={style === 'side-by-side'} onclick={() => setStyle('side-by-side')}>{t('changes.sideBySide')}</button>
-      <button class:on={style === 'line-by-line'} onclick={() => setStyle('line-by-line')}>{t('changes.unified')}</button>
-    </span>
-    <span class="spacer"></span>
+    <div class="info">
+      {#if diff?.branch}
+        <span class="branch" title={diff.dir}>⎇ {diff.branch}{#if isWorktree && diff.base}<span class="base">{` → ${diff.base}`}</span>{/if}</span>
+      {/if}
+      {#if diff}
+        <span class="stats">
+          {t('changes.files', { n: diff.files.length })}
+          <span class="add">+{diff.additions}</span>
+          <span class="del">−{diff.deletions}</span>
+          {#if diff.git.ahead}<span class="ahead">· {t('changes.ahead', { n: diff.git.ahead })}</span>{/if}
+        </span>
+      {/if}
+      <button class="icon" class:spin={loading} title={t('changes.refresh')} aria-label={t('changes.refresh')} onclick={() => {
+          refreshTick++
+          void load()
+        }}>⟳</button>
+    </div>
     <span class="actions">
-      <button class="btn" onclick={() => open('editor')}>{t('changes.openEditor')}</button>
-      <button class="btn" onclick={() => open('finder')}>{t('changes.openFinder')}</button>
-      {#if diff?.branch}<button class="btn" onclick={copyBranch}>{t('changes.copyBranch')}</button>{/if}
-      {#if isWorktree && wtId}
-        <button class="btn" disabled={busy} onclick={toggleMerge}>{t('changes.mergeInto', { base: diff?.base || 'base' })}</button>
-        {#if !forgeAvailable}<button class="btn" disabled={busy} onclick={togglePR}>{t('changes.createPR')}</button>{/if}
+      {#if (forgeAvailable && !hasPR) || (!forgeAvailable && isWorktree && wtId)}
         <button
-          class="btn danger"
-          disabled={busy || live}
-          title={live ? t('changes.stopFirst') : ''}
-          onclick={() => askRemove()}>{t('changes.removeWorktree')}</button
+          class="btn primary"
+          class:on={prCreating || prOpen}
+          disabled={busy || (!forgeAvailable && !diff?.git.ahead)}
+          title={!forgeAvailable && !diff?.git.ahead ? t('pr.nothingToCreate') : ''}
+          onclick={createPR}>{t('changes.createPR')}</button
         >
       {/if}
+      {#if isWorktree && wtId}
+        <button class="btn" class:on={merging} disabled={busy} onclick={toggleMerge}>{t('changes.mergeInto', { base: diff?.base || 'base' })}</button>
+      {/if}
+      <span class="more">
+        <button
+          class="btn icon-btn"
+          class:on={menuOpen}
+          title={t('changes.more')}
+          aria-label={t('changes.more')}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          onclick={(e) => {
+            e.stopPropagation()
+            menuOpen = !menuOpen
+          }}>⋯</button
+        >
+        {#if menuOpen}
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <div class="menu" role="menu" tabindex="-1" onclick={(e) => e.stopPropagation()}>
+            <button class="menu-item" role="menuitem" onclick={() => menu(() => open('editor'))}>{t('changes.openEditor')}</button>
+            <button class="menu-item" role="menuitem" onclick={() => menu(() => open('finder'))}>{t('changes.openFinder')}</button>
+            {#if diff?.branch}<button class="menu-item" role="menuitem" onclick={() => menu(copyBranch)}>{t('changes.copyBranch')}</button>{/if}
+            {#if isWorktree && wtId}
+              <div class="menu-sep"></div>
+              <button
+                class="menu-item danger"
+                role="menuitem"
+                disabled={busy || live}
+                title={live ? t('changes.stopFirst') : ''}
+                onclick={() => menu(() => askRemove())}>{t('changes.removeWorktree')}</button
+              >
+            {/if}
+          </div>
+        {/if}
+      </span>
       {#if onClose}<button class="icon close" title={t('changes.close')} aria-label={t('changes.closeLabel')} onclick={onClose}>×</button>{/if}
     </span>
   </header>
@@ -346,6 +408,9 @@
           }
         : undefined}
       bind:available={forgeAvailable}
+      bind:hasPR
+      bind:creating={prCreating}
+      bind:this={prBlock}
     />
   {/if}
 
@@ -448,28 +513,44 @@
     <div class="body">
       <aside class="files">
         {#if diff.commits.length}
-          <div class="section">{t('changes.commits', { n: diff.commits.length })}</div>
-          <ul class="commits">
+          <button class="section toggle" aria-expanded={commitsOpen} onclick={() => (commitsOpen = !commitsOpen)}
+            ><span class="caret" class:open={commitsOpen}>▸</span> {t('changes.commits', { n: diff.commits.length })}</button
+          >
+          {#if commitsOpen}<ul class="commits">
             {#each diff.commits as c (c.hash)}
               <li title={`${c.hash}\n${c.author} · ${new Date(c.date).toLocaleString(locale())}`}><code>{c.short}</code> {c.subject}</li>
             {/each}
-          </ul>
+          </ul>{/if}
         {/if}
         <div class="section">{t('changes.fileList', { n: diff.files.length })}</div>
         {#each diff.files as f (f.path)}
           {@const n = fileName(f.path)}
           <button class="file" class:sel={selected?.path === f.path} title={f.oldPath ? `${f.oldPath} → ${f.path}` : f.path} onclick={() => (selectedPath = f.path)}>
             <span class={statusClass(f)}>{f.status}</span>
-            <span class="fname"><span class="fdir">{n.dir}</span>{n.base}</span>
+            <span class="fname">
+              <span class="fbase">{n.base}</span>
+              {#if n.dir}<span class="fdir">{n.dir.replace(/\/$/, '')}</span>{/if}
+            </span>
             {#if f.binary}<span class="tag">bin</span>
-            {:else}<span class="add">+{f.additions}</span><span class="del">−{f.deletions}</span>{/if}
+            {:else}<span class="nums"><span class="add">+{f.additions}</span> <span class="del">−{f.deletions}</span></span>{/if}
           </button>
         {:else}
           <p class="muted pad">{isWorktree ? t('changes.noChangesBase', { base: diff.base ?? '' }) : t('changes.noChanges')}</p>
         {/each}
       </aside>
-      <section class="diff">
+      <section class="diff" class:wrap={style === 'line-by-line'} bind:clientWidth={diffWidth}>
         {#if selected}
+          <div class="diff-head">
+            <span class={statusClass(selected)}>{selected.status}</span>
+            <span class="dpath" title={selected.oldPath ? `${selected.oldPath} → ${selected.path}` : selected.path}
+              >{selected.oldPath ? `${selected.oldPath} → ` : ''}{selected.path}</span
+            >
+            {#if !selected.binary}<span class="nums"><span class="add">+{selected.additions}</span> <span class="del">−{selected.deletions}</span></span>{/if}
+            <span class="seg" role="group" aria-label={t('changes.style')}>
+              <button class:on={style === 'line-by-line'} title={t('changes.unified')} aria-label={t('changes.unified')} onclick={() => setStyle('line-by-line')}>≡</button>
+              <button class:on={style === 'side-by-side'} title={t('changes.sideBySide')} aria-label={t('changes.sideBySide')} onclick={() => setStyle('side-by-side')}>◫</button>
+            </span>
+          </div>
           {#if selected.binary}
             <div class="empty"><p class="muted">{t('changes.binary', { path: selected.path })}</p></div>
           {:else if selected.truncated || !selected.patch}
@@ -500,14 +581,24 @@
   .bar {
     flex: none;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 10px;
+    gap: 6px 12px;
     padding: 6px 12px;
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
-    overflow-x: auto;
+  }
+  .info {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
   .branch {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-family: var(--mono);
     font-size: 12px;
     color: var(--fg);
@@ -516,6 +607,7 @@
     color: var(--muted);
   }
   .stats {
+    flex: none;
     color: var(--fg-dim);
     font-size: 12px;
   }
@@ -530,13 +622,54 @@
   .ahead {
     color: var(--muted);
   }
-  .spacer {
-    flex: 1;
-  }
   .actions {
+    flex: none;
+    margin-left: auto;
     display: flex;
     gap: 6px;
     align-items: center;
+  }
+  .more {
+    position: relative;
+  }
+  .icon-btn {
+    padding: 3px 8px;
+    line-height: 1;
+  }
+  .menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 10;
+    min-width: 180px;
+    padding: 4px;
+    background: var(--menu-bg);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px var(--shadow);
+  }
+  .menu-item {
+    display: block;
+    width: 100%;
+    padding: 6px 8px;
+    border-radius: 5px;
+    font-size: 12.5px;
+    color: var(--fg);
+    text-align: left;
+  }
+  .menu-item:hover:not(:disabled) {
+    background: var(--accent-bg);
+  }
+  .menu-item:disabled {
+    opacity: 0.45;
+  }
+  .menu-item.danger {
+    color: var(--red);
+  }
+  .menu-sep {
+    height: 1px;
+    margin: 4px 2px;
+    background: var(--border);
   }
   .icon {
     width: 22px;
@@ -591,6 +724,10 @@
   }
   .btn.primary {
     background: var(--accent-bg);
+    color: var(--fg);
+  }
+  .btn.on {
+    border-color: var(--blue);
     color: var(--fg);
   }
   .btn.danger {
@@ -686,6 +823,21 @@
     border-right: 1px solid var(--border);
     padding-bottom: 8px;
   }
+  .section.toggle {
+    display: block;
+    width: 100%;
+    text-align: left;
+  }
+  .section.toggle:hover {
+    color: var(--fg);
+  }
+  .caret {
+    display: inline-block;
+    transition: transform 0.12s;
+  }
+  .caret.open {
+    transform: rotate(90deg);
+  }
   .section {
     padding: 8px 12px 4px;
     font-size: 10.5px;
@@ -714,10 +866,10 @@
   }
   .file {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     gap: 6px;
     width: 100%;
-    padding: 3px 12px;
+    padding: 4px 12px;
     text-align: left;
     font-size: 12px;
     color: var(--fg-dim);
@@ -732,14 +884,26 @@
   .fname {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    white-space: nowrap;
+  }
+  .fbase {
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
-    direction: rtl;
-    text-align: left;
   }
   .fdir {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* The end of the folder is what tells files apart: cut its start. */
+    direction: rtl;
+    text-align: left;
+    font-size: 10.5px;
     color: var(--muted);
+  }
+  .nums {
+    flex: none;
+    font-size: 11px;
   }
   .tag {
     font-size: 10px;
@@ -776,6 +940,48 @@
     overflow: auto;
     display: flex;
     flex-direction: column;
+  }
+  .diff-head {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: var(--sidebar-bg);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .dpath {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: rtl;
+    text-align: left;
+    font-family: var(--mono);
+    color: var(--fg);
+  }
+  .diff-head .seg button {
+    padding: 1px 8px;
+    font-size: 13px;
+  }
+  /* Our head names the file: diff2html's own is redundant. */
+  .diff :global(.d2h-file-header) {
+    display: none;
+  }
+  /* Unified: long lines wrap instead of running off the edge (side by
+   * side keeps scrolling: its two columns are separate tables, and wrapped
+   * rows would no longer line up). */
+  .diff.wrap :global(.d2h-code-line) {
+    white-space: normal;
+  }
+  .diff.wrap :global(.d2h-code-line-ctn) {
+    white-space: pre-wrap;
+    word-break: break-all;
   }
   .diff :global(.raw) {
     margin: 0;
@@ -814,10 +1020,5 @@
   .diff :global(.d2h-code-linenumber),
   .diff :global(.d2h-code-side-linenumber) {
     font-size: 12px;
-  }
-  .diff :global(.d2h-file-header) {
-    position: sticky;
-    top: 0;
-    z-index: 1;
   }
 </style>

@@ -13,6 +13,7 @@
   import type { ProjectPatch } from './lib/badge'
   import Welcome from './lib/Welcome.svelte'
   import { activityText, mergeLive, progressOf, timerInfo } from './lib/activity'
+  import { shortBranch } from './lib/branch'
   import { setLangSetting, setSystemLang, t, th } from './lib/i18n.svelte'
   import { TerminalManager } from './lib/terminals'
   import {
@@ -978,13 +979,13 @@
       {#if selected}
         {@const proj = projects.find((p) => p.id === selected.projectId)}
         {#if proj}<span class="title-badge" title={proj.name}><ProjectBadge project={proj} size={18} /></span>{/if}
-        <span class="title">{sessionTitle(selected)}</span>
+        <span class="title" title={selected.cwd}>{sessionTitle(selected)}</span>
         {#if selected.name}<span class="profile">{selected.profileId}</span>{/if}
         {#if selected.model}<span class="profile" title={selected.model}>{prettyModel(selected.model)}</span>{/if}
         {#if selected.mode === 'worktree' && selected.branch}
-          <span class="branch" title={selected.worktreePath}>⎇ {selected.branch}</span>
+          <span class="branch" title={`${selected.branch}\n${selected.worktreePath ?? ''}`}>⎇ {shortBranch(selected.branch)}</span>
         {:else if selected.git?.head}
-          <span class="branch same" title={t('sidebar.folderBranch', { branch: selected.git.head })}>⎇ {selected.git.head}</span>
+          <span class="branch same" title={t('sidebar.folderBranch', { branch: selected.git.head })}>⎇ {shortBranch(selected.git.head)}</span>
         {/if}
         {#if selected.attentionKind && selected.state !== 'exited'}
           <span class="attn {selected.attentionKind}" title={selected.attentionMessage ?? ''}>
@@ -995,10 +996,10 @@
           {@const act = activityText(selected)}
           <span class="activity" title={act}>{act}</span>
         {/if}
+        <span class="grow"></span>
         {#if selectedTimer?.text}
           <span class="timer" class:stalled={selectedTimer.stalled}>{selectedTimer.text}</span>
         {/if}
-        <span class="subtitle">{selected.cwd}</span>
       {:else if currentProject}
         <span class="title-badge"><ProjectBadge project={currentProject} size={18} /></span>
         <span class="title">{currentProject.name}</span>
@@ -1302,10 +1303,12 @@
     background: color-mix(in srgb, var(--red) 10%, transparent);
     border-color: color-mix(in srgb, var(--red) 30%, transparent);
   }
+  .grow {
+    flex: 1;
+  }
   .activity {
     flex: 0 1 auto;
     min-width: 0;
-    max-width: 40%;
     overflow: hidden;
     text-overflow: ellipsis;
     color: var(--fg-dim);

@@ -20,9 +20,23 @@
     onMerged?: (msg: string) => void
     /** The integration works here (Changes hides its push-and-browse button). */
     available?: boolean
+    /** The branch has a pull request (Changes then hides its create button). */
+    hasPR?: boolean
+    /** The create form is open (Changes shows its button as pressed). */
+    creating?: boolean
   }
 
-  let { sessionId, worktreeId, reloadKey = '', onError, onSelectFile, onMerged, available = $bindable(false) }: Props = $props()
+  let {
+    sessionId,
+    worktreeId,
+    reloadKey = '',
+    onError,
+    onSelectFile,
+    onMerged,
+    available = $bindable(false),
+    hasPR = $bindable(false),
+    creating = $bindable(false),
+  }: Props = $props()
 
   let status = $state<ForgeStatus | null>(null)
   let comments = $state<ForgeComment[] | null>(null)
@@ -31,7 +45,6 @@
   let merging = $state(false)
   let method = $state('')
   let deleteBranch = $state(true)
-  let creating = $state(false)
   let title = $state('')
   let body = $state('')
   let draft = $state(false)
@@ -47,6 +60,12 @@
   $effect(() => {
     available = view === 'pr'
   })
+  $effect(() => {
+    hasPR = !!pr
+  })
+  /** Without a pull request there is nothing to show until the create form
+   * opens (Changes has the button) or there is a notice. */
+  const quiet = $derived(!pr && !creating && !notice && !status?.warning)
 
   /** The target as a key: results that come back for another one are
    * dropped (the user switched session while gh was running). */
@@ -160,7 +179,8 @@
     }
   }
 
-  function openCreate() {
+  /** Opens (or closes) the create form: Changes' Create pull request. */
+  export function openCreate() {
     merging = false
     creating = !creating
     if (creating) {
@@ -208,7 +228,7 @@
       ? t('pr.hintInstall', { tool: d.tool ?? 'gh', install: d.install ?? 'brew install gh' })
       : t('pr.hintLogin', { tool: d.tool ?? 'gh' })}
   </div>
-{:else if view === 'pr' && status}
+{:else if view === 'pr' && status && !quiet}
   <div class="pr">
     {#if notice}<p class="ok">{notice}</p>{/if}
     {#if status.warning}<p class="warn">{status.warning}</p>{/if}
@@ -232,14 +252,6 @@
           <button class="btn" disabled={busy} onclick={openMerge}>{t('pr.merge', { host })}</button>
         {/if}
         <button class="btn" onclick={() => BrowserOpenURL(pr.url)}>{t('pr.openOn', { host })}</button>
-      </div>
-    {:else}
-      <div class="line">
-        <span class="muted">{t('pr.none', { branch: status.branch ?? '' })}</span>
-        <span class="spacer"></span>
-        <button class="btn" disabled={busy || !status.ahead} title={status.ahead ? '' : t('pr.nothingToCreate')} onclick={openCreate}
-          >{t('pr.create')}</button
-        >
       </div>
     {/if}
 
