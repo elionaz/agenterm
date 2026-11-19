@@ -79,6 +79,13 @@ folder the first time.
   single list) plus untracked, non-ignored files, and the commits ahead (`git log <base>..HEAD`, at
   most 200). If the base branch disappears, the base commit saved when the worktree was created is
   used.
+- **The base is kept current**: when the local base branch is behind its upstream (`origin/main`:
+  pull requests merged on the host and never pulled) and the branch already has those commits, it
+  is compared with the upstream instead, so they don't count as the branch's changes. The daemon
+  fetches that upstream branch in the background (`git fetch <remote> <base>`, at most every 5
+  minutes per repository, never prompting for credentials: offline or without a credential it just
+  doesn't). A branch whose pull request was **squash- or rebase-merged** (its files are already the
+  same in the base) shows no commits or changes, only what's left uncommitted.
 - **Same folder**: `git diff HEAD` plus untracked files (against the empty tree if the repo has no
   commits).
 - Per file: path, previous path (renames), status `A`/`M`/`D`/`R`/`C`/`T`/`U`, `+`/`−` lines, whether
@@ -97,6 +104,8 @@ folder the first time.
   - the main folder is on the base branch;
   - it has no changes to tracked files (untracked files don't block it; there's no automatic
     stash);
+  - the base isn't behind its upstream (pull it first: a merge into a stale base makes a merge
+    commit the remote never gets);
   - the branch has commits the base doesn't have.
 
   On conflicts it runs `git merge --abort` and reports which files clashed. Uncommitted changes in

@@ -72,16 +72,34 @@ func (s *Server) worktreeRoot() (string, error) {
 	return root, nil
 }
 
-// baseRef is what a worktree's branch is compared with: its base branch,
-// or the base commit if that branch is gone.
-func baseRef(ctx context.Context, dir, base, baseCommit string) string {
+// baseRef is what a worktree's branch (head) is compared with: its base
+// branch, or that branch's upstream when the local copy is behind it (see
+// gitx.FreshestBase), or the base commit if the branch is gone.
+func baseRef(ctx context.Context, dir, base, baseCommit, head string) string {
 	if base != "" && gitx.BranchExists(ctx, dir, base) {
-		return base
+		return gitx.FreshestBase(ctx, dir, base, head)
 	}
 	if baseCommit != "" {
 		return baseCommit
 	}
 	return base
+}
+
+// compareBase is where a worktree's changes start: ref is what its branch
+// is compared with (baseRef) and from the merge base with it. When the
+// branch's commits are already in ref by content (its pull request was
+// squash- or rebase-merged on the host), merged is true and from is HEAD:
+// only what is left uncommitted counts as a change.
+func compareBase(ctx context.Context, g sessGit) (ref, from string, merged bool, err error) {
+	ref = baseRef(ctx, g.Dir, g.Base, g.BaseCommit, "HEAD")
+	mb, err := gitx.MergeBase(ctx, g.Dir, ref, "HEAD")
+	if err != nil {
+		return ref, "", false, err
+	}
+	if gitx.AlreadyIn(ctx, g.Dir, ref, mb, "HEAD") {
+		return ref, "HEAD", true, nil
+	}
+	return ref, mb, false, nil
 }
 
 // createWorktree makes a new worktree for session id of project proj and
@@ -186,14 +204,15 @@ func gitInfoFor(ctx context.Context, g sessGit) (*protocol.GitInfo, error) {
 	info := &protocol.GitInfo{At: time.Now().UTC()}
 	from := ""
 	if g.Mode == protocol.ModeWorktree {
-		ref := baseRef(ctx, g.Dir, g.Base, g.BaseCommit)
-		mb, err := gitx.MergeBase(ctx, g.Dir, ref, "HEAD")
+		ref, mb, merged, err := compareBase(ctx, g)
 		if err != nil {
 			return nil, err
 		}
 		from = mb
-		if info.Ahead, err = gitx.AheadCount(ctx, g.Dir, ref, "HEAD"); err != nil {
-			return nil, err
+		if !merged {
+			if info.Ahead, err = gitx.AheadCount(ctx, g.Dir, ref, "HEAD"); err != nil {
+				return nil, err
+			}
 		}
 	}
 	n, err := gitx.ChangedFiles(ctx, g.Dir, from)
@@ -286,7 +305,80 @@ func (s *Server) computeGit(id string) (*protocol.GitInfo, error) {
 	}
 	ctx, cancel := context.WithTimeout(s.bg, gitQueryTO)
 	defer cancel()
+	s.maybeFetch(*g)
 	return gitInfoFor(ctx, *g)
+}
+
+// gitFetchInterval is how often, at most, the daemon fetches a worktree
+// base's upstream (per repository and branch), so that pull requests
+// merged on the host stop counting as changes without a manual pull.
+const gitFetchInterval = 5 * time.Minute
+
+// maybeFetch fetches, in the background and at most every
+// gitFetchInterval, the upstream of a worktree's base branch; when that
+// moved, the sessions of the repository refresh their git info. A fetch
+// that fails (offline, no credential: it never prompts) waits for the
+// next interval like one that worked.
+func (s *Server) maybeFetch(g sessGit) {
+	if g.Mode != protocol.ModeWorktree || g.Base == "" || g.WorktreeID == "" || gitFetchInterval <= 0 {
+		return
+	}
+	rec, err := s.wts.Get(g.WorktreeID)
+	if err != nil {
+		return
+	}
+	key := rec.Repo + "\x00" + g.Base
+	s.gitMu.Lock()
+	if s.bg.Err() != nil || time.Since(s.fetched[key]) < gitFetchInterval {
+		s.gitMu.Unlock()
+		return
+	}
+	s.fetched[key] = time.Now()
+	s.bgWG.Add(1)
+	s.gitMu.Unlock()
+	go func() {
+		defer s.bgWG.Done()
+		ctx, cancel := context.WithTimeout(s.bg, gitQueryTO)
+		defer cancel()
+		up := gitx.Upstream(ctx, rec.Repo, g.Base)
+		remote, branch, ok := gitx.SplitRemoteRef(up)
+		if !ok {
+			return
+		}
+		before, _ := gitx.ResolveCommit(ctx, rec.Repo, up)
+		if err := gitx.Fetch(ctx, rec.Repo, remote, branch); err != nil {
+			s.log.Debug("git fetch", "repo", rec.Repo, "remote", remote, "branch", branch, "err", err)
+			return
+		}
+		if after, _ := gitx.ResolveCommit(ctx, rec.Repo, up); after == before {
+			return
+		}
+		s.log.Info("base upstream moved", "repo", rec.Repo, "ref", gitx.ShortRef(up))
+		for _, id := range s.sessionsOfRepo(rec.Repo) {
+			s.requestGit(id)
+		}
+	}()
+}
+
+// sessionsOfRepo lists the sessions in worktrees of repository repo.
+func (s *Server) sessionsOfRepo(repo string) []string {
+	s.mu.Lock()
+	ids := make([]string, 0, len(s.git))
+	wts := make([]string, 0, len(s.git))
+	for id, g := range s.git {
+		if g.WorktreeID != "" {
+			ids = append(ids, id)
+			wts = append(wts, g.WorktreeID)
+		}
+	}
+	s.mu.Unlock()
+	var out []string
+	for i, id := range ids {
+		if rec, err := s.wts.Get(wts[i]); err == nil && rec.Repo == repo {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 // storeGit caches info and publishes session.git if it changed.
@@ -416,20 +508,21 @@ func (s *Server) diff(p protocol.DiffParams) (protocol.DiffResult, error) {
 	res := protocol.DiffResult{Mode: g.Mode, Dir: g.Dir, WorktreeID: g.WorktreeID, Branch: g.Branch, Base: g.Base, Commits: []gitx.Commit{}}
 	opts := gitx.DiffOptions{StatOnly: p.Stat}
 	if g.Mode == protocol.ModeWorktree {
-		ref := baseRef(ctx, g.Dir, g.Base, g.BaseCommit)
-		mb, err := gitx.MergeBase(ctx, g.Dir, ref, "HEAD")
+		ref, mb, merged, err := compareBase(ctx, g)
 		if err != nil {
 			return res, err
 		}
 		opts.From = mb
-		cs, err := gitx.CommitsAhead(ctx, g.Dir, ref, "HEAD")
-		if err != nil {
-			return res, err
+		if !merged {
+			cs, err := gitx.CommitsAhead(ctx, g.Dir, ref, "HEAD")
+			if err != nil {
+				return res, err
+			}
+			if cs != nil {
+				res.Commits = cs
+			}
+			res.Git.Ahead, _ = gitx.AheadCount(ctx, g.Dir, ref, "HEAD")
 		}
-		if cs != nil {
-			res.Commits = cs
-		}
-		res.Git.Ahead, _ = gitx.AheadCount(ctx, g.Dir, ref, "HEAD")
 	} else if b, err := gitx.CurrentBranch(ctx, g.Dir); err == nil {
 		res.Branch = b
 	}
@@ -615,7 +708,7 @@ func (s *Server) worktreeRemove(p protocol.WorktreeRemoveParams) (protocol.Workt
 	}
 	ctx, cancel := context.WithTimeout(s.bg, gitActionTO)
 	defer cancel()
-	opts := gitx.RemoveOptions{Force: p.Force, DeleteBranch: p.DeleteBranch, Base: baseRef(ctx, rec.Repo, rec.Base, rec.BaseCommit)}
+	opts := gitx.RemoveOptions{Force: p.Force, DeleteBranch: p.DeleteBranch, Base: baseRef(ctx, rec.Repo, rec.Base, rec.BaseCommit, "refs/heads/"+rec.Branch)}
 	if p.DryRun {
 		loss, err := gitx.Losses(ctx, rec.Repo, rec.Path, rec.Branch, opts)
 		return protocol.WorktreeRemoveResult{Loss: loss}, err
@@ -670,7 +763,7 @@ func (s *Server) worktreePR(p protocol.WorktreePRParams) (gitx.PRResult, error) 
 	}
 	ctx, cancel := context.WithTimeout(s.bg, gitPushTO)
 	defer cancel()
-	res, err := gitx.PullRequest(ctx, rec.Repo, rec.Branch, rec.Base, baseRef(ctx, rec.Repo, rec.Base, rec.BaseCommit), rec.Path, p.DryRun)
+	res, err := gitx.PullRequest(ctx, rec.Repo, rec.Branch, rec.Base, baseRef(ctx, rec.Repo, rec.Base, rec.BaseCommit, "refs/heads/"+rec.Branch), rec.Path, p.DryRun)
 	if err != nil || p.DryRun {
 		return res, err
 	}
@@ -738,6 +831,7 @@ type gitState struct {
 	git      map[string]sessGit // by session id; guarded by Server.mu
 	gitMu    sync.Mutex
 	gitCache map[string]*gitEntry
+	fetched  map[string]time.Time // last fetch per repo + base; guarded by gitMu
 	bg       context.Context
 	bgCancel context.CancelFunc
 	bgWG     sync.WaitGroup
