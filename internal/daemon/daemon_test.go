@@ -72,8 +72,31 @@ func startDaemonWith(t *testing.T, notifier func(daemon.Notification)) (*client.
 	return c, p, stop
 }
 
+// startDaemonServer is startDaemon that also returns the server.
+func startDaemonServer(t *testing.T) (*daemon.Server, *client.Client, func()) {
+	t.Helper()
+	dir, err := os.MkdirTemp("/tmp", "agt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	p := paths.In(dir)
+	if err := os.WriteFile(p.Profiles(), []byte(testProfiles), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return startServer(t, p, func(daemon.Notification) {})
+}
+
 // startDaemonIn runs a daemon on existing paths (e.g. a restart).
 func startDaemonIn(t *testing.T, p paths.Paths, notifier func(daemon.Notification)) (*client.Client, func()) {
+	t.Helper()
+	_, c, stop := startServer(t, p, notifier)
+	return c, stop
+}
+
+// startServer is startDaemonIn that also returns the server, for tests
+// that call it directly (export_test.go).
+func startServer(t *testing.T, p paths.Paths, notifier func(daemon.Notification)) (*daemon.Server, *client.Client, func()) {
 	t.Helper()
 	srv, err := daemon.New(daemon.Config{
 		Paths:      p,
@@ -117,7 +140,7 @@ func startDaemonIn(t *testing.T, p paths.Paths, notifier func(daemon.Notificatio
 		}
 	}
 	t.Cleanup(stop)
-	return c, stop
+	return srv, c, stop
 }
 
 // agentermStacks is the stacks of the goroutines that are in agenterm code

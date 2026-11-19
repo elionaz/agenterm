@@ -1,26 +1,25 @@
 package daemon_test
 
 import (
-	"context"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/agenterm/internal/status"
 )
 
-// Calls that ask whether sessions are alive (worktree.list, worktree.remove
-// of a worktree in use, a shutdown refused for live sessions) must not take
-// a session's status lock while holding the daemon's: its state changes
-// take them the other way round (#57 was the same bug in the message
-// calls). Before the fix this deadlocked within a few thousand iterations
-// (-cpu 4).
-func TestLivenessCallsDuringStateChanges(t *testing.T) {
-	c, _, stop := startDaemon(t)
+// The checks of which sessions are alive (the shutdown's, a worktree's
+// before removing it, the worktree list's) must not take a session's
+// status lock while holding the daemon's: a state change takes them the
+// other way round (its callback publishes and asks for git info). #57 was
+// the same bug in the message calls. They run here directly, without the
+// RPCs (a refused shutdown runs ps, too slow for thousands of rounds);
+// before the fix this deadlocked within a few thousand.
+func TestLivenessChecksDuringStateChanges(t *testing.T) {
+	srv, c, stop := startDaemonServer(t)
 	defer stop()
-	// Thousands of calls: more than ctxT's 10 s under -race.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
+	ctx := ctxT(t)
 	proj, err := c.ProjectAdd(ctx, tempRepo(t), "race")
 	if err != nil {
 		t.Fatal(err)
@@ -30,40 +29,31 @@ func TestLivenessCallsDuringStateChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 	var wg sync.WaitGroup
-	// The git-backed calls are slow (git runs for each): fewer of them.
-	run := func(name string, n int, f func(i int) error) {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for i := 0; i < n; i++ {
-				if err := f(i); err != nil {
-					t.Errorf("%s: %v", name, err)
-					return
-				}
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		states := []status.State{status.Running, status.Idle, status.WaitingInput}
+		for i := 0; i < 5000; i++ {
+			if err := srv.NotifyState(sess.ID, states[i%len(states)]); err != nil {
+				t.Errorf("notify: %v", err)
+				return
 			}
-		}()
-	}
-	states := []string{"running", "idle", "waiting_input"}
-	run("notify", 3000, func(i int) error { _, err := c.Notify(ctx, sess.ID, states[i%len(states)]); return err })
-	run("worktree.list", 40, func(int) error { _, err := c.Worktrees(ctx, proj.ID); return err })
-	run("worktree.remove", 40, func(int) error {
-		_, err := c.WorktreeRemove(ctx, protocol.WorktreeRemoveParams{ID: sess.WorktreeID})
-		if err != nil && hasCode(err, "worktree_live") {
-			return nil // refused: the session is alive, as expected
 		}
-		return err
-	})
-	run("shutdown", 3000, func(int) error {
-		if err := c.Shutdown(ctx, false); err != nil && hasCode(err, "live_sessions") {
-			return nil // refused for the live session, as expected
+	}()
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 300; i++ {
+			if err := srv.CheckLiveness(proj.ID, sess.WorktreeID); err != nil {
+				t.Errorf("liveness: %v", err)
+				return
+			}
 		}
-		return err
-	})
+	}()
 	done := make(chan struct{})
 	go func() { wg.Wait(); close(done) }()
 	select {
 	case <-done:
-	case <-time.After(45 * time.Second):
-		t.Fatalf("daemon deadlocked: liveness calls and state changes did not finish\n%s", agentermStacks())
+	case <-time.After(30 * time.Second):
+		t.Fatalf("daemon deadlocked: liveness checks and state changes did not finish\n%s", agentermStacks())
 	}
 }
