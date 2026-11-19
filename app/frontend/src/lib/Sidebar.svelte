@@ -676,7 +676,7 @@
                       >
                     {/if}
                   </div>
-                  {#if head || timer.text || s.model || s.port}
+                  {#if head || timer.text || s.model || s.port || s.browserUrl}
                     <div class="sub">
                       {#if s.mode === 'worktree' && s.branch}
                         <span class="chip" title={branchTitle(s)}>{@render branchText(s.git?.head || s.branch)}</span>
@@ -693,6 +693,17 @@
                             e.stopPropagation()
                             void ClipboardSetText(`localhost:${s.port}`)
                           }}>:{s.port}</button
+                        >
+                      {/if}
+                      {#if s.browserUrl}
+                        <button
+                          class="browser"
+                          title={t('sidebar.browser', { url: s.browserUrl })}
+                          onclick={(e) => {
+                            e.stopPropagation()
+                            if (e.altKey) void api.closeBrowser(s.id)
+                            else void ClipboardSetText(s.browserUrl ?? '')
+                          }}>🌐</button
                         >
                       {/if}
                       {#if timer.text}<span class="timer" class:stalled={timer.stalled}>{timer.text}</span>{/if}
@@ -1355,6 +1366,16 @@
   }
   .port:hover {
     background: color-mix(in srgb, var(--teal) 24%, transparent);
+  }
+  .browser {
+    flex: none;
+    padding: 0 3px;
+    border-radius: 6px;
+    font-size: 10px;
+    line-height: 1.4;
+  }
+  .browser:hover {
+    background: color-mix(in srgb, var(--blue) 18%, transparent);
   }
   .perm {
     flex: none;

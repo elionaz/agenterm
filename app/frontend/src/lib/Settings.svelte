@@ -10,6 +10,7 @@
     splitArgs,
     type InstructionTopic,
     type Instructions,
+    type BrowserStatus,
     type Profile,
     type Project,
     type ProfileEntry,
@@ -320,6 +321,36 @@
       messagesError = errorMessage(e)
     }
   }
+
+  /** The agents' browser (browser.*): saved whole, right away. */
+  let browserCfg = $state<Settings['browser'] | null>(null)
+  let browserInfo = $state<BrowserStatus | null>(null)
+  let browserError = $state<string | null>(null)
+  async function loadBrowser() {
+    try {
+      browserInfo = await api.browserStatus()
+    } catch {
+      browserInfo = null
+    }
+  }
+  async function saveBrowser(patch: Partial<Settings['browser']>) {
+    if (!browserCfg) return
+    const prev = { ...browserCfg }
+    browserCfg = { ...browserCfg, ...patch }
+    browserError = null
+    try {
+      const s = await api.saveSettings({ browser: browserCfg })
+      browserCfg = s.browser
+      onSettings?.(s)
+      await loadBrowser()
+    } catch (e) {
+      browserCfg = prev
+      browserError = errorMessage(e)
+    }
+  }
+  $effect(() => {
+    if (tab === 'general') void loadBrowser()
+  })
 
   /** In-app updates (General tab). */
   let updater = $state<UpdaterState | null>(null)
@@ -662,6 +693,7 @@
     restore = r === 'always' || r === 'never' ? r : 'ask'
     messagesOn = s.messages?.enabled ?? true
     autoDeliver = s.messages?.autoDeliver ?? true
+    browserCfg = s.browser ?? { enabled: true, headless: false, path: '' }
     setAppearance(s.ui?.appearance)
     setTermPrefs(s.terminal)
     fontFamily = termPrefs().fontFamily
@@ -860,6 +892,40 @@
           </span>
         </label>
         {#if messagesError}<div class="error">{messagesError}</div>{/if}
+
+        <h3 class="group">{t('settings.b.head')}</h3>
+        {#if browserCfg}
+          <label class="check">
+            <input type="checkbox" checked={browserCfg.enabled} onchange={(e) => saveBrowser({ enabled: e.currentTarget.checked })} />
+            <span>
+              <b>{t('settings.b.enabled')}</b>
+              <em>{@html th('settings.b.enabledHelp')}</em>
+            </span>
+          </label>
+          <label class="check" class:dim={!browserCfg.enabled}>
+            <input
+              type="checkbox"
+              checked={browserCfg.headless}
+              disabled={!browserCfg.enabled}
+              onchange={(e) => saveBrowser({ headless: e.currentTarget.checked })}
+            />
+            <span>
+              <b>{t('settings.b.headless')}</b>
+              <em>{t('settings.b.headlessHelp')}</em>
+            </span>
+          </label>
+          {#if browserInfo && browserCfg.enabled}
+            <div class="bstatus">
+              <span class:ok={!!browserInfo.exe} class:bad={!browserInfo.exe}>
+                {browserInfo.exe ? t('settings.b.found', { path: browserInfo.exe }) : t('settings.b.noChrome')}
+              </span>
+              <span class:ok={!!browserInfo.npx} class:bad={!browserInfo.npx}>
+                {browserInfo.npx ? t('settings.b.npx', { mcp: browserInfo.mcp }) : t('settings.b.noNpx')}
+              </span>
+            </div>
+          {/if}
+        {/if}
+        {#if browserError}<div class="error">{browserError}</div>{/if}
 
         <h3 class="group">{t('settings.updates')}</h3>
         {#if updater}
@@ -1579,6 +1645,24 @@
     font-family: var(--mono);
     font-size: 12px;
     line-height: 1.45;
+  }
+  .bstatus {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 8px 0 8px 23px;
+    font-size: 11.5px;
+    color: var(--fg-dim);
+    border-bottom: 1px solid var(--border);
+    user-select: text;
+  }
+  .bstatus .ok::before {
+    content: '✓ ';
+    color: var(--green);
+  }
+  .bstatus .bad::before {
+    content: '✕ ';
+    color: var(--red);
   }
   .topics {
     list-style: none;

@@ -15,7 +15,11 @@ export function AddProject():Promise<project.Project>;
 
 export function Attach(arg1:string,arg2:number,arg3:number):Promise<protocol.SessionInfo>;
 
+export function BrowserStatus():Promise<protocol.BrowserStatus>;
+
 export function CheckForUpdates():Promise<void>;
+
+export function CloseBrowser(arg1:string):Promise<void>;
 
 export function CopyIntoWorktree(arg1:string,arg2:Array<string>,arg3:boolean):Promise<protocol.WorktreeCopyResult>;
 

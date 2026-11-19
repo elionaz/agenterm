@@ -96,16 +96,26 @@ func topicErr(err error, slug string) error {
 	return err
 }
 
-// sessionInstructions is what a session of proj receives ("" for none).
+// sessionInstructions is what a session of proj receives ("" for none):
+// the user's topics, then where its browser is.
 func (s *Server) sessionInstructions(proj project.Project) string {
-	return s.instr().For(proj.ID, proj.Name)
+	text := s.instr().For(proj.ID, proj.Name)
+	if cfg := s.browserSettings(); cfg.Enabled && s.browserExe(cfg) != "" {
+		if text == "" {
+			text = "From agenterm:"
+		}
+		text += "\n\n" + browserNote
+	}
+	return text
 }
 
 // agentArgs are the arguments agenterm adds before a profile's own: the
 // hook integration, plus the instructions for codex (unless the user's
 // config.toml sets its own developer_instructions).
 func (s *Server) agentArgs(lp launchProfile, proj project.Project) []string {
-	args := append([]string{}, lp.inj.Args...)
+	// The browser MCP server first: claude's --mcp-config takes several
+	// values, and the --settings that follows ends them.
+	args := append(s.browserMCPArgs(lp.prof.SetupHooks), lp.inj.Args...)
 	if lp.prof.SetupHooks == hooks.AgentCodex && !hooks.CodexOwnInstructions() {
 		args = append(args, hooks.CodexInstructionArgs(s.sessionInstructions(proj))...)
 	}

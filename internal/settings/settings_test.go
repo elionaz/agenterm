@@ -274,3 +274,23 @@ func TestSessionsRestore(t *testing.T) {
 		t.Fatalf("file:\n%s", b)
 	}
 }
+
+func TestBrowserSettings(t *testing.T) {
+	if b := Defaults().Browser; !b.Enabled || b.Headless || b.Path != "" {
+		t.Fatalf("defaults = %+v", b)
+	}
+	s, err := Parse([]byte("browser:\n  enabled: false\n  headless: true\n  path: ' /opt/chrome '\n"))
+	if err != nil || s.Browser.Enabled || !s.Browser.Headless || s.Browser.Path != "/opt/chrome" {
+		t.Fatalf("parse = %+v, %v", s.Browser, err)
+	}
+	path := filepath.Join(t.TempDir(), "settings.yaml")
+	in := Defaults()
+	in.Browser = Browser{Enabled: false, Headless: true, Path: "/x/Chrome"}
+	if err := Save(path, in); err != nil {
+		t.Fatal(err)
+	}
+	out, err := Load(path)
+	if err != nil || out.Browser != in.Browser {
+		t.Fatalf("round trip = %+v, %v", out.Browser, err)
+	}
+}

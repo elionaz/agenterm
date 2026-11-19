@@ -9,6 +9,13 @@ releases may include breaking changes.
 
 ### Added
 
+- **A browser of its own for every session.** Agents no longer drive your Chrome: each session gets
+  an isolated Chrome (own profile, 1280×800 window, own DevTools port) that opens only when the
+  agent needs it and closes with the session. Claude Code and codex get it as browser tools
+  (`chrome-devtools-mcp` through `npx`, added for that invocation only) and are told to use it;
+  any agent can run `agenterm browser` or use `$AGENTERM_BROWSER_URL`. A 🌐 in the sidebar shows
+  it's open. *Settings → General* turns it off or makes it headless (`browser.*`).
+
 - **Install agents from Settings.** A catalog agent that isn't installed has an **Install** button:
   it shows the exact command, runs it in a new terminal session of the current project (output and
   any password prompt in view) and rescans the agents when it succeeds.

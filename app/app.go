@@ -368,6 +368,7 @@ type SettingsPatch struct {
 	Sessions *settings.Sessions `json:"sessions,omitempty"`
 	Terminal *settings.Terminal `json:"terminal,omitempty"`
 	Messages *settings.Messages `json:"messages,omitempty"`
+	Browser  *settings.Browser  `json:"browser,omitempty"`
 }
 
 func (a *App) SaveSettings(s SettingsPatch) (settings.Settings, error) {
@@ -420,6 +421,25 @@ func (a *App) ReorderInstructions(slugs []string, projectID string) (protocol.In
 		return err
 	})
 	return out, err
+}
+
+// BrowserStatus says whether sessions get their own browser and what was
+// found for it (Chrome, npx).
+func (a *App) BrowserStatus() (protocol.BrowserStatus, error) {
+	var out protocol.BrowserStatus
+	err := a.call(func(ctx context.Context) (err error) {
+		out, err = a.client.BrowserStatus(ctx)
+		return err
+	})
+	return out, err
+}
+
+// CloseBrowser stops sessionID's own browser.
+func (a *App) CloseBrowser(sessionID string) error {
+	return a.call(func(ctx context.Context) error {
+		_, err := a.client.Browser(ctx, protocol.MethodBrowserClose, sessionID)
+		return err
+	})
 }
 
 // SystemLanguage is the language ui.language "auto" resolves to (macOS

@@ -71,6 +71,9 @@ Usage:
                                       (inside a session: its project; none: the all-project ones)
   agenterm instructions list [<project>]   the instruction topics
   agenterm instructions show <topic>  one topic's text (for topics that load on demand)
+  agenterm browser [open|url|close|status|mcp] [--session ID]
+                                      the session's own isolated Chrome (open: start it, print
+                                      its DevTools URL; mcp: the browser MCP server bound to it)
   agenterm version                    print the version and commit (also --version)
 
 Environment:
@@ -184,6 +187,8 @@ func run(args []string) error {
 		return cmdWait(ctx, c, rest)
 	case "instructions":
 		return cmdInstructions(ctx, c, rest)
+	case "browser":
+		return cmdBrowser(ctx, c, rest)
 	case "kill":
 		if len(rest) != 1 {
 			return errors.New("usage: agenterm kill <sessionId>")

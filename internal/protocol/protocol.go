@@ -111,6 +111,12 @@ const (
 	MethodInstructionsDelete  = "instructions.delete"
 	MethodInstructionsReorder = "instructions.reorder"
 	MethodInstructionsShow    = "instructions.show"
+
+	// The isolated Chrome of each session (package browser).
+	MethodBrowserStatus  = "browser.status"
+	MethodBrowserPrepare = "browser.prepare"
+	MethodBrowserOpen    = "browser.open"
+	MethodBrowserClose   = "browser.close"
 )
 
 // Session modes (SpawnParams.Mode, SessionInfo.Mode).
@@ -676,6 +682,9 @@ type SessionInfo struct {
 	MsgHold string `json:"msgHold,omitempty"`
 	// Model: the agent's model id, when known (hooks or command line).
 	Model string `json:"model,omitempty"`
+	// BrowserURL: the DevTools URL of the session's own Chrome while it
+	// runs (agenterm browser); "" when closed.
+	BrowserURL string `json:"browserUrl,omitempty"`
 	// Mode is same | worktree; worktree sessions name their worktree.
 	Mode         string   `json:"mode,omitempty"`
 	WorktreeID   string   `json:"worktreeId,omitempty"`
@@ -738,6 +747,9 @@ const (
 	EventProfiles = "profile.changed"
 	// EventSessionModel: the session's agent reported another model (Model).
 	EventSessionModel = "session.model"
+	// EventSessionBrowser: the session's own Chrome opened or closed
+	// (BrowserURL).
+	EventSessionBrowser = "session.browser"
 )
 
 // Event is pushed to events.subscribe streams.
@@ -777,6 +789,8 @@ type Event struct {
 	MsgHold    string `json:"msgHold,omitempty"`
 	// Model (session.model): the agent's model id.
 	Model string `json:"model,omitempty"`
+	// BrowserURL (session.browser): the session's Chrome opened ("" closed).
+	BrowserURL string `json:"browserUrl,omitempty"`
 	// Live is filled in session.activity and session.state events.
 	Live
 }
@@ -954,4 +968,35 @@ type WorktreeCopyResult struct {
 	Missing []string `json:"missing,omitempty"`
 	// Created is the .agenterm.yaml written (Save).
 	Created string `json:"created,omitempty"`
+}
+
+// BrowserParams names the session whose Chrome it is.
+type BrowserParams struct {
+	SessionID string `json:"sessionId"`
+}
+
+// BrowserInfo is a session's Chrome: browser.prepare reserves it (profile
+// and port, nothing runs), browser.open starts it unless it runs.
+type BrowserInfo struct {
+	SessionID string `json:"sessionId"`
+	URL       string `json:"url"`
+	Port      int    `json:"port"`
+	Profile   string `json:"profile"`
+	Exe       string `json:"exe"`
+	Headless  bool   `json:"headless"`
+	Running   bool   `json:"running"`
+}
+
+// BrowserStatus: whether sessions get a browser, and what it needs.
+type BrowserStatus struct {
+	// Enabled: settings browser.enabled.
+	Enabled  bool `json:"enabled"`
+	Headless bool `json:"headless"`
+	// Exe is the browser found ("" none: install Chrome or set
+	// browser.path); NPX the npx that runs the MCP server ("" none:
+	// install Node.js; agents can still use agenterm browser).
+	Exe string `json:"exe"`
+	NPX string `json:"npx"`
+	// MCP is the server package agents get.
+	MCP string `json:"mcp"`
 }

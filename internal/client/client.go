@@ -317,6 +317,21 @@ func (c *Client) ShowInstruction(ctx context.Context, slug string) (protocol.Ins
 	return r, err
 }
 
+// BrowserStatus says whether sessions get a browser and what it needs.
+func (c *Client) BrowserStatus(ctx context.Context) (protocol.BrowserStatus, error) {
+	var r protocol.BrowserStatus
+	err := c.Call(ctx, protocol.MethodBrowserStatus, nil, &r)
+	return r, err
+}
+
+// Browser calls browser.prepare, browser.open or browser.close for a
+// session's own Chrome.
+func (c *Client) Browser(ctx context.Context, method, sessionID string) (protocol.BrowserInfo, error) {
+	var r protocol.BrowserInfo
+	err := c.Call(ctx, method, protocol.BrowserParams{SessionID: sessionID}, &r)
+	return r, err
+}
+
 func (c *Client) SaveSettings(ctx context.Context, s settings.Settings) (settings.Settings, error) {
 	var out settings.Settings
 	err := c.Call(ctx, protocol.MethodSettingsSave, s, &out)
