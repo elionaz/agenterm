@@ -585,10 +585,13 @@ type SessionInfo struct {
 	// repository without .agenterm.yaml): files at its root that git
 	// ignores and the worktree therefore lacks (.env…), to offer copying.
 	SuggestCopy []string `json:"suggestCopy,omitempty"`
-	ID          string   `json:"id"`
-	ProjectID   string   `json:"projectId"`
-	ProjectDir  string   `json:"projectDir"`
-	ProfileID   string   `json:"profileId"`
+	// Port is the session's own port (PORT…), when its repository's
+	// .agenterm.yaml asks for ports (AGENTERM_PORT is always set).
+	Port       int    `json:"port,omitempty"`
+	ID         string `json:"id"`
+	ProjectID  string `json:"projectId"`
+	ProjectDir string `json:"projectDir"`
+	ProfileID  string `json:"profileId"`
 	// Name is the user-given display name (session.rename); empty means
 	// "use the profile's name".
 	Name string `json:"name,omitempty"`

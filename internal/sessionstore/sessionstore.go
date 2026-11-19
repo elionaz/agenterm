@@ -47,6 +47,10 @@ type Record struct {
 	Name string `json:"name,omitempty"`
 	// Model is the agent's model as last reported (empty: unknown).
 	Model string `json:"model,omitempty"`
+	// Port is the session's port and PortEnv the variables set to it
+	// besides AGENTERM_PORT (kept when it is resumed).
+	Port    int      `json:"port,omitempty"`
+	PortEnv []string `json:"portEnv,omitempty"`
 	// Mode is same | worktree; WorktreeID names the worktree record.
 	Mode       string `json:"mode,omitempty"`
 	WorktreeID string `json:"worktreeId,omitempty"`

@@ -1044,6 +1044,9 @@
         {:else if selected.git?.head}
           <span class="branch same" title={t('sidebar.folderBranch', { branch: selected.git.head })}>⎇ {shortBranch(selected.git.head)}</span>
         {/if}
+        {#if selected.port}
+          <span class="port" title={t('sidebar.port', { port: selected.port })}>:{selected.port}</span>
+        {/if}
         {#if selected.attentionKind && selected.state !== 'exited'}
           <span class="attn {selected.attentionKind}" title={selected.attentionMessage ?? ''}>
             {attentionLabel(selected.attentionKind)}{#if selected.attentionMessage}: {selected.attentionMessage}{/if}
@@ -1400,6 +1403,11 @@
     flex: none;
     font: 11.5px var(--mono);
     color: var(--blue);
+  }
+  .port {
+    flex: none;
+    font: 11.5px var(--mono);
+    color: var(--teal);
   }
   .branch.same {
     color: var(--fg-dim);

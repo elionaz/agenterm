@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { ClipboardSetText } from '../../wailsjs/runtime/runtime'
   import {
     api,
     attentionLabel,
@@ -670,7 +671,7 @@
                       >
                     {/if}
                   </div>
-                  {#if head || timer.text || s.model}
+                  {#if head || timer.text || s.model || s.port}
                     <div class="sub">
                       {#if s.mode === 'worktree' && s.branch}
                         <span class="chip" title={branchTitle(s)}>{@render branchText(s.branch)}</span>
@@ -679,6 +680,16 @@
                       {/if}
                       {#if s.model}<span class="model" title={t('sidebar.model', { model: s.model })}>{head ? '· ' : ''}{prettyModel(s.model)}</span>{/if}
                       <span class="grow"></span>
+                      {#if s.port}
+                        <button
+                          class="port"
+                          title={t('sidebar.port', { port: s.port })}
+                          onclick={(e) => {
+                            e.stopPropagation()
+                            void ClipboardSetText(`localhost:${s.port}`)
+                          }}>:{s.port}</button
+                        >
+                      {/if}
                       {#if timer.text}<span class="timer" class:stalled={timer.stalled}>{timer.text}</span>{/if}
                     </div>
                   {/if}
@@ -1328,6 +1339,17 @@
   .chip.same {
     color: var(--fg-dim);
     background: color-mix(in srgb, var(--fg-dim) 10%, transparent);
+  }
+  .port {
+    flex: none;
+    padding: 0 4px;
+    border-radius: 6px;
+    font: 10px var(--mono);
+    color: var(--teal);
+    background: color-mix(in srgb, var(--teal) 12%, transparent);
+  }
+  .port:hover {
+    background: color-mix(in srgb, var(--teal) 24%, transparent);
   }
   .changes {
     flex: none;

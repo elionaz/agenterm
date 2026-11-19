@@ -15,6 +15,10 @@ releases may include breaking changes.
   setup runs only once you trust it (the app shows the command; `agenterm spawn --trust-setup` /
   `--no-setup`), and again only if it changes. Without the file, the app offers to copy the `.env*`
   files git ignores, once or into a new `.agenterm.yaml`.
+- **A port per session.** Every session gets `AGENTERM_PORT`, its own port (the lowest free one
+  from 3000 in the project, kept when resumed). With `ports.base` in `.agenterm.yaml`, `PORT` (or
+  the variables in `ports.env`) is set too and the sidebar shows it, so two agents' dev servers
+  don't fight over 3000.
 - **Pick which notifications you get.** Settings → Notifications has one switch per kind:
   approvals, questions, finished turns, errors and "looks stalled" (`notify.notify_on_approval`,
   `notify_on_question`, `notify_on_done`, `notify_on_error`, `notify_on_stall`), all on by default,

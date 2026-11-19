@@ -95,7 +95,8 @@ type Server struct {
 	// names are the sessions' display names (rename.go).
 	namesMu sync.Mutex
 	names   map[string]string
-	models  map[string]string // the agents' models (model.go), same lock
+	models  map[string]string   // the agents' models (model.go), same lock
+	ports   map[string]sessPort // each session's port (ports.go), same lock
 
 	// Persistence: the session registry and when each scrollback was
 	// last saved (OutputTotal; guarded by persistMu).
@@ -187,6 +188,7 @@ func New(cfg Config) (*Server, error) {
 		resuming: make(map[string]bool),
 		names:    make(map[string]string),
 		models:   make(map[string]string),
+		ports:    make(map[string]sessPort),
 		store:    store,
 		mail:     mail,
 		saved:    make(map[string]int64),
@@ -410,6 +412,9 @@ func (s *Server) sessionInfo(sess *session.Session) protocol.SessionInfo {
 	info.ProjectName = s.projectName(sess.ProjectID, sess.ProjectName)
 	info.MsgPending = s.mail.Pending(sess.ID)
 	info.Model = s.sessionModel(sess.ID)
+	if p := s.sessionPort(sess.ID); len(p.Env) > 0 {
+		info.Port = p.Port // the project asked for ports: show it
+	}
 	if g := s.sessionGit(sess.ID); g != nil {
 		info.Mode, info.WorktreeID, info.Branch, info.Base = g.Mode, g.WorktreeID, g.Branch, g.Base
 		if g.Mode == protocol.ModeWorktree {

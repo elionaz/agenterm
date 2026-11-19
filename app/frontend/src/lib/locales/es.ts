@@ -200,6 +200,7 @@ export const es: Dict = {
   'sidebar.suspendedSince': 'Suspendida desde {at} (el daemon se reinició)',
   'sidebar.resumeFailed': 'El último intento de reanudar falló: {msg}',
   'sidebar.model': 'Modelo: {model}',
+  'sidebar.port': 'Su propio puerto: PORT={port} (también AGENTERM_PORT). Clic para copiar localhost:{port}.',
   'sidebar.folderBranch': 'Rama de la carpeta del proyecto: {branch} (compartida con las otras sesiones de la carpeta)',
   'sidebar.msgPending': { one: '{n} mensaje de otra sesión esperando', other: '{n} mensajes de otras sesiones esperando' },
   'sidebar.restoredBanner': { one: '{n} sesión de la ejecución anterior', other: '{n} sesiones de la ejecución anterior' },
