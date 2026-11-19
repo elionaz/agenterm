@@ -202,6 +202,14 @@ CLI with your login: [`gh`](https://cli.github.com) for GitHub and
 `gitlab`). agenterm stores no tokens. Without the CLI, or logged out, Changes says how to set it up
 (`brew install gh`, `gh auth login`) and keeps the push-and-open-the-page flow above.
 
+**A session that works on several branches.** An agent may switch branches inside its worktree
+(`git switch -c fix/…`) and open a pull request for each. Changes follows the branch the worktree is
+on now (the header says which one it started on), and *Merge into the base* and *Create pull
+request* act on it. The worktree remembers every branch it was on (or pushed from), and when there
+is more than one pull request, Changes lists them all, *Pull requests of this session*, with their
+state and checks: click one to see it below (comments, merge on the host). A new pull request is
+only offered for the branch the worktree is on.
+
 - **State**: number, open / draft / merged / closed, checks (passing, failing with their names,
   running; GitLab: the pipeline) and the review decision. The title links to the host.
 - **Comments**: conversation comments, reviews with text (approved, changes requested) and line

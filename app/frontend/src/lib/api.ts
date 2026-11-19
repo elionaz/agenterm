@@ -34,6 +34,8 @@ export type PRResult = gitx.PRResult
 export type ForgeStatus = Omit<protocol.ForgeStatus, 'convertValues'>
 export type ForgePR = Omit<forge.PR, 'convertValues'>
 export type ForgeComment = Omit<forge.Comment, 'convertValues'>
+export type ForgeList = Omit<protocol.ForgeList, 'convertValues'>
+export type ForgeListItem = Omit<protocol.ForgeListItem, 'convertValues'>
 /** In-app updates (Sparkle). reason: '' (enabled) | unsupported | nobundle | nokey | error | starting. */
 export type UpdaterState = Omit<main.UpdaterState, 'convertValues'>
 /** A newer release: ready = downloaded (installs on quit or via installUpdateNow). */
@@ -178,12 +180,17 @@ export const api = {
   /** Pushes the branch and returns the pull request page; dryRun: only remote and URL. */
   pullRequest: (id: string, dryRun = false): Promise<PRResult> => App.PullRequestWorktree(id, dryRun),
   /** Code host pull requests, for a session's (sessionId) or a worktree's branch. */
-  forgeStatus: (sessionId: string, worktreeId: string): Promise<ForgeStatus> => App.ForgeStatus(sessionId, worktreeId),
-  forgeComments: (sessionId: string, worktreeId: string, n: number): Promise<ForgeComment[]> =>
-    App.ForgeComments(sessionId, worktreeId, n),
+  /** branch: another branch the session worked on ('' = the one it is on). */
+  forgeStatus: (sessionId: string, worktreeId: string, branch = ''): Promise<ForgeStatus> =>
+    App.ForgeStatus(sessionId, worktreeId, branch),
+  forgeComments: (sessionId: string, worktreeId: string, n: number, branch = ''): Promise<ForgeComment[]> =>
+    App.ForgeComments(sessionId, worktreeId, branch, n),
+  /** The pull requests of every branch the session's folder worked on. */
+  forgeList: (sessionId: string, worktreeId: string, refresh = false): Promise<ForgeList> =>
+    App.ForgeList(sessionId, worktreeId, refresh),
   /** head: the branch the PR was shown for (refused if the folder moved). */
-  forgeMerge: (sessionId: string, worktreeId: string, n: number, method: string, head: string, deleteBranch: boolean): Promise<ForgeStatus> =>
-    App.ForgeMerge(sessionId, worktreeId, n, method, head, deleteBranch),
+  forgeMerge: (sessionId: string, worktreeId: string, n: number, method: string, head: string, deleteBranch: boolean, branch = ''): Promise<ForgeStatus> =>
+    App.ForgeMerge(sessionId, worktreeId, branch, n, method, head, deleteBranch),
   forgeCreate: (sessionId: string, worktreeId: string, title: string, body: string, draft: boolean): Promise<ForgeStatus> =>
     App.ForgeCreate(sessionId, worktreeId, title, body, draft),
   /** Messages sent by or to a session (agenterm msg). */

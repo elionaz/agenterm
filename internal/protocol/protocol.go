@@ -88,6 +88,7 @@ const (
 	// Pull requests on the code host (GitHub through gh, GitLab through
 	// glab), for a session's or worktree's branch.
 	MethodForgeStatus   = "forge.status"
+	MethodForgeList     = "forge.list"
 	MethodForgeComments = "forge.comments"
 	MethodForgeMerge    = "forge.merge"
 	MethodForgeCreate   = "forge.create"
@@ -276,15 +277,20 @@ type DiffResult struct {
 	Additions int             `json:"additions"`
 	Deletions int             `json:"deletions"`
 	// Truncated: the patch text hit the 2 MB cap (see DiffFile.Truncated).
-	Truncated  bool          `json:"truncated,omitempty"`
-	PatchSize  int           `json:"patchSize"`
-	Mode       string        `json:"mode"`
-	Dir        string        `json:"dir"`
-	WorktreeID string        `json:"worktreeId,omitempty"`
-	Branch     string        `json:"branch,omitempty"`
-	Base       string        `json:"base,omitempty"`
-	Commits    []gitx.Commit `json:"commits"`
-	Git        GitInfo       `json:"git"`
+	Truncated  bool   `json:"truncated,omitempty"`
+	PatchSize  int    `json:"patchSize"`
+	Mode       string `json:"mode"`
+	Dir        string `json:"dir"`
+	WorktreeID string `json:"worktreeId,omitempty"`
+	// Branch is the branch the folder is on now; StartBranch the one the
+	// worktree was created on, and Branches every branch it worked on
+	// (newest first), when they differ.
+	Branch      string        `json:"branch,omitempty"`
+	StartBranch string        `json:"startBranch,omitempty"`
+	Branches    []string      `json:"branches,omitempty"`
+	Base        string        `json:"base,omitempty"`
+	Commits     []gitx.Commit `json:"commits"`
+	Git         GitInfo       `json:"git"`
 }
 
 // Patch concatenates every file's patch.
@@ -350,6 +356,33 @@ type WorktreePRParams struct {
 type ForgeRef struct {
 	SessionID  string `json:"sessionId,omitempty"`
 	WorktreeID string `json:"worktreeId,omitempty"`
+	// Branch picks another branch the worktree worked on (one of its
+	// Branches); empty means the branch it is on now.
+	Branch string `json:"branch,omitempty"`
+}
+
+// ForgeListParams asks for the pull requests of a session's (or
+// worktree's) branches; Refresh skips the cached answer.
+type ForgeListParams struct {
+	ForgeRef
+	Refresh bool `json:"refresh,omitempty"`
+}
+
+// ForgeList is forge.list's result: the pull requests of the branches a
+// session's worktree worked on, newest branch first (branches without
+// one are left out).
+type ForgeList struct {
+	PRs []ForgeListItem `json:"prs"`
+	// Unavailable: why there is no list (no gh/glab, no remote…).
+	Unavailable string `json:"unavailable,omitempty"`
+}
+
+// ForgeListItem is one branch's pull request.
+type ForgeListItem struct {
+	Branch string    `json:"branch"`
+	PR     *forge.PR `json:"pr"`
+	// Current: the branch the folder is on now.
+	Current bool `json:"current,omitempty"`
 }
 
 // ForgeStatus is forge.status's result (also returned by forge.merge and

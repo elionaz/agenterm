@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -25,7 +26,8 @@ import (
 type forgeTarget struct {
 	g         sessGit
 	dir       string
-	branch    string
+	branch    string // the branch the call is about
+	current   string // the branch the folder is on now
 	base      string
 	baseRef   string // what commits ahead are counted against
 	remote    string
@@ -67,9 +69,21 @@ func (s *Server) forgeTarget(ctx context.Context, ref protocol.ForgeRef) (forgeT
 	if !gitx.IsRepo(ctx, t.dir) {
 		return t, apierr.New(apierr.NotARepo, map[string]any{"dir": t.dir}, "%s is not a git repository", t.dir)
 	}
-	t.branch = t.g.Branch
-	if t.g.Mode != protocol.ModeWorktree {
-		t.branch, _ = gitx.CurrentBranch(ctx, t.dir)
+	// The branch the folder is on now: a worktree's sessions may have
+	// switched branches in it (its own branch for a detached HEAD).
+	t.branch, _ = gitx.CurrentBranch(ctx, t.dir)
+	if t.branch == "" && t.g.Mode == protocol.ModeWorktree {
+		t.branch = t.g.Branch
+	}
+	t.current = t.branch
+	if ref.Branch != "" && ref.Branch != t.branch {
+		// Another branch the worktree worked on, and only those.
+		rec, err := s.wts.Get(t.g.WorktreeID)
+		if t.g.Mode != protocol.ModeWorktree || err != nil || !slices.Contains(worktreeBranches(ctx, rec), ref.Branch) {
+			return t, apierr.New(apierr.BranchMissing, map[string]any{"branch": ref.Branch},
+				"%s is not a branch this session worked on", ref.Branch)
+		}
+		t.branch = ref.Branch
 	}
 	if t.branch == "" {
 		return t, apierr.New(apierr.ForgeOnBase, map[string]any{"branch": ""}, "the folder is on a detached HEAD: there is no branch to show a pull request for")
@@ -87,7 +101,7 @@ func (s *Server) forgeTarget(ctx context.Context, ref protocol.ForgeRef) (forgeT
 		// A worktree's base may be a remote branch (origin/main): the host
 		// knows it as main.
 		t.base = strings.TrimPrefix(t.g.Base, remote+"/")
-		t.baseRef = baseRef(ctx, t.dir, t.g.Base, t.g.BaseCommit, "HEAD")
+		t.baseRef = baseRef(ctx, t.dir, t.g.Base, t.g.BaseCommit, "refs/heads/"+t.branch)
 	} else {
 		t.base = gitx.RemoteDefaultBranch(ctx, t.dir, remote)
 		t.baseRef = t.base
@@ -267,6 +281,10 @@ func (s *Server) forgeCreate(p protocol.ForgeCreateParams) (protocol.ForgeStatus
 	if err != nil {
 		return protocol.ForgeStatus{}, err
 	}
+	if t.branch != t.current {
+		return protocol.ForgeStatus{}, apierr.New(apierr.ForgeHeadMismatch, map[string]any{"branch": t.branch, "head": t.current},
+			"the folder is on %s now, not %s: a pull request is opened for the branch it is on", t.current, t.branch)
+	}
 	if t.base == "" {
 		return protocol.ForgeStatus{}, apierr.New(apierr.BaseMissing, map[string]any{"base": ""}, "cannot tell which branch to open the pull request into")
 	}
@@ -294,6 +312,10 @@ func (s *Server) forgeCreate(p protocol.ForgeCreateParams) (protocol.ForgeStatus
 // forgeChanged refreshes what a push or a merge on the host may change:
 // the git info of the sessions on that branch, and the worktree list.
 func (s *Server) forgeChanged(t forgeTarget) {
+	if t.g.WorktreeID != "" {
+		s.addBranch(t.g.WorktreeID, t.branch)
+		s.forgeListForget(t.g.WorktreeID)
+	}
 	for _, id := range s.sessionsIn(t.g) {
 		s.requestGit(id)
 	}

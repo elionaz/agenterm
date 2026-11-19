@@ -364,7 +364,8 @@
   }
 
   function branchTitle(s: Session): string {
-    let out = t('sidebar.worktreeOn', { branch: s.branch ?? '' })
+    let out = t('sidebar.worktreeOn', { branch: s.git?.head || s.branch || '' })
+    if (s.git?.head && s.branch && s.git.head !== s.branch) out += ` (${t('changes.startedOn', { branch: s.branch }).replace(/^· /, '')})`
     if (s.base) out += t('sidebar.worktreeFrom', { base: s.base })
     if (s.git) {
       out += `\n${t('sidebar.filesChanged', { n: s.git.files })} · ${t('git.uncommitted', { n: s.git.uncommitted })} · ${t('git.commitsAhead', { n: s.git.ahead })}`
@@ -576,7 +577,7 @@
             {#each list as s, i (s.id)}
               {@const timer = shortTimer(s, now)}
               {@const prog = s.state !== 'exited' ? progressOf(s) : undefined}
-              {@const head = s.mode === 'worktree' && s.branch ? s.branch : s.git?.head}
+              {@const head = s.mode === 'worktree' && s.branch ? s.git?.head || s.branch : s.git?.head}
               <li>
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -678,7 +679,7 @@
                   {#if head || timer.text || s.model || s.port}
                     <div class="sub">
                       {#if s.mode === 'worktree' && s.branch}
-                        <span class="chip" title={branchTitle(s)}>{@render branchText(s.branch)}</span>
+                        <span class="chip" title={branchTitle(s)}>{@render branchText(s.git?.head || s.branch)}</span>
                       {:else if s.git?.head}
                         <span class="chip same" title={t('sidebar.folderBranch', { branch: s.git.head })}>{@render branchText(s.git.head)}</span>
                       {/if}

@@ -2,6 +2,7 @@ package gitx
 
 import (
 	"context"
+	"strconv"
 	"strings"
 )
 
@@ -101,4 +102,54 @@ func Fetch(ctx context.Context, dir, remote, branch string) error {
 	_, _, err := run(ctx, dir, runOpts{write: true},
 		"fetch", "--quiet", "--no-tags", "--no-write-fetch-head", remote, branch)
 	return err
+}
+
+// maxReflog bounds how much of a worktree's HEAD reflog VisitedBranches reads.
+const maxReflog = 500
+
+// VisitedBranches lists the branches dir's HEAD was checked out on, newest
+// first and without duplicates, from its reflog ("checkout: moving from A
+// to B"; each worktree has its own). Commit hashes (a detached HEAD) are
+// left out; branches deleted since are kept (their pull requests still
+// exist).
+func VisitedBranches(ctx context.Context, dir string) []string {
+	out, err := git(ctx, dir, "reflog", "show", "--format=%gs", "-n", strconv.Itoa(maxReflog), "HEAD", "--")
+	if err != nil {
+		return nil
+	}
+	var list []string
+	seen := map[string]bool{}
+	add := func(b string) {
+		b = strings.TrimSpace(b)
+		if b == "" || b == "HEAD" || seen[b] || isHash(b) || strings.HasPrefix(b, "refs/") {
+			return
+		}
+		seen[b] = true
+		list = append(list, b)
+	}
+	for _, l := range splitLines(out) {
+		rest, ok := strings.CutPrefix(l, "checkout: moving from ")
+		if !ok {
+			continue
+		}
+		from, to, ok := strings.Cut(rest, " to ")
+		if !ok {
+			continue
+		}
+		add(to)
+		add(from)
+	}
+	return list
+}
+
+func isHash(s string) bool {
+	if len(s) < 7 || len(s) > 64 {
+		return false
+	}
+	for _, r := range s {
+		if !(r >= '0' && r <= '9' || r >= 'a' && r <= 'f') {
+			return false
+		}
+	}
+	return true
 }

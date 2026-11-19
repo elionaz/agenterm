@@ -393,6 +393,9 @@ func (s *Server) storeGit(id string, info *protocol.GitInfo) {
 	changed := !sameGit(e.info, info)
 	e.info = info
 	s.gitMu.Unlock()
+	if info != nil && info.Head != "" {
+		s.noteBranch(id, info.Head)
+	}
 	if changed {
 		s.bus.publish(protocol.Event{Type: protocol.EventSessionGit, SessionID: id, At: time.Now().UTC(), Git: info})
 	}
@@ -402,7 +405,7 @@ func sameGit(a, b *protocol.GitInfo) bool {
 	if a == nil || b == nil {
 		return a == b
 	}
-	return a.Files == b.Files && a.Uncommitted == b.Uncommitted && a.Ahead == b.Ahead
+	return a.Files == b.Files && a.Uncommitted == b.Uncommitted && a.Ahead == b.Ahead && a.Head == b.Head
 }
 
 func (s *Server) cachedGit(id string) *protocol.GitInfo {
@@ -507,6 +510,16 @@ func (s *Server) diff(p protocol.DiffParams) (protocol.DiffResult, error) {
 		return protocol.DiffResult{}, apierr.New(apierr.NotARepo, map[string]any{"dir": g.Dir}, "%s is not a git repository", g.Dir)
 	}
 	res := protocol.DiffResult{Mode: g.Mode, Dir: g.Dir, WorktreeID: g.WorktreeID, Branch: g.Branch, Base: g.Base, Commits: []gitx.Commit{}}
+	if g.Mode == protocol.ModeWorktree {
+		if cur, err := gitx.CurrentBranch(ctx, g.Dir); err == nil && cur != "" && cur != g.Branch {
+			res.Branch, res.StartBranch = cur, g.Branch
+		}
+		if rec, err := s.wts.Get(g.WorktreeID); err == nil {
+			if bs := worktreeBranches(ctx, rec); len(bs) > 1 {
+				res.Branches = bs
+			}
+		}
+	}
 	opts := gitx.DiffOptions{StatOnly: p.Stat}
 	if g.Mode == protocol.ModeWorktree {
 		ref, mb, merged, err := compareBase(ctx, g)
@@ -759,7 +772,11 @@ func (s *Server) worktreeMerge(p protocol.WorktreeRef) (gitx.MergeResult, error)
 	}
 	ctx, cancel := context.WithTimeout(s.bg, gitActionTO)
 	defer cancel()
-	res, err := gitx.Merge(ctx, rec.Repo, rec.Branch, rec.Base, rec.Path)
+	branch, err := s.worktreeBranch(ctx, rec)
+	if err != nil {
+		return gitx.MergeResult{}, err
+	}
+	res, err := gitx.Merge(ctx, rec.Repo, branch, rec.Base, rec.Path)
 	if err != nil {
 		return res, err
 	}
@@ -779,11 +796,16 @@ func (s *Server) worktreePR(p protocol.WorktreePRParams) (gitx.PRResult, error) 
 	}
 	ctx, cancel := context.WithTimeout(s.bg, gitPushTO)
 	defer cancel()
-	res, err := gitx.PullRequest(ctx, rec.Repo, rec.Branch, rec.Base, baseRef(ctx, rec.Repo, rec.Base, rec.BaseCommit, "refs/heads/"+rec.Branch), rec.Path, p.DryRun)
+	branch, err := s.worktreeBranch(ctx, rec)
+	if err != nil {
+		return gitx.PRResult{}, err
+	}
+	res, err := gitx.PullRequest(ctx, rec.Repo, branch, rec.Base, baseRef(ctx, rec.Repo, rec.Base, rec.BaseCommit, "refs/heads/"+branch), rec.Path, p.DryRun)
 	if err != nil || p.DryRun {
 		return res, err
 	}
-	s.log.Info("worktree pushed", "id", rec.ID, "branch", rec.Branch, "remote", res.Remote, "commits", res.Commits)
+	s.log.Info("worktree pushed", "id", rec.ID, "branch", branch, "remote", res.Remote, "commits", res.Commits)
+	s.addBranch(rec.ID, branch)
 	for _, id := range s.sessionsIn(recGit(rec)) {
 		s.requestGit(id)
 	}
@@ -851,4 +873,63 @@ type gitState struct {
 	bg       context.Context
 	bgCancel context.CancelFunc
 	bgWG     sync.WaitGroup
+}
+
+// worktreeBranch is the branch worktree rec is on now (its sessions may
+// have switched branches in it), falling back to the one it was created
+// on for a detached HEAD. Being on the base itself is refused: there is
+// nothing of the worktree's own to merge or push.
+func (s *Server) worktreeBranch(ctx context.Context, rec worktree.Record) (string, error) {
+	cur, err := gitx.CurrentBranch(ctx, rec.Path)
+	if err != nil || cur == "" {
+		return rec.Branch, nil
+	}
+	if cur == rec.Base || cur == strings.TrimPrefix(rec.Base, "origin/") {
+		return "", apierr.New(apierr.ForgeOnBase, map[string]any{"branch": cur},
+			"the worktree is on %s, its base branch: switch it to a branch of its own first", cur)
+	}
+	return cur, nil
+}
+
+// noteBranch records that session id's worktree is on branch (see
+// worktree.Record.Branches); the base itself is not one of its branches.
+func (s *Server) noteBranch(id, branch string) {
+	g := s.sessionGit(id)
+	if g == nil || g.Mode != protocol.ModeWorktree || g.WorktreeID == "" {
+		return
+	}
+	if branch == g.Base || branch == strings.TrimPrefix(g.Base, "origin/") {
+		return
+	}
+	s.addBranch(g.WorktreeID, branch)
+}
+
+// addBranch adds branch to worktree id's history and drops its cached
+// pull request list when that changed it.
+func (s *Server) addBranch(worktreeID, branch string) {
+	changed, err := s.wts.AddBranch(worktreeID, branch)
+	if err != nil {
+		s.log.Debug("worktree branch", "id", worktreeID, "err", err)
+		return
+	}
+	if changed {
+		s.forgeListForget(worktreeID)
+	}
+}
+
+// worktreeBranches is every branch worktree rec worked on, newest first:
+// what its HEAD reflog shows it checked out (so several switches within
+// one turn all count) and what was recorded (pushes, the creation branch).
+// Its base is not one of them.
+func worktreeBranches(ctx context.Context, rec worktree.Record) []string {
+	base := strings.TrimPrefix(rec.Base, "origin/")
+	var out []string
+	seen := map[string]bool{rec.Base: true, base: true}
+	for _, b := range append(gitx.VisitedBranches(ctx, rec.Path), rec.AllBranches()...) {
+		if b != "" && !seen[b] {
+			seen[b] = true
+			out = append(out, b)
+		}
+	}
+	return out
 }

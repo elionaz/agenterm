@@ -743,6 +743,8 @@ export namespace protocol {
 	    dir: string;
 	    worktreeId?: string;
 	    branch?: string;
+	    startBranch?: string;
+	    branches?: string[];
 	    base?: string;
 	    commits: gitx.Commit[];
 	    git: GitInfo;
@@ -763,6 +765,8 @@ export namespace protocol {
 	        this.dir = source["dir"];
 	        this.worktreeId = source["worktreeId"];
 	        this.branch = source["branch"];
+	        this.startBranch = source["startBranch"];
+	        this.branches = source["branches"];
 	        this.base = source["base"];
 	        this.commits = this.convertValues(source["commits"], gitx.Commit);
 	        this.git = this.convertValues(source["git"], GitInfo);
@@ -786,6 +790,73 @@ export namespace protocol {
 		    return a;
 		}
 	}
+	export class ForgeListItem {
+	    branch: string;
+	    pr?: forge.PR;
+	    current?: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ForgeListItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.branch = source["branch"];
+	        this.pr = this.convertValues(source["pr"], forge.PR);
+	        this.current = source["current"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ForgeList {
+	    prs: ForgeListItem[];
+	    unavailable?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ForgeList(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.prs = this.convertValues(source["prs"], ForgeListItem);
+	        this.unavailable = source["unavailable"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class ForgeStatus {
 	    unavailable?: string;
 	    message?: string;
