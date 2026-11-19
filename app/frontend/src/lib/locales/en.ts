@@ -78,6 +78,8 @@ export const en = {
   'msg.deliver': 'Deliver',
   'msg.deliverHelp': 'Types a short line into its terminal telling it to run agenterm msg read (never the message itself).',
   'msg.deliverNow': 'Deliver now',
+  'msg.remind': 'Remind again',
+  'msg.hold.nudged': 'Told in its terminal: it takes them when it processes that line.',
   'msg.hold.soon': 'They arrive by themselves in a moment.',
   'msg.hold.draft': 'There is unsent text in its input: delivery waits until you send or clear it.',
   'msg.hold.typing': 'You typed into it just now: delivery waits a few seconds.',

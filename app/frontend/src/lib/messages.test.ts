@@ -61,6 +61,7 @@ describe('showMessagesTab', () => {
 describe('holdKey', () => {
   it('names each reason', () => {
     expect(holdKey('unsent input', 'idle')).toBe('msg.hold.draft')
+    expect(holdKey('nudged', 'idle')).toBe('msg.hold.nudged')
     expect(holdKey('not a reply', 'idle')).toBe('msg.hold.notReply')
     expect(holdKey('no turn end', 'idle')).toBe('msg.hold.noTurnEnd')
     expect(holdKey('off', 'idle')).toBe('msg.hold.off')

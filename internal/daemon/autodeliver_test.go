@@ -300,6 +300,10 @@ func TestAutoDeliverDefaultsAndOtherAgents(t *testing.T) {
 	c.Notify(ctx, cl.ID, "idle")
 	send(cl.ID, "hello")
 	clOut.waitNudges(t, 1, "claude, default settings")
+	// Told: the UIs say so (it stays pending until the agent takes them).
+	if h := hold(cl.ID); h != "nudged" {
+		t.Fatalf("hold after the nudge = %q, want nudged", h)
+	}
 
 	// Another agent that only went quiet: held, with the reason.
 	cx, err := c.Spawn(ctx, protocol.SpawnParams{ProjectID: proj.ID, ProfileID: "fakecodex"})

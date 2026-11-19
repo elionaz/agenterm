@@ -432,6 +432,7 @@ func (s *Server) msgDeliver(caller *session.Session, id string) (map[string]any,
 	}
 	l.last = time.Now()
 	s.log.Info("messages nudged", "to", sess.ID, "pending", n)
+	s.noteNudged(sess)
 	return map[string]any{"pending": n}, nil
 }
 

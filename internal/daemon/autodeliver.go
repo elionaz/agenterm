@@ -160,6 +160,23 @@ const (
 // schedules a check).
 const holdNotReply = "not a reply"
 
+// holdNudged: the line was typed into the session (automatically or by
+// Deliver): the messages stay pending until the agent takes them (Claude's
+// hook on that prompt, agenterm msg read), so the UIs say it was told
+// rather than offering to deliver again.
+const holdNudged = "nudged"
+
+// noteNudged records that sess was just told about its messages.
+func (s *Server) noteNudged(sess *session.Session) {
+	s.auto.mu.Lock()
+	if s.auto.why == nil {
+		s.auto.why = map[string]string{}
+	}
+	s.auto.why[sess.ID] = holdNudged
+	s.auto.mu.Unlock()
+	s.publishMessages(sess.ProjectID, sess.ID)
+}
+
 // holdNoTurnEnd: an agent without message hooks that went idle only by
 // going quiet (no turn-end event): it gets the Deliver button.
 const holdNoTurnEnd = "no turn end"
@@ -194,9 +211,9 @@ func (s *Server) autoDeliverNow(id string) string {
 	l.last = time.Now()
 	s.auto.mu.Lock()
 	n := s.auto.chain[id]
-	delete(s.auto.why, id)
 	delete(s.auto.retry, id)
 	s.auto.mu.Unlock()
+	s.noteNudged(sess)
 	s.log.Info("messages nudged", "to", id, "pending", s.mail.Pending(id), "via", "auto", "chain", n)
 	return ""
 }

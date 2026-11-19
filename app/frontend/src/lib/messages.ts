@@ -83,6 +83,7 @@ export function holdKey(
   | 'msg.autoHelp'
   | 'msg.manualHelp'
   | 'msg.hold.soon'
+  | 'msg.hold.nudged'
   | 'msg.hold.draft'
   | 'msg.hold.typing'
   | 'msg.hold.notReply'
@@ -90,6 +91,8 @@ export function holdKey(
   | 'msg.hold.off'
   | 'msg.hold.limit' {
   switch (hold ?? '') {
+    case 'nudged':
+      return 'msg.hold.nudged'
     case 'unsent input':
       return 'msg.hold.draft'
     case 'typed just now':
