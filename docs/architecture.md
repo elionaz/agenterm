@@ -16,7 +16,7 @@
               claude              codex               shell …
 ```
 
-- The **daemon** is the sole owner of the PTYs: it launches the processes, keeps their scrollback,
+- The **daemon** is the sole owner of the PTYs (it starts them itself: no tmux or screen underneath): it launches the processes, keeps their scrollback,
   computes state, attention, activity and git, and publishes events. It listens on a unix socket
   (`0600`).
 - The **app** and the **CLI** are clients (`internal/client`). Either one starts the daemon if it
