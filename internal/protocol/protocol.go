@@ -81,6 +81,9 @@ const (
 	MethodWorktreeMerge  = "worktree.merge"
 	MethodWorktreePR     = "worktree.pr"
 	MethodWorktreeOpen   = "worktree.open"
+	// MethodWorktreeCopy copies files from the main folder into a worktree
+	// (and can write them into a new .agenterm.yaml).
+	MethodWorktreeCopy = "worktree.copy"
 
 	// Pull requests on the code host (GitHub through gh, GitLab through
 	// glab), for a session's or worktree's branch.
@@ -215,6 +218,11 @@ type SpawnParams struct {
 	// WorktreeID reopens an existing agenterm worktree (implies worktree
 	// mode; Branch and Base are ignored).
 	WorktreeID string `json:"worktreeId,omitempty"`
+	// TrustSetup trusts the repository's worktree setup command (as shown
+	// by the setup_untrusted error) and runs it; SkipSetup creates the
+	// worktree without running it. Both only matter for a new worktree.
+	TrustSetup bool `json:"trustSetup,omitempty"`
+	SkipSetup  bool `json:"skipSetup,omitempty"`
 }
 
 // GitInfo is a session's (or worktree's) change summary, refreshed lazily
@@ -573,10 +581,14 @@ type AttachParams struct {
 
 // SessionInfo describes a session on the wire.
 type SessionInfo struct {
-	ID         string `json:"id"`
-	ProjectID  string `json:"projectId"`
-	ProjectDir string `json:"projectDir"`
-	ProfileID  string `json:"profileId"`
+	// SuggestCopy (only in spawn's answer, for a new worktree of a
+	// repository without .agenterm.yaml): files at its root that git
+	// ignores and the worktree therefore lacks (.env…), to offer copying.
+	SuggestCopy []string `json:"suggestCopy,omitempty"`
+	ID          string   `json:"id"`
+	ProjectID   string   `json:"projectId"`
+	ProjectDir  string   `json:"projectDir"`
+	ProfileID   string   `json:"profileId"`
 	// Name is the user-given display name (session.rename); empty means
 	// "use the profile's name".
 	Name string `json:"name,omitempty"`
@@ -787,4 +799,22 @@ type MsgTakeResult struct {
 // MsgDeliverParams: the app's "Deliver" button for SessionID.
 type MsgDeliverParams struct {
 	SessionID string `json:"sessionId"`
+}
+
+// WorktreeCopyParams copies Files (relative to the repository root) from
+// the main folder into worktree ID; Save also writes them as worktree.copy
+// of a new .agenterm.yaml at the repository root.
+type WorktreeCopyParams struct {
+	ID    string   `json:"id"`
+	Files []string `json:"files"`
+	Save  bool     `json:"save,omitempty"`
+}
+
+// WorktreeCopyResult is what worktree.copy did.
+type WorktreeCopyResult struct {
+	Copied  []string `json:"copied"`
+	Skipped []string `json:"skipped,omitempty"`
+	Missing []string `json:"missing,omitempty"`
+	// Created is the .agenterm.yaml written (Save).
+	Created string `json:"created,omitempty"`
 }

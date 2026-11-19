@@ -17,6 +17,8 @@ export function Attach(arg1:string,arg2:number,arg3:number):Promise<protocol.Ses
 
 export function CheckForUpdates():Promise<void>;
 
+export function CopyIntoWorktree(arg1:string,arg2:Array<string>,arg3:boolean):Promise<protocol.WorktreeCopyResult>;
+
 export function DaemonStatus():Promise<main.DaemonStatus>;
 
 export function DeleteProfile(arg1:string):Promise<Array<profile.Profile>>;

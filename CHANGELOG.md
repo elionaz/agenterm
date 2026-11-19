@@ -7,6 +7,15 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- **New worktrees come ready to work.** An `.agenterm.yaml` at the root of the repository lists
+  files to copy from the main folder (`worktree.copy`: `.env`, local config…) and a command to run
+  before the agent starts (`worktree.setup`: `npm install`…), shown in the session's terminal. A
+  setup runs only once you trust it (the app shows the command; `agenterm spawn --trust-setup` /
+  `--no-setup`), and again only if it changes. Without the file, the app offers to copy the `.env*`
+  files git ignores, once or into a new `.agenterm.yaml`.
+
 ## [0.9.0] - 2026-11-18
 
 ### Changed

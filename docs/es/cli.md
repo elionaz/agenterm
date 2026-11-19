@@ -89,8 +89,12 @@ Lanza una sesión e imprime su id. En modo worktree imprime `<id>  <rama>  <carp
 | `--branch B` | rama para `--worktree` (por defecto `agent/<perfil>-<4 primeros del id>`) |
 | `--base X` | rama o commit base para `--worktree` (por defecto la rama actual del proyecto) |
 | `--in-worktree ID` | lanza la sesión en un worktree de agenterm que ya existe (p. ej. un huérfano) |
+| `--trust-setup` | confía en el setup de worktrees del repositorio (`.agenterm.yaml`) y lo corre |
+| `--no-setup` | crea el worktree sin correr su setup (los archivos se copian igual) |
 
-`--branch` y `--base` requieren `--worktree`. Falla si el perfil no existe, tiene un error o su
+`--branch`, `--base`, `--trust-setup` y `--no-setup` requieren `--worktree`. Un setup en el que aún
+no confías hace fallar `--worktree` con `setup_untrusted` (ver
+[worktrees.md](worktrees.md#preparar-los-worktrees-nuevos)). Falla si el perfil no existe, tiene un error o su
 comando no está instalado (el mensaje incluye la pista de instalación del catálogo). Ver
 [worktrees.md](worktrees.md).
 

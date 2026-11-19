@@ -476,6 +476,14 @@ func (c *Client) WorktreeRemove(ctx context.Context, p protocol.WorktreeRemovePa
 	return r, err
 }
 
+// WorktreeCopy copies files from the main folder into a worktree (and,
+// with Save, writes them into a new .agenterm.yaml).
+func (c *Client) WorktreeCopy(ctx context.Context, p protocol.WorktreeCopyParams) (protocol.WorktreeCopyResult, error) {
+	var r protocol.WorktreeCopyResult
+	err := c.Call(ctx, protocol.MethodWorktreeCopy, p, &r)
+	return r, err
+}
+
 // WorktreeMerge merges a worktree's branch into its base in the main tree.
 func (c *Client) WorktreeMerge(ctx context.Context, id string) (gitx.MergeResult, error) {
 	var r gitx.MergeResult

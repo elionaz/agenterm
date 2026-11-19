@@ -44,8 +44,10 @@ vivos aunque cierres la app y te avisa cuando alguno te necesita.
   aviso de «¿trabado?», barras de progreso (OSC 9;4) y una **Vista general** de todas las sesiones
   (⌘0).
 - **Worktrees de git por sesión**: los agentes nuevos empiezan por defecto en su propia rama y
-  carpeta, así los que trabajan en paralelo nunca comparten cambios; la pestaña **Cambios** muestra
-  el diff y permite hacer merge a la base o eliminar el worktree de forma segura.
+  carpeta, así los que trabajan en paralelo nunca comparten cambios. Un `.agenterm.yaml` en el
+  repositorio copia `.env` y otros archivos fuera de git a cada worktree nuevo y corre un setup
+  (`npm install`) antes de que arranque el agente. La pestaña **Cambios** muestra el diff y permite
+  hacer merge a la base o eliminar el worktree de forma segura.
 - **Pull requests en GitHub y GitLab** desde la pestaña **Cambios**, para worktrees y para la rama
   en la que está tu carpeta principal: estado, checks y review, los comentarios (los de línea llevan
   al archivo), merge en el servidor y crear uno nuevo con título y descripción sugeridos. Usa tu

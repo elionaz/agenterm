@@ -18,6 +18,10 @@ export function CheckForUpdates() {
   return window['go']['main']['App']['CheckForUpdates']();
 }
 
+export function CopyIntoWorktree(arg1, arg2, arg3) {
+  return window['go']['main']['App']['CopyIntoWorktree'](arg1, arg2, arg3);
+}
+
 export function DaemonStatus() {
   return window['go']['main']['App']['DaemonStatus']();
 }

@@ -14,6 +14,7 @@
   import Welcome from './lib/Welcome.svelte'
   import { activityText, mergeLive, progressOf, timerInfo } from './lib/activity'
   import { shortBranch } from './lib/branch'
+  import TrustSetup from './lib/TrustSetup.svelte'
   import { setLangSetting, setSystemLang, t, th } from './lib/i18n.svelte'
   import { TerminalManager } from './lib/terminals'
   import {
@@ -56,6 +57,7 @@
     errorMessage,
     launchable,
     needsAttention,
+    parseCodedError,
     rememberedMode,
     sessionTitle,
     type DaemonEvent,
@@ -203,6 +205,61 @@
     errorTimer = window.setTimeout(() => (error = null), 6000)
   }
 
+  // A new worktree whose .agenterm.yaml has a setup command not trusted
+  // yet: ask (TrustSetup), then spawn again with the answer.
+  let setupAsk = $state<{ command: string; file: string; resolve: (c: 'trust' | 'skip' | null) => void } | null>(null)
+  function askSetup(command: string, file: string): Promise<'trust' | 'skip' | null> {
+    return new Promise((resolve) => {
+      setupAsk = {
+        command,
+        file,
+        resolve: (c) => {
+          setupAsk = null
+          resolve(c)
+        },
+      }
+    })
+  }
+
+  // A new worktree of a repository without .agenterm.yaml lacks the .env
+  // files git ignores: offer to copy them (once, or into a new file).
+  let copyOffer = $state<{ sessionId: string; worktreeId: string; files: string[]; busy?: boolean; done?: string } | null>(null)
+  async function acceptCopy(save: boolean) {
+    const o = copyOffer
+    if (!o) return
+    copyOffer = { ...o, busy: true }
+    const r = await guard(api.copyIntoWorktree(o.worktreeId, o.files, save))
+    if (!r) {
+      copyOffer = { ...o, busy: false }
+      return
+    }
+    const done = r.created ? t('setup.copiedSaved', { n: r.copied.length, file: r.created }) : t('setup.copied', { n: r.copied.length })
+    copyOffer = { ...o, busy: false, done }
+    window.setTimeout(() => copyOffer?.sessionId === o.sessionId && (copyOffer = null), 6000)
+  }
+
+  /** api.spawn, asking first when the worktree's setup is not trusted yet. */
+  async function spawnSession(projectId: string, profileId: string, cols: number, rows: number, opts?: Partial<SpawnOptions>) {
+    let info: Session | undefined
+    try {
+      info = await api.spawn(projectId, profileId, cols, rows, opts)
+    } catch (e) {
+      const ce = parseCodedError(e instanceof Error ? e.message : String(e))
+      if (ce?.code !== 'setup_untrusted') {
+        showError(errorMessage(e))
+        return undefined
+      }
+      const d = (ce.data ?? {}) as Record<string, string>
+      const choice = await askSetup(d.command ?? '', d.file ?? '.agenterm.yaml')
+      if (!choice) return undefined
+      info = await guard(api.spawn(projectId, profileId, cols, rows, { ...opts, trustSetup: choice === 'trust', skipSetup: choice === 'skip' }))
+    }
+    if (info?.suggestCopy?.length && info.worktreeId) {
+      copyOffer = { sessionId: info.id, worktreeId: info.worktreeId, files: info.suggestCopy }
+    }
+    return info
+  }
+
   async function guard<T>(p: Promise<T>): Promise<T | undefined> {
     try {
       return await p
@@ -337,7 +394,7 @@
     else if (cur && (prof.id === SHELL_PROFILE || !folderSharers(sessions, pid).length)) mode = 'same'
     else mode = await defaultModeFor(pid, prof.id)
     const { cols, rows } = splitSize(dir)
-    const info = await guard(api.spawn(pid, prof.id, cols, rows, { mode }))
+    const info = await spawnSession(pid, prof.id, cols, rows, { mode })
     if (!info) return
     if (!sessions.some((s) => s.id === info.id)) sessions = [...sessions, info]
     const now = layouts[pid] ?? l
@@ -641,7 +698,7 @@
 
   async function spawn(projectId: string, profileId: string, opts?: Partial<SpawnOptions>) {
     const { cols, rows } = paneSize()
-    const info = await guard(api.spawn(projectId, profileId, cols, rows, opts))
+    const info = await spawnSession(projectId, profileId, cols, rows, opts)
     if (!info) return
     if (!sessions.some((s) => s.id === info.id)) sessions = [...sessions, info]
     if (opts?.worktreeId) orphanView = null
@@ -1235,6 +1292,21 @@
         <button onclick={dismissUpdate}>{t('banner.later')}</button>
       </div>
     {/if}
+    {#if copyOffer && selected?.id === copyOffer.sessionId}
+      <div class="banner action info">
+        {#if copyOffer.done}
+          {copyOffer.done}
+        {:else}
+          {t('setup.offer', { files: copyOffer.files.join(', ') })}
+          <button disabled={copyOffer.busy} onclick={() => void acceptCopy(false)}>{t('setup.copyOnce')}</button>
+          <button disabled={copyOffer.busy} onclick={() => void acceptCopy(true)}>{t('setup.copySave')}</button>
+          <button onclick={() => (copyOffer = null)}>{t('setup.dismiss')}</button>
+        {/if}
+      </div>
+    {/if}
+    {#if setupAsk}
+      <TrustSetup command={setupAsk.command} file={setupAsk.file} onChoose={setupAsk.resolve} />
+    {/if}
     {#if error}
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -1649,6 +1721,9 @@
   .banner.action button:disabled {
     opacity: 0.6;
     cursor: default;
+  }
+  .banner.info {
+    top: 84px;
   }
   .toast {
     position: absolute;

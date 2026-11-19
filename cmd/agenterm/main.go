@@ -38,9 +38,10 @@ Usage:
   agenterm project set <id|name> [--name N] [--color C|auto] [--icon E|none]
   agenterm profiles                   list agent profiles (catalog + profiles.yaml)
   agenterm profiles scan              re-detect installed agents and list them
-  agenterm spawn [--cols C --rows R] [--worktree [--branch B] [--base X] | --in-worktree ID]
-                <projectId|name> <profileId>
+  agenterm spawn [--cols C --rows R] [--worktree [--branch B] [--base X] [--trust-setup|--no-setup]
+                | --in-worktree ID] <projectId|name> <profileId>
                                       --worktree: new git worktree + branch for the session
+                                      (set up from the repository's .agenterm.yaml)
   agenterm diff [--stat] <sessionId|worktreeId>   changes (worktree: vs its base)
   agenterm worktrees <projectId|name> list agenterm worktrees (live / exited / orphan)
   agenterm worktree rm [--force] [--delete-branch] [--dry-run] <id>
@@ -387,14 +388,19 @@ func cmdSpawn(ctx context.Context, c *client.Client, args []string) error {
 	branch := fs.String("branch", "", "branch for --worktree (default agent/<profile>-<id>)")
 	base := fs.String("base", "", "base branch for --worktree (default: the project's current branch)")
 	inWT := fs.String("in-worktree", "", "run in an existing agenterm worktree (id)")
+	trustSetup := fs.Bool("trust-setup", false, "trust and run the repository's worktree setup (.agenterm.yaml)")
+	noSetup := fs.Bool("no-setup", false, "create the worktree without running its setup")
 	if err := parseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() != 2 {
 		return errors.New("usage: agenterm spawn [--worktree [--branch B] [--base X]] <projectId> <profileId>")
 	}
-	if !*wt && (*branch != "" || *base != "") {
-		return errors.New("--branch and --base need --worktree")
+	if !*wt && (*branch != "" || *base != "" || *trustSetup || *noSetup) {
+		return errors.New("--branch, --base, --trust-setup and --no-setup need --worktree")
+	}
+	if *trustSetup && *noSetup {
+		return errors.New("--trust-setup and --no-setup exclude each other")
 	}
 	mode := ""
 	if *wt {
@@ -407,12 +413,16 @@ func cmdSpawn(ctx context.Context, c *client.Client, args []string) error {
 		}
 	}
 	info, err := c.Spawn(ctx, protocol.SpawnParams{ProjectID: fs.Arg(0), ProfileID: fs.Arg(1), Cols: cc, Rows: rr,
-		Mode: mode, Branch: *branch, Base: *base, WorktreeID: *inWT})
+		Mode: mode, Branch: *branch, Base: *base, WorktreeID: *inWT, TrustSetup: *trustSetup, SkipSetup: *noSetup})
 	if err != nil {
 		return err
 	}
 	if info.WorktreeID != "" {
 		fmt.Printf("%s\t%s\t%s\n", info.ID, info.Branch, info.WorktreePath)
+		if len(info.SuggestCopy) > 0 {
+			fmt.Fprintf(os.Stderr, "note: git ignores %s, so the worktree doesn't have them; list them under worktree.copy in .agenterm.yaml to copy them into new worktrees\n",
+				strings.Join(info.SuggestCopy, ", "))
+		}
 		return nil
 	}
 	fmt.Println(info.ID)

@@ -117,6 +117,7 @@ show them in its language (see [configuration.md](configuration.md#language)):
 | `merge_main_dirty` | `{dir, count}` |
 | `merge_wrong_branch` | `{dir, current, base}` (empty `current` = detached HEAD) |
 | `merge_base_behind` | `{dir, base, upstream, count}` |
+| `setup_untrusted` | `{repo, file, command}` |
 | `merge_nothing` | `{branch, base}` |
 | `merge_conflict` | `{branch, base, files}` |
 | `branch_missing`, `branch_exists`, `branch_invalid` | `{branch}` |

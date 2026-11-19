@@ -26,6 +26,7 @@ import (
 	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/project"
 	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/agenterm/internal/repoconfig"
 	"github.com/elionaz/agenterm/internal/session"
 	"github.com/elionaz/agenterm/internal/sessionstore"
 	"github.com/elionaz/agenterm/internal/shellenv"
@@ -74,6 +75,7 @@ type Notification struct {
 // Server is the daemon.
 type Server struct {
 	auto     autoDeliver
+	trust    *repoconfig.Trust // worktree setup commands the user allowed
 	cfg      Config
 	sock     string
 	projects *project.Registry
@@ -170,6 +172,7 @@ func New(cfg Config) (*Server, error) {
 	}
 	bg, bgCancel := context.WithCancel(context.Background())
 	return &Server{
+		trust: repoconfig.OpenTrust(cfg.Paths.Trust()),
 		gitState: gitState{wts: wts, git: make(map[string]sessGit), gitCache: make(map[string]*gitEntry), fetched: make(map[string]time.Time),
 			bg: bg, bgCancel: bgCancel},
 		cfg:      cfg,
