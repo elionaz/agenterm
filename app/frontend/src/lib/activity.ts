@@ -99,7 +99,8 @@ export interface TimerInfo {
 /** The timer line: "working 4m 12s", "stalled? no activity for 5m",
  * "finished in 6m". Empty when there is nothing useful to say. */
 export function timerInfo(s: Session, now: number, verbose = false): TimerInfo {
-  if (s.state === 'exited') return { text: '', stalled: false }
+  // A shell's "turns" are whatever ran in it last: no timer for them.
+  if (s.state === 'exited' || isShellSession(s)) return { text: '', stalled: false }
   if (s.stalled && s.state === 'running') {
     const last = lastSignal(s)
     const text = isNaN(last) ? t('timer.stalled') : t('timer.stalledFor', { d: fmtDuration(now - last, false) })
@@ -125,10 +126,8 @@ export function timerInfo(s: Session, now: number, verbose = false): TimerInfo {
 }
 
 /** Short compact timer for the sidebar row (a running turn: just the
- * elapsed time; none for shells). */
+ * elapsed time; none for shells, see timerInfo). */
 export function shortTimer(s: Session, now: number): TimerInfo {
-  // A shell's "turns" are whatever ran in it last: no timer in the row.
-  if (isShellSession(s)) return { text: '', stalled: false }
   const info = timerInfo(s, now)
   if (info.stalled) return { text: t('timer.stalledShort'), stalled: true }
   const start = ms(s.turnStartedAt)

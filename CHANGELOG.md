@@ -7,6 +7,21 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Changed
+
+- **Sidebar rows in two lines, and a resizable sidebar.** The first line has the session's name,
+  its changes and its unread messages; the state word shows only when it needs you (attention,
+  waiting, exited, suspended), the dot says the rest, and ⌘N only on the selected row. The second
+  line has the branch (without `agent/`, cut in the middle so its end stays readable), the model
+  and the timer. Drag the sidebar's right edge to make it 220–420 px wide (double-click: back to
+  248); the width is remembered.
+- **Shells have no turn timer** ("finished in 3s" meant whatever ran last).
+
+### Fixed
+
+- **Claude Code's status line showed up as activity** (an oh-my-claudecode HUD, for example) after
+  a restart or before the first hook: with hooks, output no longer sets the activity line.
+
 ## [0.8.1] - 2026-11-18
 
 ### Fixed

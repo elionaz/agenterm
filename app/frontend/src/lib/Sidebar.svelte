@@ -26,7 +26,7 @@
   import { SHELL_PROFILE, folderSharers, inProjectFolder, joinNames } from './shared'
   import { proposedMode } from './spawnmode'
   import { prettyModel } from './models'
-  import { shortBranch } from './branch'
+  import { branchParts } from './branch'
   import { clampSidebar, loadSidebarWidth, saveSidebarWidth, SIDEBAR_DEFAULT } from './sidebarwidth'
 
   interface Props {
@@ -376,6 +376,11 @@
   }
 </script>
 
+{#snippet branchText(branch: string)}
+  {@const p = branchParts(branch)}
+  <span class="bh">⎇ {p.head}</span>{#if p.tail}<span class="bt">{p.tail}</span>{/if}
+{/snippet}
+
 <svelte:window
   onclick={() => {
     closeMenu()
@@ -668,9 +673,9 @@
                   {#if head || timer.text || s.model}
                     <div class="sub">
                       {#if s.mode === 'worktree' && s.branch}
-                        <span class="chip" title={branchTitle(s)}>⎇ {shortBranch(s.branch)}</span>
+                        <span class="chip" title={branchTitle(s)}>{@render branchText(s.branch)}</span>
                       {:else if s.git?.head}
-                        <span class="chip same" title={t('sidebar.folderBranch', { branch: s.git.head })}>⎇ {shortBranch(s.git.head)}</span>
+                        <span class="chip same" title={t('sidebar.folderBranch', { branch: s.git.head })}>{@render branchText(s.git.head)}</span>
                       {/if}
                       {#if s.model}<span class="model" title={t('sidebar.model', { model: s.model })}>{head ? '· ' : ''}{prettyModel(s.model)}</span>{/if}
                       <span class="grow"></span>
@@ -693,7 +698,7 @@
               {#each orphans as w (w.id)}
                 <div class="orphan" title={t('sidebar.orphanTitle', { path: w.path, branch: w.branch, base: w.base })}>
                   <div class="line">
-                    <span class="chip">⎇ {shortBranch(w.branch)}</span>
+                    <span class="chip" title={w.branch}>{@render branchText(w.branch)}</span>
                     {#if w.git}<span class="changes">{changesLabel(w.git)}{w.git.ahead ? ` ↑${w.git.ahead}` : ''}</span>{/if}
                   </div>
                   <div class="orphan-actions">
@@ -1309,6 +1314,17 @@
     background: color-mix(in srgb, var(--blue) 12%, transparent);
   }
   /* The project folder's own branch (not a worktree of the session's). */
+  .chip {
+    display: inline-flex;
+  }
+  .chip .bh {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .chip .bt {
+    flex: none;
+  }
   .chip.same {
     color: var(--fg-dim);
     background: color-mix(in srgb, var(--fg-dim) 10%, transparent);
