@@ -16,7 +16,7 @@
               claude              codex               shell …
 ```
 
-- El **daemon** es el único dueño de las PTYs: lanza los procesos, guarda su scrollback, calcula
+- El **daemon** es el único dueño de las PTYs (las crea él mismo: no hay tmux ni screen debajo): lanza los procesos, guarda su scrollback, calcula
   estado, atención, actividad y git, y publica eventos. Escucha en un socket unix (`0600`).
 - La **app** y la **CLI** son clientes (`internal/client`). Cualquiera de los dos arranca el daemon
   si no responde (`client.StartDaemon`: proceso desacoplado en su propia sesión, salida a
