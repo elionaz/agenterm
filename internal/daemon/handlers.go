@@ -308,6 +308,12 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 			return nil, err
 		}
 		return s.worktreePR(p)
+	case protocol.MethodForgeList:
+		p, err := decode[protocol.ForgeListParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.forgeList(p)
 	case protocol.MethodForgeStatus:
 		p, err := decode[protocol.ForgeRef](req.Params)
 		if err != nil {

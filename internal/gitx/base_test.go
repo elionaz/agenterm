@@ -2,6 +2,7 @@ package gitx
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/elionaz/agenterm/internal/apierr"
@@ -143,5 +144,23 @@ func TestSplitRemoteRef(t *testing.T) {
 	}
 	if got := ShortRef("refs/remotes/origin/main"); got != "origin/main" {
 		t.Errorf("ShortRef = %q", got)
+	}
+}
+
+func TestVisitedBranches(t *testing.T) {
+	c := ctx(t)
+	repo := newRepo(t)
+	if got := VisitedBranches(c, repo); len(got) != 0 {
+		t.Fatalf("fresh repo: %v", got)
+	}
+	sh(t, repo, "switch", "-q", "-c", "fix/a")
+	sh(t, repo, "switch", "-q", "-c", "feat/b")
+	sh(t, repo, "switch", "-q", "fix/a")
+	sh(t, repo, "switch", "-q", "--detach", "HEAD")
+	sh(t, repo, "switch", "-q", "-c", "chore/c")
+	sh(t, repo, "branch", "-q", "-D", "feat/b")
+	got := strings.Join(VisitedBranches(c, repo), ",")
+	if got != "chore/c,fix/a,feat/b,main" {
+		t.Fatalf("VisitedBranches = %q", got)
 	}
 }

@@ -41,6 +41,45 @@ type Record struct {
 	CreatedAt  time.Time `json:"createdAt"`
 	// Adopted: found on disk (git worktree list) without a record.
 	Adopted bool `json:"adopted,omitempty"`
+	// Branches are the other branches its sessions worked on in it (checked
+	// out there, or pushed from it), oldest first, without Branch: where
+	// the session's pull requests are. Optional, so older versions ignore it.
+	Branches []string `json:"branches,omitempty"`
+}
+
+// MaxBranches bounds Record.Branches (the oldest are dropped).
+const MaxBranches = 30
+
+// AllBranches is Branch and Branches, newest first, without duplicates.
+func (r Record) AllBranches() []string {
+	out := make([]string, 0, len(r.Branches)+1)
+	seen := map[string]bool{}
+	for i := len(r.Branches) - 1; i >= 0; i-- {
+		if b := r.Branches[i]; b != "" && !seen[b] {
+			seen[b] = true
+			out = append(out, b)
+		}
+	}
+	if r.Branch != "" && !seen[r.Branch] {
+		out = append(out, r.Branch)
+	}
+	return out
+}
+
+// HasBranch reports whether b is Branch or in Branches.
+func (r Record) HasBranch(b string) bool {
+	if b == "" {
+		return false
+	}
+	if b == r.Branch {
+		return true
+	}
+	for _, x := range r.Branches {
+		if x == b {
+			return true
+		}
+	}
+	return false
 }
 
 // ErrNotFound is returned for unknown worktree ids.
@@ -116,6 +155,48 @@ func (s *Store) Put(r Record) error {
 		return err
 	}
 	return nil
+}
+
+// AddBranch records that worktree id worked on branch (see
+// Record.Branches); it reports whether the record changed. Its own Branch
+// and branches already listed change nothing, except moving to the end.
+func (s *Store) AddBranch(id, branch string) (bool, error) {
+	branch = strings.TrimSpace(branch)
+	if branch == "" {
+		return false, nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.recs {
+		r := &s.recs[i]
+		if r.ID != id {
+			continue
+		}
+		if branch == r.Branch {
+			return false, nil
+		}
+		if n := len(r.Branches); n > 0 && r.Branches[n-1] == branch {
+			return false, nil // already the newest
+		}
+		prev := append([]string(nil), r.Branches...)
+		next := make([]string, 0, len(prev)+1)
+		for _, b := range prev {
+			if b != branch {
+				next = append(next, b)
+			}
+		}
+		next = append(next, branch)
+		if len(next) > MaxBranches {
+			next = next[len(next)-MaxBranches:]
+		}
+		r.Branches = next
+		if err := s.saveLocked(); err != nil {
+			r.Branches = prev
+			return false, err
+		}
+		return true, nil
+	}
+	return false, apierr.New(apierr.WorktreeNotFound, map[string]any{"id": id}, "%w: %s", ErrNotFound, id)
 }
 
 // Delete removes the record with id (no error if it does not exist).

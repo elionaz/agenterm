@@ -205,6 +205,14 @@ contiene `gitlab`). agenterm no guarda tokens. Sin la CLI, o sin sesión, Cambio
 activarla (`brew install gh`, `gh auth login`) y mantiene el flujo de subir y abrir la página de
 arriba.
 
+**Una sesión que trabaja en varias ramas.** Un agente puede cambiar de rama dentro de su worktree
+(`git switch -c fix/…`) y abrir un pull request por cada una. Cambios sigue la rama en la que está
+el worktree ahora (el encabezado dice en cuál empezó), y *Merge a la base* y *Crear pull request*
+actúan sobre ella. El worktree recuerda cada rama en la que estuvo (o desde la que hizo push), y
+cuando hay más de un pull request, Cambios los lista todos, *Pull requests de esta sesión*, con su
+estado y sus checks: haz clic en uno para verlo abajo (comentarios, merge en el servidor). Solo se
+ofrece crear un pull request para la rama en la que está el worktree.
+
 - **Estado**: número, abierto / borrador / mergeado / cerrado, checks (en verde, fallando con sus
   nombres, en curso; en GitLab, el pipeline) y la decisión de review. El título enlaza al servidor.
 - **Comentarios**: comentarios de la conversación, reviews con texto (aprobado, cambios pedidos) y
