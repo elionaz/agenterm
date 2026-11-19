@@ -233,7 +233,7 @@ export const en = {
   'sidebar.model': 'Model: {model}',
   'sidebar.port': 'Its own port: PORT={port} (also AGENTERM_PORT). Click to copy localhost:{port}.',
   'sidebar.folderBranch': 'Branch of the project folder: {branch} (shared with the other sessions in the folder)',
-  'sidebar.msgPending': { one: '{n} message from another session waiting', other: '{n} messages from other sessions waiting' },
+  'sidebar.msgPending': { one: '{n} message waiting to be delivered to this session (it has not read it yet)', other: '{n} messages waiting to be delivered to this session (it has not read them yet)' },
   'sidebar.restoredBanner': { one: '{n} session from the previous run', other: '{n} sessions from the previous run' },
   'sidebar.resumeAll': 'Resume all',
   'sidebar.discardAll': 'Discard all',

@@ -212,7 +212,7 @@ export const es: Dict = {
   'sidebar.model': 'Modelo: {model}',
   'sidebar.port': 'Su propio puerto: PORT={port} (también AGENTERM_PORT). Clic para copiar localhost:{port}.',
   'sidebar.folderBranch': 'Rama de la carpeta del proyecto: {branch} (compartida con las otras sesiones de la carpeta)',
-  'sidebar.msgPending': { one: '{n} mensaje de otra sesión esperando', other: '{n} mensajes de otras sesiones esperando' },
+  'sidebar.msgPending': { one: '{n} mensaje por entregar a esta sesión (aún no lo lee)', other: '{n} mensajes por entregar a esta sesión (aún no los lee)' },
   'sidebar.restoredBanner': { one: '{n} sesión de la ejecución anterior', other: '{n} sesiones de la ejecución anterior' },
   'sidebar.resumeAll': 'Reanudar todas',
   'sidebar.discardAll': 'Descartar todas',

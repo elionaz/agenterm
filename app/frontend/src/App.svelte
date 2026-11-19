@@ -1081,7 +1081,7 @@
           >
         {/if}
         {#if hasMessages}
-          <button class:on={view === 'messages'} class:attn={(selected.msgPending ?? 0) > 0} onclick={() => setView('messages')}
+          <button class:on={view === 'messages'} onclick={() => setView('messages')}
             >{t('view.messages')}{selected.msgPending ? ` (${selected.msgPending})` : ''}</button
           >
         {/if}
@@ -1449,9 +1449,6 @@
   .view-tabs button.on {
     color: var(--fg);
     border-bottom-color: var(--blue);
-  }
-  .view-tabs button.attn:not(.on) {
-    color: var(--amber);
   }
   .orphan-view {
     position: absolute;
