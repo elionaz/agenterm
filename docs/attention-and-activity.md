@@ -219,6 +219,28 @@ without output or events, the session is marked `stalled` (a `session.activity` 
 - Claude Code's spinner redraws every second while it works, and that counts as output: with Claude
   the warning mostly catches complete hangs (stopped process, frozen terminal), not a slow tool.
 
+### Permission mode
+
+What a session may do without asking you, read from the flags it was launched with (the profile's
+`args`): **auto-approve** (runs commands and edits files unasked), **auto-edit** (edits unasked,
+asks for commands) or **plan** (read-only). The title bar shows it as a chip, the sidebar row gets a
+⚠ for auto-approve, and the tooltips show the full command line.
+
+| agent | auto-approve | auto-edit | plan |
+|---|---|---|---|
+| Claude Code | `--dangerously-skip-permissions`, `--permission-mode bypassPermissions` | `--permission-mode acceptEdits` | `--permission-mode plan` |
+| codex | `--dangerously-bypass-approvals-and-sandbox`, `--yolo`, `-a never`, `-s danger-full-access` | `--full-auto` | `-s read-only` |
+| Gemini, Qwen | `--yolo`, `-y`, `--approval-mode yolo` | `--approval-mode auto_edit` | `--approval-mode plan` |
+| Cursor | `--force`, `-f` | | |
+| Copilot | `--allow-all-tools`, `--allow-all`, `--yolo` | | |
+| Amp | `--dangerously-allow-all` | | |
+| Crush | `--yolo`, `-y` | | |
+| Kiro | `--trust-all-tools` | | |
+| Aider | `--yes-always` | | |
+
+It reflects the launch only: a mode switched inside the agent afterwards (Shift+Tab in Claude Code)
+isn't seen.
+
 ### Model
 
 The session's row and its title bar show the agent's model next to its name (*Opus 5.5*; the full

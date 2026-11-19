@@ -587,7 +587,10 @@ type SessionInfo struct {
 	SuggestCopy []string `json:"suggestCopy,omitempty"`
 	// Port is the session's own port (PORT…), when its repository's
 	// .agenterm.yaml asks for ports (AGENTERM_PORT is always set).
-	Port       int    `json:"port,omitempty"`
+	Port int `json:"port,omitempty"`
+	// Permission is the permission mode its command line asks for: bypass
+	// (runs everything unasked), auto-edit, plan, or "" (the agent asks).
+	Permission string `json:"permission,omitempty"`
 	ID         string `json:"id"`
 	ProjectID  string `json:"projectId"`
 	ProjectDir string `json:"projectDir"`

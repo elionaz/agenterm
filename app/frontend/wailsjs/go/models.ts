@@ -970,6 +970,7 @@ export namespace protocol {
 	export class SessionInfo {
 	    suggestCopy?: string[];
 	    port?: number;
+	    permission?: string;
 	    id: string;
 	    projectId: string;
 	    projectDir: string;
@@ -1032,6 +1033,7 @@ export namespace protocol {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.suggestCopy = source["suggestCopy"];
 	        this.port = source["port"];
+	        this.permission = source["permission"];
 	        this.id = source["id"];
 	        this.projectId = source["projectId"];
 	        this.projectDir = source["projectDir"];

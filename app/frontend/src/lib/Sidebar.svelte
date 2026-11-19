@@ -1,11 +1,13 @@
 <script lang="ts">
   import { ClipboardSetText } from '../../wailsjs/runtime/runtime'
+  import { permHelp } from './permission'
   import {
     api,
     attentionLabel,
     changesLabel,
     needsAttention,
     rememberMode,
+    joinArgs,
     rememberedMode,
     sessionTitle,
     type Profile,
@@ -258,7 +260,8 @@
   const suspendedCount = $derived(sessions.filter((s) => s.state === 'suspended').length)
 
   function tooltip(s: Session): string {
-    let base = `${stateLabel(s)} · ${s.cmd} · ${s.cwd} · ${s.id}`
+    let base = `${stateLabel(s)} · ${[s.cmd, joinArgs(s.args)].filter(Boolean).join(' ')} · ${s.cwd} · ${s.id}`
+    if (permHelp(s.permission)) base = `${permHelp(s.permission)}\n${base}`
     if (s.state === 'suspended') {
       const at = s.suspendedAt ? new Date(s.suspendedAt).toLocaleString() : ''
       base = `${t('sidebar.suspendedSince', { at })}\n${base}`
@@ -624,6 +627,7 @@
                         }}>{sessionTitle(s)}</span
                       >
                     {/if}
+                    {#if s.permission === 'bypass'}<span class="perm" title={permHelp(s.permission)}>⚠</span>{/if}
                     {#if s.git && s.git.files > 0}
                       <span class="changes" title={changesTitle(s)}>{changesLabel(s.git)}</span>
                     {/if}
@@ -1350,6 +1354,11 @@
   }
   .port:hover {
     background: color-mix(in srgb, var(--teal) 24%, transparent);
+  }
+  .perm {
+    flex: none;
+    font-size: 10px;
+    color: var(--amber);
   }
   .changes {
     flex: none;

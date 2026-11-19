@@ -415,6 +415,7 @@ func (s *Server) sessionInfo(sess *session.Session) protocol.SessionInfo {
 	if p := s.sessionPort(sess.ID); len(p.Env) > 0 {
 		info.Port = p.Port // the project asked for ports: show it
 	}
+	info.Permission = permissionMode(info.Cmd, info.Args)
 	if g := s.sessionGit(sess.ID); g != nil {
 		info.Mode, info.WorktreeID, info.Branch, info.Base = g.Mode, g.WorktreeID, g.Branch, g.Base
 		if g.Mode == protocol.ModeWorktree {

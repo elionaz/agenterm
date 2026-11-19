@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { permHelp, permLabel } from './lib/permission'
   import { onDestroy, onMount, tick } from 'svelte'
   import { EventsOn, WindowSetTitle } from '../wailsjs/runtime/runtime'
   import Changes from './lib/Changes.svelte'
@@ -55,6 +56,7 @@
     api,
     attentionLabel,
     errorMessage,
+    joinArgs,
     launchable,
     needsAttention,
     parseCodedError,
@@ -1047,6 +1049,9 @@
         {#if selected.port}
           <span class="port" title={t('sidebar.port', { port: selected.port })}>:{selected.port}</span>
         {/if}
+        {#if permLabel(selected.permission)}
+          <span class="perm {selected.permission}" title={permHelp(selected.permission)}>{permLabel(selected.permission)}</span>
+        {/if}
         {#if selected.attentionKind && selected.state !== 'exited'}
           <span class="attn {selected.attentionKind}" title={selected.attentionMessage ?? ''}>
             {attentionLabel(selected.attentionKind)}{#if selected.attentionMessage}: {selected.attentionMessage}{/if}
@@ -1093,7 +1098,7 @@
           <div class="pane" class:focused style={rectStyle(p.rect)} onmousedown={() => !focused && focusLeaf(p.leaf.id)}>
             <div class="pane-frame">
               {#if multi}
-                <div class="pane-head" title={s ? `${s.cmd} · ${s.cwd} · ${s.id}` : ''}>
+                <div class="pane-head" title={s ? `${[s.cmd, joinArgs(s.args)].filter(Boolean).join(' ')} · ${s.cwd} · ${s.id}` : ''}>
                   <span class="pane-name">{s ? sessionTitle(s) : t('panes.empty')}</span>
                   {#if s?.name}<span class="pane-profile">{s.profileId}</span>{/if}
                   {#if s?.model}<span class="pane-profile" title={s.model}>{prettyModel(s.model)}</span>{/if}
@@ -1408,6 +1413,19 @@
     flex: none;
     font: 11.5px var(--mono);
     color: var(--teal);
+  }
+  .perm {
+    flex: none;
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--hover);
+  }
+  .perm.bypass {
+    color: var(--amber);
+    background: color-mix(in srgb, var(--amber) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--amber) 35%, transparent);
   }
   .branch.same {
     color: var(--fg-dim);
