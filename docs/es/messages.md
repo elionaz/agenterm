@@ -55,6 +55,10 @@ mensaje espera a una sesión de Claude inactiva en su prompt (una respuesta que 
 terminó su turno, o una que se envió mientras estaba inactiva), agenterm escribe la misma línea fija
 un momento después. Se contiene, y el mensaje queda pendiente con el botón **Entregar**, cuando:
 
+- el mensaje no amerita despertarla: solo **tus** mensajes y las **respuestas** despiertan a una
+  sesión (un mensaje de una sesión a la que ella le escribió y que no le había contestado desde
+  entonces). Un aviso que nadie pidió espera a su siguiente turno, en el que sus hooks se lo
+  entregan, para que los agentes no gasten turnos en los avisos de los demás;
 - la sesión no es de Claude (los demás agentes y las shells siguen con el botón), o está trabajando,
   o espera una aprobación o una respuesta;
 - lo último que se escribió en ella no fue un Enter solo (o Ctrl-C): su línea de entrada puede

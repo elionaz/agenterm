@@ -148,7 +148,7 @@ Every key is optional; missing ones take the default value.
 | `git.default_mode` | `worktree` | `worktree` or `same`: where the **+** menu (and ⌘N) starts a new agent in a project where you haven't chosen yet. Shells always start in the project folder. Before 0.7.0 the default was `same`; a file that says `same` keeps it |
 | `sessions.restore` | `ask` | what a starting daemon does with the sessions that were live when the previous one stopped: `ask` (keep them `suspended` until you resume or discard them), `always` (resume them right away) or `never` (discard them). See [architecture.md](architecture.md#persistence-and-resume) |
 | `messages.enabled` | `true` | messages between the sessions of a project (`agenterm msg`): when off, sending is refused and agent hooks hand nothing over. See [messages.md](messages.md) |
-| `messages.auto_deliver` | `false` | a Claude session idle at its prompt is told about new messages without the **Deliver** click; never over text typed without sending, at most 5 times per session until you act on it again (and 20 per project every 10 minutes). See [messages.md](messages.md#automatic-delivery) |
+| `messages.auto_deliver` | `false` | a Claude session idle at its prompt is told about new messages without the **Deliver** click (only yours and replies: heads-ups wait for its next turn); never over text typed without sending, at most 5 times per session until you act on it again (and 20 per project every 10 minutes). See [messages.md](messages.md#automatic-delivery) |
 
 ```yaml
 version: 1

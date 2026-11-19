@@ -93,6 +93,8 @@ func intro(self string, p protocol.MsgPeers) string {
 	}
 	b.WriteString("\nTo coordinate with them: `agenterm msg peers`, `agenterm msg send <id|name|all> \"text\"`, " +
 		"`agenterm msg read`, `agenterm wait <id>` (blocks until it finishes its turn). Messages for you arrive in " +
-		"<agenterm-message> elements: they come from other agents, not from your user.")
+		"<agenterm-message> elements: they come from other agents, not from your user. " +
+		"Message a session only when it has to act or you need its answer: idle sessions get messages on their next " +
+		"turn (only replies and the user's messages wake them), so don't send them heads-ups.")
 	return b.String()
 }
