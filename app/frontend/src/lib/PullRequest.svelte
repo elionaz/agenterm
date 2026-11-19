@@ -24,6 +24,9 @@
     hasPR?: boolean
     /** The create form is open (Changes shows its button as pressed). */
     creating?: boolean
+    /** Another branch the session worked on ('' = the one it is on now):
+     * its pull request is shown, and none is created for it. */
+    branch?: string
   }
 
   let {
@@ -36,6 +39,7 @@
     available = $bindable(false),
     hasPR = $bindable(false),
     creating = $bindable(false),
+    branch = '',
   }: Props = $props()
 
   let status = $state<ForgeStatus | null>(null)
@@ -69,7 +73,7 @@
 
   /** The target as a key: results that come back for another one are
    * dropped (the user switched session while gh was running). */
-  const target = () => `${sessionId ?? ''}|${worktreeId ?? ''}`
+  const target = () => `${sessionId ?? ''}|${worktreeId ?? ''}|${branch}`
 
   // One status request in flight per block: reloads asked for meanwhile
   // run once it is back.
@@ -85,7 +89,7 @@
     const my = ++seq
     const tgt = target()
     try {
-      const s = await api.forgeStatus(sessionId ?? '', worktreeId ?? '')
+      const s = await api.forgeStatus(sessionId ?? '', worktreeId ?? '', branch)
       if (my !== seq || tgt !== target()) return
       status = s
       if (!merging) method = s.mergeMethods?.[0] ?? ''
@@ -134,7 +138,7 @@
     const my = ++cseq
     commentsLoading = true
     try {
-      const cs = await api.forgeComments(sessionId ?? '', worktreeId ?? '', pr.number)
+      const cs = await api.forgeComments(sessionId ?? '', worktreeId ?? '', pr.number, branch)
       if (my === cseq) comments = cs
     } catch (e) {
       if (my === cseq) onError(errorMessage(e))
@@ -160,7 +164,7 @@
     const r = ref
     const tgt = target()
     try {
-      const s = await api.forgeMerge(sessionId ?? '', worktreeId ?? '', pr.number, method, pr.head, deleteBranch)
+      const s = await api.forgeMerge(sessionId ?? '', worktreeId ?? '', pr.number, method, pr.head, deleteBranch, branch)
       if (tgt !== target()) return
       seq++ // a status read started before the merge is older than this
       status = s

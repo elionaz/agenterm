@@ -76,6 +76,7 @@ type Notification struct {
 type Server struct {
 	auto     autoDeliver
 	trust    *repoconfig.Trust // worktree setup commands the user allowed
+	flist    forgeListCache    // forge.list answers (forgelist.go)
 	cfg      Config
 	sock     string
 	projects *project.Registry

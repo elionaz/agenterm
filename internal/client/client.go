@@ -507,6 +507,13 @@ func (c *Client) ForgeStatus(ctx context.Context, ref protocol.ForgeRef) (protoc
 }
 
 // ForgeComments lists the comments of a pull request.
+// ForgeList lists the pull requests of a session's branches (forge.list).
+func (c *Client) ForgeList(ctx context.Context, p protocol.ForgeListParams) (protocol.ForgeList, error) {
+	var r protocol.ForgeList
+	err := c.Call(ctx, protocol.MethodForgeList, p, &r)
+	return r, err
+}
+
 func (c *Client) ForgeComments(ctx context.Context, p protocol.ForgeCommentsParams) ([]forge.Comment, error) {
 	var r []forge.Comment
 	err := c.Call(ctx, protocol.MethodForgeComments, p, &r)

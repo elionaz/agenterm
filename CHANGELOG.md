@@ -7,6 +7,18 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- **All the pull requests of a session in Changes.** A session that switches branches in its
+  worktree and opens a pull request for each now sees them listed (*Pull requests of this session*:
+  number, title, state, checks); click one to see its comments or merge it.
+
+### Fixed
+
+- **Changes showed the worktree's first branch**, not the one the session had switched to: the
+  header, the pull request block, *Merge into the base* and *Create pull request* now follow the
+  branch the worktree is on (the header says where it started), as do the sidebar and title bar.
+
 ## [0.10.0] - 2026-11-19
 
 ### Added

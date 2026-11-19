@@ -8,9 +8,11 @@
   import type { ColorSchemeType } from 'diff2html/lib/types'
   import 'diff2html/bundles/css/diff2html.min.css'
   import { BrowserOpenURL, ClipboardSetText } from '../../wailsjs/runtime/runtime'
-  import { api, errorMessage, type DiffFile, type DiffResult, type LossInfo, type PRResult } from './api'
-  import { locale, t, th } from './i18n.svelte'
+  import { api, errorMessage, type DiffFile, type DiffResult, type ForgeListItem, type LossInfo, type PRResult } from './api'
+  import { hasKey, locale, t, th } from './i18n.svelte'
   import PullRequest from './PullRequest.svelte'
+  import { selectedBranch, showPRList } from './sessionprs'
+  import { shortBranch } from './branch'
   import { joinNames } from './shared'
 
   interface Props {
@@ -56,6 +58,12 @@
   let prBlock = $state<ReturnType<typeof PullRequest> | null>(null)
   let hasPR = $state(false)
   let prCreating = $state(false)
+  // The pull requests of every branch the session worked on (forge.list).
+  let prList = $state<ForgeListItem[] | null>(null)
+  let prPicked = $state('') // a listed other branch shown in the PR block
+  let prListOpen = $state(true)
+  let prListSeq = 0
+  const prBranch = $derived(selectedBranch(prList, prPicked))
   let notice = $state<string | null>(null)
 
   // Remove confirmation.
@@ -196,6 +204,31 @@
     } else void togglePR()
   }
 
+  async function loadPRList(refresh = false) {
+    const my = ++prListSeq
+    try {
+      const l = await api.forgeList(sessionId ?? '', worktreeId ?? '', refresh)
+      if (my === prListSeq) prList = l.prs ?? []
+    } catch {
+      if (my === prListSeq) prList = null // no list: the PR block alone, as before
+    }
+  }
+  // Reload when the target or its branch moves; the daemon caches a minute.
+  let prListKey = ''
+  $effect(() => {
+    const key = `${sessionId ?? ''}|${worktreeId ?? ''}|${prStamp ?? ''}|${diff?.branch ?? ''}`
+    if (!diff?.branch || key === prListKey) return
+    if (prListKey.split('|').slice(0, 2).join('|') !== key.split('|').slice(0, 2).join('|')) prPicked = ''
+    prListKey = key
+    void loadPRList()
+  })
+
+  /** A PR state as the PR block names it ("open", "merged"…). */
+  function prState(state: string): string {
+    const k = `pr.state.${state}`
+    return hasKey(k) ? t(k) : state
+  }
+
   function menu(action: () => void) {
     menuOpen = false
     action()
@@ -325,6 +358,9 @@
     <div class="info">
       {#if diff?.branch}
         <span class="branch" title={diff.dir}>⎇ {diff.branch}{#if isWorktree && diff.base}<span class="base">{` → ${diff.base}`}</span>{/if}</span>
+        {#if diff.startBranch}
+          <span class="started" title={(diff.branches ?? []).join('\n')}>{t('changes.startedOn', { branch: shortBranch(diff.startBranch) })}</span>
+        {/if}
       {/if}
       {#if diff}
         <span class="stats">
@@ -337,10 +373,11 @@
       <button class="icon" class:spin={loading} title={t('changes.refresh')} aria-label={t('changes.refresh')} onclick={() => {
           refreshTick++
           void load()
+          if (diff?.branch) void loadPRList(true)
         }}>⟳</button>
     </div>
     <span class="actions">
-      {#if (forgeAvailable && !hasPR) || (!forgeAvailable && isWorktree && wtId)}
+      {#if !prBranch && ((forgeAvailable && !hasPR) || (!forgeAvailable && isWorktree && wtId))}
         <button
           class="btn primary"
           class:on={prCreating || prOpen}
@@ -391,11 +428,41 @@
   {#if sharedWith.length && !isWorktree}
     <div class="notice">{t('changes.shared', { n: sharedWith.length, names: joinNames(sharedWith) })}</div>
   {/if}
+  {#if diff?.branch && showPRList(prList)}
+    <div class="prlist">
+      <button class="section toggle" aria-expanded={prListOpen} onclick={() => (prListOpen = !prListOpen)}
+        ><span class="caret" class:open={prListOpen}>▸</span> {t('changes.sessionPRs', { n: prList?.length ?? 0 })}</button
+      >
+      {#if prListOpen}
+        <ul>
+          {#each prList ?? [] as it (it.branch)}
+            <li>
+              <button
+                class="pritem"
+                class:sel={prBranch ? prBranch === it.branch : it.current}
+                title={it.branch}
+                onclick={() => (prPicked = it.current ? '' : it.branch)}
+              >
+                <span class="num">#{it.pr?.number}</span>
+                <span class="ptitle">{it.pr?.title}</span>
+                <span class="pstate st-{it.pr?.state}">{prState(it.pr?.state ?? '')}</span>
+                {#if it.pr?.checks?.state === 'passing'}<span class="ck ck-passing">✓</span>
+                {:else if it.pr?.checks?.state === 'failing'}<span class="ck ck-failing">✗</span>
+                {:else if it.pr?.checks?.state === 'pending'}<span class="ck ck-pending">●</span>{/if}
+                {#if it.current}<span class="cur">{t('changes.currentBranch')}</span>{/if}
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </div>
+  {/if}
   {#if diff?.branch}
     <PullRequest
+      branch={prBranch}
       {sessionId}
       {worktreeId}
-      reloadKey={`${prStamp ?? diff.branch}|${refreshTick}`}
+      reloadKey={`${prStamp ?? diff.branch}|${diff.branch}|${refreshTick}`}
       {onError}
       onSelectFile={(p) => {
         if (diff?.files.some((f) => f.path === p)) selectedPath = p
@@ -940,6 +1007,91 @@
     overflow: auto;
     display: flex;
     flex-direction: column;
+  }
+  .started {
+    flex: none;
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  .prlist {
+    flex: none;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px;
+  }
+  .prlist ul {
+    list-style: none;
+    margin: 0;
+    padding: 0 6px;
+    max-height: 168px;
+    overflow-y: auto;
+  }
+  .pritem {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 3px 6px;
+    border-radius: 5px;
+    font-size: 12px;
+    color: var(--fg-dim);
+    text-align: left;
+  }
+  .pritem:hover {
+    background: var(--hover);
+  }
+  .pritem.sel {
+    background: var(--accent-bg);
+    color: var(--fg);
+  }
+  .num {
+    flex: none;
+    font-weight: 600;
+    color: var(--blue);
+    font-variant-numeric: tabular-nums;
+  }
+  .ptitle {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .pstate {
+    flex: none;
+    padding: 0 7px;
+    border-radius: 10px;
+    font-size: 11px;
+    background: var(--hover);
+  }
+  .pstate.st-open {
+    color: var(--green);
+    background: color-mix(in srgb, var(--green) 14%, transparent);
+  }
+  .pstate.st-merged {
+    color: var(--blue);
+    background: color-mix(in srgb, var(--blue) 14%, transparent);
+  }
+  .pstate.st-closed {
+    color: var(--red);
+    background: color-mix(in srgb, var(--red) 12%, transparent);
+  }
+  .ck {
+    flex: none;
+    font-size: 11px;
+  }
+  .ck-passing {
+    color: var(--green);
+  }
+  .ck-failing {
+    color: var(--red);
+  }
+  .ck-pending {
+    color: var(--amber);
+  }
+  .cur {
+    flex: none;
+    font-size: 10.5px;
+    color: var(--muted);
   }
   .diff-head {
     position: sticky;

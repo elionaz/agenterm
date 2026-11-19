@@ -1042,7 +1042,8 @@
         {#if selected.name}<span class="profile">{selected.profileId}</span>{/if}
         {#if selected.model}<span class="profile" title={selected.model}>{prettyModel(selected.model)}</span>{/if}
         {#if selected.mode === 'worktree' && selected.branch}
-          <span class="branch" title={`${selected.branch}\n${selected.worktreePath ?? ''}`}>⎇ {shortBranch(selected.branch)}</span>
+          {@const cur = selected.git?.head || selected.branch}
+          <span class="branch" title={`${cur}${cur !== selected.branch ? ` (${selected.branch})` : ''}\n${selected.worktreePath ?? ''}`}>⎇ {shortBranch(cur)}</span>
         {:else if selected.git?.head}
           <span class="branch same" title={t('sidebar.folderBranch', { branch: selected.git.head })}>⎇ {shortBranch(selected.git.head)}</span>
         {/if}
