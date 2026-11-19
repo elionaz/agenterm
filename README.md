@@ -267,8 +267,11 @@ terminal:
 notify:
   enabled: true          # notifications (app and daemon)
   sound: true            # sound on approval/question
-  notify_on_done: true   # also notify when an agent finishes
-  notify_on_stall: true  # low-key notice when a turn looks stalled
+  notify_on_approval: true  # per kind: approvals, questions,
+  notify_on_question: true  # finished turns, errors, stalls
+  notify_on_done: true
+  notify_on_error: true
+  notify_on_stall: true     # low-key notice when a turn looks stalled
   fallback: none         # none | osascript: when native notifications can't be used
                          # (osascript shows as Script Editor)
 activity:

@@ -139,7 +139,10 @@ Every key is optional; missing ones take the default value.
 | `terminal.theme` | `bright-lights` | built-in palette, each named after an album. Dark: `bright-lights` (*Turn On the Bright Lights*), `room-on-fire` (*Room on Fire*), `is-this-it` (*Is This It*), `funeral` (*Funeral*), `silent-alarm` (*Silent Alarm*), `z` (*Z*). Light: `it-still-moves` (*It Still Moves*), `alphabetical` (*Alphabetical*), `hot-fuss` (*Hot Fuss*). Retired names still work and pick the closest palette: `agenterm-dark` → `bright-lights`, `agenterm-light` → `alphabetical`, `solarized-dark` → `z`, `solarized-light` → `hot-fuss`, `dracula` → `funeral`, `gruvbox-dark` → `is-this-it`, `nord` → `silent-alarm`. Unknown names fall back to `bright-lights` |
 | `notify.enabled` | `true` | notifications (from the app and the daemon) |
 | `notify.sound` | `true` | sound, only for approvals and questions |
-| `notify.notify_on_done` | `true` | also notify when an agent finishes its turn (errors always notify) |
+| `notify.notify_on_approval` | `true` | notify when an agent asks for an approval |
+| `notify.notify_on_question` | `true` | notify when an agent asks you something |
+| `notify.notify_on_done` | `true` | notify when an agent finishes its turn |
+| `notify.notify_on_error` | `true` | notify when a turn fails |
 | `notify.notify_on_stall` | `true` | low-key notice when a turn looks stalled |
 | `notify.fallback` | `none` | when native notifications can't be used (no `.app` bundle, no permission): `none` doesn't show them (`daemon.log` says why, once) and `osascript` sends them through AppleScript, which macOS shows as *Script Editor* (clicking opens Script Editor, not agenterm). `AGENTERM_NOTIFY=off` in the environment disables all notifications regardless. See [attention-and-activity.md](attention-and-activity.md#while-the-app-is-closed) |
 | `activity.stall_seconds` | `180` | seconds without output or events before marking "stalled?"; `0` disables it |
@@ -158,7 +161,10 @@ ui:
 notify:
   enabled: true
   sound: true
+  notify_on_approval: true
+  notify_on_question: true
   notify_on_done: true
+  notify_on_error: true
   notify_on_stall: true
   fallback: none
 activity:

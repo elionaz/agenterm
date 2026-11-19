@@ -7,6 +7,14 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- **Pick which notifications you get.** Settings → Notifications has one switch per kind:
+  approvals, questions, finished turns, errors and "looks stalled" (`notify.notify_on_approval`,
+  `notify_on_question`, `notify_on_done`, `notify_on_error`, `notify_on_stall`), all on by default,
+  with a link to how each one is detected. Approvals, questions and errors could not be turned off
+  on their own before.
+
 ## [0.9.0] - 2026-11-18
 
 ### Changed
