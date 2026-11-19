@@ -49,3 +49,14 @@ func SetInstallCommand(cmd string) func() {
 	}
 	return func() { catalogInstall = prev }
 }
+
+// No test daemon finds the machine's browser unless it asks (SetBrowser).
+func init() { browserFind = func(string, func(string) (string, error)) string { return "" } }
+
+// SetBrowser makes the daemon find exe as the agents' browser; it returns
+// the restore func.
+func SetBrowser(exe string) func() {
+	old := browserFind
+	browserFind = func(string, func(string) (string, error)) string { return exe }
+	return func() { browserFind = old }
+}

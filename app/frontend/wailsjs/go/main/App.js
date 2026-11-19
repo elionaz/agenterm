@@ -14,8 +14,16 @@ export function Attach(arg1, arg2, arg3) {
   return window['go']['main']['App']['Attach'](arg1, arg2, arg3);
 }
 
+export function BrowserStatus() {
+  return window['go']['main']['App']['BrowserStatus']();
+}
+
 export function CheckForUpdates() {
   return window['go']['main']['App']['CheckForUpdates']();
+}
+
+export function CloseBrowser(arg1) {
+  return window['go']['main']['App']['CloseBrowser'](arg1);
 }
 
 export function CopyIntoWorktree(arg1, arg2, arg3) {

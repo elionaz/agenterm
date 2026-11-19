@@ -154,6 +154,25 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 		}
 		return s.instructionsShow(p)
 
+	case protocol.MethodBrowserStatus:
+		return s.browserStatus(), nil
+	case protocol.MethodBrowserPrepare, protocol.MethodBrowserOpen, protocol.MethodBrowserClose:
+		p, err := decode[protocol.BrowserParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		switch req.Method {
+		case protocol.MethodBrowserPrepare:
+			return s.browserPrepare(p.SessionID)
+		case protocol.MethodBrowserOpen:
+			return s.browserOpen(p.SessionID)
+		}
+		if _, err := s.lookup(p.SessionID); err != nil {
+			return nil, err
+		}
+		s.browserClose(p.SessionID)
+		return s.browserPrepare(p.SessionID)
+
 	case protocol.MethodSettingsGet:
 		st, err := settings.Load(s.cfg.Paths.Settings())
 		switch {
@@ -588,6 +607,7 @@ func (s *Server) startSession(sp startSpec) (protocol.SessionInfo, error) {
 		s.log.Warn("settings", "err", err)
 	}
 	env := append(append(prof.Environ(), sp.lp.inj.Env...), portEnv(s.sessionPort(id))...)
+	env = append(env, s.browserEnv(id)...)
 	var launch []string
 	if sp.setup != "" {
 		launch = setupLaunch(sp.lp.cmd, sp.args)
@@ -744,6 +764,7 @@ func (s *Server) kill(id string) (protocol.SessionInfo, error) {
 		s.forgetModel(id)
 		s.forgetPort(id)
 		s.forgetMessages(sess)
+		go s.browserForget(id)
 		s.bus.publish(protocol.Event{Type: protocol.EventSessionRemoved, SessionID: id, At: time.Now().UTC()})
 		return info, nil
 	}

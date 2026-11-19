@@ -854,6 +854,9 @@
       case 'session.model':
         sessions = sessions.map((s) => (s.id === ev.sessionId ? { ...s, model: ev.model } : s))
         break
+      case 'session.browser':
+        sessions = sessions.map((s) => (s.id === ev.sessionId ? { ...s, browserUrl: ev.browserUrl } : s))
+        break
       case 'profile.changed':
         void guard(api.listProfiles()).then((ps) => ps && (profiles = ps))
         break

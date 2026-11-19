@@ -169,6 +169,7 @@ Messages between the sessions of a project; see [messages.md](messages.md).
 | `agenterm instructions [<project>]` | the standing instructions a session of the project receives at start (inside a session: its project; none: the all-project topics); see [configuration.md](configuration.md#standing-instructions-for-the-agents) |
 | `agenterm instructions list [<project>]` | the instruction topics: name, title, load, projects, active, size |
 | `agenterm instructions show <topic>` | one topic's text (what an agent runs for an on-demand topic) |
+| `agenterm browser [open\|url\|close\|status\|mcp] [--session ID]` | the session's own Chrome (inside a session: its own). `open` (default) starts it and prints its DevTools URL; `url` only prints it; `close` stops it; `status` shows the settings and the Chrome and `npx` found; `mcp` runs the browser MCP server bound to it (what Claude Code and codex get). See [configuration.md](configuration.md#browser-for-agents) |
 
 ## Git
 

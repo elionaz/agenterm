@@ -499,6 +499,7 @@ func (s *Server) discard(id string) (protocol.SessionInfo, error) {
 	s.setName(id, "")
 	s.forgetModel(id)
 	s.forgetPort(id)
+	go s.browserForget(id)
 	s.forgetMessages(sess)
 	sess.Release()
 	s.dropPersisted(id)

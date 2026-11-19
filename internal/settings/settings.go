@@ -230,6 +230,19 @@ type Messages struct {
 	AutoDeliver bool `json:"autoDeliver"`
 }
 
+// Browser configures the isolated Chrome agenterm gives each session for
+// agents' browser work (see internal/browser).
+type Browser struct {
+	// Enabled (default): Claude Code and codex sessions get a browser MCP
+	// server bound to the session's own Chrome; every session can start it
+	// with agenterm browser.
+	Enabled bool `json:"enabled"`
+	// Headless: no window.
+	Headless bool `json:"headless"`
+	// Path of the Chrome-compatible executable; "" finds one.
+	Path string `json:"path"`
+}
+
 // Settings is the parsed file.
 type Settings struct {
 	Notify   Notify   `json:"notify"`
@@ -239,6 +252,13 @@ type Settings struct {
 	Sessions Sessions `json:"sessions"`
 	Terminal Terminal `json:"terminal"`
 	Messages Messages `json:"messages"`
+	Browser  Browser  `json:"browser"`
+}
+
+type fileBrowser struct {
+	Enabled  *bool   `yaml:"enabled"`
+	Headless *bool   `yaml:"headless"`
+	Path     *string `yaml:"path"`
 }
 
 type fileMessages struct {
@@ -298,6 +318,7 @@ type file struct {
 	Sessions fileSessions `yaml:"sessions"`
 	Terminal fileTerminal `yaml:"terminal"`
 	Messages fileMessages `yaml:"messages"`
+	Browser  fileBrowser  `yaml:"browser"`
 }
 
 const header = "# agenterm settings (see README)\n"
@@ -341,6 +362,9 @@ func Save(path string, s Settings) error {
 	setKey(root, []string{"sessions", "restore"}, normRestore(s.Sessions.Restore), "!!str")
 	setKey(root, []string{"messages", "enabled"}, b(s.Messages.Enabled), "!!bool")
 	setKey(root, []string{"messages", "auto_deliver"}, b(s.Messages.AutoDeliver), "!!bool")
+	setKey(root, []string{"browser", "enabled"}, b(s.Browser.Enabled), "!!bool")
+	setKey(root, []string{"browser", "headless"}, b(s.Browser.Headless), "!!bool")
+	setKey(root, []string{"browser", "path"}, strings.TrimSpace(s.Browser.Path), "!!str")
 	term := normTerminal(s.Terminal)
 	setKey(root, []string{"terminal", "font_family"}, term.FontFamily, "!!str")
 	setKey(root, []string{"terminal", "font_size"}, strconv.Itoa(term.FontSize), "!!int")
@@ -411,6 +435,7 @@ func Defaults() Settings {
 		Sessions: Sessions{Restore: RestoreAsk},
 		Terminal: normTerminal(Terminal{}),
 		Messages: Messages{Enabled: true, AutoDeliver: true},
+		Browser:  Browser{Enabled: true},
 	}
 }
 
@@ -458,6 +483,11 @@ func Parse(data []byte) (Settings, error) {
 	set(&s.Notify.OnStall, f.Notify.OnStall)
 	set(&s.Messages.Enabled, f.Messages.Enabled)
 	set(&s.Messages.AutoDeliver, f.Messages.AutoDeliver)
+	set(&s.Browser.Enabled, f.Browser.Enabled)
+	set(&s.Browser.Headless, f.Browser.Headless)
+	if f.Browser.Path != nil {
+		s.Browser.Path = strings.TrimSpace(*f.Browser.Path)
+	}
 	if f.Notify.Fallback != nil {
 		s.Notify.Fallback = normFallback(*f.Notify.Fallback)
 	}

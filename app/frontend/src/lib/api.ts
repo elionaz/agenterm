@@ -15,6 +15,7 @@ export type Settings = Omit<settings.Settings, 'convertValues'>
 /** The user's standing instruction topics (instructions.list). */
 export type Instructions = Omit<protocol.Instructions, 'convertValues'>
 export type InstructionTopic = protocol.InstructionTopic
+export type BrowserStatus = protocol.BrowserStatus
 export type Session = Omit<protocol.SessionInfo, 'convertValues'>
 /** suspended: restored from a previous daemon run, no process (resume or discard it). */
 export type SessionState = 'running' | 'waiting_input' | 'idle' | 'exited' | 'suspended'
@@ -88,6 +89,7 @@ export interface DaemonEvent extends Live {
     | 'message.changed'
     | 'profile.changed'
     | 'session.model'
+    | 'session.browser'
   sessionId: string
   /** The session's display name (session.renamed: the new one; absent: reset). */
   sessionName?: string
@@ -114,6 +116,8 @@ export interface DaemonEvent extends Live {
   msgHold?: string
   /** session.model: the agent's model id. */
   model?: string
+  /** session.browser: the session's own Chrome opened (its DevTools URL) or closed (absent). */
+  browserUrl?: string
 }
 
 /** What a session is called: its given name, else its profile. */
@@ -157,6 +161,9 @@ export const api = {
   reorderProfiles: (ids: string[]): Promise<Profile[]> => App.ReorderProfiles(ids),
   rescanProfiles: (): Promise<Profile[]> => App.RescanProfiles(),
   getSettings: (): Promise<Settings> => App.GetSettings(),
+  /** Whether sessions get their own browser, and the Chrome and npx found. */
+  browserStatus: (): Promise<BrowserStatus> => App.BrowserStatus(),
+  closeBrowser: (sessionId: string): Promise<void> => App.CloseBrowser(sessionId),
   /** The instruction topics; with projectId, composed is what its sessions receive. */
   instructions: (projectId: string): Promise<Instructions> => App.Instructions(projectId),
   /** Saves a topic (new when oldSlug is ''). */

@@ -119,6 +119,10 @@ func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
+// WriteIfChanged writes data to path (atomically, private) unless it
+// already holds it.
+func WriteIfChanged(path string, data []byte) error { return writeIfChanged(path, data) }
+
 func writeIfChanged(path string, data []byte) error {
 	if old, err := os.ReadFile(path); err == nil && string(old) == string(data) {
 		return nil

@@ -76,6 +76,7 @@ type Notification struct {
 type Server struct {
 	auto     autoDeliver
 	trust    *repoconfig.Trust // worktree setup commands the user allowed
+	browsers browserState      // each session's own Chrome (browser.go)
 	flist    forgeListCache    // forge.list answers (forgelist.go)
 	cfg      Config
 	sock     string
@@ -234,6 +235,8 @@ func (s *Server) Run(ctx context.Context) error {
 	s.log.Info("daemon listening", "socket", s.sock, "pid", os.Getpid())
 	go s.detector.Path() // warm the (login shell) search PATH
 	s.restoreSessions()
+	go s.browserSweep()
+	go s.browserWatch(s.bg)
 	s.persistStop, s.persistDone = make(chan struct{}), make(chan struct{})
 	go s.persistLoop(s.persistStop, s.persistDone)
 
@@ -272,6 +275,7 @@ func (s *Server) Run(ctx context.Context) error {
 	ln.Close()
 	<-acceptDone
 	s.killAll()
+	s.browserCloseAll()
 	s.stopGit()
 	s.bus.closeAll()
 	s.connMu.Lock()
@@ -413,6 +417,7 @@ func (s *Server) sessionInfo(sess *session.Session) protocol.SessionInfo {
 	info.ProjectName = s.projectName(sess.ProjectID, sess.ProjectName)
 	info.MsgPending = s.mail.Pending(sess.ID)
 	info.MsgHold = s.msgHold(sess.ID)
+	info.BrowserURL = s.browserURL(sess.ID)
 	info.Model = s.sessionModel(sess.ID)
 	if p := s.sessionPort(sess.ID); len(p.Env) > 0 {
 		info.Port = p.Port // the project asked for ports: show it
@@ -546,6 +551,7 @@ func (s *Server) publishState(id, projectName, profileID string, c status.Change
 	if c.To == status.Exited {
 		code := c.ExitCode
 		ev.ExitCode = &code
+		go s.browserClose(id) // its agent is gone; the profile stays until it is removed
 	}
 	s.bus.publish(ev)
 	// Messages that came while it worked; not after a failed turn (an API

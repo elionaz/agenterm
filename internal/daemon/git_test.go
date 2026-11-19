@@ -17,6 +17,10 @@ import (
 // TestMain isolates git (and the shells the tests spawn) from the user's
 // configuration: no system config, an empty global one, a throwaway HOME.
 func TestMain(m *testing.M) {
+	if os.Getenv("AGENTERM_FAKE_CHROME") != "" {
+		fakeChrome() // the test binary as the agents' browser (browser_test.go)
+		return
+	}
 	home, err := os.MkdirTemp("", "agt-home")
 	if err != nil {
 		panic(err)

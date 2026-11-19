@@ -9,6 +9,7 @@
 | daemon socket, pid and log | `~/.agenterm/{d.sock,d.pid,daemon.log}` | `/x/…` |
 | profiles, projects and settings | `~/.config/agenterm/{profiles.yaml,projects.json,settings.yaml}` | `/x/…` |
 | standing instructions for the agents (one file per topic) | `~/.config/agenterm/instructions/<topic>.md` | `/x/instructions/…` |
+| each session's own browser profile | `~/.agenterm/browsers/<sessionId>/` | `/x/browsers/…` |
 | generated hook files | `~/.agenterm/hooks/` | `/x/hooks/` |
 | session worktrees | `~/.agenterm/worktrees/<project>-<projectId>/<sessionId>/` (or `git.worktree_dir`) | `/x/worktrees/…` |
 | worktree registry | `~/.agenterm/worktrees.json` | `/x/worktrees.json` |
@@ -160,6 +161,9 @@ Every key is optional; missing ones take the default value.
 | `sessions.restore` | `ask` | what a starting daemon does with the sessions that were live when the previous one stopped: `ask` (keep them `suspended` until you resume or discard them), `always` (resume them right away) or `never` (discard them). See [architecture.md](architecture.md#persistence-and-resume) |
 | `messages.enabled` | `true` | messages between the sessions of a project (`agenterm msg`): when off, sending is refused and agent hooks hand nothing over. See [messages.md](messages.md) |
 | `messages.auto_deliver` | `true` | a session idle at its prompt (Claude, or an agent that reports the end of its turn, like codex) is told about new messages without the **Deliver** click (only yours and replies: heads-ups wait for its next turn); never over text typed without sending, at most 5 times per session until you act on it again (and 20 per project every 10 minutes). See [messages.md](messages.md#automatic-delivery) |
+| `browser.enabled` | `true` | each session gets its own isolated Chrome; see [Browser for agents](#browser-for-agents) |
+| `browser.headless` | `false` | run those browsers without a window |
+| `browser.path` | `""` | a Chrome-compatible executable; empty: Google Chrome, Chromium, Microsoft Edge or Brave, whichever is installed |
 
 ```yaml
 version: 1
@@ -213,7 +217,7 @@ fields a client doesn't send keep their value. If the file can't be parsed, the 
 (and this is logged); saving replaces it.
 
 **Settings → Git** edits `git.editor`, `git.worktree_dir` and `git.default_mode`. **Settings →
-General** edits `ui.language`, `sessions.restore`, `messages.enabled` and `messages.auto_deliver` (saved right away). **Settings →
+General** edits `ui.language`, `sessions.restore`, `messages.enabled`, `messages.auto_deliver`, `browser.enabled` and `browser.headless` (saved right away). **Settings →
 Appearance** edits `ui.appearance` and `terminal.*`, with a live preview; changes apply to the open
 terminals at once and are saved right away.
 
@@ -276,3 +280,33 @@ A file without front matter loads always, in every project.
   the tab lists them.
 
 Changes apply to sessions started after saving.
+
+## Browser for agents
+
+Agents test web apps, open pages and take screenshots. Left alone they drive your own Chrome: they
+move and resize its window, open tabs among yours and see your logins. agenterm gives each session
+**its own Chrome** instead:
+
+- its own profile in `~/.agenterm/browsers/<sessionId>/` (none of your tabs, cookies, extensions or
+  logins), a fixed window size (1280×800) and its own DevTools port on `127.0.0.1`, from 9222;
+- it **opens only when the agent needs it** and closes when the session exits; the profile is
+  deleted when the session is removed (logins made there last as long as the session);
+- **Claude Code** and **codex** sessions get it as browser tools: the
+  [`chrome-devtools-mcp`](https://github.com/ChromeDevTools/chrome-devtools-mcp) MCP server (run
+  with `npx`, pinned to one version, usage statistics and CrUX lookups off), added for that
+  invocation only (`--mcp-config` / `-c mcp_servers…`): their own configuration is left alone. It
+  launches the session's Chrome on its first tool call;
+- every session gets `AGENTERM_BROWSER_URL` (`http://127.0.0.1:<port>`), and `agenterm browser`
+  starts that Chrome and prints the URL, for any agent or tool (Playwright's `connectOverCDP`,
+  Puppeteer's `connect({browserURL})`);
+- the instructions handed to Claude Code and codex (see
+  [Standing instructions](#standing-instructions-for-the-agents)) tell them to use it and never your
+  Chrome;
+- a 🌐 in the session's row shows its browser is open; click it to copy the URL, ⌥-click to close it.
+
+It needs a Chrome-compatible browser (Google Chrome, Chromium, Microsoft Edge, Brave or
+`browser.path`) and, for the browser tools, Node.js (`npx`); **Settings → General** shows what was
+found. Turn it off with `browser.enabled: false`; `browser.headless: true` runs it without a window.
+
+An agent that uses a browser extension (such as Claude in Chrome) still reaches your Chrome through
+it: agenterm cannot stop that, it only gives the agent a better browser and tells it to use it.

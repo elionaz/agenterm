@@ -385,6 +385,7 @@ export namespace main {
 	    sessions?: settings.Sessions;
 	    terminal?: settings.Terminal;
 	    messages?: settings.Messages;
+	    browser?: settings.Browser;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsPatch(source);
@@ -399,6 +400,7 @@ export namespace main {
 	        this.sessions = this.convertValues(source["sessions"], settings.Sessions);
 	        this.terminal = this.convertValues(source["terminal"], settings.Terminal);
 	        this.messages = this.convertValues(source["messages"], settings.Messages);
+	        this.browser = this.convertValues(source["browser"], settings.Browser);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -653,6 +655,26 @@ export namespace protocol {
 	        this.error = source["error"];
 	        this.errorCode = source["errorCode"];
 	        this.errorData = source["errorData"];
+	    }
+	}
+	export class BrowserStatus {
+	    enabled: boolean;
+	    headless: boolean;
+	    exe: string;
+	    npx: string;
+	    mcp: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BrowserStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.headless = source["headless"];
+	        this.exe = source["exe"];
+	        this.npx = source["npx"];
+	        this.mcp = source["mcp"];
 	    }
 	}
 	export class CatalogInfo {
@@ -1136,6 +1158,7 @@ export namespace protocol {
 	    msgPending?: number;
 	    msgHold?: string;
 	    model?: string;
+	    browserUrl?: string;
 	    mode?: string;
 	    worktreeId?: string;
 	    worktreePath?: string;
@@ -1198,6 +1221,7 @@ export namespace protocol {
 	        this.msgPending = source["msgPending"];
 	        this.msgHold = source["msgHold"];
 	        this.model = source["model"];
+	        this.browserUrl = source["browserUrl"];
 	        this.mode = source["mode"];
 	        this.worktreeId = source["worktreeId"];
 	        this.worktreePath = source["worktreePath"];
@@ -1391,6 +1415,22 @@ export namespace settings {
 	        this.stallSeconds = source["stallSeconds"];
 	    }
 	}
+	export class Browser {
+	    enabled: boolean;
+	    headless: boolean;
+	    path: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Browser(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.headless = source["headless"];
+	        this.path = source["path"];
+	    }
+	}
 	export class Git {
 	    editor: string;
 	    worktreeDir: string;
@@ -1501,6 +1541,7 @@ export namespace settings {
 	    sessions: Sessions;
 	    terminal: Terminal;
 	    messages: Messages;
+	    browser: Browser;
 	
 	    static createFrom(source: any = {}) {
 	        return new Settings(source);
@@ -1515,6 +1556,7 @@ export namespace settings {
 	        this.sessions = this.convertValues(source["sessions"], Sessions);
 	        this.terminal = this.convertValues(source["terminal"], Terminal);
 	        this.messages = this.convertValues(source["messages"], Messages);
+	        this.browser = this.convertValues(source["browser"], Browser);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
