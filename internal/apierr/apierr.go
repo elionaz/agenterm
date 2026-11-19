@@ -29,6 +29,10 @@ const (
 	// MergeWrongBranch: the main work tree is not on the base branch.
 	// Data: {dir, current (empty: detached HEAD), base}.
 	MergeWrongBranch = "merge_wrong_branch"
+	// MergeBaseBehind: the local base branch lacks commits of its
+	// upstream (pull requests merged on the host, never pulled).
+	// Data: {dir, base, upstream, count}.
+	MergeBaseBehind = "merge_base_behind"
 	// MergeNothing: the branch has no commits the base lacks.
 	// Data: {branch, base}.
 	MergeNothing = "merge_nothing"

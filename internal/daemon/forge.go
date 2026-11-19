@@ -87,7 +87,7 @@ func (s *Server) forgeTarget(ctx context.Context, ref protocol.ForgeRef) (forgeT
 		// A worktree's base may be a remote branch (origin/main): the host
 		// knows it as main.
 		t.base = strings.TrimPrefix(t.g.Base, remote+"/")
-		t.baseRef = baseRef(ctx, t.dir, t.g.Base, t.g.BaseCommit)
+		t.baseRef = baseRef(ctx, t.dir, t.g.Base, t.g.BaseCommit, "HEAD")
 	} else {
 		t.base = gitx.RemoteDefaultBranch(ctx, t.dir, remote)
 		t.baseRef = t.base
