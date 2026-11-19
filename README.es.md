@@ -18,6 +18,10 @@ vivos aunque cierres la app y te avisa cuando alguno te necesita.
 
 ## Funciones
 
+- **Funciona con cualquier CLI de agente**, no solo con unos pocos. Un catálogo integrado (Claude
+  Code, codex, opencode, Gemini, Cursor, Copilot, aider, Amp, goose, Qwen, Crush, Kiro, Hermes,
+  shell) detecta cuáles tienes instalados, y cualquier otro comando se vuelve un agente con unas
+  líneas en `profiles.yaml`.
 - **Proyectos y sesiones** en una barra lateral: cada proyecto es una carpeta y cada sesión una
   terminal (xterm.js) con un agente o una shell, con su modelo (*Opus 5.5*) y su rama. Doble clic
   en una sesión para ponerle nombre;
@@ -31,9 +35,6 @@ vivos aunque cierres la app y te avisa cuando alguno te necesita.
   de discos (*Turn On the Bright Lights*, *Room on Fire*, *Is This It*, *Funeral*, *Silent Alarm*,
   *Z*, *It Still Moves*, *Alphabetical* y *Hot Fuss*), fuente, tamaño, interlineado y cursor, y la
   app en claro u oscuro (o siguiendo a macOS).
-- **Cualquier CLI de agente**: catálogo integrado (Claude Code, codex, opencode, Gemini, Cursor,
-  Copilot, aider, Amp, goose, Qwen, Crush, Kiro, Hermes, shell) con detección automática de los instalados,
-  más perfiles propios y variantes en `profiles.yaml`.
 - **Las sesiones sobreviven a la app**: un daemon es dueño de las PTYs; cierras la ventana, la
   reabres y todo sigue ahí con su scrollback. La CLI y la app comparten el mismo daemon. Si el
   propio daemon se reinicia, las sesiones vuelven suspendidas con su scrollback y se reanudan con
@@ -64,6 +65,23 @@ vivos aunque cierres la app y te avisa cuando alguno te necesita.
   también en las instalaciones con Homebrew.
 - **En inglés y español**: la app sigue los idiomas preferidos de macOS (con inglés como respaldo)
   o el idioma que elijas en *Ajustes → General*.
+
+## Cómo funciona
+
+- **Un daemon es dueño de las terminales.** Cada sesión es una PTY real que arranca el daemon de
+  agenterm (sin tmux ni screen). La app y la CLI `agenterm` son clientes de ese daemon por un socket
+  unix local, así que cerrar la ventana, o la app entera, no detiene a ningún agente.
+- **Las sesiones sobreviven a los reinicios.** El daemon guarda el scrollback de cada sesión en
+  disco. Si el propio daemon se reinicia (una actualización, un fallo), las sesiones vuelven
+  suspendidas y se reanudan con un clic; Claude Code y codex continúan la misma conversación.
+- **La atención la avisa el agente cuando puede.** Claude Code avisa con hooks y codex con su ajuste
+  de notify; cualquier otra CLI con señales de terminal (campana, notificaciones OSC) o con patrones
+  que configures. agenterm pasa sus hooks como flags de arranque y nunca edita la configuración de
+  tu agente. Detalles en [Cómo se detecta la atención](#cómo-se-detecta-la-atención).
+- **Los worktrees son git normal.** Una sesión en worktree es `git worktree add` en su propia rama
+  `agent/…`; nada sale de tu máquina salvo que hagas push o abras un pull request.
+
+Más en [docs/es/architecture.md](docs/es/architecture.md).
 
 ## Capturas
 
@@ -276,8 +294,11 @@ terminal:
 notify:
   enabled: true          # notificaciones (app y daemon)
   sound: true            # sonido en aprobación/pregunta
-  notify_on_done: true   # avisar también cuando un agente termina
-  notify_on_stall: true  # aviso discreto si un turno parece trabado
+  notify_on_approval: true  # por tipo: aprobaciones, preguntas,
+  notify_on_question: true  # turnos terminados, errores, trabados
+  notify_on_done: true
+  notify_on_error: true
+  notify_on_stall: true     # aviso discreto si un turno parece trabado
   fallback: none         # none | osascript: si no se pueden usar las nativas
                          # (osascript aparece como Editor de Scripts)
 activity:
