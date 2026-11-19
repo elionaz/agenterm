@@ -7,6 +7,8 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-18
+
 ### Changed
 
 - **Automatic delivery wakes a session only for your messages and replies.** A heads-up from another
@@ -381,7 +383,8 @@ First public release: a macOS desktop app (universal: Apple Silicon and Intel, m
   `.zip` downloads, CLI archives for macOS and Linux, and a Homebrew cask
   (`brew install --cask elionaz/tap/agenterm`).
 
-[Unreleased]: https://github.com/elionaz/agenterm/compare/v0.8.1...HEAD
+[Unreleased]: https://github.com/elionaz/agenterm/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/elionaz/agenterm/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/elionaz/agenterm/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/elionaz/agenterm/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/elionaz/agenterm/compare/v0.6.0...v0.7.0
