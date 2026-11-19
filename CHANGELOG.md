@@ -35,6 +35,12 @@ releases may include breaking changes.
   survive closing the app and restarts, where attention comes from, and that worktrees are plain
   git. **"Works with any agent CLI"** now leads the feature list.
 
+### Fixed
+
+- **The daemon could hang** when the worktree list, removing a worktree in use, or `agenterm stop`
+  checked which sessions were alive just as one changed state: the same two locks taken in opposite
+  orders as the message calls fixed in 0.8.1. Found by CI; a stress test now covers it.
+
 ## [0.9.0] - 2026-11-18
 
 ### Changed

@@ -14,6 +14,7 @@ import (
 	"github.com/elionaz/agenterm/internal/gitx"
 	"github.com/elionaz/agenterm/internal/project"
 	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/agenterm/internal/session"
 	"github.com/elionaz/agenterm/internal/settings"
 	"github.com/elionaz/agenterm/internal/worktree"
 )
@@ -589,6 +590,8 @@ func (s *Server) worktreeList(p protocol.WorktreeListParams) (protocol.WorktreeL
 		live bool
 	}
 	uses := map[string]*use{}
+	var check []*session.Session // whose liveness decides u.live
+	var checkWT []string
 	s.mu.Lock()
 	for _, id := range s.order {
 		g, ok := s.git[id]
@@ -601,11 +604,18 @@ func (s *Server) worktreeList(p protocol.WorktreeListParams) (protocol.WorktreeL
 			uses[g.WorktreeID] = u
 		}
 		u.ids = append(u.ids, id)
-		if s.sessions[id].Alive() {
-			u.live = true
+		if sess := s.sessions[id]; sess != nil {
+			check, checkWT = append(check, sess), append(checkWT, g.WorktreeID)
 		}
 	}
 	s.mu.Unlock()
+	// Alive takes the session's status lock, whose change callbacks take
+	// s.mu (publishState): never call it with s.mu held.
+	for i, sess := range check {
+		if sess.Alive() {
+			uses[checkWT[i]].live = true
+		}
+	}
 
 	out := protocol.WorktreeList{Worktrees: []protocol.WorktreeInfo{}}
 	for _, rec := range s.wts.List(proj.ID) {
@@ -689,13 +699,19 @@ func projectWorktreeDir(root, dir, id string) bool {
 // liveSessionIn returns a running session using worktree id ("" if none).
 func (s *Server) liveSessionIn(id string) string {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	var in []*session.Session
 	for sid, g := range s.git {
-		if g.WorktreeID != id {
-			continue
+		if g.WorktreeID == id {
+			if sess := s.sessions[sid]; sess != nil {
+				in = append(in, sess)
+			}
 		}
-		if sess := s.sessions[sid]; sess != nil && sess.Alive() {
-			return sid
+	}
+	s.mu.Unlock()
+	// Outside s.mu: see worktreeList.
+	for _, sess := range in {
+		if sess.Alive() {
+			return sess.ID
 		}
 	}
 	return ""

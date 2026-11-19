@@ -39,10 +39,18 @@ func (s *Server) handleShutdown(conn net.Conn, req protocol.Request) (any, error
 // suspended), in spawn order.
 func (s *Server) liveSessions() []*session.Session {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	var out []*session.Session
+	all := make([]*session.Session, 0, len(s.order))
 	for _, id := range s.order {
-		if sess := s.sessions[id]; sess != nil && sess.Alive() {
+		if sess := s.sessions[id]; sess != nil {
+			all = append(all, sess)
+		}
+	}
+	s.mu.Unlock()
+	// Outside s.mu: Alive takes the session's status lock, whose change
+	// callbacks take s.mu (publishState).
+	var out []*session.Session
+	for _, sess := range all {
+		if sess.Alive() {
 			out = append(out, sess)
 		}
 	}
