@@ -19,6 +19,17 @@ releases may include breaking changes.
   from 3000 in the project, kept when resumed). With `ports.base` in `.agenterm.yaml`, `PORT` (or
   the variables in `ports.env`) is set too and the sidebar shows it, so two agents' dev servers
   don't fight over 3000.
+- **Pick which notifications you get.** Settings → Notifications has one switch per kind:
+  approvals, questions, finished turns, errors and "looks stalled" (`notify.notify_on_approval`,
+  `notify_on_question`, `notify_on_done`, `notify_on_error`, `notify_on_stall`), all on by default,
+  with a link to how each one is detected. Approvals, questions and errors could not be turned off
+  on their own before.
+
+### Changed
+
+- **README: "How it works"** explains that the daemon owns the terminals (no tmux), that sessions
+  survive closing the app and restarts, where attention comes from, and that worktrees are plain
+  git. **"Works with any agent CLI"** now leads the feature list.
 
 ## [0.9.0] - 2026-11-18
 

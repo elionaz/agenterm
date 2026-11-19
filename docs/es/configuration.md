@@ -143,7 +143,10 @@ Todas las claves son opcionales; las que faltan toman el valor por defecto.
 | `terminal.theme` | `bright-lights` | paleta integrada, cada una con nombre de un disco. Oscuras: `bright-lights` (*Turn On the Bright Lights*), `room-on-fire` (*Room on Fire*), `is-this-it` (*Is This It*), `funeral` (*Funeral*), `silent-alarm` (*Silent Alarm*), `z` (*Z*). Claras: `it-still-moves` (*It Still Moves*), `alphabetical` (*Alphabetical*), `hot-fuss` (*Hot Fuss*). Los nombres retirados siguen funcionando y eligen la paleta más parecida: `agenterm-dark` → `bright-lights`, `agenterm-light` → `alphabetical`, `solarized-dark` → `z`, `solarized-light` → `hot-fuss`, `dracula` → `funeral`, `gruvbox-dark` → `is-this-it`, `nord` → `silent-alarm`. Un nombre desconocido vuelve a `bright-lights` |
 | `notify.enabled` | `true` | notificaciones (de la app y del daemon) |
 | `notify.sound` | `true` | sonido, solo en aprobaciones y preguntas |
-| `notify.notify_on_done` | `true` | avisar también cuando un agente termina su turno (los errores avisan siempre) |
+| `notify.notify_on_approval` | `true` | avisar cuando un agente pide una aprobación |
+| `notify.notify_on_question` | `true` | avisar cuando un agente te pregunta algo |
+| `notify.notify_on_done` | `true` | avisar cuando un agente termina su turno |
+| `notify.notify_on_error` | `true` | avisar cuando un turno falla |
 | `notify.notify_on_stall` | `true` | aviso discreto cuando un turno parece trabado |
 | `notify.fallback` | `none` | cuando no se pueden usar las notificaciones nativas (sin bundle `.app`, sin permiso): `none` no las muestra (`daemon.log` dice por qué, una vez) y `osascript` las envía con AppleScript, que macOS muestra como *Editor de Scripts* (al pulsarlas se abre Editor de Scripts, no agenterm). `AGENTERM_NOTIFY=off` en el entorno las desactiva todas igualmente. Ver [attention-and-activity.md](attention-and-activity.md#con-la-app-cerrada) |
 | `activity.stall_seconds` | `180` | segundos sin salida ni eventos para marcar «¿trabado?»; `0` lo desactiva |
@@ -162,7 +165,10 @@ ui:
 notify:
   enabled: true
   sound: true
+  notify_on_approval: true
+  notify_on_question: true
   notify_on_done: true
+  notify_on_error: true
   notify_on_stall: true
   fallback: none
 activity:
