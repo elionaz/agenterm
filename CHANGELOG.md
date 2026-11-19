@@ -15,6 +15,12 @@ releases may include breaking changes.
   with a link to how each one is detected. Approvals, questions and errors could not be turned off
   on their own before.
 
+### Changed
+
+- **README: "How it works"** explains that the daemon owns the terminals (no tmux), that sessions
+  survive closing the app and restarts, where attention comes from, and that worktrees are plain
+  git. **"Works with any agent CLI"** now leads the feature list.
+
 ## [0.9.0] - 2026-11-18
 
 ### Changed
