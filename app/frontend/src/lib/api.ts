@@ -106,6 +106,8 @@ export interface DaemonEvent extends Live {
   projectId?: string
   /** message.changed: messages waiting for sessionId. */
   msgPending?: number
+  /** message.changed: why they wait (SessionInfo.msgHold). */
+  msgHold?: string
   /** session.model: the agent's model id. */
   model?: string
 }

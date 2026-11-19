@@ -13,6 +13,16 @@ releases may include breaking changes.
   worktree and opens a pull request for each now sees them listed (*Pull requests of this session*:
   number, title, state, checks); click one to see its comments or merge it.
 
+### Changed
+
+- **Messages between sessions arrive by themselves.** Automatic delivery is now on by default
+  (`messages.auto_deliver`; an explicit `false` in settings.yaml stays off), and besides Claude it
+  reaches agents that report the end of their turn (codex), telling them to run `agenterm msg read`.
+  When a message still waits, the Messages tab says why (unsent text in its input, a heads-up
+  rather than a reply, an agent that doesn't report its turn end, delivery off…), or that it was
+  already told, with **Deliver now** (or **Remind again**) at hand. The sidebar's count of messages
+  waiting for a session is no longer amber: it is that session's, not something for you.
+
 ### Fixed
 
 - **Changes showed the worktree's first branch**, not the one the session had switched to: the

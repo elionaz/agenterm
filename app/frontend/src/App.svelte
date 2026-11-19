@@ -839,7 +839,7 @@
         sessions = sessions.map((s) => (s.id === ev.sessionId ? { ...s, model: ev.model } : s))
         break
       case 'message.changed':
-        sessions = sessions.map((s) => (s.id === ev.sessionId ? { ...s, msgPending: ev.msgPending ?? 0 } : s))
+        sessions = sessions.map((s) => (s.id === ev.sessionId ? { ...s, msgPending: ev.msgPending ?? 0, msgHold: ev.msgHold ?? '' } : s))
         msgStamps[ev.sessionId] = (msgStamps[ev.sessionId] ?? 0) + 1
         break
       case 'session.renamed':
@@ -1082,7 +1082,7 @@
           >
         {/if}
         {#if hasMessages}
-          <button class:on={view === 'messages'} class:attn={(selected.msgPending ?? 0) > 0} onclick={() => setView('messages')}
+          <button class:on={view === 'messages'} onclick={() => setView('messages')}
             >{t('view.messages')}{selected.msgPending ? ` (${selected.msgPending})` : ''}</button
           >
         {/if}
@@ -1450,9 +1450,6 @@
   .view-tabs button.on {
     color: var(--fg);
     border-bottom-color: var(--blue);
-  }
-  .view-tabs button.attn:not(.on) {
-    color: var(--amber);
   }
   .orphan-view {
     position: absolute;

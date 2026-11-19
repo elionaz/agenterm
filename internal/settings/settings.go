@@ -224,8 +224,9 @@ type Messages struct {
 	// Enabled: sessions may send each other messages, and agent hooks
 	// deliver them.
 	Enabled bool `json:"enabled"`
-	// AutoDeliver: a Claude session idle at its prompt is told about new
-	// messages without the Deliver click (see internal/daemon/autodeliver.go).
+	// AutoDeliver (on by default): an idle agent is told about new messages
+	// without the Deliver click: Claude, and agents that report the end of
+	// their turn (see internal/daemon/autodeliver.go).
 	AutoDeliver bool `json:"autoDeliver"`
 }
 
@@ -409,7 +410,7 @@ func Defaults() Settings {
 		UI:       UI{Language: i18n.Auto, Appearance: AppearanceSystem},
 		Sessions: Sessions{Restore: RestoreAsk},
 		Terminal: normTerminal(Terminal{}),
-		Messages: Messages{Enabled: true},
+		Messages: Messages{Enabled: true, AutoDeliver: true},
 	}
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canDeliver, isShellSession, messageRows, pendingFor, showMessagesTab, USER, type Message } from './messages'
+import { canDeliver, holdKey, isShellSession, messageRows, pendingFor, showMessagesTab, USER, type Message } from './messages'
 
 const msg = (o: Partial<Message>): Message => ({ id: 1, projectId: 'p', from: 'a', to: 'b', body: 'hi', at: '2026-11-18T10:00:00Z', ...o }) as Message
 
@@ -55,5 +55,21 @@ describe('showMessagesTab', () => {
     expect(showMessagesTab({ id: 'a', projectId: 'p', msgPending: 1 }, sessions, 0)).toBe(true)
     expect(showMessagesTab({ id: 'a', projectId: 'p' }, sessions, 3)).toBe(true)
     expect(showMessagesTab({ id: 'a', projectId: 'p' }, [...sessions, { id: 'd', projectId: 'p', state: 'running' }], 0)).toBe(true)
+  })
+})
+
+describe('holdKey', () => {
+  it('names each reason', () => {
+    expect(holdKey('unsent input', 'idle')).toBe('msg.hold.draft')
+    expect(holdKey('nudged', 'idle')).toBe('msg.hold.nudged')
+    expect(holdKey('not a reply', 'idle')).toBe('msg.hold.notReply')
+    expect(holdKey('no turn end', 'idle')).toBe('msg.hold.noTurnEnd')
+    expect(holdKey('off', 'idle')).toBe('msg.hold.off')
+    expect(holdKey('chain limit', 'idle')).toBe('msg.hold.limit')
+  })
+  it('falls back to the state', () => {
+    expect(holdKey('', 'running')).toBe('msg.autoHelp')
+    expect(holdKey(undefined, 'idle')).toBe('msg.hold.soon')
+    expect(holdKey('not idle', 'waiting_input')).toBe('msg.manualHelp')
   })
 })

@@ -73,3 +73,41 @@ export function showMessagesTab(s: Pick<Session, 'id' | 'projectId' | 'msgPendin
   if ((s.msgPending ?? 0) > 0 || known > 0) return true
   return sessions.some((o) => o.id !== s.id && o.projectId === s.projectId && o.state !== 'exited')
 }
+
+/** What the Messages tab says about waiting messages, from the daemon's
+ * reason (SessionInfo.msgHold) and the session's state. */
+export function holdKey(
+  hold: string | undefined,
+  state: string,
+):
+  | 'msg.autoHelp'
+  | 'msg.manualHelp'
+  | 'msg.hold.soon'
+  | 'msg.hold.nudged'
+  | 'msg.hold.draft'
+  | 'msg.hold.typing'
+  | 'msg.hold.notReply'
+  | 'msg.hold.noTurnEnd'
+  | 'msg.hold.off'
+  | 'msg.hold.limit' {
+  switch (hold ?? '') {
+    case 'nudged':
+      return 'msg.hold.nudged'
+    case 'unsent input':
+      return 'msg.hold.draft'
+    case 'typed just now':
+      return 'msg.hold.typing'
+    case 'not a reply':
+      return 'msg.hold.notReply'
+    case 'no turn end':
+      return 'msg.hold.noTurnEnd'
+    case 'off':
+      return 'msg.hold.off'
+    case 'chain limit':
+    case 'project rate limit':
+      return 'msg.hold.limit'
+  }
+  if (state === 'running') return 'msg.autoHelp'
+  if (state === 'idle') return 'msg.hold.soon'
+  return 'msg.manualHelp' // waiting for an answer: not over that
+}

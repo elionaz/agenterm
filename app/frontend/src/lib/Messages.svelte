@@ -4,7 +4,7 @@
   // to write to it.
   import { api, errorMessage, type Session } from './api'
   import { lang, t, th } from './i18n.svelte'
-  import { canDeliver, isShellSession, messageRows, pendingFor, USER, type Message } from './messages'
+  import { canDeliver, holdKey, isShellSession, messageRows, pendingFor, USER, type Message } from './messages'
 
   let {
     session,
@@ -100,13 +100,13 @@
       <span class="count">{t('msg.waiting', { n: pending })}</span>
       {#if shell}
         <span class="help">{t('msg.shellHelp')}</span>
-      {:else if canDeliver(session, pending)}
-        <button class="btn primary" disabled={delivering} onclick={deliver} title={t('msg.deliverHelp')}>{t('msg.deliver')}</button>
-        <span class="help">{t('msg.deliverHelp')}</span>
-      {:else if session.state === 'running'}
-        <span class="help">{t('msg.autoHelp')}</span>
       {:else}
-        <span class="help">{t('msg.manualHelp')}</span>
+        <span class="help">{t(holdKey(session.msgHold, session.state))}</span>
+        {#if canDeliver(session, pending)}
+          <button class="btn" disabled={delivering} onclick={deliver} title={t('msg.deliverHelp')}
+            >{session.msgHold === 'nudged' ? t('msg.remind') : t('msg.deliverNow')}</button
+          >
+        {/if}
       {/if}
     </div>
   {/if}

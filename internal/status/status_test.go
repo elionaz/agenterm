@@ -181,3 +181,21 @@ func TestSuspendedIsInert(t *testing.T) {
 		t.Fatalf("state %s exited %v changes %+v", m.State(), exited, changes)
 	}
 }
+
+func TestIdleSource(t *testing.T) {
+	m, clk, _ := newMachine(t, ModeHeuristic)
+	clk.Add(3 * time.Second)
+	m.Tick()
+	if m.State() != Idle || m.IdleSource() != SourceHeuristic {
+		t.Fatalf("quiet: %s, %s", m.State(), m.IdleSource())
+	}
+	if err := m.Notify(Running); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Notify(Idle); err != nil { // the agent reported the end of its turn
+		t.Fatal(err)
+	}
+	if m.State() != Idle || m.IdleSource() != SourceEvent {
+		t.Fatalf("event: %s, %s", m.State(), m.IdleSource())
+	}
+}

@@ -1127,7 +1127,7 @@
     gap: 3px;
     font-size: 11px;
     font-variant-numeric: tabular-nums;
-    color: var(--amber);
+    color: var(--muted);
   }
   .dot {
     flex: none;

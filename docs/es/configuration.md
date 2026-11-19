@@ -155,7 +155,7 @@ Todas las claves son opcionales; las que faltan toman el valor por defecto.
 | `git.default_mode` | `worktree` | `worktree` o `same`: dónde el menú **+** (y ⌘N) empieza un agente nuevo en un proyecto donde aún no elegiste. Las shells siempre empiezan en la carpeta del proyecto. Antes de 0.7.0 el default era `same`; un archivo que diga `same` lo conserva |
 | `sessions.restore` | `ask` | qué hace un daemon al arrancar con las sesiones que estaban vivas cuando se detuvo el anterior: `ask` (dejarlas `suspended` hasta que las reanudes o descartes), `always` (reanudarlas enseguida) o `never` (descartarlas). Ver [architecture.md](architecture.md#persistencia-y-reanudación) |
 | `messages.enabled` | `true` | mensajes entre las sesiones de un proyecto (`agenterm msg`): si se apaga, los envíos se rechazan y los hooks de los agentes no entregan nada. Ver [messages.md](messages.md) |
-| `messages.auto_deliver` | `false` | a una sesión de Claude inactiva en su prompt se le avisa de los mensajes nuevos sin el clic en **Entregar** (solo los tuyos y las respuestas: los avisos esperan a su siguiente turno); nunca sobre texto escrito sin enviar, y como mucho 5 veces por sesión hasta que vuelvas a intervenir en ella (y 20 por proyecto cada 10 minutos). Ver [messages.md](messages.md#entrega-automática) |
+| `messages.auto_deliver` | `true` | a una sesión inactiva en su prompt (Claude, o un agente que avisa el fin de su turno, como codex) se le avisa de los mensajes nuevos sin el clic en **Entregar** (solo los tuyos y las respuestas: los avisos esperan a su siguiente turno); nunca sobre texto escrito sin enviar, y como mucho 5 veces por sesión hasta que vuelvas a intervenir en ella (y 20 por proyecto cada 10 minutos). Ver [messages.md](messages.md#entrega-automática) |
 
 ```yaml
 version: 1
@@ -181,7 +181,7 @@ sessions:
   restore: ask
 messages:
   enabled: true
-  auto_deliver: false
+  auto_deliver: true
 terminal:
   font_family: '"SF Mono", Menlo, Monaco, monospace'
   font_size: 13

@@ -49,11 +49,18 @@ nombre o `all`. Esos mensajes vienen *del usuario*. `msg read` solo funciona den
 
 ## Entrega automática
 
-**Ajustes → General → Entregar solos a las sesiones de Claude en espera**
-(`messages.auto_deliver`, desactivado por defecto) hace lo que **Entregar** sin el clic: cuando un
-mensaje espera a una sesión de Claude inactiva en su prompt (una respuesta que llegó después de que
-terminó su turno, o una que se envió mientras estaba inactiva), agenterm escribe la misma línea fija
-un momento después. Se contiene, y el mensaje queda pendiente con el botón **Entregar**, cuando:
+**Ajustes → General → Entregar solos los mensajes a las sesiones en espera**
+(`messages.auto_deliver`, **prendido por defecto**) hace lo que **Entregar** sin el clic: cuando un
+mensaje espera a una sesión inactiva en su prompt (una respuesta que llegó después de que terminó su
+turno, o una que se envió mientras estaba inactiva), agenterm escribe la misma línea fija un momento
+después. Eso vale para Claude Code, cuyos hooks entregan entonces los mensajes, y para los agentes
+que avisan el fin de su turno (codex, con su notify), a los que se les pide correr
+`agenterm msg read`. Una sesión de Claude que está trabajando no necesita nada: sus hooks entregan
+los mensajes en su siguiente paso. Se contiene, y el mensaje queda pendiente con **Entregar ahora**,
+cuando:
+
+- el agente no tiene hooks de mensajes y solo se quedó callado (agenterm adivinó por el silencio que
+  está inactivo): puede seguir pensando, y una línea escrita ahora caería en medio de su trabajo;
 
 - el mensaje no amerita despertarla: solo **tus** mensajes y las **respuestas** despiertan a una
   sesión (un mensaje de una sesión a la que ella le escribió y que no le había contestado desde
@@ -70,6 +77,10 @@ un momento después. Se contiene, y el mensaje queda pendiente con el botón **E
   (enviaste un prompt en ella, le mandaste un mensaje desde la app o hiciste clic en **Entregar**),
   lo que reinicia la cuenta; y, pase lo que pase, como mucho 20 entregas automáticas por proyecto
   cada 10 minutos. Así los agentes no pueden despertarse entre sí sin fin.
+
+La pestaña **Mensajes** dice cuál de estos casos aplica (o que ya van en camino), así que un mensaje
+que espera nunca parece trabado sin motivo. Con el ajuste apagado, todo mensaje espera a
+**Entregar**.
 
 ## En la app
 
