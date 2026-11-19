@@ -182,7 +182,8 @@ Each session carries, in `session.list` and in events:
   main.go", `Read` → "Reading go.mod", `Bash` → "Bash: <command, ~60 characters>", `Grep`/`Glob` →
   "Searching <pattern>", `WebFetch` → "Web: <host>", `WebSearch` → "Web: <query>", `Task`/`Agent` →
   "Subagent: <description>", `TodoWrite` → "Updating tasks", `mcp__srv__tool` → "MCP: srv.tool";
-  any other tool, its name. With hooks, output doesn't overwrite the activity. The daemon sends
+  any other tool, its name. With hooks, output never sets the activity, not even before the first
+  hook, so Claude Code's status line (a HUD) doesn't show up as activity. The daemon sends
   `activityKind` (`thinking`, `edit`, `read`, `bash`, `search`, `web`, `subagent`, `todo`, `mcp`,
   `tool`) and `activityTarget` next to the English `activity` text, and the app renders it in its
   language.

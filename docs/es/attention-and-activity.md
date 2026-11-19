@@ -184,7 +184,9 @@ Cada sesión lleva, en `session.list` y en los eventos:
   main.go", `Read` → "Leyendo go.mod", `Bash` → "Bash: <comando, ~60 caracteres>", `Grep`/`Glob` →
   "Buscando <patrón>", `WebFetch` → "Web: <host>", `WebSearch` → "Web: <consulta>", `Task`/`Agent` →
   "Subagente: <descripción>", `TodoWrite` → "Actualizando tareas", `mcp__srv__tool` → "MCP:
-  srv.tool"; cualquier otra, su nombre. Con hooks, la salida no pisa la actividad. El daemon manda
+  srv.tool"; cualquier otra, su nombre. Con hooks, la salida nunca fija la actividad,
+  ni siquiera antes del primer hook, así que la barra de estado de Claude Code (una HUD) no aparece
+  como actividad. El daemon manda
   `activityKind` (`thinking`, `edit`, `read`, `bash`, `search`, `web`, `subagent`, `todo`, `mcp`,
   `tool`) y `activityTarget` junto al texto `activity` en inglés, y la app lo muestra en su idioma
   (los textos de arriba son los de la interfaz en español).

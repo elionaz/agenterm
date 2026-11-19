@@ -211,6 +211,7 @@ export const en = {
   'sidebar.removeFromList': 'Remove from list',
   'sidebar.stopSession': 'Stop session',
   'sidebar.renameHint': 'Double-click (or right-click) to rename',
+  'sidebar.resizeHint': 'Drag to resize the sidebar; double-click for the default width',
   'sidebar.renameLabel': 'Session name (empty: the profile’s)',
   'sidebar.resume': 'Resume',
   'sidebar.resumeTitle.agent': 'Resume: the agent continues the same conversation',
