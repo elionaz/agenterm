@@ -26,6 +26,13 @@ agenterm ships a catalog of known agent CLIs. An agent counts as **installed** i
 found in the daemon's `PATH` or in your login shell's (`$SHELL -l -i -c`); that lookup is cached for
 5 minutes. `agenterm profiles scan` or the rescan button in **Settings → Agents** refreshes it.
 
+**Installing from the app**: a catalog agent that isn't installed has an **Install** button in
+**Settings → Agents**. It shows the exact command first (several are `curl … | bash`), then runs it in
+a new terminal session of the current project, in your login shell, so you see its output and can
+type a password if it asks; the shell stays open afterwards. A successful install rescans the agents.
+Only the catalog's own commands are run (the first one of each hint; the alternatives are shown as
+text), never a value from `profiles.yaml`.
+
 | id | agent | command | status | hooks | notes |
 |---|---|---|---|---|---|
 | `claude` | Claude Code | `claude` | `hooks` | `claude` | |

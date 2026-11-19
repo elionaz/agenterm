@@ -78,6 +78,10 @@ export function InputBase64(arg1, arg2) {
   return window['go']['main']['App']['InputBase64'](arg1, arg2);
 }
 
+export function InstallAgent(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['InstallAgent'](arg1, arg2, arg3, arg4);
+}
+
 export function InstallUpdateNow() {
   return window['go']['main']['App']['InstallUpdateNow']();
 }

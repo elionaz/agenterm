@@ -35,3 +35,17 @@ func (s *Server) NotifyState(id string, st status.State) error {
 	}
 	return sess.Notify(st)
 }
+
+// SetInstallCommand makes profile.install run cmd for every catalog agent
+// (never a real install in tests); the returned func restores it.
+func SetInstallCommand(cmd string) func() {
+	prev := catalogInstall
+	catalogInstall = func(id string) (string, string) {
+		name, real := prev(id)
+		if real == "" {
+			return "", ""
+		}
+		return name, cmd
+	}
+	return func() { catalogInstall = prev }
+}

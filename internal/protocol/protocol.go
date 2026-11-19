@@ -66,6 +66,7 @@ const (
 	MethodProfileDelete   = "profile.delete"
 	MethodProfileReorder  = "profile.reorder"
 	MethodProfileRescan   = "profile.rescan"
+	MethodProfileInstall  = "profile.install"
 	MethodSettingsGet     = "settings.get"
 	MethodSettingsSave    = "settings.save"
 	MethodEventsSubscribe = "events.subscribe"
@@ -163,6 +164,16 @@ type CatalogInfo struct {
 
 type ProfileCatalog struct {
 	Entries []CatalogInfo `json:"entries"`
+}
+
+// ProfileInstallParams installs catalog agent ProfileID with its catalog
+// install command, run in a new shell session of project ProjectID (its
+// output and any password prompt in view); a successful install rescans.
+type ProfileInstallParams struct {
+	ProfileID string `json:"profileId"`
+	ProjectID string `json:"projectId"`
+	Cols      uint16 `json:"cols,omitempty"`
+	Rows      uint16 `json:"rows,omitempty"`
 }
 
 // ProfileSaveParams upserts a profiles.yaml entry. Entry holds the desired
@@ -714,6 +725,9 @@ const (
 	// EventMessages: messages to or from SessionID (in ProjectID) changed:
 	// sent or delivered. MsgPending is how many wait for SessionID.
 	EventMessages = "message.changed"
+	// EventProfiles: the agent list changed (a rescan found an agent that
+	// was just installed…): clients reload profile.list.
+	EventProfiles = "profile.changed"
 	// EventSessionModel: the session's agent reported another model (Model).
 	EventSessionModel = "session.model"
 )

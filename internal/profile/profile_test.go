@@ -358,3 +358,25 @@ func TestDetectorCache(t *testing.T) {
 		t.Fatalf("calls after rescan = %d", calls)
 	}
 }
+
+func TestInstallCommand(t *testing.T) {
+	for hint, want := range map[string][2]string{
+		"npm i -g @openai/codex   (or brew install --cask codex)":                                  {"npm i -g @openai/codex", "brew install --cask codex"},
+		"brew install block-goose-cli":                                                             {"brew install block-goose-cli", ""},
+		"curl -fsSL https://claude.ai/install.sh | bash   (or npm i -g @anthropic-ai/claude-code)": {"curl -fsSL https://claude.ai/install.sh | bash", "npm i -g @anthropic-ai/claude-code"},
+		"": {"", ""},
+	} {
+		if c, a := InstallCommand(hint); c != want[0] || a != want[1] {
+			t.Errorf("InstallCommand(%q) = %q, %q", hint, c, a)
+		}
+	}
+	if n, c := CatalogInstall("codex"); n == "" || c != "npm i -g @openai/codex" {
+		t.Errorf("CatalogInstall(codex) = %q, %q", n, c)
+	}
+	if _, c := CatalogInstall("shell"); c != "" {
+		t.Errorf("shell has no install: %q", c)
+	}
+	if _, c := CatalogInstall("my-own"); c != "" {
+		t.Errorf("unknown id: %q", c)
+	}
+}

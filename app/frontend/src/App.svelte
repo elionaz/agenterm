@@ -707,6 +707,22 @@
     select(info.id)
   }
 
+  /** Installs a catalog agent in a terminal session of the current project
+   * (its output in view); the agent list reloads when it is found. */
+  async function installAgent(profileId: string) {
+    const pid = currentProjectId ?? projects[0]?.id
+    if (!pid) {
+      showError(t('settings.installNoProject'))
+      return
+    }
+    const { cols, rows } = paneSize()
+    const info = await guard(api.installAgent(profileId, pid, cols, rows))
+    if (!info) return
+    if (!sessions.some((s) => s.id === info.id)) sessions = [...sessions, info]
+    closeSettings()
+    select(info.id)
+  }
+
   async function kill(id: string) {
     const info = await guard(api.kill(id))
     if (!info) return
@@ -837,6 +853,9 @@
         break
       case 'session.model':
         sessions = sessions.map((s) => (s.id === ev.sessionId ? { ...s, model: ev.model } : s))
+        break
+      case 'profile.changed':
+        void guard(api.listProfiles()).then((ps) => ps && (profiles = ps))
         break
       case 'message.changed':
         sessions = sessions.map((s) => (s.id === ev.sessionId ? { ...s, msgPending: ev.msgPending ?? 0, msgHold: ev.msgHold ?? '' } : s))
@@ -1259,6 +1278,7 @@
         {profiles}
         onProfiles={(ps) => (profiles = ps)}
         onSettings={(st) => (defaultMode = st.git?.defaultMode === 'same' ? 'same' : 'worktree')}
+        onInstall={(id) => void installAgent(id)}
         onClose={closeSettings}
       />
     {/if}

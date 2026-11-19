@@ -87,7 +87,14 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 		return profileList(s.profiles.List())
 	case protocol.MethodProfileRescan:
 		s.detector.Rescan()
+		s.bus.publish(protocol.Event{Type: protocol.EventProfiles, At: time.Now().UTC()})
 		return profileList(s.profiles.List())
+	case protocol.MethodProfileInstall:
+		p, err := decode[protocol.ProfileInstallParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.profileInstall(p)
 	case protocol.MethodProfileCatalog:
 		out := protocol.ProfileCatalog{Entries: []protocol.CatalogInfo{}}
 		defaults := profile.Resolve(nil, s.detector.Lookup)
@@ -418,7 +425,17 @@ func (s *Server) resolveLaunch(profileID string) (launchProfile, error) {
 	return launchProfile{prof: prof, cmd: cmd, patterns: patterns, inj: inj, idle: idle}, nil
 }
 
+// spawnExtra is what a session gets besides its SpawnParams: a command run
+// in its terminal before the profile's (see setupLaunch) and its title.
+type spawnExtra struct {
+	setup, setupTitle string
+}
+
 func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
+	return s.spawnWith(p, spawnExtra{})
+}
+
+func (s *Server) spawnWith(p protocol.SpawnParams, extra spawnExtra) (protocol.SessionInfo, error) {
 	proj, err := s.projects.Get(p.ProjectID)
 	if err != nil {
 		return protocol.SessionInfo{}, err
@@ -488,12 +505,15 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 	if !cfgRead {
 		cfg = s.repoConfig(proj)
 	}
+	if extra.setup != "" {
+		setup = extra.setup
+	}
 	s.setPort(id, s.assignPort(proj.ID, id, cfg.Ports))
 
 	info, err := s.startSession(startSpec{
 		id: id, proj: proj, lp: lp, cwd: cwd, g: g, cols: p.Cols, rows: p.Rows,
 		args:  append(slices.Clone(lp.inj.Args), prof.Args...),
-		setup: setup,
+		setup: setup, setupTitle: extra.setupTitle,
 	})
 	if err != nil {
 		s.mu.Lock()
@@ -522,9 +542,10 @@ type startSpec struct {
 	scrollback []byte
 	createdAt  time.Time
 	resume     *sessionstore.Resume
-	// setup is a worktree setup command to run before the agent (a new
-	// worktree only; see setupLaunch).
-	setup string
+	// setup is a command run in the terminal before the agent (a new
+	// worktree's setup, an agent install; see setupLaunch) and setupTitle
+	// how it is announced there.
+	setup, setupTitle string
 }
 
 // startSession spawns the process, registers the session (replacing a
@@ -541,6 +562,9 @@ func (s *Server) startSession(sp startSpec) (protocol.SessionInfo, error) {
 	if sp.setup != "" {
 		launch = setupLaunch(sp.lp.cmd, sp.args)
 		env = append(env, "AGENTERM_SETUP="+sp.setup)
+		if sp.setupTitle != "" {
+			env = append(env, "AGENTERM_SETUP_TITLE="+sp.setupTitle)
+		}
 	}
 	sess, err := session.Spawn(session.Options{
 		ID:          id,

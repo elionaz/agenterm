@@ -47,6 +47,8 @@ export function Input(arg1:string,arg2:string):Promise<void>;
 
 export function InputBase64(arg1:string,arg2:string):Promise<void>;
 
+export function InstallAgent(arg1:string,arg2:string,arg3:number,arg4:number):Promise<protocol.SessionInfo>;
+
 export function InstallUpdateNow():Promise<boolean>;
 
 export function Kill(arg1:string):Promise<protocol.SessionInfo>;

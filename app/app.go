@@ -422,6 +422,19 @@ func (a *App) Spawn(projectID, profileID string, cols, rows int) (protocol.Sessi
 	return a.SpawnIn(projectID, profileID, cols, rows, SpawnOptions{})
 }
 
+// InstallAgent installs catalog agent profileID in a new shell session of
+// project projectID (the command runs in view; a successful install
+// rescans the agents).
+func (a *App) InstallAgent(profileID, projectID string, cols, rows int) (protocol.SessionInfo, error) {
+	var info protocol.SessionInfo
+	err := a.callTimeout(gitTO, func(ctx context.Context) (err error) {
+		info, err = a.client.ProfileInstall(ctx, protocol.ProfileInstallParams{
+			ProfileID: profileID, ProjectID: projectID, Cols: clampDim(cols), Rows: clampDim(rows)})
+		return err
+	})
+	return info, err
+}
+
 // SpawnOptions choose where a session runs (see protocol.SpawnParams).
 type SpawnOptions struct {
 	Mode       string `json:"mode"` // same | worktree
