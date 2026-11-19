@@ -292,8 +292,11 @@ terminal:
 notify:
   enabled: true          # notificaciones (app y daemon)
   sound: true            # sonido en aprobación/pregunta
-  notify_on_done: true   # avisar también cuando un agente termina
-  notify_on_stall: true  # aviso discreto si un turno parece trabado
+  notify_on_approval: true  # por tipo: aprobaciones, preguntas,
+  notify_on_question: true  # turnos terminados, errores, trabados
+  notify_on_done: true
+  notify_on_error: true
+  notify_on_stall: true     # aviso discreto si un turno parece trabado
   fallback: none         # none | osascript: si no se pueden usar las nativas
                          # (osascript aparece como Editor de Scripts)
 activity:

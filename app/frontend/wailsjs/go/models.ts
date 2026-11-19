@@ -1253,7 +1253,10 @@ export namespace settings {
 	export class Notify {
 	    enabled: boolean;
 	    sound: boolean;
+	    notifyOnApproval: boolean;
+	    notifyOnQuestion: boolean;
 	    notifyOnDone: boolean;
+	    notifyOnError: boolean;
 	    notifyOnStall: boolean;
 	    fallback?: string;
 	
@@ -1265,7 +1268,10 @@ export namespace settings {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.enabled = source["enabled"];
 	        this.sound = source["sound"];
+	        this.notifyOnApproval = source["notifyOnApproval"];
+	        this.notifyOnQuestion = source["notifyOnQuestion"];
 	        this.notifyOnDone = source["notifyOnDone"];
+	        this.notifyOnError = source["notifyOnError"];
 	        this.notifyOnStall = source["notifyOnStall"];
 	        this.fallback = source["fallback"];
 	    }
