@@ -33,6 +33,10 @@ const (
 	// upstream (pull requests merged on the host, never pulled).
 	// Data: {dir, base, upstream, count}.
 	MergeBaseBehind = "merge_base_behind"
+	// SetupUntrusted: the repository's .agenterm.yaml has a worktree setup
+	// command the user has not trusted yet (spawn again with trustSetup or
+	// skipSetup). Data: {repo, file, command}.
+	SetupUntrusted = "setup_untrusted"
 	// MergeNothing: the branch has no commits the base lacks.
 	// Data: {branch, base}.
 	MergeNothing = "merge_nothing"

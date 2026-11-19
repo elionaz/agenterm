@@ -223,6 +223,29 @@ cualquier salida o evento.
   Claude el aviso detecta sobre todo cuelgues completos (proceso parado, terminal congelada), no una
   herramienta lenta.
 
+### Modo de permisos
+
+Lo que una sesión puede hacer sin preguntarte, leído de los flags con que se lanzó (los `args` del
+perfil): **auto-aprueba** (corre comandos y edita archivos sin preguntar), **auto-edición** (edita
+sin preguntar, pregunta por los comandos) o **plan** (solo lectura). La barra de título lo muestra
+como chip, la fila de la barra lateral lleva un ⚠ con auto-aprueba, y los tooltips muestran la línea
+de comando completa.
+
+| agente | auto-aprueba | auto-edición | plan |
+|---|---|---|---|
+| Claude Code | `--dangerously-skip-permissions`, `--permission-mode bypassPermissions` | `--permission-mode acceptEdits` | `--permission-mode plan` |
+| codex | `--dangerously-bypass-approvals-and-sandbox`, `--yolo`, `-a never`, `-s danger-full-access` | `--full-auto` | `-s read-only` |
+| Gemini, Qwen | `--yolo`, `-y`, `--approval-mode yolo` | `--approval-mode auto_edit` | `--approval-mode plan` |
+| Cursor | `--force`, `-f` | | |
+| Copilot | `--allow-all-tools`, `--allow-all`, `--yolo` | | |
+| Amp | `--dangerously-allow-all` | | |
+| Crush | `--yolo`, `-y` | | |
+| Kiro | `--trust-all-tools` | | |
+| Aider | `--yes-always` | | |
+
+Refleja solo el lanzamiento: un modo que se cambie después dentro del agente (Shift+Tab en Claude
+Code) no se ve.
+
 ### Modelo
 
 La fila de la sesión y su barra de título muestran el modelo del agente junto a su nombre (*Opus

@@ -1,10 +1,13 @@
 <script lang="ts">
+  import { ClipboardSetText } from '../../wailsjs/runtime/runtime'
+  import { permHelp } from './permission'
   import {
     api,
     attentionLabel,
     changesLabel,
     needsAttention,
     rememberMode,
+    joinArgs,
     rememberedMode,
     sessionTitle,
     type Profile,
@@ -257,7 +260,8 @@
   const suspendedCount = $derived(sessions.filter((s) => s.state === 'suspended').length)
 
   function tooltip(s: Session): string {
-    let base = `${stateLabel(s)} · ${s.cmd} · ${s.cwd} · ${s.id}`
+    let base = `${stateLabel(s)} · ${[s.cmd, joinArgs(s.args)].filter(Boolean).join(' ')} · ${s.cwd} · ${s.id}`
+    if (permHelp(s.permission)) base = `${permHelp(s.permission)}\n${base}`
     if (s.state === 'suspended') {
       const at = s.suspendedAt ? new Date(s.suspendedAt).toLocaleString() : ''
       base = `${t('sidebar.suspendedSince', { at })}\n${base}`
@@ -623,6 +627,7 @@
                         }}>{sessionTitle(s)}</span
                       >
                     {/if}
+                    {#if s.permission === 'bypass'}<span class="perm" title={permHelp(s.permission)}>⚠</span>{/if}
                     {#if s.git && s.git.files > 0}
                       <span class="changes" title={changesTitle(s)}>{changesLabel(s.git)}</span>
                     {/if}
@@ -670,7 +675,7 @@
                       >
                     {/if}
                   </div>
-                  {#if head || timer.text || s.model}
+                  {#if head || timer.text || s.model || s.port}
                     <div class="sub">
                       {#if s.mode === 'worktree' && s.branch}
                         <span class="chip" title={branchTitle(s)}>{@render branchText(s.branch)}</span>
@@ -679,6 +684,16 @@
                       {/if}
                       {#if s.model}<span class="model" title={t('sidebar.model', { model: s.model })}>{head ? '· ' : ''}{prettyModel(s.model)}</span>{/if}
                       <span class="grow"></span>
+                      {#if s.port}
+                        <button
+                          class="port"
+                          title={t('sidebar.port', { port: s.port })}
+                          onclick={(e) => {
+                            e.stopPropagation()
+                            void ClipboardSetText(`localhost:${s.port}`)
+                          }}>:{s.port}</button
+                        >
+                      {/if}
                       {#if timer.text}<span class="timer" class:stalled={timer.stalled}>{timer.text}</span>{/if}
                     </div>
                   {/if}
@@ -1328,6 +1343,22 @@
   .chip.same {
     color: var(--fg-dim);
     background: color-mix(in srgb, var(--fg-dim) 10%, transparent);
+  }
+  .port {
+    flex: none;
+    padding: 0 4px;
+    border-radius: 6px;
+    font: 10px var(--mono);
+    color: var(--teal);
+    background: color-mix(in srgb, var(--teal) 12%, transparent);
+  }
+  .port:hover {
+    background: color-mix(in srgb, var(--teal) 24%, transparent);
+  }
+  .perm {
+    flex: none;
+    font-size: 10px;
+    color: var(--amber);
   }
   .changes {
     flex: none;

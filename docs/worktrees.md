@@ -59,6 +59,58 @@ Hook integrations work the same way in a worktree: Claude Code gets `--settings`
 path and nothing is written to the worktree or the project. Claude Code may ask you to trust the new
 folder the first time.
 
+## Setting up new worktrees
+
+A new worktree only has what git tracks, so an agent's first run often fails: no `.env`, no
+`node_modules`. An **`.agenterm.yaml`** at the root of the repository (commit it to share it) says
+what every new worktree gets:
+
+```yaml
+worktree:
+  copy: [.env, .env.local, config/local.json]   # from the main folder; simple globs allowed
+  setup: npm install                             # runs in the new worktree before the agent
+```
+
+- **`copy`**: files or folders, relative to the repository root, copied from the main folder right
+  after `git worktree add`, keeping their paths. Nothing is overwritten (a file git already put
+  there stays), missing entries are skipped, and nothing may point outside the repository
+  (absolute paths, `..`, `.git` and symlinks that leave it are refused). On macOS files are
+  cloned (APFS), so even a large folder costs almost nothing.
+- **`setup`**: a shell command run in the session's terminal, in your login shell, before the
+  agent starts; you see its output there. If it fails, the terminal says so and waits: **Enter**
+  starts the agent anyway, **Ctrl-C** ends the session.
+- **Trust**: a repository can carry any command, so agenterm runs a `setup` only once you trusted
+  it. The first time (and whenever the command changes) the app shows it and asks: **Trust and
+  create**, **Create without setup** or cancel. From the CLI: `agenterm spawn --worktree
+  --trust-setup` or `--no-setup` (without either, the spawn fails with `setup_untrusted` and the
+  command). What you trusted is kept per repository in `~/.agenterm/trust.json` (only a hash of
+  the command).
+- **Only new worktrees**: resuming a session or reopening a worktree runs nothing again.
+- **`node_modules`**: let `setup` install it (`npm install`, `pnpm i`…) rather than copying it:
+  branches can have different dependencies, and a shared folder would mix them.
+- **Without the file**: when a repository has no `.agenterm.yaml` and git ignores `.env*` files at
+  its root, the app offers to copy them into the new worktree, once or by writing a first
+  `.agenterm.yaml` with them (`agenterm spawn` prints a note instead).
+
+## A port per session
+
+Two agents that start a dev server both want port 3000. Every session gets **`AGENTERM_PORT`**, a
+port of its own: the lowest one from 3000 that no other session of the project holds and nothing
+listens on. A session keeps it when it is resumed. When the repository's `.agenterm.yaml` asks for
+ports, **`PORT`** is set to it too, and the sidebar and title bar show it (`:3001`; click it to copy
+`localhost:3001`):
+
+```yaml
+ports:
+  base: 3000            # first port tried
+  env: [PORT]           # variables set to the port (default PORT)
+```
+
+Next.js, Express, Rails, Flask and most servers read `PORT`. **Vite doesn't**: start it with
+`vite --port $AGENTERM_PORT` (in your `dev` script), or read `process.env.VITE_PORT` in
+`vite.config` and list it: `env: [PORT, VITE_PORT]`. Without `ports.base`, only `AGENTERM_PORT` is
+set, so nothing changes for servers that expect their usual port.
+
 ## Lifecycle
 
 - **Killing a session never deletes its worktree.** The registry (`worktrees.json`) survives daemon

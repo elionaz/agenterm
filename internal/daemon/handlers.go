@@ -21,6 +21,7 @@ import (
 	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/project"
 	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/agenterm/internal/repoconfig"
 	"github.com/elionaz/agenterm/internal/session"
 	"github.com/elionaz/agenterm/internal/sessionstore"
 	"github.com/elionaz/agenterm/internal/settings"
@@ -289,6 +290,12 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 			return nil, err
 		}
 		return res, nil
+	case protocol.MethodWorktreeCopy:
+		p, err := decode[protocol.WorktreeCopyParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.worktreeCopy(p)
 	case protocol.MethodWorktreeMerge:
 		p, err := decode[protocol.WorktreeRef](req.Params)
 		if err != nil {
@@ -432,6 +439,10 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 	cwd := proj.Path
 	g := sessGit{Mode: protocol.ModeSame, Dir: proj.Path}
 	var created *worktree.Record
+	var setup string
+	var suggest []string
+	var cfg repoconfig.Config
+	cfgRead := false
 	switch {
 	case p.WorktreeID != "":
 		rec, err := s.wts.Get(p.WorktreeID)
@@ -446,11 +457,21 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 		}
 		cwd, g = recCwd(rec), recGit(rec)
 	case mode == protocol.ModeWorktree:
+		prep, err := s.worktreeSetup(proj, p)
+		if err != nil {
+			return protocol.SessionInfo{}, err
+		}
 		rec, dir, err := s.createWorktree(proj, prof.ID, id, p.Branch, p.Base)
 		if err != nil {
 			return protocol.SessionInfo{}, err
 		}
 		created, cwd, g = &rec, dir, recGit(rec)
+		if err := s.prepareWorktree(rec, prep); err != nil {
+			s.discardWorktree(rec)
+			return protocol.SessionInfo{}, err
+		}
+		setup, suggest = prep.run, prep.suggest
+		cfg, cfgRead = prep.cfg, true
 	case mode == "" || mode == protocol.ModeSame:
 	default:
 		return protocol.SessionInfo{}, fmt.Errorf("unknown mode %q (same or worktree)", p.Mode)
@@ -458,20 +479,27 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 	s.mu.Lock()
 	s.git[id] = g
 	s.mu.Unlock()
+	if !cfgRead {
+		cfg = s.repoConfig(proj)
+	}
+	s.setPort(id, s.assignPort(proj.ID, id, cfg.Ports))
 
 	info, err := s.startSession(startSpec{
 		id: id, proj: proj, lp: lp, cwd: cwd, g: g, cols: p.Cols, rows: p.Rows,
-		args: append(slices.Clone(lp.inj.Args), prof.Args...),
+		args:  append(slices.Clone(lp.inj.Args), prof.Args...),
+		setup: setup,
 	})
 	if err != nil {
 		s.mu.Lock()
 		delete(s.git, id)
 		s.mu.Unlock()
+		s.forgetPort(id)
 		if created != nil {
 			s.discardWorktree(*created)
 		}
 		return protocol.SessionInfo{}, err
 	}
+	info.SuggestCopy = suggest
 	return info, nil
 }
 
@@ -488,6 +516,9 @@ type startSpec struct {
 	scrollback []byte
 	createdAt  time.Time
 	resume     *sessionstore.Resume
+	// setup is a worktree setup command to run before the agent (a new
+	// worktree only; see setupLaunch).
+	setup string
 }
 
 // startSession spawns the process, registers the session (replacing a
@@ -499,6 +530,12 @@ func (s *Server) startSession(sp startSpec) (protocol.SessionInfo, error) {
 	if err != nil {
 		s.log.Warn("settings", "err", err)
 	}
+	env := append(append(prof.Environ(), sp.lp.inj.Env...), portEnv(s.sessionPort(id))...)
+	var launch []string
+	if sp.setup != "" {
+		launch = setupLaunch(sp.lp.cmd, sp.args)
+		env = append(env, "AGENTERM_SETUP="+sp.setup)
+	}
 	sess, err := session.Spawn(session.Options{
 		ID:          id,
 		ProjectID:   proj.ID,
@@ -508,7 +545,8 @@ func (s *Server) startSession(sp startSpec) (protocol.SessionInfo, error) {
 		Cwd:         sp.cwd,
 		Cmd:         sp.lp.cmd,
 		Args:        sp.args,
-		Env:         append(prof.Environ(), sp.lp.inj.Env...),
+		Launch:      launch,
+		Env:         env,
 		SockPath:    s.sock,
 		Home:        s.homeEnv(),
 		Cols:        sp.cols,
@@ -644,6 +682,7 @@ func (s *Server) kill(id string) (protocol.SessionInfo, error) {
 		info := s.sessionInfo(sess)
 		s.setName(id, "")
 		s.forgetModel(id)
+		s.forgetPort(id)
 		s.forgetMessages(sess)
 		s.bus.publish(protocol.Event{Type: protocol.EventSessionRemoved, SessionID: id, At: time.Now().UTC()})
 		return info, nil
