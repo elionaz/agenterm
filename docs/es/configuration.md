@@ -27,6 +27,13 @@ binario se encuentra en el `PATH` del daemon o en el de tu shell de login (`$SHE
 búsqueda se guarda en caché 5 minutos. `agenterm profiles scan` o **Re-escanear** en *Ajustes →
 Agentes* la refrescan.
 
+**Instalar desde la app**: un agente del catálogo que no está instalado tiene un botón **Instalar**
+en *Ajustes → Agentes*. Primero muestra el comando exacto (varios son `curl … | bash`) y después lo
+corre en una sesión de terminal nueva del proyecto actual, en tu shell de login, así ves su salida y
+puedes escribir una contraseña si la pide; el shell queda abierto después. Una instalación que sale
+bien vuelve a detectar los agentes. Solo se corren los comandos del propio catálogo (el primero de
+cada sugerencia; las alternativas se muestran como texto), nunca un valor de `profiles.yaml`.
+
 | id | agente | comando | estado | hooks | notas |
 |---|---|---|---|---|---|
 | `claude` | Claude Code | `claude` | `hooks` | `claude` | |

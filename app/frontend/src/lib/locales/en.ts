@@ -538,6 +538,11 @@ export const en = {
   'settings.delete': 'Delete',
   'settings.reset': 'Reset',
   'settings.install': 'Install:',
+  'settings.installButton': 'Install',
+  'settings.installAsk': 'Run in a new terminal of the current project:',
+  'settings.installRun': 'Run',
+  'settings.installOr': 'or {alt}',
+  'settings.installNoProject': 'Add a project first: the install runs in one of its terminals.',
   /** (html) */
   'settings.notInPath': '<code>{cmd}</code> not found in PATH.',
   'settings.web': 'web',

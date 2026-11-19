@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
+  import { installCommand } from './install'
   import { BrowserOpenURL } from '../../wailsjs/runtime/runtime'
   import {
     api,
@@ -22,10 +23,14 @@
     onProfiles: (ps: Profile[]) => void
     /** Settings were saved (the app keeps git.default_mode). */
     onSettings?: (s: Settings) => void
+    /** Install a catalog agent (the app opens a terminal session for it). */
+    onInstall?: (profileId: string) => void
     onClose: () => void
   }
 
-  let { profiles, onProfiles, onSettings, onClose }: Props = $props()
+  let { profiles, onProfiles, onSettings, onInstall, onClose }: Props = $props()
+  /** The agent whose install command is being confirmed. */
+  let installAsk = $state<string | null>(null)
 
   type Tab = 'general' | 'appearance' | 'agents' | 'notify' | 'git'
   type Mode = 'edit' | 'new' | 'variant'
@@ -1017,7 +1022,21 @@
                 <div class="row-note err">{p.error}</div>
               {:else if !p.installed}
                 <div class="row-note">
-                  {#if p.install}{t('settings.install')} <code>{p.install}</code>{:else}{@html th('settings.notInPath', { cmd: p.cmd })}{/if}
+                  {#if p.install}
+                    {@const ic = installCommand(p.install)}
+                    {#if installAsk === p.id}
+                      <span class="install-ask">
+                        {t('settings.installAsk')} <code>{ic.cmd}</code>
+                        <button class="btn primary" onclick={() => ((installAsk = null), onInstall?.(p.id))}>{t('settings.installRun')}</button>
+                        <button class="btn" onclick={() => (installAsk = null)}>{t('settings.cancel')}</button>
+                      </span>
+                    {:else}
+                      {t('settings.install')} <code>{ic.cmd}</code>{#if ic.alt}<span class="alt">{t('settings.installOr', { alt: ic.alt })}</span>{/if}
+                      {#if onInstall && p.source !== 'custom'}
+                        <button class="btn" onclick={() => (installAsk = p.id)}>{t('settings.installButton')}</button>
+                      {/if}
+                    {/if}
+                  {:else}{@html th('settings.notInPath', { cmd: p.cmd })}{/if}
                   {#if p.homepage}
                     <button class="link" onclick={() => BrowserOpenURL(p.homepage!)}>{t('settings.web')}</button>
                   {/if}
@@ -1433,6 +1452,16 @@
     color: var(--green);
     background: color-mix(in srgb, var(--green) 10%, transparent);
     border: 1px solid color-mix(in srgb, var(--green) 30%, transparent);
+  }
+  .install-ask {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+  .alt {
+    margin-left: 6px;
+    color: var(--muted);
   }
   .badge.missing {
     color: var(--muted);

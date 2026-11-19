@@ -262,6 +262,13 @@ func (c *Client) RescanProfiles(ctx context.Context) ([]profile.Profile, error) 
 	return c.profileCall(ctx, protocol.MethodProfileRescan, nil)
 }
 
+// ProfileInstall installs a catalog agent in a new shell session.
+func (c *Client) ProfileInstall(ctx context.Context, p protocol.ProfileInstallParams) (protocol.SessionInfo, error) {
+	var r protocol.SessionInfo
+	err := c.Call(ctx, protocol.MethodProfileInstall, p, &r)
+	return r, err
+}
+
 func (c *Client) profileCall(ctx context.Context, method string, params any) ([]profile.Profile, error) {
 	var r protocol.ProfileList
 	err := c.Call(ctx, method, params, &r)

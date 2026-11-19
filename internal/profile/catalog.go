@@ -1,6 +1,10 @@
 package profile
 
-import "github.com/elionaz/agenterm/internal/status"
+import (
+	"strings"
+
+	"github.com/elionaz/agenterm/internal/status"
+)
 
 // CatalogEntry is a known agent CLI. Users override any field (or hide the
 // entry) from profiles.yaml; see Resolve.
@@ -129,4 +133,27 @@ func catalogIndex(id string) int {
 		}
 	}
 	return -1
+}
+
+// InstallCommand splits a catalog Install hint into the command agenterm
+// can run ("npm i -g @openai/codex") and the alternatives shown as text
+// ("brew install --cask codex"), from "cmd   (or alt)".
+func InstallCommand(hint string) (cmd, alt string) {
+	cmd = strings.TrimSpace(hint)
+	if i := strings.Index(cmd, "(or "); i >= 0 {
+		alt = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(cmd[i+len("(or "):]), ")"))
+		cmd = strings.TrimSpace(cmd[:i])
+	}
+	return cmd, alt
+}
+
+// CatalogInstall is the install command of catalog agent id ("" when it is
+// not in the catalog or has none): only these are run by agenterm, never a
+// profiles.yaml value.
+func CatalogInstall(id string) (name, cmd string) {
+	if i := catalogIndex(id); i >= 0 {
+		c, _ := InstallCommand(catalog[i].Install)
+		return catalog[i].Name, c
+	}
+	return "", ""
 }

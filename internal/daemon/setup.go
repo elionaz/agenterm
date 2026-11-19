@@ -88,14 +88,14 @@ func (s *Server) prepareWorktree(rec worktree.Record, prep worktreePrep) error {
 // setupScript runs $AGENTERM_SETUP in the user's login shell, then execs
 // the agent ("$@"). A failed setup says so and waits: Enter starts the
 // agent anyway, Ctrl-C ends the session.
-const setupScript = `printf '\033[2m[agenterm] worktree setup: %s\033[0m\n' "$AGENTERM_SETUP"
+const setupScript = `printf '\033[2m[agenterm] %s: %s\033[0m\n' "${AGENTERM_SETUP_TITLE:-worktree setup}" "$AGENTERM_SETUP"
 "${SHELL:-/bin/sh}" -lc "$AGENTERM_SETUP"
 s=$?
 if [ "$s" -ne 0 ]; then
   printf '\n\033[33m[agenterm] the setup failed (exit %d). Press Enter to start the agent anyway, or Ctrl-C to end the session.\033[0m\n' "$s"
   read -r _ || exit "$s"
 fi
-unset AGENTERM_SETUP
+unset AGENTERM_SETUP AGENTERM_SETUP_TITLE
 exec "$@"`
 
 // setupLaunch is the argv that runs the worktree setup and then cmd args.

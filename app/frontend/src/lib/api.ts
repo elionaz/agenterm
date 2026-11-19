@@ -83,6 +83,7 @@ export interface DaemonEvent extends Live {
     | 'project.changed'
     | 'session.reordered'
     | 'message.changed'
+    | 'profile.changed'
     | 'session.model'
   sessionId: string
   /** The session's display name (session.renamed: the new one; absent: reset). */
@@ -165,6 +166,9 @@ export const api = {
       trustSetup: opts?.trustSetup ?? false,
       skipSetup: opts?.skipSetup ?? false,
     }),
+  /** Installs a catalog agent in a new terminal session of a project. */
+  installAgent: (profileId: string, projectId: string, cols: number, rows: number): Promise<Session> =>
+    App.InstallAgent(profileId, projectId, cols, rows),
   /** Copies files from the main folder into a worktree; save also writes
    * them into a new .agenterm.yaml. */
   copyIntoWorktree: (id: string, files: string[], save: boolean) => App.CopyIntoWorktree(id, files, save),

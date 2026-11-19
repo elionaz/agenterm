@@ -7,6 +7,12 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- **Install agents from Settings.** A catalog agent that isn't installed has an **Install** button:
+  it shows the exact command, runs it in a new terminal session of the current project (output and
+  any password prompt in view) and rescans the agents when it succeeds.
+
 ## [0.11.0] - 2026-11-19
 
 ### Added
