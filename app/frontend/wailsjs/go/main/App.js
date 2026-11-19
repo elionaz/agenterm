@@ -26,6 +26,10 @@ export function DaemonStatus() {
   return window['go']['main']['App']['DaemonStatus']();
 }
 
+export function DeleteInstruction(arg1, arg2) {
+  return window['go']['main']['App']['DeleteInstruction'](arg1, arg2);
+}
+
 export function DeleteProfile(arg1) {
   return window['go']['main']['App']['DeleteProfile'](arg1);
 }
@@ -84,6 +88,10 @@ export function InstallAgent(arg1, arg2, arg3, arg4) {
 
 export function InstallUpdateNow() {
   return window['go']['main']['App']['InstallUpdateNow']();
+}
+
+export function Instructions(arg1) {
+  return window['go']['main']['App']['Instructions'](arg1);
 }
 
 export function Kill(arg1) {
@@ -158,6 +166,10 @@ export function Rename(arg1, arg2) {
   return window['go']['main']['App']['Rename'](arg1, arg2);
 }
 
+export function ReorderInstructions(arg1, arg2) {
+  return window['go']['main']['App']['ReorderInstructions'](arg1, arg2);
+}
+
 export function ReorderProfiles(arg1) {
   return window['go']['main']['App']['ReorderProfiles'](arg1);
 }
@@ -192,6 +204,10 @@ export function Resume(arg1) {
 
 export function ResumeAll() {
   return window['go']['main']['App']['ResumeAll']();
+}
+
+export function SaveInstruction(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SaveInstruction'](arg1, arg2, arg3);
 }
 
 export function SaveProfile(arg1) {

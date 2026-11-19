@@ -281,6 +281,42 @@ func (c *Client) Settings(ctx context.Context) (settings.Settings, error) {
 	return s, err
 }
 
+// Instructions lists the instruction topics; with project (id or name)
+// Composed is what a session of it receives.
+func (c *Client) Instructions(ctx context.Context, project string) (protocol.Instructions, error) {
+	var r protocol.Instructions
+	err := c.Call(ctx, protocol.MethodInstructionsList, protocol.InstructionsParams{ProjectID: project}, &r)
+	return r, err
+}
+
+// SaveInstruction saves a topic (new when oldSlug is "").
+func (c *Client) SaveInstruction(ctx context.Context, t protocol.InstructionTopic, oldSlug, project string) (protocol.Instructions, error) {
+	var r protocol.Instructions
+	err := c.Call(ctx, protocol.MethodInstructionsSave, protocol.InstructionsSaveParams{Topic: t, OldSlug: oldSlug, ProjectID: project}, &r)
+	return r, err
+}
+
+// DeleteInstruction removes a topic.
+func (c *Client) DeleteInstruction(ctx context.Context, slug, project string) (protocol.Instructions, error) {
+	var r protocol.Instructions
+	err := c.Call(ctx, protocol.MethodInstructionsDelete, protocol.InstructionsSlugParams{Slug: slug, ProjectID: project}, &r)
+	return r, err
+}
+
+// ReorderInstructions puts the topics in slugs' order.
+func (c *Client) ReorderInstructions(ctx context.Context, slugs []string, project string) (protocol.Instructions, error) {
+	var r protocol.Instructions
+	err := c.Call(ctx, protocol.MethodInstructionsReorder, protocol.InstructionsReorderParams{Slugs: slugs, ProjectID: project}, &r)
+	return r, err
+}
+
+// ShowInstruction is one topic's text.
+func (c *Client) ShowInstruction(ctx context.Context, slug string) (protocol.InstructionTopicText, error) {
+	var r protocol.InstructionTopicText
+	err := c.Call(ctx, protocol.MethodInstructionsShow, protocol.InstructionsSlugParams{Slug: slug}, &r)
+	return r, err
+}
+
 func (c *Client) SaveSettings(ctx context.Context, s settings.Settings) (settings.Settings, error) {
 	var out settings.Settings
 	err := c.Call(ctx, protocol.MethodSettingsSave, s, &out)

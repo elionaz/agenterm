@@ -12,6 +12,9 @@ export type Profile = profile.Profile
 export type ProfileEntry = profile.Entry
 export type CatalogInfo = Omit<protocol.CatalogInfo, 'convertValues'>
 export type Settings = Omit<settings.Settings, 'convertValues'>
+/** The user's standing instruction topics (instructions.list). */
+export type Instructions = Omit<protocol.Instructions, 'convertValues'>
+export type InstructionTopic = protocol.InstructionTopic
 export type Session = Omit<protocol.SessionInfo, 'convertValues'>
 /** suspended: restored from a previous daemon run, no process (resume or discard it). */
 export type SessionState = 'running' | 'waiting_input' | 'idle' | 'exited' | 'suspended'
@@ -154,6 +157,14 @@ export const api = {
   reorderProfiles: (ids: string[]): Promise<Profile[]> => App.ReorderProfiles(ids),
   rescanProfiles: (): Promise<Profile[]> => App.RescanProfiles(),
   getSettings: (): Promise<Settings> => App.GetSettings(),
+  /** The instruction topics; with projectId, composed is what its sessions receive. */
+  instructions: (projectId: string): Promise<Instructions> => App.Instructions(projectId),
+  /** Saves a topic (new when oldSlug is ''). */
+  saveInstruction: (t: InstructionTopic, oldSlug: string, projectId: string): Promise<Instructions> =>
+    App.SaveInstruction(t, oldSlug, projectId),
+  deleteInstruction: (slug: string, projectId: string): Promise<Instructions> => App.DeleteInstruction(slug, projectId),
+  reorderInstructions: (slugs: string[], projectId: string): Promise<Instructions> =>
+    App.ReorderInstructions(slugs, projectId),
   /** Fields left out keep their saved values. */
   saveSettings: (s: Partial<Settings>): Promise<Settings> => App.SaveSettings(s as main.SettingsPatch),
   listSessions: (): Promise<Session[]> => App.ListSessions(),
@@ -322,6 +333,12 @@ export function splitArgs(s: string): string[] {
 /** Inverse of splitArgs. */
 export function joinArgs(args: string[] | undefined): string {
   return (args ?? []).map((a) => (a === '' || /[\s'"\\]/.test(a) ? `'${a.replace(/'/g, `'\\''`)}'` : a)).join(' ')
+}
+
+/** joinArgs for tooltips: the instructions agenterm hands codex
+ * (developer_instructions=…) are shortened, they can be long. */
+export function displayArgs(args: string[] | undefined): string {
+  return joinArgs((args ?? []).map((a) => (a.startsWith('developer_instructions=') ? 'developer_instructions=…' : a)))
 }
 
 /** A daemon refusal with a stable code (see internal/apierr). The app

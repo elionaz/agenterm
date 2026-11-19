@@ -8,7 +8,10 @@
     joinArgs,
     launchable,
     splitArgs,
+    type InstructionTopic,
+    type Instructions,
     type Profile,
+    type Project,
     type ProfileEntry,
     type Settings,
     type UpdaterState,
@@ -16,11 +19,23 @@
   import { langSetting, locale, setLangSetting, systemLang, t, th, type LangSetting } from './i18n.svelte'
   import { appearance, setAppearance, setTermPrefs, termPrefs, type Appearance } from './prefs.svelte'
   import { MAX_FONT_SIZE, MIN_FONT_SIZE, defaultPrefs, themeLabels, themeNames, themeOf, type TermPrefs } from './themes'
+  import {
+    blankTopic,
+    byteLength,
+    liveProjects,
+    openSuggestions,
+    receivers,
+    type Load,
+    type Suggestion,
+  } from './instructions'
   import { availableUpdate, setAvailableUpdate, updateDownloading, updateNow } from './updates.svelte'
 
   interface Props {
     profiles: Profile[]
     onProfiles: (ps: Profile[]) => void
+    /** For the Instructions tab (projectId: the one selected first). */
+    projects?: Project[]
+    projectId?: string | null
     /** Settings were saved (the app keeps git.default_mode). */
     onSettings?: (s: Settings) => void
     /** Install a catalog agent (the app opens a terminal session for it). */
@@ -28,11 +43,11 @@
     onClose: () => void
   }
 
-  let { profiles, onProfiles, onSettings, onInstall, onClose }: Props = $props()
+  let { profiles, onProfiles, onSettings, onInstall, onClose, projects = [], projectId = null }: Props = $props()
   /** The agent whose install command is being confirmed. */
   let installAsk = $state<string | null>(null)
 
-  type Tab = 'general' | 'appearance' | 'agents' | 'notify' | 'git'
+  type Tab = 'general' | 'appearance' | 'agents' | 'instructions' | 'notify' | 'git'
   type Mode = 'edit' | 'new' | 'variant'
   interface Form {
     id: string
@@ -112,6 +127,131 @@
   let savedNotify = $state<string>('')
   let notifyError = $state<string | null>(null)
   let notifySaved = $state(false)
+
+  /** The Instructions tab: the topics, the one being edited and the
+   * project whose sessions the preview shows. */
+  let instr = $state<Instructions | null>(null)
+  // svelte-ignore state_referenced_locally
+  let previewPid = $state<string>(projectId ?? projects[0]?.id ?? '')
+  /** Slug of the topic in the editor ('' for a new one). */
+  let sel = $state<string | null>(null)
+  let draft = $state<InstructionTopic | null>(null)
+  let draftSome = $state(false)
+  let draftSaved = $state('')
+  let draftHint = $state<Suggestion['key'] | null>(null)
+  let confirmDelete = $state(false)
+  let instrError = $state<string | null>(null)
+  let instrSaved = $state(false)
+  let instrBusy = $state(false)
+  const topics = $derived(instr?.topics ?? [])
+  const projectIds = $derived(projects.map((p) => p.id))
+  const instrWho = $derived(receivers(profiles, instr?.codexOwn ?? false))
+  const instrMax = $derived(instr?.maxBytes ?? 16384)
+  const composedBytes = $derived(byteLength(instr?.composed ?? ''))
+  const suggestions = $derived(openSuggestions(topics, (sg) => t(`settings.i.sug.${sg.key}`)))
+  const previewName = $derived(projects.find((p) => p.id === previewPid)?.name ?? '')
+  const draftBytes = $derived(byteLength(draft?.body ?? ''))
+  const draftDirty = $derived(draft != null && draftKey(draft, draftSome) !== draftSaved)
+
+  /** The draft as it would be saved (scope "all" sends no projects). */
+  function draftOut(d: InstructionTopic, some: boolean): InstructionTopic {
+    return { ...d, title: d.title.trim(), description: (d.description ?? '').trim(), projects: some ? liveProjects(d, projectIds) : [] }
+  }
+  function draftKey(d: InstructionTopic, some: boolean): string {
+    return JSON.stringify(draftOut(d, some))
+  }
+  function scopeLabel(tp: InstructionTopic): string {
+    const ids = liveProjects(tp, projectIds)
+    if (!tp.projects?.length) return t('settings.i.scopeAll')
+    if (!ids.length) return t('settings.i.scopeNone')
+    const names = ids.map((id) => projects.find((p) => p.id === id)?.name ?? id)
+    return names.length <= 2 ? names.join(', ') : t('settings.i.scopeN', { n: names.length })
+  }
+  function kib(n: number): string {
+    return n < 1024 ? `${n} B` : `${(n / 1024).toFixed(1)} KiB`
+  }
+
+  async function loadInstr(pid: string) {
+    try {
+      instr = await api.instructions(pid)
+      instrError = null
+    } catch (e) {
+      instrError = errorMessage(e)
+    }
+  }
+  function editTopic(tp: InstructionTopic, isNew = false, hint: Suggestion['key'] | null = null) {
+    draft = { ...tp, description: tp.description ?? '', projects: [...(tp.projects ?? [])] }
+    draftSome = (tp.projects?.length ?? 0) > 0
+    draftSaved = isNew ? '' : draftKey(draft, draftSome)
+    sel = isNew ? '' : tp.slug
+    draftHint = hint
+    confirmDelete = false
+    instrSaved = false
+    instrError = null
+  }
+  function newTopic(sg?: Suggestion) {
+    if (!sg) return editTopic(blankTopic(), true)
+    editTopic(blankTopic(t(`settings.i.sug.${sg.key}`), sg.load, t(`settings.i.sugDesc.${sg.key}`)), true, sg.key)
+  }
+  function toggleProject(id: string, on: boolean) {
+    if (!draft) return
+    const ids = (draft.projects ?? []).filter((x) => x !== id)
+    draft.projects = on ? [...ids, id] : ids
+  }
+  async function instrCall(fn: () => Promise<Instructions>): Promise<Instructions | null> {
+    instrBusy = true
+    instrError = null
+    try {
+      const r = await fn()
+      instr = r
+      return r
+    } catch (e) {
+      instrError = errorMessage(e)
+      return null
+    } finally {
+      instrBusy = false
+    }
+  }
+  async function saveTopic() {
+    if (!draft) return
+    const before = new Set(topics.map((x) => x.slug))
+    const out = draftOut(draft, draftSome)
+    const r = await instrCall(() => api.saveInstruction(out, sel ?? '', previewPid))
+    if (!r) return
+    const saved = sel ? r.topics.find((x) => x.slug === sel) : r.topics.find((x) => !before.has(x.slug))
+    if (saved) editTopic(saved)
+    instrSaved = true
+  }
+  async function toggleTopic(tp: InstructionTopic) {
+    const r = await instrCall(() => api.saveInstruction({ ...tp, enabled: !tp.enabled }, tp.slug, previewPid))
+    const now = r?.topics.find((x) => x.slug === tp.slug)
+    if (now && sel === tp.slug && draft) {
+      draft.enabled = now.enabled
+      draftSaved = draftKey(draft, draftSome)
+    }
+  }
+  async function moveTopic(i: number, by: number) {
+    const slugs = topics.map((x) => x.slug)
+    const j = i + by
+    if (j < 0 || j >= slugs.length) return
+    ;[slugs[i], slugs[j]] = [slugs[j], slugs[i]]
+    await instrCall(() => api.reorderInstructions(slugs, previewPid))
+  }
+  async function deleteTopic() {
+    if (!sel) return
+    const slug = sel
+    if (await instrCall(() => api.deleteInstruction(slug, previewPid))) {
+      draft = null
+      sel = null
+    }
+  }
+  function loadLabel(l: string): string {
+    return l === 'on_demand' ? t('settings.i.loadDemand') : t('settings.i.loadAlways')
+  }
+  $effect(() => {
+    if (tab !== 'instructions') return
+    void loadInstr(previewPid)
+  })
 
   /** git.* as edited in the Git tab. */
   let git = $state<Settings['git'] | null>(null)
@@ -653,6 +793,7 @@
       <button class:active={tab === 'general'} onclick={() => (tab = 'general')}>{t('settings.tab.general')}</button>
       <button class:active={tab === 'appearance'} onclick={() => (tab = 'appearance')}>{t('settings.tab.appearance')}</button>
       <button class:active={tab === 'agents'} onclick={() => (tab = 'agents')}>{t('settings.tab.agents')}</button>
+      <button class:active={tab === 'instructions'} onclick={() => (tab = 'instructions')}>{t('settings.tab.instructions')}</button>
       <button class:active={tab === 'notify'} onclick={() => (tab = 'notify')}>{t('settings.tab.notify')}</button>
       <button class:active={tab === 'git'} onclick={() => (tab = 'git')}>{t('settings.tab.git')}</button>
     </nav>
@@ -1141,6 +1282,169 @@
           <button class="btn" onclick={loadSettings}>{t('settings.retry')}</button>
         {/if}
       </section>
+    {:else if tab === 'instructions'}
+      <section class="pane narrow">
+        <p class="hint">{@html th('settings.i.intro')}</p>
+        <div class="who">
+          {#if instrWho.yes.length}
+            <span><b>{t('settings.i.yes')}</b> {instrWho.yes.join(', ')}</span>
+          {/if}
+          {#if instrWho.no.length}
+            <span><b>{t('settings.i.no')}</b> {instrWho.no.join(', ')} <em>{@html th('settings.i.noHelp')}</em></span>
+          {/if}
+        </div>
+        {#if instr?.codexOwn}
+          <div class="note">{@html th('settings.i.codexOwn')}</div>
+        {/if}
+        {#each instr?.errors ?? [] as e (e)}<div class="error">{e}</div>{/each}
+
+        <h3 class="group">{t('settings.i.topics')}</h3>
+        {#if topics.length}
+          <ul class="topics">
+            {#each topics as tp, i (tp.slug)}
+              <li class:sel={sel === tp.slug} class:off={!tp.enabled}>
+                <input
+                  type="checkbox"
+                  checked={tp.enabled}
+                  title={t('settings.i.enabled')}
+                  disabled={instrBusy || (sel === tp.slug && draftDirty)}
+                  onchange={() => toggleTopic(tp)}
+                />
+                <button class="topic" onclick={() => editTopic(tp)} disabled={draftDirty && sel !== tp.slug}>
+                  <b>{tp.title}</b>
+                  <span class="chips">
+                    <span class="chip" class:demand={tp.load === 'on_demand'}>{loadLabel(tp.load)}</span>
+                    <span class="chip">{scopeLabel(tp)}</span>
+                    <em>{kib(byteLength(tp.body))}</em>
+                  </span>
+                </button>
+                <span class="moves">
+                  <button class="icon" title={t('settings.i.up')} disabled={instrBusy || i === 0} onclick={() => moveTopic(i, -1)}>↑</button>
+                  <button class="icon" title={t('settings.i.down')} disabled={instrBusy || i === topics.length - 1} onclick={() => moveTopic(i, 1)}>↓</button>
+                </span>
+              </li>
+            {/each}
+          </ul>
+        {:else}
+          <p class="hint">{t('settings.i.empty')}</p>
+        {/if}
+        <div class="editor-actions left wrap">
+          <button class="btn" disabled={draftDirty} onclick={() => newTopic()}>{t('settings.i.new')}</button>
+          {#each suggestions as sg (sg.key)}
+            <button class="btn sug" disabled={draftDirty} onclick={() => newTopic(sg)}>+ {t(`settings.i.sug.${sg.key}`)}</button>
+          {/each}
+        </div>
+
+        {#if draft}
+          <form
+            class="topic-editor"
+            onsubmit={(e) => {
+              e.preventDefault()
+              void saveTopic()
+            }}
+          >
+            <label class="row">
+              <span>{t('settings.i.title')}</span>
+              <input bind:value={draft.title} maxlength="80" placeholder={t('settings.i.titlePlaceholder')} />
+            </label>
+            <label class="row">
+              <span>{t('settings.i.description')} <em>{t('settings.i.descriptionHelp')}</em></span>
+              <input bind:value={draft.description} maxlength="200" placeholder={t('settings.i.descriptionPlaceholder')} />
+            </label>
+            <div class="row">
+              <span>{t('settings.i.load')}</span>
+              <span class="radios col">
+                {#each ['always', 'on_demand'] as Load[] as l (l)}
+                  <label>
+                    <input type="radio" bind:group={draft.load} value={l} />
+                    <span class="opt">
+                      <b>{loadLabel(l)}</b>
+                      <em>{t(l === 'always' ? 'settings.i.loadAlwaysHelp' : 'settings.i.loadDemandHelp')}</em>
+                    </span>
+                  </label>
+                {/each}
+              </span>
+            </div>
+            <div class="row">
+              <span>{t('settings.i.scope')}</span>
+              <span class="radios col">
+                <label><input type="radio" bind:group={draftSome} value={false} /> {t('settings.i.scopeAll')}</label>
+                <label><input type="radio" bind:group={draftSome} value={true} disabled={!projects.length} /> {t('settings.i.scopeSome')}</label>
+                {#if draftSome}
+                  <span class="projects">
+                    {#each projects as p (p.id)}
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={draft.projects?.includes(p.id)}
+                          onchange={(e) => toggleProject(p.id, e.currentTarget.checked)}
+                        />
+                        {p.name}
+                      </label>
+                    {/each}
+                  </span>
+                {/if}
+              </span>
+            </div>
+            <label class="row inline">
+              <input type="checkbox" bind:checked={draft.enabled} />
+              <span>{t('settings.i.enabled')}</span>
+            </label>
+            <textarea
+              class="instr"
+              rows="10"
+              bind:value={draft.body}
+              aria-label={t('settings.i.body')}
+              placeholder={t(draftHint ? `settings.i.ph.${draftHint}` : 'settings.i.ph')}
+            ></textarea>
+            <div class="editor-actions left">
+              <button
+                type="submit"
+                class="btn primary"
+                disabled={instrBusy || !draftDirty || !draft.title.trim() || draftBytes > instrMax || (draftSome && !liveProjects(draft, projectIds).length)}
+              >
+                {sel ? t('settings.save') : t('settings.create')}
+              </button>
+              <button type="button" class="btn" onclick={() => ((draft = null), (sel = null))}>{t(draftDirty ? 'settings.cancel' : 'settings.i.close')}</button>
+              {#if instrSaved && !draftDirty}<span class="saved">{t('settings.saved')}</span>{/if}
+              <em class:perm-err={draftBytes > instrMax}>{kib(draftBytes)}{draftBytes > instrMax ? ' · ' + t('settings.i.tooLong', { max: kib(instrMax) }) : ''}</em>
+              <span class="spacer"></span>
+              {#if sel}
+                {#if confirmDelete}
+                  <span class="perm-err">{t('settings.i.deleteAsk')}</span>
+                  <button type="button" class="btn danger" disabled={instrBusy} onclick={deleteTopic}>{t('settings.delete')}</button>
+                  <button type="button" class="btn" onclick={() => (confirmDelete = false)}>{t('settings.cancel')}</button>
+                {:else}
+                  <button type="button" class="link danger" onclick={() => (confirmDelete = true)}>{t('settings.delete')}</button>
+                {/if}
+              {/if}
+            </div>
+          </form>
+        {/if}
+
+        <h3 class="group">{t('settings.i.previewHead')}</h3>
+        {#if projects.length}
+          <label class="row">
+            <span>{t('settings.i.previewFor')}</span>
+            <select bind:value={previewPid}>
+              {#each projects as p (p.id)}<option value={p.id}>{p.name}</option>{/each}
+            </select>
+          </label>
+        {/if}
+        {#if instr?.composed}
+          <details class="preview">
+            <summary>
+              {t('settings.i.preview', { name: previewName })} · {kib(composedBytes)}
+              {#if composedBytes > 8192}<span class="perm-err"> · {t('settings.i.big')}</span>{/if}
+            </summary>
+            <pre>{instr.composed}</pre>
+          </details>
+        {:else}
+          <p class="hint">{t('settings.i.previewNone')}</p>
+        {/if}
+        <p class="hint foot">{@html th('settings.i.when', { dir: instr?.dir ?? '' })}</p>
+        {#if instrError}<div class="error">{instrError}</div>{/if}
+      </section>
     {:else}
       <section class="pane narrow">
         {#if git}
@@ -1248,6 +1552,205 @@
   }
   .pane.narrow {
     max-width: 560px;
+  }
+  .who {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 10px 0 0;
+    font-size: 12px;
+  }
+  .who em {
+    font-size: 12px;
+  }
+  .note {
+    margin: 10px 0 0;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border-strong);
+    font-size: 12px;
+    color: var(--fg-dim);
+  }
+  textarea.instr {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  .topics {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+  .topics li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .topics li:last-child {
+    border-bottom: none;
+  }
+  .topics li.sel {
+    background: color-mix(in srgb, var(--blue) 10%, transparent);
+  }
+  .topics li.off .topic b {
+    color: var(--muted);
+    text-decoration: line-through;
+  }
+  .topics input[type='checkbox'] {
+    accent-color: var(--blue);
+  }
+  .topic {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    text-align: left;
+    font-size: 12.5px;
+  }
+  .topic b {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .chips {
+    display: flex;
+    gap: 6px;
+    align-items: baseline;
+    flex-shrink: 0;
+  }
+  .chips em {
+    font-size: 11px;
+  }
+  .chip {
+    font-size: 10.5px;
+    padding: 1px 6px;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    color: var(--fg-dim);
+    white-space: nowrap;
+  }
+  .chip.demand {
+    border-color: color-mix(in srgb, var(--blue) 50%, transparent);
+    color: var(--blue);
+  }
+  .moves {
+    display: flex;
+    gap: 2px;
+  }
+  .moves .icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    color: var(--fg-dim);
+  }
+  .moves .icon:hover:not(:disabled) {
+    background: var(--border);
+  }
+  .moves .icon:disabled {
+    opacity: 0.3;
+  }
+  .editor-actions.wrap {
+    flex-wrap: wrap;
+  }
+  .btn.sug {
+    color: var(--fg-dim);
+  }
+  .topic-editor {
+    margin-top: 14px;
+    padding: 12px 14px;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+  }
+  .topic-editor .row,
+  .pane > .row {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 10px;
+    align-items: baseline;
+    padding: 6px 0;
+    font-size: 12.5px;
+  }
+  .row > span:first-child {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .row em {
+    font-size: 11.5px;
+  }
+  .row.inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .radios.col {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .radios.col label {
+    display: flex;
+    gap: 6px;
+    align-items: baseline;
+  }
+  .radios.col {
+    flex-direction: column !important;
+    gap: 6px !important;
+    margin-top: 0;
+  }
+  .radios.col .opt {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .projects {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    padding-left: 20px;
+  }
+  .projects label {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  .spacer {
+    flex: 1;
+  }
+  .btn.danger {
+    color: var(--danger-fg);
+    border-color: var(--danger-border);
+  }
+  .preview {
+    margin-top: 16px;
+    font-size: 12px;
+  }
+  .preview summary {
+    cursor: pointer;
+    color: var(--fg-dim);
+  }
+  .preview pre {
+    margin: 8px 0 0;
+    padding: 8px 10px;
+    max-height: 260px;
+    overflow: auto;
+    white-space: pre-wrap;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    user-select: text;
   }
   .toolbar {
     display: flex;

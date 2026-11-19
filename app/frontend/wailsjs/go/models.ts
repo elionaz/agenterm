@@ -918,6 +918,76 @@ export namespace protocol {
 		}
 	}
 	
+	export class InstructionTopic {
+	    slug: string;
+	    title: string;
+	    description?: string;
+	    load: string;
+	    projects?: string[];
+	    enabled: boolean;
+	    order: number;
+	    body: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new InstructionTopic(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.slug = source["slug"];
+	        this.title = source["title"];
+	        this.description = source["description"];
+	        this.load = source["load"];
+	        this.projects = source["projects"];
+	        this.enabled = source["enabled"];
+	        this.order = source["order"];
+	        this.body = source["body"];
+	    }
+	}
+	export class Instructions {
+	    topics: InstructionTopic[];
+	    errors?: string[];
+	    dir: string;
+	    projectId?: string;
+	    composed: string;
+	    codexOwn?: boolean;
+	    maxBytes: number;
+	    maxTotal: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Instructions(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.topics = this.convertValues(source["topics"], InstructionTopic);
+	        this.errors = source["errors"];
+	        this.dir = source["dir"];
+	        this.projectId = source["projectId"];
+	        this.composed = source["composed"];
+	        this.codexOwn = source["codexOwn"];
+	        this.maxBytes = source["maxBytes"];
+	        this.maxTotal = source["maxTotal"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class MsgPeer {
 	    id: string;
 	    name: string;

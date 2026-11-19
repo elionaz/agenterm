@@ -63,3 +63,37 @@ func TestIntroOnlyAtStart(t *testing.T) {
 		t.Fatalf("intro: %s %v", out, ids)
 	}
 }
+
+func TestClaudeOutputInstructions(t *testing.T) {
+	const instr = "Standing instructions from your user: use pnpm."
+	ctxOf := func(out []byte) string {
+		var v struct {
+			H struct {
+				Ctx string `json:"additionalContext"`
+			} `json:"hookSpecificOutput"`
+		}
+		_ = json.Unmarshal(out, &v)
+		return v.H.Ctx
+	}
+	// Messages off: the instructions still arrive at start, alone.
+	off := protocol.MsgTakeResult{Self: "me", Instructions: instr, Peers: &protocol.MsgPeers{ProjectName: "web"},
+		Messages: []mailbox.Message{msg}}
+	out, ids := claudeOutput(hooks.ClaudeHook{Event: evSessionStart}, off)
+	if got := ctxOf(out); got != instr || len(ids) != 0 {
+		t.Fatalf("messages off: ctx %q ids %v", got, ids)
+	}
+	// Messages on: instructions first, then the introduction.
+	on := take()
+	on.Instructions, on.Peers = instr, &protocol.MsgPeers{ProjectName: "web"}
+	got := ctxOf(func() []byte { o, _ := claudeOutput(hooks.ClaudeHook{Event: evSessionStart}, on); return o }())
+	if !strings.HasPrefix(got, instr+"\n\n") || !strings.Contains(got, "agenterm session") {
+		t.Fatalf("messages on: %q", got)
+	}
+	// Only at start, and never into a subagent.
+	if out, _ := claudeOutput(hooks.ClaudeHook{Event: evPostToolUse}, on); out != nil {
+		t.Fatalf("PostToolUse printed %s", out)
+	}
+	if out, _ := claudeOutput(hooks.ClaudeHook{Event: evSessionStart, AgentID: "sub"}, on); out != nil {
+		t.Fatalf("subagent printed %s", out)
+	}
+}

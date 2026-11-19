@@ -34,7 +34,7 @@ func inboxEvent(event string) bool {
 // messages that output hands over (to acknowledge once printed).
 func claudeOutput(h hooks.ClaudeHook, r protocol.MsgTakeResult) ([]byte, []int) {
 	event := h.Event
-	if !r.Enabled || h.AgentID != "" {
+	if h.AgentID != "" {
 		return nil, nil // a subagent's context is not the conversation's
 	}
 	// Claude already goes on because of a Stop hook: let this turn end;
@@ -44,7 +44,13 @@ func claudeOutput(h hooks.ClaudeHook, r protocol.MsgTakeResult) ([]byte, []int) 
 		return nil, nil
 	}
 	var ctx []string
-	if event == evSessionStart && r.Peers != nil {
+	// The user's standing instructions, also when messages are off.
+	if event == evSessionStart && r.Instructions != "" {
+		ctx = append(ctx, r.Instructions)
+	}
+	if !r.Enabled {
+		r.Messages = nil
+	} else if event == evSessionStart && r.Peers != nil {
 		ctx = append(ctx, intro(r.Self, *r.Peers))
 	}
 	if len(r.Messages) > 0 {

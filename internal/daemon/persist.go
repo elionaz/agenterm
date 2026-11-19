@@ -464,7 +464,7 @@ func (s *Server) respawn(old *session.Session, rec sessionstore.Record) (protoco
 		return protocol.SessionInfo{}, apierr.New(apierr.DirMissing, map[string]any{"dir": cwd},
 			"the folder of session %s no longer exists: %s", id, cwd)
 	}
-	args, mode := restartArgs(lp.prof, lp.inj.Args, rec.Resume)
+	args, mode := restartArgs(lp.prof, s.agentArgs(lp, proj), rec.Resume)
 	s.mu.Lock()
 	s.git[id] = g
 	s.mu.Unlock()

@@ -8,6 +8,7 @@
 |---|---|---|
 | socket, pid y log del daemon | `~/.agenterm/{d.sock,d.pid,daemon.log}` | `/x/…` |
 | perfiles, proyectos y ajustes | `~/.config/agenterm/{profiles.yaml,projects.json,settings.yaml}` | `/x/…` |
+| instrucciones para los agentes (un archivo por tema) | `~/.config/agenterm/instructions/<tema>.md` | `/x/instructions/…` |
 | archivos de hooks generados | `~/.agenterm/hooks/` | `/x/hooks/` |
 | worktrees de las sesiones | `~/.agenterm/worktrees/<proyecto>-<projectId>/<sessionId>/` (o `git.worktree_dir`) | `/x/worktrees/…` |
 | registro de worktrees | `~/.agenterm/worktrees.json` | `/x/worktrees.json` |
@@ -234,3 +235,52 @@ Se elige en *Ajustes → General* y localiza la interfaz de la app, su menú y l
 salida de la CLI y los mensajes de error del daemon y de las RPC están siempre en inglés; los
 rechazos que ve el usuario llevan un código de error estable, para que la app pueda mostrarlos en su
 idioma. Cualquier otro valor se trata como `auto`.
+
+## Instrucciones para los agentes
+
+*Ajustes → Instrucciones* guarda instrucciones que agenterm les da a los agentes que lanza al empezar
+cada sesión, organizadas por temas: seguridad, arquitectura, manejo de datos, git o cualquier otro.
+Sirven para tus propias reglas ("nunca hagas force-push", "usa pnpm", "para pruebas en navegador usa
+el de agenterm, no mi Chrome"); las instrucciones que comparte tu equipo van en el `AGENTS.md` /
+`CLAUDE.md` del repositorio.
+
+Cada tema es un archivo Markdown en `~/.config/agenterm/instructions/<tema>.md`, privado (`0600`) y
+fuera del repositorio, con un encabezado (front matter) que también puedes editar a mano:
+
+```markdown
+---
+title: Git
+description: Ramas, commits, pull requests y merges
+load: on_demand      # o always
+projects: all        # o [<projectId>, …]
+enabled: true
+order: 40
+---
+
+- Trabaja en una rama, nunca en main.
+- Nunca hagas force-push.
+```
+
+Un archivo sin encabezado se carga siempre, en todos los proyectos.
+
+- **Carga.** Un tema `always` ("siempre") entra completo en la sesión al empezar. Un tema
+  `on_demand` ("cuando haga falta") solo muestra ahí su nombre y su descripción; el agente corre
+  `agenterm instructions show <tema>` para leerlo cuando el trabajo lo toca (como una skill), así los
+  temas largos no ocupan contexto en cada sesión.
+- **Proyectos.** Un tema aplica a todos los proyectos o solo a los que lista (en la app: *solo
+  algunos*); los proyectos que ya no existen se ignoran.
+- **Límites.** 16 KiB por tema; como máximo 32 KiB de texto `always` por sesión (pasado eso, los
+  temas que faltan se listan para leerlos cuando haga falta). La pestaña muestra el tamaño de lo que
+  recibe una sesión y avisa pasados 8 KiB.
+- **Vista previa.** La pestaña muestra el texto exacto que recibe una sesión de un proyecto;
+  `agenterm instructions [<proyecto>]` también lo imprime y `agenterm instructions list` lista los
+  temas.
+- **Claude Code** (`setup_hooks: claude`) las recibe en su hook `SessionStart`, así que también
+  después de `/clear`, al reanudar o al compactar, incluso con `messages.enabled: false`.
+- **codex** (`setup_hooks: codex`) las recibe como `-c developer_instructions=…` en esa invocación.
+  Si tu `~/.codex/config.toml` (o `$CODEX_HOME/config.toml`) ya define `developer_instructions`,
+  agenterm no lo toca y las sesiones de codex no reciben estas (la pestaña lo avisa).
+- Los demás agentes no tienen forma de recibirlas sin editar sus archivos, cosa que agenterm nunca
+  hace; la pestaña los lista.
+
+Los cambios aplican a las sesiones que empiecen después de guardar.

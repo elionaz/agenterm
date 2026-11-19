@@ -8,6 +8,7 @@
 |---|---|---|
 | daemon socket, pid and log | `~/.agenterm/{d.sock,d.pid,daemon.log}` | `/x/…` |
 | profiles, projects and settings | `~/.config/agenterm/{profiles.yaml,projects.json,settings.yaml}` | `/x/…` |
+| standing instructions for the agents (one file per topic) | `~/.config/agenterm/instructions/<topic>.md` | `/x/instructions/…` |
 | generated hook files | `~/.agenterm/hooks/` | `/x/hooks/` |
 | session worktrees | `~/.agenterm/worktrees/<project>-<projectId>/<sessionId>/` (or `git.worktree_dir`) | `/x/worktrees/…` |
 | worktree registry | `~/.agenterm/worktrees.json` | `/x/worktrees.json` |
@@ -228,3 +229,50 @@ terminals at once and are saved right away.
 You can pick it in **Settings → General**; it localizes the app UI, its menu and notifications. CLI
 output and daemon/RPC error messages are always in English; user-facing refusals carry stable error
 codes so the app can show them in its language. Any other value is treated as `auto`.
+
+## Standing instructions for the agents
+
+**Settings → Instructions** holds instructions that agenterm hands the agents it launches when each
+session starts, organized in topics: security, architecture, data management, git, or any other.
+Use them for your own rules ("never force-push", "use pnpm", "for browser tests use the agenterm
+browser, not my Chrome"); instructions your team shares belong in the repository's `AGENTS.md` /
+`CLAUDE.md`.
+
+Each topic is a Markdown file in `~/.config/agenterm/instructions/<topic>.md`, private (`0600`) and
+outside the repository, with a front matter you can also edit by hand:
+
+```markdown
+---
+title: Git
+description: Branches, commits, pull requests and merges
+load: on_demand      # or always
+projects: all        # or [<projectId>, …]
+enabled: true
+order: 40
+---
+
+- Work on a feature branch, never on main.
+- Never force-push.
+```
+
+A file without front matter loads always, in every project.
+
+- **Load.** An `always` topic goes in full into the session at start. An `on_demand` topic only
+  shows its name and description there; the agent runs `agenterm instructions show <topic>` to read
+  it when the work touches it (like a skill), so long topics don't take context in every session.
+- **Projects.** A topic applies to every project or only to the ones it lists (in the app: *only
+  some*); projects removed since are ignored.
+- **Limits.** 16 KiB per topic; at most 32 KiB of `always` text per session (past that, the
+  remaining topics are listed to read on demand). The tab shows the size of what a session gets
+  and warns past 8 KiB.
+- **Preview.** The tab shows the exact text a session of a project receives;
+  `agenterm instructions [<project>]` prints it too, `agenterm instructions list` lists the topics.
+- **Claude Code** (`setup_hooks: claude`) gets them in its `SessionStart` hook, so again after
+  `/clear`, a resume or a compaction; also with `messages.enabled: false`.
+- **codex** (`setup_hooks: codex`) gets them as `-c developer_instructions=…` for that invocation.
+  If your `~/.codex/config.toml` (or `$CODEX_HOME/config.toml`) sets `developer_instructions`
+  itself, agenterm leaves it alone and codex sessions don't get these (the tab says so).
+- Other agents have no way to receive them without editing their files, which agenterm never does;
+  the tab lists them.
+
+Changes apply to sessions started after saving.
