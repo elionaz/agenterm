@@ -41,11 +41,29 @@ func TestBrokenFileFallsBack(t *testing.T) {
 }
 
 func TestShouldNotify(t *testing.T) {
-	n := Notify{Enabled: true, Sound: true}
-	if n.ShouldNotify("done") || !n.ShouldNotify("permission") {
-		t.Fatal("notify_on_done=false")
+	d := Defaults().Notify
+	for _, k := range []string{"permission", "question", "done", "error", "stall", "future-kind"} {
+		if !d.ShouldNotify(k) {
+			t.Errorf("defaults: %s off", k)
+		}
 	}
-	if !n.WantsSound("question") || n.WantsSound("done") {
+	// Each toggle turns off its kind only.
+	for kind, off := range map[string]func(*Notify){
+		"permission": func(n *Notify) { n.OnApproval = false },
+		"question":   func(n *Notify) { n.OnQuestion = false },
+		"done":       func(n *Notify) { n.OnDone = false },
+		"error":      func(n *Notify) { n.OnError = false },
+		"stall":      func(n *Notify) { n.OnStall = false },
+	} {
+		n := d
+		off(&n)
+		for _, k := range []string{"permission", "question", "done", "error", "stall"} {
+			if got := n.ShouldNotify(k); got != (k != kind) {
+				t.Errorf("%s off: ShouldNotify(%s) = %v", kind, k, got)
+			}
+		}
+	}
+	if !d.WantsSound("question") || d.WantsSound("done") {
 		t.Fatal("sound kinds")
 	}
 	if (Notify{}).ShouldNotify("permission") {
@@ -94,7 +112,7 @@ func TestNotifyFallback(t *testing.T) {
 func TestSaveRoundTrip(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "settings.yaml")
 	os.WriteFile(p, []byte("notify:\n  sound: false\n"), 0o600)
-	want := Settings{Notify: Notify{Enabled: true, Sound: true, OnDone: false, Fallback: FallbackOsascript}, Activity: Activity{StallSeconds: 60},
+	want := Settings{Notify: Notify{Enabled: true, Sound: true, OnApproval: true, OnQuestion: false, OnDone: false, OnError: true, Fallback: FallbackOsascript}, Activity: Activity{StallSeconds: 60},
 		Git: Git{Editor: "cursor -n", WorktreeDir: "~/wt", DefaultMode: ModeWorktree}, UI: UI{Language: "es", Appearance: AppearanceLight},
 		Sessions: Sessions{Restore: RestoreAlways},
 		Terminal: Terminal{FontFamily: "Menlo", FontSize: 14, LineHeight: 1.2, CursorStyle: "bar", Theme: "silent-alarm"}}

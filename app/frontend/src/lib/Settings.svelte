@@ -53,6 +53,15 @@
   let dragId = $state<string | null>(null)
   let dropAt = $state<number | null>(null)
 
+  /** The notification toggles, one per attention kind, in this order. */
+  const KINDS = [
+    { field: 'notifyOnApproval', key: 'approval' },
+    { field: 'notifyOnQuestion', key: 'question' },
+    { field: 'notifyOnDone', key: 'done' },
+    { field: 'notifyOnError', key: 'error' },
+    { field: 'notifyOnStall', key: 'stall' },
+  ] as const
+  const DETECTION_URL = 'https://github.com/elionaz/agenterm/blob/main/docs/attention-and-activity.md#where-the-signals-come-from'
   let notify = $state<Settings['notify'] | null>(null)
   /** macOS's permission for agenterm (re-read when the tab opens and when
    * the window comes back, e.g. from System Settings). */
@@ -488,6 +497,9 @@
   function applySettings(s: Settings) {
     notify = {
       ...s.notify,
+      notifyOnApproval: s.notify.notifyOnApproval ?? true,
+      notifyOnQuestion: s.notify.notifyOnQuestion ?? true,
+      notifyOnError: s.notify.notifyOnError ?? true,
       notifyOnStall: s.notify.notifyOnStall ?? true,
       fallback: s.notify.fallback === 'osascript' ? 'osascript' : 'none',
     }
@@ -1063,20 +1075,21 @@
               <em>{t('settings.n.soundHelp')}</em>
             </span>
           </label>
-          <label class="check" class:dim={!notify.enabled}>
-            <input type="checkbox" bind:checked={notify.notifyOnDone} disabled={!notify.enabled} />
-            <span>
-              <b>{t('settings.n.done')}</b>
-              <em>{t('settings.n.doneHelp')}</em>
-            </span>
-          </label>
-          <label class="check" class:dim={!notify.enabled}>
-            <input type="checkbox" bind:checked={notify.notifyOnStall} disabled={!notify.enabled} />
-            <span>
-              <b>{t('settings.n.stall')}</b>
-              <em>{t('settings.n.stallHelp')}</em>
-            </span>
-          </label>
+          <div class="kinds" class:dim={!notify.enabled}>
+            <div class="kinds-head">
+              <b>{t('settings.n.kinds')}</b>
+              <button class="link" onclick={() => BrowserOpenURL(DETECTION_URL)}>{t('settings.n.howDetected')}</button>
+            </div>
+            {#each KINDS as k (k.field)}
+              <label class="check">
+                <input type="checkbox" bind:checked={notify[k.field]} disabled={!notify.enabled} />
+                <span>
+                  <b>{t(`settings.n.kind.${k.key}`)}</b>
+                  <em>{t(`settings.n.kind.${k.key}Help`)}</em>
+                </span>
+              </label>
+            {/each}
+          </div>
           <label class="check" class:dim={!notify.enabled}>
             <input
               type="checkbox"
@@ -1570,6 +1583,19 @@
   .check em {
     font-size: 12px;
   }
+  .kinds {
+    padding: 10px 0 0;
+  }
+  .kinds-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .kinds .check {
+    padding-left: 14px;
+  }
+  .kinds.dim,
   .check.dim {
     opacity: 0.5;
   }

@@ -424,6 +424,8 @@ export namespace main {
 	    branch: string;
 	    base: string;
 	    worktreeId: string;
+	    trustSetup: boolean;
+	    skipSetup: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new SpawnOptions(source);
@@ -435,6 +437,8 @@ export namespace main {
 	        this.branch = source["branch"];
 	        this.base = source["base"];
 	        this.worktreeId = source["worktreeId"];
+	        this.trustSetup = source["trustSetup"];
+	        this.skipSetup = source["skipSetup"];
 	    }
 	}
 	export class UpdateInfo {
@@ -964,6 +968,8 @@ export namespace protocol {
 	    }
 	}
 	export class SessionInfo {
+	    suggestCopy?: string[];
+	    port?: number;
 	    permission?: string;
 	    id: string;
 	    projectId: string;
@@ -1025,6 +1031,8 @@ export namespace protocol {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.suggestCopy = source["suggestCopy"];
+	        this.port = source["port"];
 	        this.permission = source["permission"];
 	        this.id = source["id"];
 	        this.projectId = source["projectId"];
@@ -1122,6 +1130,24 @@ export namespace protocol {
 		}
 	}
 	
+	export class WorktreeCopyResult {
+	    copied: string[];
+	    skipped?: string[];
+	    missing?: string[];
+	    created?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new WorktreeCopyResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.copied = source["copied"];
+	        this.skipped = source["skipped"];
+	        this.missing = source["missing"];
+	        this.created = source["created"];
+	    }
+	}
 	export class WorktreeInfo {
 	    id: string;
 	    projectId: string;
@@ -1255,7 +1281,10 @@ export namespace settings {
 	export class Notify {
 	    enabled: boolean;
 	    sound: boolean;
+	    notifyOnApproval: boolean;
+	    notifyOnQuestion: boolean;
 	    notifyOnDone: boolean;
+	    notifyOnError: boolean;
 	    notifyOnStall: boolean;
 	    fallback?: string;
 	
@@ -1267,7 +1296,10 @@ export namespace settings {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.enabled = source["enabled"];
 	        this.sound = source["sound"];
+	        this.notifyOnApproval = source["notifyOnApproval"];
+	        this.notifyOnQuestion = source["notifyOnQuestion"];
 	        this.notifyOnDone = source["notifyOnDone"];
+	        this.notifyOnError = source["notifyOnError"];
 	        this.notifyOnStall = source["notifyOnStall"];
 	        this.fallback = source["fallback"];
 	    }

@@ -158,7 +158,12 @@ export const api = {
       branch: opts?.branch ?? '',
       base: opts?.base ?? '',
       worktreeId: opts?.worktreeId ?? '',
+      trustSetup: opts?.trustSetup ?? false,
+      skipSetup: opts?.skipSetup ?? false,
     }),
+  /** Copies files from the main folder into a worktree; save also writes
+   * them into a new .agenterm.yaml. */
+  copyIntoWorktree: (id: string, files: string[], save: boolean) => App.CopyIntoWorktree(id, files, save),
   /** Whether a project can use worktrees, its branches and default base. */
   projectGit: (projectId: string): Promise<ProjectGit> => App.ProjectGit(projectId),
   sessionDiff: (id: string): Promise<DiffResult> => App.SessionDiff(id),

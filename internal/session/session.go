@@ -43,9 +43,13 @@ type Options struct {
 	ProfileID   string
 	Cmd         string
 	Args        []string
-	Env         []string // extra KEY=VALUE pairs appended to os.Environ()
-	Cwd         string   // defaults to ProjectDir
-	SockPath    string   // exported as AGENTERM_SOCK
+	// Launch, when set, is the argv actually executed instead of Cmd+Args
+	// (a wrapper that runs a worktree setup first and then execs Cmd+Args):
+	// Cmd and Args stay what the session shows and records.
+	Launch   []string
+	Env      []string // extra KEY=VALUE pairs appended to os.Environ()
+	Cwd      string   // defaults to ProjectDir
+	SockPath string   // exported as AGENTERM_SOCK
 	// Home is exported as AGENTERM_HOME; empty removes any inherited value.
 	// Clients prefer AGENTERM_HOME over AGENTERM_SOCK, so the daemon sets
 	// both consistently (see client.ResolveSocket).
@@ -157,6 +161,9 @@ func Spawn(o Options) (*Session, error) {
 		StallAfter: o.StallAfter, OnStall: func(bool) { s.stallFlip.Store(true) }})
 
 	cmd := exec.Command(o.Cmd, o.Args...)
+	if len(o.Launch) > 0 {
+		cmd = exec.Command(o.Launch[0], o.Launch[1:]...)
+	}
 	cmd.Dir = s.Cwd
 	cmd.Env = buildEnv(o)
 	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Cols: s.cols, Rows: s.rows})

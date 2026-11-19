@@ -16,7 +16,7 @@
               claude              codex               shell …
 ```
 
-- The **daemon** is the sole owner of the PTYs: it launches the processes, keeps their scrollback,
+- The **daemon** is the sole owner of the PTYs (it starts them itself: no tmux or screen underneath): it launches the processes, keeps their scrollback,
   computes state, attention, activity and git, and publishes events. It listens on a unix socket
   (`0600`).
 - The **app** and the **CLI** are clients (`internal/client`). Either one starts the daemon if it
@@ -117,6 +117,7 @@ show them in its language (see [configuration.md](configuration.md#language)):
 | `merge_main_dirty` | `{dir, count}` |
 | `merge_wrong_branch` | `{dir, current, base}` (empty `current` = detached HEAD) |
 | `merge_base_behind` | `{dir, base, upstream, count}` |
+| `setup_untrusted` | `{repo, file, command}` |
 | `merge_nothing` | `{branch, base}` |
 | `merge_conflict` | `{branch, base, files}` |
 | `branch_missing`, `branch_exists`, `branch_invalid` | `{branch}` |

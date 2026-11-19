@@ -26,6 +26,7 @@ import (
 	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/project"
 	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/agenterm/internal/repoconfig"
 	"github.com/elionaz/agenterm/internal/session"
 	"github.com/elionaz/agenterm/internal/sessionstore"
 	"github.com/elionaz/agenterm/internal/shellenv"
@@ -74,6 +75,7 @@ type Notification struct {
 // Server is the daemon.
 type Server struct {
 	auto     autoDeliver
+	trust    *repoconfig.Trust // worktree setup commands the user allowed
 	cfg      Config
 	sock     string
 	projects *project.Registry
@@ -93,7 +95,8 @@ type Server struct {
 	// names are the sessions' display names (rename.go).
 	namesMu sync.Mutex
 	names   map[string]string
-	models  map[string]string // the agents' models (model.go), same lock
+	models  map[string]string   // the agents' models (model.go), same lock
+	ports   map[string]sessPort // each session's port (ports.go), same lock
 
 	// Persistence: the session registry and when each scrollback was
 	// last saved (OutputTotal; guarded by persistMu).
@@ -170,6 +173,7 @@ func New(cfg Config) (*Server, error) {
 	}
 	bg, bgCancel := context.WithCancel(context.Background())
 	return &Server{
+		trust: repoconfig.OpenTrust(cfg.Paths.Trust()),
 		gitState: gitState{wts: wts, git: make(map[string]sessGit), gitCache: make(map[string]*gitEntry), fetched: make(map[string]time.Time),
 			bg: bg, bgCancel: bgCancel},
 		cfg:      cfg,
@@ -184,6 +188,7 @@ func New(cfg Config) (*Server, error) {
 		resuming: make(map[string]bool),
 		names:    make(map[string]string),
 		models:   make(map[string]string),
+		ports:    make(map[string]sessPort),
 		store:    store,
 		mail:     mail,
 		saved:    make(map[string]int64),
@@ -407,6 +412,9 @@ func (s *Server) sessionInfo(sess *session.Session) protocol.SessionInfo {
 	info.ProjectName = s.projectName(sess.ProjectID, sess.ProjectName)
 	info.MsgPending = s.mail.Pending(sess.ID)
 	info.Model = s.sessionModel(sess.ID)
+	if p := s.sessionPort(sess.ID); len(p.Env) > 0 {
+		info.Port = p.Port // the project asked for ports: show it
+	}
 	info.Permission = permissionMode(info.Cmd, info.Args)
 	if g := s.sessionGit(sess.ID); g != nil {
 		info.Mode, info.WorktreeID, info.Branch, info.Base = g.Mode, g.WorktreeID, g.Branch, g.Base

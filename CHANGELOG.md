@@ -13,6 +13,27 @@ releases may include breaking changes.
   (`--dangerously-skip-permissions`, codex `--full-auto` / `-a never`, `--yolo`, Cursor `--force`…),
   to auto-edit or in plan mode shows it as a chip in the title bar, with a ⚠ on the sidebar row for
   auto-approve; the tooltips now show the full command line.
+- **New worktrees come ready to work.** An `.agenterm.yaml` at the root of the repository lists
+  files to copy from the main folder (`worktree.copy`: `.env`, local config…) and a command to run
+  before the agent starts (`worktree.setup`: `npm install`…), shown in the session's terminal. A
+  setup runs only once you trust it (the app shows the command; `agenterm spawn --trust-setup` /
+  `--no-setup`), and again only if it changes. Without the file, the app offers to copy the `.env*`
+  files git ignores, once or into a new `.agenterm.yaml`.
+- **A port per session.** Every session gets `AGENTERM_PORT`, its own port (the lowest free one
+  from 3000 in the project, kept when resumed). With `ports.base` in `.agenterm.yaml`, `PORT` (or
+  the variables in `ports.env`) is set too and the sidebar shows it, so two agents' dev servers
+  don't fight over 3000.
+- **Pick which notifications you get.** Settings → Notifications has one switch per kind:
+  approvals, questions, finished turns, errors and "looks stalled" (`notify.notify_on_approval`,
+  `notify_on_question`, `notify_on_done`, `notify_on_error`, `notify_on_stall`), all on by default,
+  with a link to how each one is detected. Approvals, questions and errors could not be turned off
+  on their own before.
+
+### Changed
+
+- **README: "How it works"** explains that the daemon owns the terminals (no tmux), that sessions
+  survive closing the app and restarts, where attention comes from, and that worktrees are plain
+  git. **"Works with any agent CLI"** now leads the feature list.
 
 ## [0.9.0] - 2026-11-18
 

@@ -22,10 +22,15 @@ import (
 
 // Notify controls attention notifications.
 type Notify struct {
-	Enabled bool `json:"enabled"`       // native notifications at all
-	Sound   bool `json:"sound"`         // sound for permission/question notifications
-	OnDone  bool `json:"notifyOnDone"`  // also notify when an agent finishes its turn
-	OnStall bool `json:"notifyOnStall"` // notify (quietly) when a turn looks stalled
+	Enabled bool `json:"enabled"` // native notifications at all
+	Sound   bool `json:"sound"`   // sound for permission/question notifications
+	// Per kind: an approval (permission), a question, a finished turn, an
+	// error, a turn that looks stalled (quiet).
+	OnApproval bool `json:"notifyOnApproval"`
+	OnQuestion bool `json:"notifyOnQuestion"`
+	OnDone     bool `json:"notifyOnDone"`
+	OnError    bool `json:"notifyOnError"`
+	OnStall    bool `json:"notifyOnStall"`
 	// Fallback is what to do when native notifications are unavailable
 	// (no .app bundle) or not authorized: none (drop them) | osascript
 	// (AppleScript, which macOS shows as Script Editor). omitempty: a client
@@ -241,11 +246,14 @@ type fileMessages struct {
 }
 
 type fileNotify struct {
-	Enabled  *bool   `yaml:"enabled"`
-	Sound    *bool   `yaml:"sound"`
-	OnDone   *bool   `yaml:"notify_on_done"`
-	OnStall  *bool   `yaml:"notify_on_stall"`
-	Fallback *string `yaml:"fallback"`
+	Enabled    *bool   `yaml:"enabled"`
+	Sound      *bool   `yaml:"sound"`
+	OnApproval *bool   `yaml:"notify_on_approval"`
+	OnQuestion *bool   `yaml:"notify_on_question"`
+	OnDone     *bool   `yaml:"notify_on_done"`
+	OnError    *bool   `yaml:"notify_on_error"`
+	OnStall    *bool   `yaml:"notify_on_stall"`
+	Fallback   *string `yaml:"fallback"`
 }
 
 type fileActivity struct {
@@ -317,7 +325,10 @@ func Save(path string, s Settings) error {
 	b := strconv.FormatBool
 	setKey(root, []string{"notify", "enabled"}, b(s.Notify.Enabled), "!!bool")
 	setKey(root, []string{"notify", "sound"}, b(s.Notify.Sound), "!!bool")
+	setKey(root, []string{"notify", "notify_on_approval"}, b(s.Notify.OnApproval), "!!bool")
+	setKey(root, []string{"notify", "notify_on_question"}, b(s.Notify.OnQuestion), "!!bool")
 	setKey(root, []string{"notify", "notify_on_done"}, b(s.Notify.OnDone), "!!bool")
+	setKey(root, []string{"notify", "notify_on_error"}, b(s.Notify.OnError), "!!bool")
 	setKey(root, []string{"notify", "notify_on_stall"}, b(s.Notify.OnStall), "!!bool")
 	setKey(root, []string{"notify", "fallback"}, normFallback(s.Notify.Fallback), "!!str")
 	setKey(root, []string{"activity", "stall_seconds"}, strconv.Itoa(max(s.Activity.StallSeconds, 0)), "!!int")
@@ -392,7 +403,7 @@ func setKey(m *yaml.Node, path []string, value, tag string) {
 // Defaults returns the settings used when the file (or a key) is missing.
 func Defaults() Settings {
 	return Settings{
-		Notify:   Notify{Enabled: true, Sound: true, OnDone: true, OnStall: true, Fallback: FallbackNone},
+		Notify:   Notify{Enabled: true, Sound: true, OnApproval: true, OnQuestion: true, OnDone: true, OnError: true, OnStall: true, Fallback: FallbackNone},
 		Activity: Activity{StallSeconds: DefaultStallSeconds},
 		Git:      Git{DefaultMode: ModeWorktree},
 		UI:       UI{Language: i18n.Auto, Appearance: AppearanceSystem},
@@ -439,7 +450,10 @@ func Parse(data []byte) (Settings, error) {
 	}
 	set(&s.Notify.Enabled, f.Notify.Enabled)
 	set(&s.Notify.Sound, f.Notify.Sound)
+	set(&s.Notify.OnApproval, f.Notify.OnApproval)
+	set(&s.Notify.OnQuestion, f.Notify.OnQuestion)
 	set(&s.Notify.OnDone, f.Notify.OnDone)
+	set(&s.Notify.OnError, f.Notify.OnError)
 	set(&s.Notify.OnStall, f.Notify.OnStall)
 	set(&s.Messages.Enabled, f.Messages.Enabled)
 	set(&s.Messages.AutoDeliver, f.Messages.AutoDeliver)
@@ -506,12 +520,18 @@ func (n Notify) ShouldNotify(kind string) bool {
 		return false
 	}
 	switch kind {
+	case "permission":
+		return n.OnApproval
+	case "question":
+		return n.OnQuestion
 	case "done":
 		return n.OnDone
+	case "error":
+		return n.OnError
 	case "stall":
 		return n.OnStall
 	}
-	return true
+	return true // a kind this version doesn't know
 }
 
 // WantsSound reports whether a notification of kind should play a sound:
