@@ -16,6 +16,13 @@ releases may include breaking changes.
   and the timer. Drag the sidebar's right edge to make it 220–420 px wide (double-click: back to
   248); the width is remembered.
 - **Shells have no turn timer** ("finished in 3s" meant whatever ran last).
+- **A tidier Changes view.** The toolbar keeps *Create pull request* and *Merge* in sight and moves
+  *Open in editor*, *Open in Finder*, *Copy branch* and *Remove worktree* to a **⋯** menu; it wraps
+  instead of running off the edge. Without a pull request there's no more "No pull request yet"
+  strip. Files show their name first, with the folder below; commits fold. The diff has its own
+  header with the path and the unified / side-by-side switch, starts unified when the panel is
+  narrow (until you pick one), and wraps long lines in the unified view. The title bar drops the
+  folder path (it's in the name's tooltip) and shows the branch short.
 
 ### Fixed
 
