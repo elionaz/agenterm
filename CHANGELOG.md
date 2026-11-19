@@ -7,6 +7,13 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- **See what each session may do unasked.** A session launched to auto-approve
+  (`--dangerously-skip-permissions`, codex `--full-auto` / `-a never`, `--yolo`, Cursor `--force`…),
+  to auto-edit or in plan mode shows it as a chip in the title bar, with a ⚠ on the sidebar row for
+  auto-approve; the tooltips now show the full command line.
+
 ## [0.9.0] - 2026-11-18
 
 ### Changed

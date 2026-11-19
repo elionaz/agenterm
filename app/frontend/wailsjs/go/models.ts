@@ -964,6 +964,7 @@ export namespace protocol {
 	    }
 	}
 	export class SessionInfo {
+	    permission?: string;
 	    id: string;
 	    projectId: string;
 	    projectDir: string;
@@ -1024,6 +1025,7 @@ export namespace protocol {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.permission = source["permission"];
 	        this.id = source["id"];
 	        this.projectId = source["projectId"];
 	        this.projectDir = source["projectDir"];

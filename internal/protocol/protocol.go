@@ -573,6 +573,9 @@ type AttachParams struct {
 
 // SessionInfo describes a session on the wire.
 type SessionInfo struct {
+	// Permission is the permission mode its command line asks for: bypass
+	// (runs everything unasked), auto-edit, plan, or "" (the agent asks).
+	Permission string `json:"permission,omitempty"`
 	ID         string `json:"id"`
 	ProjectID  string `json:"projectId"`
 	ProjectDir string `json:"projectDir"`

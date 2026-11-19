@@ -407,6 +407,7 @@ func (s *Server) sessionInfo(sess *session.Session) protocol.SessionInfo {
 	info.ProjectName = s.projectName(sess.ProjectID, sess.ProjectName)
 	info.MsgPending = s.mail.Pending(sess.ID)
 	info.Model = s.sessionModel(sess.ID)
+	info.Permission = permissionMode(info.Cmd, info.Args)
 	if g := s.sessionGit(sess.ID); g != nil {
 		info.Mode, info.WorktreeID, info.Branch, info.Base = g.Mode, g.WorktreeID, g.Branch, g.Base
 		if g.Mode == protocol.ModeWorktree {
