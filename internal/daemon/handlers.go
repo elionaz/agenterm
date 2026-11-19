@@ -21,6 +21,7 @@ import (
 	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/project"
 	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/agenterm/internal/repoconfig"
 	"github.com/elionaz/agenterm/internal/session"
 	"github.com/elionaz/agenterm/internal/sessionstore"
 	"github.com/elionaz/agenterm/internal/settings"
@@ -440,6 +441,8 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 	var created *worktree.Record
 	var setup string
 	var suggest []string
+	var cfg repoconfig.Config
+	cfgRead := false
 	switch {
 	case p.WorktreeID != "":
 		rec, err := s.wts.Get(p.WorktreeID)
@@ -468,6 +471,7 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 			return protocol.SessionInfo{}, err
 		}
 		setup, suggest = prep.run, prep.suggest
+		cfg, cfgRead = prep.cfg, true
 	case mode == "" || mode == protocol.ModeSame:
 	default:
 		return protocol.SessionInfo{}, fmt.Errorf("unknown mode %q (same or worktree)", p.Mode)
@@ -475,6 +479,10 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 	s.mu.Lock()
 	s.git[id] = g
 	s.mu.Unlock()
+	if !cfgRead {
+		cfg = s.repoConfig(proj)
+	}
+	s.setPort(id, s.assignPort(proj.ID, id, cfg.Ports))
 
 	info, err := s.startSession(startSpec{
 		id: id, proj: proj, lp: lp, cwd: cwd, g: g, cols: p.Cols, rows: p.Rows,
@@ -485,6 +493,7 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 		s.mu.Lock()
 		delete(s.git, id)
 		s.mu.Unlock()
+		s.forgetPort(id)
 		if created != nil {
 			s.discardWorktree(*created)
 		}
@@ -521,7 +530,7 @@ func (s *Server) startSession(sp startSpec) (protocol.SessionInfo, error) {
 	if err != nil {
 		s.log.Warn("settings", "err", err)
 	}
-	env := append(prof.Environ(), sp.lp.inj.Env...)
+	env := append(append(prof.Environ(), sp.lp.inj.Env...), portEnv(s.sessionPort(id))...)
 	var launch []string
 	if sp.setup != "" {
 		launch = setupLaunch(sp.lp.cmd, sp.args)
@@ -673,6 +682,7 @@ func (s *Server) kill(id string) (protocol.SessionInfo, error) {
 		info := s.sessionInfo(sess)
 		s.setName(id, "")
 		s.forgetModel(id)
+		s.forgetPort(id)
 		s.forgetMessages(sess)
 		s.bus.publish(protocol.Event{Type: protocol.EventSessionRemoved, SessionID: id, At: time.Now().UTC()})
 		return info, nil

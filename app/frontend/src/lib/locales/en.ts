@@ -221,6 +221,7 @@ export const en = {
   'sidebar.suspendedSince': 'Suspended since {at} (the daemon restarted)',
   'sidebar.resumeFailed': 'Last resume failed: {msg}',
   'sidebar.model': 'Model: {model}',
+  'sidebar.port': 'Its own port: PORT={port} (also AGENTERM_PORT). Click to copy localhost:{port}.',
   'sidebar.folderBranch': 'Branch of the project folder: {branch} (shared with the other sessions in the folder)',
   'sidebar.msgPending': { one: '{n} message from another session waiting', other: '{n} messages from other sessions waiting' },
   'sidebar.restoredBanner': { one: '{n} session from the previous run', other: '{n} sessions from the previous run' },

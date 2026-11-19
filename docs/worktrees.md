@@ -92,6 +92,25 @@ worktree:
   its root, the app offers to copy them into the new worktree, once or by writing a first
   `.agenterm.yaml` with them (`agenterm spawn` prints a note instead).
 
+## A port per session
+
+Two agents that start a dev server both want port 3000. Every session gets **`AGENTERM_PORT`**, a
+port of its own: the lowest one from 3000 that no other session of the project holds and nothing
+listens on. A session keeps it when it is resumed. When the repository's `.agenterm.yaml` asks for
+ports, **`PORT`** is set to it too, and the sidebar and title bar show it (`:3001`; click it to copy
+`localhost:3001`):
+
+```yaml
+ports:
+  base: 3000            # first port tried
+  env: [PORT]           # variables set to the port (default PORT)
+```
+
+Next.js, Express, Rails, Flask and most servers read `PORT`. **Vite doesn't**: start it with
+`vite --port $AGENTERM_PORT` (in your `dev` script), or read `process.env.VITE_PORT` in
+`vite.config` and list it: `env: [PORT, VITE_PORT]`. Without `ports.base`, only `AGENTERM_PORT` is
+set, so nothing changes for servers that expect their usual port.
+
 ## Lifecycle
 
 - **Killing a session never deletes its worktree.** The registry (`worktrees.json`) survives daemon

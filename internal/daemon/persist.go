@@ -100,6 +100,9 @@ func (s *Server) restoreSessions() {
 			s.models[rec.ID] = m
 			s.namesMu.Unlock()
 		}
+		if rec.Port > 0 && rec.Port <= 65535 {
+			s.setPort(rec.ID, sessPort{Port: rec.Port, Env: rec.PortEnv})
+		}
 		keep[rec.ID] = true
 		restored = append(restored, rec.ID)
 		if !restart[rec.ID] {
@@ -210,6 +213,7 @@ func (s *Server) recordSession(sess *session.Session, g sessGit, resume *session
 	cols, rows := sess.Size()
 	rec := sessionstore.Record{
 		ID: sess.ID, ProjectID: sess.ProjectID, ProfileID: sess.ProfileID, Name: s.sessionName(sess.ID), Model: s.sessionModel(sess.ID),
+		Port: s.sessionPort(sess.ID).Port, PortEnv: s.sessionPort(sess.ID).Env,
 		Mode: g.Mode, WorktreeID: g.WorktreeID,
 		Cwd: sess.Cwd, Cmd: sess.Cmd, Args: sess.Args, Pid: sess.Pid, Cols: cols, Rows: rows,
 		CreatedAt: sess.CreatedAt, State: string(sess.State()), Resume: resume,
@@ -494,6 +498,7 @@ func (s *Server) discard(id string) (protocol.SessionInfo, error) {
 	s.forgetGit(id)
 	s.setName(id, "")
 	s.forgetModel(id)
+	s.forgetPort(id)
 	s.forgetMessages(sess)
 	sess.Release()
 	s.dropPersisted(id)
