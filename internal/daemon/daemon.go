@@ -170,7 +170,7 @@ func New(cfg Config) (*Server, error) {
 	}
 	bg, bgCancel := context.WithCancel(context.Background())
 	return &Server{
-		gitState: gitState{wts: wts, git: make(map[string]sessGit), gitCache: make(map[string]*gitEntry),
+		gitState: gitState{wts: wts, git: make(map[string]sessGit), gitCache: make(map[string]*gitEntry), fetched: make(map[string]time.Time),
 			bg: bg, bgCancel: bgCancel},
 		cfg:      cfg,
 		sock:     cfg.Paths.Socket(),

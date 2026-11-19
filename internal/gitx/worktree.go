@@ -325,6 +325,15 @@ func Merge(ctx context.Context, repo, branch, base, worktree string) (MergeResul
 	if !BranchExists(ctx, main, branch) {
 		return res, apierr.New(apierr.BranchMissing, map[string]any{"branch": branch}, "branch %q no longer exists", branch)
 	}
+	// Merging into a base that is behind its remote would make a local
+	// merge commit the remote never gets (and that pulling then has to
+	// reconcile): the base has to be pulled first.
+	if up := Upstream(ctx, main, base); up != "" {
+		if behind, err := AheadCount(ctx, main, base, up); err == nil && behind > 0 {
+			return res, apierr.New(apierr.MergeBaseBehind, map[string]any{"dir": main, "base": base, "upstream": ShortRef(up), "count": behind},
+				"cannot merge: %s is %d %s behind %s; pull it first (git -C %s pull --ff-only)", base, behind, plural(behind, "commit", "commits"), ShortRef(up), main)
+		}
+	}
 	n, err := AheadCount(ctx, main, base, "refs/heads/"+branch)
 	if err != nil {
 		return res, err
