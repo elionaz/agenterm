@@ -736,6 +736,9 @@ func (s *Session) State() status.State { return s.status.State() }
 // ExitCode returns the exit code and whether the process has exited.
 func (s *Session) ExitCode() (int, bool) { return s.status.ExitCode() }
 
+// IdleSource is what made the session idle last (status.Machine.IdleSource).
+func (s *Session) IdleSource() status.Source { return s.status.IdleSource() }
+
 // Done is closed once the process has exited and all output was delivered.
 func (s *Session) Done() <-chan struct{} { return s.done }
 

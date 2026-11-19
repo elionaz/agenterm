@@ -618,6 +618,10 @@ type SessionInfo struct {
 	Unread           bool       `json:"unread,omitempty"`
 	// MsgPending: messages from other sessions it has not got yet.
 	MsgPending int `json:"msgPending,omitempty"`
+	// MsgHold: why they wait (automatic delivery's reason: "unsent input",
+	// "not a reply", "no turn end", "off"…; "" when they will arrive by
+	// themselves).
+	MsgHold string `json:"msgHold,omitempty"`
 	// Model: the agent's model id, when known (hooks or command line).
 	Model string `json:"model,omitempty"`
 	// Mode is same | worktree; worktree sessions name their worktree.
@@ -712,8 +716,10 @@ type Event struct {
 	Git *GitInfo `json:"git,omitempty"`
 	// ProjectID (worktree.changed, message.changed).
 	ProjectID string `json:"projectId,omitempty"`
-	// MsgPending (message.changed): messages waiting for SessionID.
-	MsgPending int `json:"msgPending,omitempty"`
+	// MsgPending (message.changed): messages waiting for SessionID;
+	// MsgHold why (see SessionInfo.MsgHold).
+	MsgPending int    `json:"msgPending,omitempty"`
+	MsgHold    string `json:"msgHold,omitempty"`
 	// Model (session.model): the agent's model id.
 	Model string `json:"model,omitempty"`
 	// Live is filled in session.activity and session.state events.

@@ -121,7 +121,7 @@ func TestAutoDeliver(t *testing.T) {
 	}
 	idle()
 
-	// Off (the default): the message waits for Deliver.
+	// Off (set so in the file; it is on by default): the message waits for Deliver.
 	send("one")
 	out.waitNudges(t, 0, "off")
 
@@ -238,4 +238,110 @@ func TestAutoDeliverOnlyReplies(t *testing.T) {
 		t.Fatal(err)
 	}
 	out.waitNudges(t, 1, "a message from the user")
+}
+
+// On by default; agents without message hooks get the "msg read" line only
+// when they reported the end of their turn, and the session says why
+// messages wait otherwise.
+func TestAutoDeliverDefaultsAndOtherAgents(t *testing.T) {
+	defer daemon.SetAutoTiming(100*time.Millisecond, 300*time.Millisecond, 200*time.Millisecond)()
+	c, p, stop := startDaemon(t)
+	defer stop()
+	ctx := ctxT(t)
+	// No messages section in settings.yaml: the defaults apply.
+	if err := os.WriteFile(p.Settings(), []byte("ui:\n  language: en\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	fake := t.TempDir() + "/fakeagent"
+	if err := os.WriteFile(fake, []byte("#!/bin/sh\nstty -echo -isig\nexec cat\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	profs := testProfiles +
+		"- id: fakeclaude\n  cmd: " + fake + "\n  status: hooks\n  setup_hooks: claude\n" +
+		"- id: fakecodex\n  cmd: " + fake + "\n  idle_seconds: 0.3\n"
+	if err := os.WriteFile(p.Profiles(), []byte(profs), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.RescanProfiles(ctx); err != nil {
+		t.Fatal(err)
+	}
+	proj, err := c.ProjectAdd(ctx, t.TempDir(), "defaults")
+	if err != nil {
+		t.Fatal(err)
+	}
+	attach := func(id string) (*output, func()) {
+		t.Helper()
+		st, err := c.Attach(ctx, id, 0, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		readUntil(t, st, func(_ []byte, f protocol.Frame) bool { return f.Type == protocol.FrameReplayDone })
+		return collect(t, st), func() { st.Close() }
+	}
+	hold := func(id string) string {
+		t.Helper()
+		return findSession(t, c, id).MsgHold
+	}
+	send := func(id, body string) {
+		t.Helper()
+		if _, err := c.MsgSend(ctx, protocol.MsgSendParams{To: id, Body: body}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Claude, idle: a message from the user arrives by itself.
+	cl, err := c.Spawn(ctx, protocol.SpawnParams{ProjectID: proj.ID, ProfileID: "fakeclaude"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	clOut, closeCl := attach(cl.ID)
+	defer closeCl()
+	c.Notify(ctx, cl.ID, "running")
+	c.Notify(ctx, cl.ID, "idle")
+	send(cl.ID, "hello")
+	clOut.waitNudges(t, 1, "claude, default settings")
+
+	// Another agent that only went quiet: held, with the reason.
+	cx, err := c.Spawn(ctx, protocol.SpawnParams{ProjectID: proj.ID, ProfileID: "fakecodex"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cxOut, closeCx := attach(cx.ID)
+	defer closeCx()
+	deadline := time.Now().Add(5 * time.Second)
+	for findSession(t, c, cx.ID).State != "idle" {
+		if time.Now().After(deadline) {
+			t.Fatal("the heuristic never went idle")
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	send(cx.ID, "one")
+	cxOut.waitNudges(t, 0, "other agent, quiet only")
+	if h := hold(cx.ID); h != "no turn end" {
+		t.Fatalf("hold = %q, want no turn end", h)
+	}
+	// It reports the end of its turn (like codex's notify): it is told to
+	// read them.
+	c.Notify(ctx, cx.ID, "running")
+	c.Notify(ctx, cx.ID, "idle")
+	send(cx.ID, "two")
+	cxOut.waitNudges(t, 1, "other agent, turn end reported")
+	cxOut.mu.Lock()
+	told := bytes.Contains(cxOut.buf.Bytes(), []byte("agenterm msg read"))
+	cxOut.mu.Unlock()
+	if !told {
+		t.Fatal("the other agent was not told to run agenterm msg read")
+	}
+
+	// Explicitly off in the file: nothing by itself, and it says so.
+	if err := os.WriteFile(p.Settings(), []byte("ui:\n  language: en\nmessages:\n  auto_deliver: false\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c.Notify(ctx, cl.ID, "running")
+	c.Notify(ctx, cl.ID, "idle")
+	send(cl.ID, "while off")
+	clOut.waitNudges(t, 1, "off")
+	if h := hold(cl.ID); h != "off" {
+		t.Fatalf("hold while off = %q", h)
+	}
 }

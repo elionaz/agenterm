@@ -839,7 +839,7 @@
         sessions = sessions.map((s) => (s.id === ev.sessionId ? { ...s, model: ev.model } : s))
         break
       case 'message.changed':
-        sessions = sessions.map((s) => (s.id === ev.sessionId ? { ...s, msgPending: ev.msgPending ?? 0 } : s))
+        sessions = sessions.map((s) => (s.id === ev.sessionId ? { ...s, msgPending: ev.msgPending ?? 0, msgHold: ev.msgHold ?? '' } : s))
         msgStamps[ev.sessionId] = (msgStamps[ev.sessionId] ?? 0) + 1
         break
       case 'session.renamed':

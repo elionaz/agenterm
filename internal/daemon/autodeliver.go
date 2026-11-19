@@ -160,6 +160,10 @@ const (
 // schedules a check).
 const holdNotReply = "not a reply"
 
+// holdNoTurnEnd: an agent without message hooks that went idle only by
+// going quiet (no turn-end event): it gets the Deliver button.
+const holdNoTurnEnd = "no turn end"
+
 // autoDeliverNow nudges session id if every condition holds; it returns
 // why not otherwise ("" when it did).
 func (s *Server) autoDeliverNow(id string) string {
@@ -212,6 +216,7 @@ func (s *Server) noteHold(sess *session.Session, why string) {
 	s.auto.mu.Unlock()
 	if changed {
 		s.log.Info("automatic delivery held back", "to", sess.ID, "why", why)
+		s.publishMessages(sess.ProjectID, sess.ID) // the UIs say why it waits
 	}
 	if why == holdDraft || why == holdTyping {
 		s.auto.mu.Lock()
@@ -279,11 +284,18 @@ func (s *Server) autoDeliverBlock(sess *session.Session, lastNudge time.Time) st
 	if !s.mail.Wakes(sess.ID) {
 		return holdNotReply
 	}
-	if isShell(sess) || !s.hookDelivers(sess.ProfileID) {
-		return "not claude"
+	if isShell(sess) {
+		return "shell"
 	}
 	if sess.State() != status.Idle {
 		return "not idle"
+	}
+	// Agents without message hooks are told to run agenterm msg read; only
+	// when they reported the end of their turn (codex's notify): one that
+	// merely went quiet may still be thinking, and the line would land in
+	// the middle of its work.
+	if !s.hookDelivers(sess.ProfileID) && sess.IdleSource() != status.SourceEvent {
+		return holdNoTurnEnd
 	}
 	if time.Since(lastNudge) < autoQuiet {
 		return "nudged just now"
@@ -296,4 +308,19 @@ func (s *Server) autoDeliverBlock(sess *session.Session, lastNudge time.Time) st
 		return holdTyping
 	}
 	return ""
+}
+
+// msgHold is why messages wait for session id ("" when none wait, or when
+// they will be delivered by themselves as soon as it is free): the reason
+// automatic delivery last held back, or "off". Shown by the Messages tab.
+func (s *Server) msgHold(id string) string {
+	if s.mail.Pending(id) == 0 {
+		return ""
+	}
+	if !s.autoDeliverOn() {
+		return "off"
+	}
+	s.auto.mu.Lock()
+	defer s.auto.mu.Unlock()
+	return s.auto.why[id]
 }

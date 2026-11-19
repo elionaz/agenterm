@@ -516,7 +516,7 @@
     const r = s.sessions?.restore
     restore = r === 'always' || r === 'never' ? r : 'ask'
     messagesOn = s.messages?.enabled ?? true
-    autoDeliver = s.messages?.autoDeliver ?? false
+    autoDeliver = s.messages?.autoDeliver ?? true
     setAppearance(s.ui?.appearance)
     setTermPrefs(s.terminal)
     fontFamily = termPrefs().fontFamily

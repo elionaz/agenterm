@@ -49,11 +49,17 @@ or `all`. Such messages come from *the user*. `msg read` only works inside a ses
 
 ## Automatic delivery
 
-**Settings → General → Deliver to idle Claude sessions by themselves** (`messages.auto_deliver`,
-off by default) does what **Deliver** does without the click: when a message waits for a Claude
-session that is idle at its prompt (a reply that came after its turn ended, or one sent while it
-was idle), agenterm types the same fixed line, a moment later. It holds back, leaving the message
-pending with the **Deliver** button, when:
+**Settings → General → Deliver messages to idle sessions by themselves** (`messages.auto_deliver`,
+**on by default**) does what **Deliver** does without the click: when a message waits for a session
+that is idle at its prompt (a reply that came after its turn ended, or one sent while it was idle),
+agenterm types the same fixed line, a moment later. That is Claude Code, whose hooks then hand the
+messages over, and agents that report the end of their turn (codex, through its notify), which are
+told to run `agenterm msg read`. A Claude session that is working needs nothing: its hooks hand
+messages over at its next step. It holds back, leaving the message pending with **Deliver now**,
+when:
+
+- the agent has no message hooks and only went quiet (agenterm guessed it is idle from the
+  silence): it may still be thinking, and a line typed now would land in its work;
 
 - the message is not worth waking it for: only **your** messages and **replies** wake a session (a
   message from a session it wrote to and that hadn't answered it since). A heads-up nobody asked
@@ -70,6 +76,10 @@ pending with the **Deliver** button, when:
   (submitted a prompt in it, sent it a message from the app or clicked **Deliver**), which starts
   the count again; and, whatever happens, at most 20 automatic deliveries in a project every 10
   minutes. That keeps agents from waking each other up forever.
+
+The **Messages** tab says which of these applies (or that they are on their way), so a waiting
+message never looks stuck without a reason. Turning the setting off leaves every message for
+**Deliver**.
 
 ## In the app
 

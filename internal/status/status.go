@@ -220,7 +220,8 @@ type Machine struct {
 	exitCode   int
 	att        Attention
 	t          Timers
-	turnOpen   bool // running because of an explicit event (hook)
+	turnOpen   bool   // running because of an explicit event (hook)
+	idleSrc    Source // what made it idle last (see IdleSource)
 }
 
 // New returns a Machine in the Running state.
@@ -289,6 +290,15 @@ func (m *Machine) State() State {
 }
 
 // ExitCode returns the exit code and whether the session has exited.
+// IdleSource is what made the machine idle last: SourceEvent when the
+// agent reported the end of its turn (a hook, codex's notify),
+// SourceHeuristic when it only went quiet. Meaningful while it is Idle.
+func (m *Machine) IdleSource() Source {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.idleSrc
+}
+
 func (m *Machine) ExitCode() (int, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -342,6 +352,9 @@ func (m *Machine) commit(to State, src Source, at time.Time, att Attention, rais
 		if to == Idle || to == Exited {
 			m.t.TurnEndedAt = at
 		}
+	}
+	if to == Idle && from != Idle {
+		m.idleSrc = src
 	}
 	c := Change{From: from, To: to, Source: src, At: at, ExitCode: m.exitCode, Attention: att, Raised: raised}
 	m.state, m.att = to, att

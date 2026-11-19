@@ -462,7 +462,7 @@ func (s *Server) nudge(sess *session.Session) error {
 
 func (s *Server) publishMessages(projectID, sessionID string) {
 	s.bus.publish(protocol.Event{Type: protocol.EventMessages, SessionID: sessionID, ProjectID: projectID,
-		MsgPending: s.mail.Pending(sessionID), At: time.Now().UTC()})
+		MsgPending: s.mail.Pending(sessionID), MsgHold: s.msgHold(sessionID), At: time.Now().UTC()})
 }
 
 // forgetMessages drops what was still waiting for a session that is gone

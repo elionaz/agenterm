@@ -411,6 +411,7 @@ func (s *Server) sessionInfo(sess *session.Session) protocol.SessionInfo {
 	info.Name = s.sessionName(sess.ID)
 	info.ProjectName = s.projectName(sess.ProjectID, sess.ProjectName)
 	info.MsgPending = s.mail.Pending(sess.ID)
+	info.MsgHold = s.msgHold(sess.ID)
 	info.Model = s.sessionModel(sess.ID)
 	if p := s.sessionPort(sess.ID); len(p.Env) > 0 {
 		info.Port = p.Port // the project asked for ports: show it

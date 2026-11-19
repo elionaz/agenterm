@@ -7,6 +7,15 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Changed
+
+- **Messages between sessions arrive by themselves.** Automatic delivery is now on by default
+  (`messages.auto_deliver`; an explicit `false` in settings.yaml stays off), and besides Claude it
+  reaches agents that report the end of their turn (codex), telling them to run `agenterm msg read`.
+  When a message still waits, the Messages tab says why (unsent text in its input, a heads-up
+  rather than a reply, an agent that doesn't report its turn end, delivery off…), with
+  **Deliver now** at hand.
+
 ## [0.10.0] - 2026-11-19
 
 ### Added
