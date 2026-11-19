@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -111,11 +112,26 @@ func startDaemonIn(t *testing.T, p paths.Paths, notifier func(daemon.Notificatio
 				t.Errorf("Run: %v", err)
 			}
 		case <-time.After(5 * time.Second):
-			t.Error("daemon did not stop")
+			// The daemon runs in this process: show what it is stuck on.
+			t.Errorf("daemon did not stop; agenterm goroutines:\n%s", agentermStacks())
 		}
 	}
 	t.Cleanup(stop)
 	return c, stop
+}
+
+// agentermStacks is the stacks of the goroutines that are in agenterm code
+// (the rest are the runtime's and the test framework's).
+func agentermStacks() string {
+	buf := make([]byte, 4<<20)
+	buf = buf[:runtime.Stack(buf, true)]
+	var out []string
+	for _, g := range strings.Split(string(buf), "\n\n") {
+		if strings.Contains(g, "agenterm/internal/") && !strings.Contains(g, "agentermStacks") {
+			out = append(out, g)
+		}
+	}
+	return strings.Join(out, "\n\n")
 }
 
 func ctxT(t *testing.T) context.Context {
