@@ -88,8 +88,12 @@ Launches a session and prints its id. In worktree mode it prints `<id>  <branch>
 | `--branch B` | branch for `--worktree` (defaults to `agent/<profile>-<first 4 of the id>`) |
 | `--base X` | base branch or commit for `--worktree` (defaults to the project's current branch) |
 | `--in-worktree ID` | launches the session in an existing agenterm worktree (e.g. an orphan) |
+| `--trust-setup` | trusts and runs the repository's worktree setup (`.agenterm.yaml`) |
+| `--no-setup` | creates the worktree without running its setup (files are still copied) |
 
-`--branch` and `--base` require `--worktree`. Fails if the profile doesn't exist, has an error or its
+`--branch`, `--base`, `--trust-setup` and `--no-setup` require `--worktree`. A setup that isn't
+trusted yet makes `--worktree` fail with `setup_untrusted` (see
+[worktrees.md](worktrees.md#setting-up-new-worktrees)). Fails if the profile doesn't exist, has an error or its
 command isn't installed (the message includes the catalog's install hint). See
 [worktrees.md](worktrees.md).
 

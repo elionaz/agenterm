@@ -65,6 +65,9 @@ func (p Paths) Profiles() string    { return filepath.Join(p.ConfigDir, "profile
 func (p Paths) Projects() string    { return filepath.Join(p.ConfigDir, "projects.json") }
 func (p Paths) Settings() string    { return filepath.Join(p.ConfigDir, "settings.yaml") }
 
+// Trust records the worktree setup commands the user allowed, per repository.
+func (p Paths) Trust() string { return filepath.Join(p.ConfigDir, "trust.json") }
+
 // HooksDir holds generated, agenterm-only agent integration files (Claude
 // settings, opencode plugin…). It is never inside a project.
 func (p Paths) HooksDir() string { return filepath.Join(p.RuntimeDir, "hooks") }

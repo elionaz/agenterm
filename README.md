@@ -42,8 +42,10 @@ tells you when one of them needs you.
 - **Live activity**: what each agent is doing ("Editing main.go"), a turn timer, a "stalled?"
   warning, progress bars (OSC 9;4) and an **Overview** of every session (⌘0).
 - **Per-session git worktrees**: new agents start on their own branch and folder by default, so
-  agents working in parallel never share changes; the **Changes** tab shows the diff and lets you
-  merge into the base or safely remove the worktree.
+  agents working in parallel never share changes. An `.agenterm.yaml` in the repository copies
+  `.env` and other untracked files into each new worktree and runs a setup (`npm install`) before
+  the agent starts. The **Changes** tab shows the diff and lets you merge into the base or safely
+  remove the worktree.
 - **Pull requests on GitHub and GitLab** from the **Changes** tab, for worktrees and for the
   branch your main folder is on: state, checks and review, the comments (line comments jump to the
   file), merging on the host, and opening a new one with a suggested title and description. It

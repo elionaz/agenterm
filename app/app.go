@@ -428,6 +428,9 @@ type SpawnOptions struct {
 	Branch     string `json:"branch"`
 	Base       string `json:"base"`
 	WorktreeID string `json:"worktreeId"` // reopen an existing worktree
+	// TrustSetup / SkipSetup answer a setup_untrusted refusal.
+	TrustSetup bool `json:"trustSetup"`
+	SkipSetup  bool `json:"skipSetup"`
 }
 
 // SpawnIn launches a session in the project folder, a new worktree or an
@@ -439,6 +442,7 @@ func (a *App) SpawnIn(projectID, profileID string, cols, rows int, o SpawnOption
 		info, err = a.client.Spawn(ctx, protocol.SpawnParams{
 			ProjectID: projectID, ProfileID: profileID, Cols: clampDim(cols), Rows: clampDim(rows),
 			Mode: o.Mode, Branch: o.Branch, Base: o.Base, WorktreeID: o.WorktreeID,
+			TrustSetup: o.TrustSetup, SkipSetup: o.SkipSetup,
 		})
 		return err
 	})
@@ -725,6 +729,17 @@ func (a *App) RemoveWorktree(id string, force, deleteBranch, dryRun bool) (proto
 	var out protocol.WorktreeRemoveResult
 	err := a.callTimeout(gitTO, func(ctx context.Context) (err error) {
 		out, err = a.client.WorktreeRemove(ctx, protocol.WorktreeRemoveParams{ID: id, Force: force, DeleteBranch: deleteBranch, DryRun: dryRun})
+		return err
+	})
+	return out, err
+}
+
+// CopyIntoWorktree copies files from the main folder into a worktree;
+// save also writes them into a new .agenterm.yaml.
+func (a *App) CopyIntoWorktree(id string, files []string, save bool) (protocol.WorktreeCopyResult, error) {
+	var out protocol.WorktreeCopyResult
+	err := a.callTimeout(gitTO, func(ctx context.Context) (err error) {
+		out, err = a.client.WorktreeCopy(ctx, protocol.WorktreeCopyParams{ID: id, Files: files, Save: save})
 		return err
 	})
 	return out, err

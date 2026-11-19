@@ -60,6 +60,39 @@ Las integraciones de hooks funcionan igual en un worktree: Claude Code recibe `-
 ruta absoluta y no se escribe nada en el worktree ni en el proyecto. Claude Code puede pedir
 confianza la primera vez para la carpeta nueva.
 
+## Preparar los worktrees nuevos
+
+Un worktree nuevo solo tiene lo que git sigue, así que la primera corrida de un agente suele fallar:
+no hay `.env` ni `node_modules`. Un **`.agenterm.yaml`** en la raíz del repositorio (haz commit para
+compartirlo) dice qué recibe cada worktree nuevo:
+
+```yaml
+worktree:
+  copy: [.env, .env.local, config/local.json]   # desde la carpeta principal; se aceptan globs simples
+  setup: npm install                             # corre en el worktree nuevo antes del agente
+```
+
+- **`copy`**: archivos o carpetas, relativos a la raíz del repositorio, que se copian desde la
+  carpeta principal justo después de `git worktree add`, con su misma ruta. No se sobrescribe nada
+  (un archivo que git ya puso ahí se queda), lo que no existe se salta, y nada puede apuntar fuera
+  del repositorio (se rechazan rutas absolutas, `..`, `.git` y enlaces que salgan de él). En macOS
+  los archivos se clonan (APFS), así que hasta una carpeta grande casi no cuesta.
+- **`setup`**: un comando de shell que corre en la terminal de la sesión, en tu shell de login,
+  antes de que arranque el agente; ves su salida ahí. Si falla, la terminal lo dice y espera:
+  **Enter** arranca el agente igual, **Ctrl-C** termina la sesión.
+- **Confianza**: un repositorio puede traer cualquier comando, así que agenterm solo corre un
+  `setup` cuando confiaste en él. La primera vez (y cada vez que el comando cambia) la app lo
+  muestra y pregunta: **Confiar y crear**, **Crear sin setup** o cancelar. Desde la CLI:
+  `agenterm spawn --worktree --trust-setup` o `--no-setup` (sin ninguno, el spawn falla con
+  `setup_untrusted` y el comando). Lo que confiaste se guarda por repositorio en
+  `~/.agenterm/trust.json` (solo un hash del comando).
+- **Solo worktrees nuevos**: retomar una sesión o reabrir un worktree no vuelve a correr nada.
+- **`node_modules`**: deja que `setup` lo instale (`npm install`, `pnpm i`…) en vez de copiarlo:
+  las ramas pueden tener dependencias distintas, y una carpeta compartida las mezclaría.
+- **Sin el archivo**: si un repositorio no tiene `.agenterm.yaml` y git ignora archivos `.env*` en
+  su raíz, la app ofrece copiarlos al worktree nuevo, una vez o escribiendo un primer
+  `.agenterm.yaml` con ellos (`agenterm spawn` imprime una nota en su lugar).
+
 ## Ciclo de vida
 
 - **Matar una sesión nunca borra su worktree.** El registro (`worktrees.json`) sobrevive a los

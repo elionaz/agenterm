@@ -117,6 +117,7 @@ siguen funcionando), para que la app pueda mostrarlos en su idioma (ver
 | `merge_main_dirty` | `{dir, count}` |
 | `merge_wrong_branch` | `{dir, current, base}` (`current` vacío = HEAD separado) |
 | `merge_base_behind` | `{dir, base, upstream, count}` |
+| `setup_untrusted` | `{repo, file, command}` |
 | `merge_nothing` | `{branch, base}` |
 | `merge_conflict` | `{branch, base, files}` |
 | `branch_missing`, `branch_exists`, `branch_invalid` | `{branch}` |

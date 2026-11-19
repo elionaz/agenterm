@@ -289,6 +289,12 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 			return nil, err
 		}
 		return res, nil
+	case protocol.MethodWorktreeCopy:
+		p, err := decode[protocol.WorktreeCopyParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.worktreeCopy(p)
 	case protocol.MethodWorktreeMerge:
 		p, err := decode[protocol.WorktreeRef](req.Params)
 		if err != nil {
@@ -432,6 +438,8 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 	cwd := proj.Path
 	g := sessGit{Mode: protocol.ModeSame, Dir: proj.Path}
 	var created *worktree.Record
+	var setup string
+	var suggest []string
 	switch {
 	case p.WorktreeID != "":
 		rec, err := s.wts.Get(p.WorktreeID)
@@ -446,11 +454,20 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 		}
 		cwd, g = recCwd(rec), recGit(rec)
 	case mode == protocol.ModeWorktree:
+		prep, err := s.worktreeSetup(proj, p)
+		if err != nil {
+			return protocol.SessionInfo{}, err
+		}
 		rec, dir, err := s.createWorktree(proj, prof.ID, id, p.Branch, p.Base)
 		if err != nil {
 			return protocol.SessionInfo{}, err
 		}
 		created, cwd, g = &rec, dir, recGit(rec)
+		if err := s.prepareWorktree(rec, prep); err != nil {
+			s.discardWorktree(rec)
+			return protocol.SessionInfo{}, err
+		}
+		setup, suggest = prep.run, prep.suggest
 	case mode == "" || mode == protocol.ModeSame:
 	default:
 		return protocol.SessionInfo{}, fmt.Errorf("unknown mode %q (same or worktree)", p.Mode)
@@ -461,7 +478,8 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 
 	info, err := s.startSession(startSpec{
 		id: id, proj: proj, lp: lp, cwd: cwd, g: g, cols: p.Cols, rows: p.Rows,
-		args: append(slices.Clone(lp.inj.Args), prof.Args...),
+		args:  append(slices.Clone(lp.inj.Args), prof.Args...),
+		setup: setup,
 	})
 	if err != nil {
 		s.mu.Lock()
@@ -472,6 +490,7 @@ func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
 		}
 		return protocol.SessionInfo{}, err
 	}
+	info.SuggestCopy = suggest
 	return info, nil
 }
 
@@ -488,6 +507,9 @@ type startSpec struct {
 	scrollback []byte
 	createdAt  time.Time
 	resume     *sessionstore.Resume
+	// setup is a worktree setup command to run before the agent (a new
+	// worktree only; see setupLaunch).
+	setup string
 }
 
 // startSession spawns the process, registers the session (replacing a
@@ -499,6 +521,12 @@ func (s *Server) startSession(sp startSpec) (protocol.SessionInfo, error) {
 	if err != nil {
 		s.log.Warn("settings", "err", err)
 	}
+	env := append(prof.Environ(), sp.lp.inj.Env...)
+	var launch []string
+	if sp.setup != "" {
+		launch = setupLaunch(sp.lp.cmd, sp.args)
+		env = append(env, "AGENTERM_SETUP="+sp.setup)
+	}
 	sess, err := session.Spawn(session.Options{
 		ID:          id,
 		ProjectID:   proj.ID,
@@ -508,7 +536,8 @@ func (s *Server) startSession(sp startSpec) (protocol.SessionInfo, error) {
 		Cwd:         sp.cwd,
 		Cmd:         sp.lp.cmd,
 		Args:        sp.args,
-		Env:         append(prof.Environ(), sp.lp.inj.Env...),
+		Launch:      launch,
+		Env:         env,
 		SockPath:    s.sock,
 		Home:        s.homeEnv(),
 		Cols:        sp.cols,
