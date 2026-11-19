@@ -7,7 +7,7 @@
     changesLabel,
     needsAttention,
     rememberMode,
-    joinArgs,
+    displayArgs,
     rememberedMode,
     sessionTitle,
     type Profile,
@@ -260,7 +260,7 @@
   const suspendedCount = $derived(sessions.filter((s) => s.state === 'suspended').length)
 
   function tooltip(s: Session): string {
-    let base = `${stateLabel(s)} · ${[s.cmd, joinArgs(s.args)].filter(Boolean).join(' ')} · ${s.cwd} · ${s.id}`
+    let base = `${stateLabel(s)} · ${[s.cmd, displayArgs(s.args)].filter(Boolean).join(' ')} · ${s.cwd} · ${s.id}`
     if (permHelp(s.permission)) base = `${permHelp(s.permission)}\n${base}`
     if (s.state === 'suspended') {
       const at = s.suspendedAt ? new Date(s.suspendedAt).toLocaleString() : ''

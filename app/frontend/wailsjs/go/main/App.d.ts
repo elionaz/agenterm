@@ -21,6 +21,8 @@ export function CopyIntoWorktree(arg1:string,arg2:Array<string>,arg3:boolean):Pr
 
 export function DaemonStatus():Promise<main.DaemonStatus>;
 
+export function DeleteInstruction(arg1:string,arg2:string):Promise<protocol.Instructions>;
+
 export function DeleteProfile(arg1:string):Promise<Array<profile.Profile>>;
 
 export function DeliverMessages(arg1:string):Promise<number>;
@@ -50,6 +52,8 @@ export function InputBase64(arg1:string,arg2:string):Promise<void>;
 export function InstallAgent(arg1:string,arg2:string,arg3:number,arg4:number):Promise<protocol.SessionInfo>;
 
 export function InstallUpdateNow():Promise<boolean>;
+
+export function Instructions(arg1:string):Promise<protocol.Instructions>;
 
 export function Kill(arg1:string):Promise<protocol.SessionInfo>;
 
@@ -87,6 +91,8 @@ export function RemoveWorktree(arg1:string,arg2:boolean,arg3:boolean,arg4:boolea
 
 export function Rename(arg1:string,arg2:string):Promise<protocol.SessionInfo>;
 
+export function ReorderInstructions(arg1:Array<string>,arg2:string):Promise<protocol.Instructions>;
+
 export function ReorderProfiles(arg1:Array<string>):Promise<Array<profile.Profile>>;
 
 export function ReorderProjects(arg1:Array<string>):Promise<Array<project.Project>>;
@@ -104,6 +110,8 @@ export function RestartDaemon():Promise<protocol.SessionBatch>;
 export function Resume(arg1:string):Promise<protocol.SessionInfo>;
 
 export function ResumeAll():Promise<protocol.SessionBatch>;
+
+export function SaveInstruction(arg1:protocol.InstructionTopic,arg2:string,arg3:string):Promise<protocol.Instructions>;
 
 export function SaveProfile(arg1:profile.Entry):Promise<Array<profile.Profile>>;
 

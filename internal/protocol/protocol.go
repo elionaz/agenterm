@@ -103,6 +103,14 @@ const (
 	MethodMsgTake    = "msg.take"
 	MethodMsgDeliver = "msg.deliver"
 	MethodMsgAck     = "msg.ack"
+
+	// The user's standing instructions for the agents (topic files),
+	// handed to sessions when they start.
+	MethodInstructionsList    = "instructions.list"
+	MethodInstructionsSave    = "instructions.save"
+	MethodInstructionsDelete  = "instructions.delete"
+	MethodInstructionsReorder = "instructions.reorder"
+	MethodInstructionsShow    = "instructions.show"
 )
 
 // Session modes (SpawnParams.Mode, SessionInfo.Mode).
@@ -853,6 +861,76 @@ type MsgTakeResult struct {
 	Enabled  bool              `json:"enabled"`
 	// Self is the asking session's id.
 	Self string `json:"self"`
+	// Instructions (with Intro): the user's standing instructions for the
+	// session's project, composed ("" when none). Sent even when messages
+	// are off.
+	Instructions string `json:"instructions,omitempty"`
+}
+
+// InstructionsParams: ProjectID (id or name) also composes what a session
+// of that project receives.
+type InstructionsParams struct {
+	ProjectID string `json:"projectId,omitempty"`
+}
+
+// InstructionTopic is one topic file (package instructions).
+type InstructionTopic struct {
+	Slug        string `json:"slug"`
+	Title       string `json:"title"`
+	Description string `json:"description,omitempty"`
+	// Load: "always" (whole text at start) or "on_demand" (the session
+	// reads it with agenterm instructions show).
+	Load string `json:"load"`
+	// Projects it applies to; empty: all.
+	Projects []string `json:"projects,omitempty"`
+	Enabled  bool     `json:"enabled"`
+	Order    int      `json:"order"`
+	Body     string   `json:"body"`
+}
+
+// Instructions are the user's standing instruction topics.
+type Instructions struct {
+	Topics []InstructionTopic `json:"topics"`
+	// Errors: topic files that could not be read.
+	Errors []string `json:"errors,omitempty"`
+	Dir    string   `json:"dir"`
+	// ProjectID is the resolved project ("" without one).
+	ProjectID string `json:"projectId,omitempty"`
+	// Composed is what a session of ProjectID receives at start.
+	Composed string `json:"composed"`
+	// CodexOwn: codex's config.toml sets developer_instructions, which
+	// agenterm leaves alone (its sessions don't get these then).
+	CodexOwn bool `json:"codexOwn,omitempty"`
+	// MaxBytes bounds each topic's text, MaxTotal what loads "always".
+	MaxBytes int `json:"maxBytes"`
+	MaxTotal int `json:"maxTotal"`
+}
+
+// InstructionsSaveParams saves Topic: a new one when OldSlug is "", else
+// the topic OldSlug (its slug stays). ProjectID: as in InstructionsParams.
+type InstructionsSaveParams struct {
+	Topic     InstructionTopic `json:"topic"`
+	OldSlug   string           `json:"oldSlug,omitempty"`
+	ProjectID string           `json:"projectId,omitempty"`
+}
+
+// InstructionsSlugParams names a topic (delete, show).
+type InstructionsSlugParams struct {
+	Slug      string `json:"slug"`
+	ProjectID string `json:"projectId,omitempty"`
+}
+
+// InstructionsReorderParams puts the topics in Slugs' order.
+type InstructionsReorderParams struct {
+	Slugs     []string `json:"slugs"`
+	ProjectID string   `json:"projectId,omitempty"`
+}
+
+// InstructionTopicText is a topic's text, for an agent (instructions.show).
+type InstructionTopicText struct {
+	Slug  string `json:"slug"`
+	Title string `json:"title"`
+	Body  string `json:"body"`
 }
 
 // MsgDeliverParams: the app's "Deliver" button for SessionID.

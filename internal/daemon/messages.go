@@ -321,6 +321,11 @@ func (s *Server) msgTake(caller *session.Session, p protocol.MsgTakeParams) (pro
 			"only a session can read its messages: run it inside an agenterm session")
 	}
 	res := protocol.MsgTakeResult{Messages: []mailbox.Message{}, Enabled: s.messagesEnabled(), Self: caller.ID}
+	if p.Intro {
+		if proj, err := s.projects.Get(caller.ProjectID); err == nil {
+			res.Instructions = s.sessionInstructions(proj)
+		}
+	}
 	if !res.Enabled {
 		return res, nil
 	}

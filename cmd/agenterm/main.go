@@ -67,6 +67,10 @@ Usage:
   agenterm msg read                   your new messages from other sessions
   agenterm msg list [--pending]       message history
   agenterm wait <sessionId> [--timeout 30m]   until it is idle, waiting for input or exited
+  agenterm instructions [<project>]   the standing instructions its sessions receive at start
+                                      (inside a session: its project; none: the all-project ones)
+  agenterm instructions list [<project>]   the instruction topics
+  agenterm instructions show <topic>  one topic's text (for topics that load on demand)
   agenterm version                    print the version and commit (also --version)
 
 Environment:
@@ -178,6 +182,8 @@ func run(args []string) error {
 		return cmdMsg(ctx, c, rest)
 	case "wait":
 		return cmdWait(ctx, c, rest)
+	case "instructions":
+		return cmdInstructions(ctx, c, rest)
 	case "kill":
 		if len(rest) != 1 {
 			return errors.New("usage: agenterm kill <sessionId>")
@@ -435,6 +441,74 @@ func cmdSpawn(ctx context.Context, c *client.Client, args []string) error {
 			fmt.Fprintln(os.Stderr, note)
 		}
 	}
+	return nil
+}
+
+// cmdInstructions: the standing instructions set in the app (Settings →
+// Instructions). With no subcommand, what a session of the project
+// receives at start; list: the topics; show: one topic's text (what an
+// agent runs for an "on demand" topic).
+func cmdInstructions(ctx context.Context, c *client.Client, args []string) error {
+	const usage = "usage: agenterm instructions [<project>] | list [<project>] | show <topic>"
+	sub := ""
+	if len(args) > 0 && (args[0] == "list" || args[0] == "show") {
+		sub, args = args[0], args[1:]
+	}
+	if len(args) > 1 {
+		return errors.New(usage)
+	}
+	if sub == "show" {
+		if len(args) != 1 {
+			return errors.New(usage)
+		}
+		t, err := c.ShowInstruction(ctx, args[0])
+		if err != nil {
+			return err
+		}
+		fmt.Printf("# %s\n\n%s\n", t.Title, t.Body)
+		return nil
+	}
+	project := ""
+	if len(args) == 1 {
+		project = args[0]
+	} else if id := os.Getenv("AGENTERM_SESSION"); id != "" {
+		if ss, err := c.Sessions(ctx); err == nil {
+			for _, s := range ss {
+				if s.ID == id {
+					project = s.ProjectID
+				}
+			}
+		}
+	}
+	r, err := c.Instructions(ctx, project)
+	if err != nil {
+		return err
+	}
+	for _, e := range r.Errors {
+		fmt.Fprintln(os.Stderr, "agenterm: skipped:", e)
+	}
+	if sub == "list" {
+		w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+		fmt.Fprintln(w, "TOPIC\tTITLE\tLOAD\tPROJECTS\tON\tBYTES")
+		for _, t := range r.Topics {
+			scope := "all"
+			if len(t.Projects) > 0 {
+				scope = strings.Join(t.Projects, ",")
+			}
+			on := "yes"
+			if !t.Enabled {
+				on = "no"
+			}
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%d\n", t.Slug, t.Title, t.Load, scope, on, len(t.Body))
+		}
+		fmt.Fprintf(w, "\n%s\n", r.Dir)
+		return w.Flush()
+	}
+	if r.Composed == "" {
+		fmt.Fprintln(os.Stderr, "no instructions (set them in agenterm: Settings → Instructions)")
+		return nil
+	}
+	fmt.Println(r.Composed)
 	return nil
 }
 

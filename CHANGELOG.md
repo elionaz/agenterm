@@ -13,6 +13,15 @@ releases may include breaking changes.
   it shows the exact command, runs it in a new terminal session of the current project (output and
   any password prompt in view) and rescans the agents when it succeeds.
 
+- **Standing instructions for the agents, by topic.** *Settings → Instructions* keeps one Markdown
+  file per topic (suggested: security, architecture, data management, git), each for every project
+  or only some. A topic loads **always** (its text at the start of each session) or **on demand**
+  (the session only gets its name and description, and reads it with `agenterm instructions show
+  <topic>` when it applies). Claude Code gets them through its SessionStart hook (again after
+  `/clear`, a resume or a compaction), codex as `developer_instructions`; the agents' configuration
+  and the repository are left alone. The tab says which agents receive them and previews what a
+  session gets; `agenterm instructions [list]` prints the same.
+
 ## [0.11.0] - 2026-11-19
 
 ### Added

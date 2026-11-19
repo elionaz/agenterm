@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
-	"slices"
 	"time"
 
 	"github.com/elionaz/agenterm/internal/apierr"
@@ -123,6 +122,37 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 			return nil, err
 		}
 		return profileList(s.profiles.Reorder(p.IDs))
+
+	case protocol.MethodInstructionsList:
+		p, err := decode[protocol.InstructionsParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.instructionsList(p.ProjectID)
+	case protocol.MethodInstructionsSave:
+		p, err := decode[protocol.InstructionsSaveParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.instructionsSave(p)
+	case protocol.MethodInstructionsDelete:
+		p, err := decode[protocol.InstructionsSlugParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.instructionsDelete(p)
+	case protocol.MethodInstructionsReorder:
+		p, err := decode[protocol.InstructionsReorderParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.instructionsReorder(p)
+	case protocol.MethodInstructionsShow:
+		p, err := decode[protocol.InstructionsSlugParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.instructionsShow(p)
 
 	case protocol.MethodSettingsGet:
 		st, err := settings.Load(s.cfg.Paths.Settings())
@@ -512,7 +542,7 @@ func (s *Server) spawnWith(p protocol.SpawnParams, extra spawnExtra) (protocol.S
 
 	info, err := s.startSession(startSpec{
 		id: id, proj: proj, lp: lp, cwd: cwd, g: g, cols: p.Cols, rows: p.Rows,
-		args:  append(slices.Clone(lp.inj.Args), prof.Args...),
+		args:  append(s.agentArgs(lp, proj), prof.Args...),
 		setup: setup, setupTitle: extra.setupTitle,
 	})
 	if err != nil {

@@ -168,6 +168,9 @@ Mensajes entre las sesiones de un proyecto; ver [messages.md](messages.md).
 | `agenterm msg read` | tus mensajes nuevos (solo dentro de una sesión); los marca como entregados |
 | `agenterm msg list [--pending] [--session ID \| --project ID]` | historial de mensajes (una sesión solo ve los suyos) |
 | `agenterm wait <sessionId> [--timeout 30m]` | hasta que la sesión quede inactiva, esperando input o terminada; código de salida 2 si se agota el tiempo |
+| `agenterm instructions [<proyecto>]` | las instrucciones que recibe al empezar una sesión del proyecto (dentro de una sesión: su proyecto; sin proyecto: los temas de todos los proyectos); ver [configuration.md](configuration.md#instrucciones-para-los-agentes) |
+| `agenterm instructions list [<proyecto>]` | los temas de instrucciones: nombre, título, carga, proyectos, activo, tamaño |
+| `agenterm instructions show <tema>` | el texto de un tema (lo que corre un agente para un tema bajo demanda) |
 
 ## Git
 

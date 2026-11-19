@@ -56,7 +56,7 @@
     api,
     attentionLabel,
     errorMessage,
-    joinArgs,
+    displayArgs,
     launchable,
     needsAttention,
     parseCodedError,
@@ -1118,7 +1118,7 @@
           <div class="pane" class:focused style={rectStyle(p.rect)} onmousedown={() => !focused && focusLeaf(p.leaf.id)}>
             <div class="pane-frame">
               {#if multi}
-                <div class="pane-head" title={s ? `${[s.cmd, joinArgs(s.args)].filter(Boolean).join(' ')} · ${s.cwd} · ${s.id}` : ''}>
+                <div class="pane-head" title={s ? `${[s.cmd, displayArgs(s.args)].filter(Boolean).join(' ')} · ${s.cwd} · ${s.id}` : ''}>
                   <span class="pane-name">{s ? sessionTitle(s) : t('panes.empty')}</span>
                   {#if s?.name}<span class="pane-profile">{s.profileId}</span>{/if}
                   {#if s?.model}<span class="pane-profile" title={s.model}>{prettyModel(s.model)}</span>{/if}
@@ -1276,6 +1276,8 @@
     {#if settingsOpen}
       <Settings
         {profiles}
+        {projects}
+        projectId={currentProjectId}
         onProfiles={(ps) => (profiles = ps)}
         onSettings={(st) => (defaultMode = st.git?.defaultMode === 'same' ? 'same' : 'worktree')}
         onInstall={(id) => void installAgent(id)}

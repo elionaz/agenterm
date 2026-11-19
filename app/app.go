@@ -381,6 +381,47 @@ func (a *App) SaveSettings(s SettingsPatch) (settings.Settings, error) {
 	return out, err
 }
 
+// Instructions lists the instruction topics and, with projectID, what a
+// session of that project receives.
+func (a *App) Instructions(projectID string) (protocol.Instructions, error) {
+	var out protocol.Instructions
+	err := a.call(func(ctx context.Context) (err error) {
+		out, err = a.client.Instructions(ctx, projectID)
+		return err
+	})
+	return out, err
+}
+
+// SaveInstruction saves a topic (new when oldSlug is "").
+func (a *App) SaveInstruction(t protocol.InstructionTopic, oldSlug, projectID string) (protocol.Instructions, error) {
+	var out protocol.Instructions
+	err := a.call(func(ctx context.Context) (err error) {
+		out, err = a.client.SaveInstruction(ctx, t, oldSlug, projectID)
+		return err
+	})
+	return out, err
+}
+
+// DeleteInstruction removes a topic.
+func (a *App) DeleteInstruction(slug, projectID string) (protocol.Instructions, error) {
+	var out protocol.Instructions
+	err := a.call(func(ctx context.Context) (err error) {
+		out, err = a.client.DeleteInstruction(ctx, slug, projectID)
+		return err
+	})
+	return out, err
+}
+
+// ReorderInstructions puts the topics in slugs' order.
+func (a *App) ReorderInstructions(slugs []string, projectID string) (protocol.Instructions, error) {
+	var out protocol.Instructions
+	err := a.call(func(ctx context.Context) (err error) {
+		out, err = a.client.ReorderInstructions(ctx, slugs, projectID)
+		return err
+	})
+	return out, err
+}
+
 // SystemLanguage is the language ui.language "auto" resolves to (macOS
 // preferred languages, then LANG): "en" or "es".
 func (a *App) SystemLanguage() string {

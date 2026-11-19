@@ -166,6 +166,9 @@ Messages between the sessions of a project; see [messages.md](messages.md).
 | `agenterm msg read` | your new messages (inside a session only); marks them delivered |
 | `agenterm msg list [--pending] [--session ID \| --project ID]` | message history (a session sees only its own) |
 | `agenterm wait <sessionId> [--timeout 30m]` | until the session is idle, waiting for input or exited; exit status 2 on timeout |
+| `agenterm instructions [<project>]` | the standing instructions a session of the project receives at start (inside a session: its project; none: the all-project topics); see [configuration.md](configuration.md#standing-instructions-for-the-agents) |
+| `agenterm instructions list [<project>]` | the instruction topics: name, title, load, projects, active, size |
+| `agenterm instructions show <topic>` | one topic's text (what an agent runs for an on-demand topic) |
 
 ## Git
 

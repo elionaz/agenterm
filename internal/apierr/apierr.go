@@ -37,6 +37,9 @@ const (
 	// command the user has not trusted yet (spawn again with trustSetup or
 	// skipSetup). Data: {repo, file, command}.
 	SetupUntrusted = "setup_untrusted"
+	// InstructionsNotFound: no instructions topic with that slug.
+	// Data: {slug}.
+	InstructionsNotFound = "instructions_not_found"
 	// MergeNothing: the branch has no commits the base lacks.
 	// Data: {branch, base}.
 	MergeNothing = "merge_nothing"
