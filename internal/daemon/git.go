@@ -100,6 +100,14 @@ func compareBase(ctx context.Context, g sessGit) (ref, from string, merged bool,
 	if gitx.AlreadyIn(ctx, g.Dir, ref, mb, "HEAD") {
 		return ref, "HEAD", true, nil
 	}
+	// The host merged it, the local base was not pulled and the branch
+	// starts from where both still agree (so ref is the stale local base):
+	// the upstream holds the merge.
+	if up := gitx.Upstream(ctx, g.Dir, g.Base); up != "" && up != ref {
+		if mbUp, err := gitx.MergeBase(ctx, g.Dir, up, "HEAD"); err == nil && gitx.AlreadyIn(ctx, g.Dir, up, mbUp, "HEAD") {
+			return up, "HEAD", true, nil
+		}
+	}
 	return ref, mb, false, nil
 }
 
@@ -322,16 +330,31 @@ const gitFetchInterval = 5 * time.Minute
 // that fails (offline, no credential: it never prompts) waits for the
 // next interval like one that worked.
 func (s *Server) maybeFetch(g sessGit) {
-	if g.Mode != protocol.ModeWorktree || g.Base == "" || g.WorktreeID == "" || gitFetchInterval <= 0 {
+	s.fetchBase(g, gitFetchInterval, "")
+}
+
+// mergedFetchInterval is how often, at most, forge.status fetches a
+// worktree base's upstream when the host says the branch's pull request
+// was merged and the local copy does not show it yet: Changes drops to
+// zero right away instead of after the next periodic fetch.
+const mergedFetchInterval = 30 * time.Second
+
+// fetchBase fetches, in the background, the upstream of worktree g's base
+// branch, unless the last fetch of it for the same reason (slot) was less
+// than every ago; when it moved, the sessions of the repository refresh
+// their git info. Each slot has its own clock: a periodic fetch just
+// before a merge does not hold back the one the merge asks for.
+func (s *Server) fetchBase(g sessGit, every time.Duration, slot string) {
+	if g.Mode != protocol.ModeWorktree || g.Base == "" || g.WorktreeID == "" || every <= 0 {
 		return
 	}
 	rec, err := s.wts.Get(g.WorktreeID)
 	if err != nil {
 		return
 	}
-	key := rec.Repo + "\x00" + g.Base
+	key := rec.Repo + "\x00" + g.Base + "\x00" + slot
 	s.gitMu.Lock()
-	if s.bg.Err() != nil || time.Since(s.fetched[key]) < gitFetchInterval {
+	if s.bg.Err() != nil || time.Since(s.fetched[key]) < every {
 		s.gitMu.Unlock()
 		return
 	}

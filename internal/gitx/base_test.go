@@ -33,6 +33,20 @@ func hostCommit(t *testing.T, host, file, content, msg string) {
 	sh(t, host, "push", "-q", "origin", "main")
 }
 
+// A configured upstream on another remote wins over origin/<branch>.
+func TestUpstreamConfigured(t *testing.T) {
+	c := ctx(t)
+	repo := newRepo(t)
+	bare := filepath.Join(canon(t.TempDir()), "hub.git")
+	sh(t, repo, "init", "-q", "--bare", "-b", "main", bare)
+	sh(t, repo, "remote", "add", "hub", bare)
+	sh(t, repo, "push", "-q", "-u", "hub", "main")
+	sh(t, repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+	if got := Upstream(c, repo, "main"); got != "refs/remotes/hub/main" {
+		t.Fatalf("Upstream(main) = %q, want refs/remotes/hub/main", got)
+	}
+}
+
 func TestFreshestBaseUsesUpstreamWhenLocalIsBehind(t *testing.T) {
 	c := ctx(t)
 	repo := newRepo(t)

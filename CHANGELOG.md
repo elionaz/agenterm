@@ -54,6 +54,11 @@ releases may include breaking changes.
   `agenterm` command; at launch the app now adds a `panal` link next to any `agenterm` link into
   its bundle (in `/opt/homebrew/bin`, `/usr/local/bin`, `~/.local/bin` and `~/bin`), and never
   replaces an existing `panal`.
+- **Changes drop to zero as soon as the pull request is merged.** When the host reports a worktree's
+  pull request as merged and the local base doesn't show it yet, panal fetches the base right away
+  (it used to wait up to the next periodic fetch, every 5 minutes and only on activity), and a branch
+  started from a base that was never pulled is recognized as merged too. A base whose configured
+  upstream is not `origin` is now fetched as well.
 - **Deleting a squash-merged branch no longer asks to force.** Removing a worktree with its branch
   counted the commits of a pull request merged with squash or rebase as unmerged; now commits whose
   changes the base already has don't count.
