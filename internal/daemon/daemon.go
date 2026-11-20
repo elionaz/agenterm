@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/elionaz/panal/internal/apierr"
+	"github.com/elionaz/panal/internal/history"
 	"github.com/elionaz/panal/internal/mailbox"
 	"github.com/elionaz/panal/internal/paths"
 	"github.com/elionaz/panal/internal/profile"
@@ -105,6 +106,7 @@ type Server struct {
 	// Persistence: the session registry and when each scrollback was
 	// last saved (OutputTotal; guarded by persistMu).
 	store       *sessionstore.Store
+	history     *history.Store
 	persistMu   sync.Mutex
 	saved       map[string]int64
 	stopping    atomic.Bool
@@ -196,6 +198,7 @@ func New(cfg Config) (*Server, error) {
 		stopped:  make(map[string]bool),
 		contFrom: make(map[string][]string),
 		store:    store,
+		history:  history.New(cfg.Paths.HistoryDir()),
 		mail:     mail,
 		saved:    make(map[string]int64),
 		conns:    make(map[net.Conn]struct{}),

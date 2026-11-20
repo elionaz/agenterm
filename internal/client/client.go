@@ -17,6 +17,7 @@ import (
 	"github.com/elionaz/panal/internal/apierr"
 	"github.com/elionaz/panal/internal/forge"
 	"github.com/elionaz/panal/internal/gitx"
+	"github.com/elionaz/panal/internal/history"
 	"github.com/elionaz/panal/internal/mailbox"
 	"github.com/elionaz/panal/internal/paths"
 	"github.com/elionaz/panal/internal/profile"
@@ -546,6 +547,33 @@ func (c *Client) Worktrees(ctx context.Context, projectID string) ([]protocol.Wo
 func (c *Client) WorktreeRemove(ctx context.Context, p protocol.WorktreeRemoveParams) (protocol.WorktreeRemoveResult, error) {
 	var r protocol.WorktreeRemoveResult
 	err := c.Call(ctx, protocol.MethodWorktreeRemove, p, &r)
+	return r, err
+}
+
+// HistorySearch searches the archive of ended sessions.
+func (c *Client) HistorySearch(ctx context.Context, p protocol.HistorySearchParams) ([]history.Hit, error) {
+	var r protocol.HistorySearchResult
+	err := c.Call(ctx, protocol.MethodHistorySearch, p, &r)
+	return r.Hits, err
+}
+
+// HistoryGet returns an archived session with its terminal text.
+func (c *Client) HistoryGet(ctx context.Context, id string) (protocol.HistoryDetail, error) {
+	var r protocol.HistoryDetail
+	err := c.Call(ctx, protocol.MethodHistoryGet, protocol.HistoryRef{ID: id}, &r)
+	return r, err
+}
+
+// HistoryDelete removes an archived session.
+func (c *Client) HistoryDelete(ctx context.Context, id string) error {
+	return c.Call(ctx, protocol.MethodHistoryDelete, protocol.HistoryRef{ID: id}, nil)
+}
+
+// HistoryResume starts a session that reopens an archived session's agent
+// conversation.
+func (c *Client) HistoryResume(ctx context.Context, p protocol.HistoryResumeParams) (protocol.SessionInfo, error) {
+	var r protocol.SessionInfo
+	err := c.Call(ctx, protocol.MethodHistoryResume, p, &r)
 	return r, err
 }
 

@@ -237,13 +237,18 @@ func (s *Server) forgetRecord(sess *session.Session) {
 	if s.stopping.Load() {
 		return
 	}
-	s.mu.Lock()
-	current := s.sessions[sess.ID] == sess
-	s.mu.Unlock()
-	if !current {
+	if !s.isCurrent(sess) {
 		return
 	}
 	s.dropPersisted(sess.ID)
+}
+
+// isCurrent: sess is still the daemon's session for its id (not replaced
+// by a resumed one).
+func (s *Server) isCurrent(sess *session.Session) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.sessions[sess.ID] == sess
 }
 
 func (s *Server) dropPersisted(id string) {
@@ -509,6 +514,7 @@ func (s *Server) discard(id string) (protocol.SessionInfo, error) {
 	s.forgetLineage(id)
 	s.forgetMessages(sess)
 	sess.Release()
+	s.archive(sess, info.rec, info.suspendedAt)
 	s.dropPersisted(id)
 	s.log.Info("suspended session discarded", "id", id)
 	s.bus.publish(protocol.Event{Type: protocol.EventSessionRemoved, SessionID: id, At: time.Now().UTC()})

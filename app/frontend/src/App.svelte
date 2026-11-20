@@ -10,6 +10,7 @@
   import Grid from './lib/Grid.svelte'
   import ProgressBar from './lib/ProgressBar.svelte'
   import Settings from './lib/Settings.svelte'
+  import History from './lib/History.svelte'
   import Sidebar from './lib/Sidebar.svelte'
   import ProjectBadge from './lib/ProjectBadge.svelte'
   import type { ProjectPatch } from './lib/badge'
@@ -91,6 +92,9 @@
   let restartingDaemon = $state(false)
   let loaded = $state(false)
   let settingsOpen = $state(false)
+  /** The past-sessions view; historyStamp bumps on history.changed. */
+  let historyOpen = $state(false)
+  let historyStamp = $state(0)
   let gridOpen = $state(false)
   /** Project the grid shows (null: the current one). */
   let gridProjectId = $state<string | null>(null)
@@ -692,11 +696,39 @@
     terms.focus()
   }
 
+  function openHistory() {
+    if (settingsOpen) settingsOpen = false
+    historyOpen = true
+    closeSearch(false)
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+  }
+
+  function closeHistory() {
+    historyOpen = false
+    terms.focus()
+  }
+
+  /** Reopens an archived session's conversation in a new session. */
+  async function resumeHistory(id: string) {
+    const { cols, rows } = paneSize()
+    let info: Session
+    try {
+      info = await api.resumeHistory(id, cols, rows)
+    } catch (e) {
+      throw new Error(errorMessage(e))
+    }
+    if (!sessions.some((s) => s.id === info.id)) sessions = [...sessions, info]
+    historyOpen = false
+    currentProjectId = info.projectId
+    select(info.id)
+  }
+
   /** A sidebar action that goes somewhere (a session, a project, the
    * overview…) closes Settings first, as × does (unsaved edits included). */
   function leavingSettings<A extends unknown[], R>(fn: (...args: A) => R): (...args: A) => R {
     return (...args) => {
       if (settingsOpen) closeSettings()
+      if (historyOpen) closeHistory()
       return fn(...args)
     }
   }
@@ -887,6 +919,9 @@
       case 'worktree.changed':
         if (ev.projectId) void refreshWorktrees(ev.projectId)
         break
+      case 'history.changed':
+        historyStamp++
+        break
       case 'project.changed':
         void guard(api.listProjects()).then((ps) => ps && (projects = ps))
         break
@@ -916,14 +951,20 @@
     if (!sc) return
     e.preventDefault()
     if (sc.kind === 'settings') {
+      if (historyOpen) historyOpen = false
       openSettings()
+      return
+    }
+    if (sc.kind === 'history') {
+      if (historyOpen) closeHistory()
+      else openHistory()
       return
     }
     if (sc.kind === 'font') {
       bumpFont(sc.delta)
       return
     }
-    if (settingsOpen) return
+    if (settingsOpen || historyOpen) return
     const covered = gridOpen || !!orphanView
     switch (sc.kind) {
       case 'grid':
@@ -1075,6 +1116,7 @@
     onUpdateProject={updateProject}
     onReorderSessions={reorderSessions}
     onOpenSettings={openSettings}
+    onOpenHistory={openHistory}
     onOpenGrid={leavingSettings(openGrid)}
     overviewOpen={gridOpen && !gridProjectId}
     {now}
@@ -1304,6 +1346,16 @@
           />
         {/key}
       </div>
+    {/if}
+
+    {#if historyOpen && !settingsOpen}
+      <History
+        {projects}
+        projectId={currentProjectId}
+        stamp={historyStamp}
+        onResume={resumeHistory}
+        onClose={closeHistory}
+      />
     {/if}
 
     {#if settingsOpen}

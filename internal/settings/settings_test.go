@@ -115,7 +115,8 @@ func TestSaveRoundTrip(t *testing.T) {
 	want := Settings{Notify: Notify{Enabled: true, Sound: true, OnApproval: true, OnQuestion: false, OnDone: false, OnError: true, Fallback: FallbackOsascript}, Activity: Activity{StallSeconds: 60},
 		Git: Git{Editor: "cursor -n", WorktreeDir: "~/wt", DefaultMode: ModeWorktree}, UI: UI{Language: "es", Appearance: AppearanceLight},
 		Sessions: Sessions{Restore: RestoreAlways},
-		Terminal: Terminal{FontFamily: "Menlo", FontSize: 14, LineHeight: 1.2, CursorStyle: "bar", Theme: "silent-alarm"}}
+		Terminal: Terminal{FontFamily: "Menlo", FontSize: 14, LineHeight: 1.2, CursorStyle: "bar", Theme: "silent-alarm"},
+		History:  History{Enabled: false, Keep: 120}}
 	if err := Save(p, want); err != nil {
 		t.Fatal(err)
 	}
@@ -292,5 +293,20 @@ func TestBrowserSettings(t *testing.T) {
 	out, err := Load(path)
 	if err != nil || out.Browser != in.Browser {
 		t.Fatalf("round trip = %+v, %v", out.Browser, err)
+	}
+}
+
+func TestHistoryDefaults(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "settings.yaml")
+	if st, _ := Load(p); !st.History.Enabled || st.History.Keep != DefaultHistoryKeep {
+		t.Fatalf("defaults = %+v", st.History)
+	}
+	os.WriteFile(p, []byte("history:\n  keep: -3\n"), 0o600)
+	if st, _ := Load(p); !st.History.Enabled || st.History.Keep != DefaultHistoryKeep {
+		t.Fatalf("keep -3 = %+v", st.History)
+	}
+	os.WriteFile(p, []byte("history:\n  enabled: false\n  keep: 99999\n"), 0o600)
+	if st, _ := Load(p); st.History.Enabled || st.History.Keep != 5000 {
+		t.Fatalf("off, huge = %+v", st.History)
 	}
 }

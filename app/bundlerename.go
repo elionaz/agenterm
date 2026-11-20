@@ -83,3 +83,30 @@ func pathExists(p string) bool {
 	_, err := os.Lstat(p)
 	return !errors.Is(err, os.ErrNotExist)
 }
+
+// addPanalLinks makes a panal command next to every agenterm one that
+// points into bundle (Homebrew's old agenterm cask linked only agenterm,
+// so after the rename `panal` was not on the PATH). A dir that already has
+// a panal entry, of any kind, is left alone. It returns the links made.
+func addPanalLinks(dirs []string, bundle string) []string {
+	cli := filepath.Join(bundle, "Contents", "Helpers", "panal")
+	if bundle == "" || !pathExists(cli) {
+		return nil
+	}
+	var done []string
+	for _, d := range dirs {
+		old := filepath.Join(d, "agenterm")
+		target, err := os.Readlink(old)
+		if err != nil || !strings.HasPrefix(target, bundle+"/") {
+			continue
+		}
+		link := filepath.Join(d, "panal")
+		if pathExists(link) {
+			continue
+		}
+		if os.Symlink(cli, link) == nil {
+			done = append(done, link)
+		}
+	}
+	return done
+}

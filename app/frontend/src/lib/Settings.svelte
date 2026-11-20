@@ -323,6 +323,22 @@
     }
   }
 
+  /** The archive of ended sessions (history.*): saved whole, right away. */
+  let historyCfg = $state<Settings['history'] | null>(null)
+  let historyError = $state<string | null>(null)
+  async function saveHistory(patch: Partial<Settings['history']>) {
+    if (!historyCfg) return
+    const prev = { ...historyCfg }
+    historyCfg = { ...historyCfg, ...patch }
+    historyError = null
+    try {
+      historyCfg = (await api.saveSettings({ history: historyCfg })).history
+    } catch (e) {
+      historyCfg = prev
+      historyError = errorMessage(e)
+    }
+  }
+
   /** The agents' browser (browser.*): saved whole, right away. */
   let browserCfg = $state<Settings['browser'] | null>(null)
   let browserInfo = $state<BrowserStatus | null>(null)
@@ -695,6 +711,7 @@
     messagesOn = s.messages?.enabled ?? true
     autoDeliver = s.messages?.autoDeliver ?? true
     browserCfg = s.browser ?? { enabled: true, headless: false, path: '' }
+    historyCfg = s.history ?? { enabled: true, keep: 300 }
     setAppearance(s.ui?.appearance)
     setTermPrefs(s.terminal)
     fontFamily = termPrefs().fontFamily
@@ -930,6 +947,18 @@
           {/if}
         {/if}
         {#if browserError}<div class="error">{browserError}</div>{/if}
+
+        <h3 class="group">{t('settings.h.head')}</h3>
+        {#if historyCfg}
+          <label class="check">
+            <input type="checkbox" checked={historyCfg.enabled} onchange={(e) => saveHistory({ enabled: e.currentTarget.checked })} />
+            <span>
+              <b>{t('settings.h.enabled')}</b>
+              <em>{t('settings.h.enabledHelp', { n: historyCfg.keep })}</em>
+            </span>
+          </label>
+        {/if}
+        {#if historyError}<div class="error">{historyError}</div>{/if}
 
         <h3 class="group">{t('settings.updates')}</h3>
         {#if updater}

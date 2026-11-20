@@ -16,6 +16,7 @@ import (
 	"github.com/elionaz/panal/internal/client"
 	"github.com/elionaz/panal/internal/forge"
 	"github.com/elionaz/panal/internal/gitx"
+	"github.com/elionaz/panal/internal/history"
 	"github.com/elionaz/panal/internal/i18n"
 	"github.com/elionaz/panal/internal/mailbox"
 	"github.com/elionaz/panal/internal/paths"
@@ -369,6 +370,7 @@ type SettingsPatch struct {
 	Terminal *settings.Terminal `json:"terminal,omitempty"`
 	Messages *settings.Messages `json:"messages,omitempty"`
 	Browser  *settings.Browser  `json:"browser,omitempty"`
+	History  *settings.History  `json:"history,omitempty"`
 }
 
 func (a *App) SaveSettings(s SettingsPatch) (settings.Settings, error) {
@@ -827,6 +829,42 @@ func (a *App) RemoveWorktree(id string, force, deleteBranch, dryRun bool) (proto
 	var out protocol.WorktreeRemoveResult
 	err := a.callTimeout(gitTO, func(ctx context.Context) (err error) {
 		out, err = a.client.WorktreeRemove(ctx, protocol.WorktreeRemoveParams{ID: id, Force: force, DeleteBranch: deleteBranch, DryRun: dryRun})
+		return err
+	})
+	return out, err
+}
+
+// SearchHistory searches the ended agent sessions (query "": the latest).
+func (a *App) SearchHistory(query, projectID string, limit int) ([]history.Hit, error) {
+	var out []history.Hit
+	err := a.call(func(ctx context.Context) (err error) {
+		out, err = a.client.HistorySearch(ctx, protocol.HistorySearchParams{Query: query, ProjectID: projectID, Limit: limit})
+		return err
+	})
+	return nonNil(out), err
+}
+
+// HistoryDetail returns an archived session with its terminal text.
+func (a *App) HistoryDetail(id string) (protocol.HistoryDetail, error) {
+	var out protocol.HistoryDetail
+	err := a.call(func(ctx context.Context) (err error) {
+		out, err = a.client.HistoryGet(ctx, id)
+		return err
+	})
+	return out, err
+}
+
+// DeleteHistory removes an archived session.
+func (a *App) DeleteHistory(id string) error {
+	return a.call(func(ctx context.Context) error { return a.client.HistoryDelete(ctx, id) })
+}
+
+// ResumeHistory starts a session that reopens an archived session's agent
+// conversation.
+func (a *App) ResumeHistory(id string, cols, rows int) (protocol.SessionInfo, error) {
+	var out protocol.SessionInfo
+	err := a.call(func(ctx context.Context) (err error) {
+		out, err = a.client.HistoryResume(ctx, protocol.HistoryResumeParams{ID: id, Cols: uint16(max(cols, 0)), Rows: uint16(max(rows, 0))})
 		return err
 	})
 	return out, err

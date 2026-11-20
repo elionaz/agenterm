@@ -9,6 +9,13 @@ releases may include breaking changes.
 
 ### Added
 
+- **Past sessions, searchable.** When an agent session ends, panal keeps its name, agent, model,
+  branches, the prompts you typed (Claude Code) and its terminal text as plain text, with secrets
+  masked, in `~/.panal/history/`. The clock in the sidebar (⌘⇧F; Linux: Ctrl+Shift+H) searches them
+  as you type, in the project or in all of them, shows one with its prompts and text, and
+  **Resume** continues its conversation in a new session in the same folder. CLI:
+  `panal history [words…]`, `history show|resume|rm <id>`. Settings: `history.enabled`,
+  `history.keep` (300). Shells are not kept.
 - **Remove merged worktrees.** Orphaned worktrees whose branch is already in its base (merged,
   squash- or rebase-merged on the host) and that have nothing uncommitted are marked
   *merged · can be removed* and listed first, and **Remove merged (N)** removes them all with
@@ -31,6 +38,10 @@ releases may include breaking changes.
 
 ### Fixed
 
+- **`panal` is on the PATH after updating from agenterm.** The old Homebrew cask linked only the
+  `agenterm` command; at launch the app now adds a `panal` link next to any `agenterm` link into
+  its bundle (in `/opt/homebrew/bin`, `/usr/local/bin`, `~/.local/bin` and `~/bin`), and never
+  replaces an existing `panal`.
 - **Deleting a squash-merged branch no longer asks to force.** Removing a worktree with its branch
   counted the commits of a pull request merged with squash or rebase as unmerged; now commits whose
   changes the base already has don't count.

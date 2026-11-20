@@ -189,3 +189,6 @@ func (p Paths) Messages() string { return filepath.Join(p.RuntimeDir, "messages.
 
 // ScrollbackDir holds each persisted session's scrollback (<id>.log).
 func (p Paths) ScrollbackDir() string { return filepath.Join(p.RuntimeDir, "scrollback") }
+
+// HistoryDir holds the archive of ended agent sessions (internal/history).
+func (p Paths) HistoryDir() string { return filepath.Join(p.RuntimeDir, "history") }

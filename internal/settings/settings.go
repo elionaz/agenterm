@@ -243,6 +243,18 @@ type Browser struct {
 	Path string `json:"path"`
 }
 
+// History configures the archive of ended agent sessions (see
+// internal/history).
+type History struct {
+	// Enabled (default): an agent session that ends is kept, searchable.
+	Enabled bool `json:"enabled"`
+	// Keep is how many sessions are kept (the oldest go first).
+	Keep int `json:"keep"`
+}
+
+// DefaultHistoryKeep is history.keep when unset.
+const DefaultHistoryKeep = 300
+
 // Settings is the parsed file.
 type Settings struct {
 	Notify   Notify   `json:"notify"`
@@ -253,6 +265,12 @@ type Settings struct {
 	Terminal Terminal `json:"terminal"`
 	Messages Messages `json:"messages"`
 	Browser  Browser  `json:"browser"`
+	History  History  `json:"history"`
+}
+
+type fileHistory struct {
+	Enabled *bool `yaml:"enabled"`
+	Keep    *int  `yaml:"keep"`
 }
 
 type fileBrowser struct {
@@ -319,6 +337,7 @@ type file struct {
 	Terminal fileTerminal `yaml:"terminal"`
 	Messages fileMessages `yaml:"messages"`
 	Browser  fileBrowser  `yaml:"browser"`
+	History  fileHistory  `yaml:"history"`
 }
 
 const header = "# panal settings (see README)\n"
@@ -365,6 +384,8 @@ func Save(path string, s Settings) error {
 	setKey(root, []string{"browser", "enabled"}, b(s.Browser.Enabled), "!!bool")
 	setKey(root, []string{"browser", "headless"}, b(s.Browser.Headless), "!!bool")
 	setKey(root, []string{"browser", "path"}, strings.TrimSpace(s.Browser.Path), "!!str")
+	setKey(root, []string{"history", "enabled"}, b(s.History.Enabled), "!!bool")
+	setKey(root, []string{"history", "keep"}, strconv.Itoa(normKeep(s.History.Keep)), "!!int")
 	term := normTerminal(s.Terminal)
 	setKey(root, []string{"terminal", "font_family"}, term.FontFamily, "!!str")
 	setKey(root, []string{"terminal", "font_size"}, strconv.Itoa(term.FontSize), "!!int")
@@ -436,6 +457,7 @@ func Defaults() Settings {
 		Terminal: normTerminal(Terminal{}),
 		Messages: Messages{Enabled: true, AutoDeliver: true},
 		Browser:  Browser{Enabled: true},
+		History:  History{Enabled: true, Keep: DefaultHistoryKeep},
 	}
 }
 
@@ -484,6 +506,10 @@ func Parse(data []byte) (Settings, error) {
 	set(&s.Messages.Enabled, f.Messages.Enabled)
 	set(&s.Messages.AutoDeliver, f.Messages.AutoDeliver)
 	set(&s.Browser.Enabled, f.Browser.Enabled)
+	set(&s.History.Enabled, f.History.Enabled)
+	if f.History.Keep != nil {
+		s.History.Keep = normKeep(*f.History.Keep)
+	}
 	set(&s.Browser.Headless, f.Browser.Headless)
 	if f.Browser.Path != nil {
 		s.Browser.Path = strings.TrimSpace(*f.Browser.Path)
@@ -569,4 +595,13 @@ func (n Notify) ShouldNotify(kind string) bool {
 // only requests that block the agent (permission, question) do.
 func (n Notify) WantsSound(kind string) bool {
 	return n.Sound && (kind == "permission" || kind == "question")
+}
+
+// normKeep bounds history.keep: at least 1, at most 5000 (0 or less is the
+// default).
+func normKeep(n int) int {
+	if n <= 0 {
+		return DefaultHistoryKeep
+	}
+	return min(n, 5000)
 }

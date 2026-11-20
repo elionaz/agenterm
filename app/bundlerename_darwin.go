@@ -26,6 +26,7 @@ func renameLegacyBundle() bool {
 	bundle := macnotify.BundlePath(exe)
 	target := renameTarget(bundle, pathExists)
 	if target == "" {
+		linkPanalCLI(bundle)
 		return false
 	}
 	if err := os.Rename(bundle, target); err != nil {
@@ -50,4 +51,16 @@ func renameLegacyBundle() bool {
 		return false
 	}
 	return true
+}
+
+// linkPanalCLI adds the panal command next to an existing agenterm link
+// into bundle (see addPanalLinks).
+func linkPanalCLI(bundle string) {
+	home, err := os.UserHomeDir()
+	if err != nil || bundle == "" {
+		return
+	}
+	for _, l := range addPanalLinks(relinkDirs(home), bundle) {
+		log.Printf("panal: linked %s", l)
+	}
 }

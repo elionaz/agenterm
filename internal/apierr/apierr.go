@@ -125,6 +125,11 @@ const (
 	MsgNotInSession = "msg_not_in_session"
 	// MsgFromSession: only the user may do it, not a session (msg.deliver).
 	MsgFromSession = "msg_from_session"
+	// HistoryNotFound: no archived session with that id. Data: {id}.
+	HistoryNotFound = "history_not_found"
+	// HistoryNoResume: an archived session cannot be reopened (its agent
+	// gave no conversation id, or its project is gone). Data: {id}.
+	HistoryNoResume = "history_no_resume"
 )
 
 // Coded is implemented by errors that carry a code.

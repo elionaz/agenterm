@@ -70,6 +70,9 @@ vivos aunque cierres la app y te avisa cuando alguno te necesita.
 - **Un navegador propio por sesión**: los agentes prueban páginas y toman capturas en un Chrome
   aislado (perfil, ventana y puerto propios) que solo se abre cuando hace falta, nunca en el tuyo.
   Claude Code y codex lo reciben como herramientas de navegador.
+- **Sesiones pasadas, con búsqueda**: cuando termina una sesión de agente, quedan sus prompts y el
+  texto de su terminal (con los secretos tapados). Búscalas todas (⌘⇧F o el reloj de la barra lateral), lee una y **Retómala**:
+  su conversación sigue en una sesión nueva, en la misma carpeta.
 - **Ajustes en la app**: activar, ordenar y editar agentes, instalar los que todavía no tienes, y
   configurar el idioma, la apariencia, las notificaciones, git y el navegador de los agentes.
 - **Actualizaciones integradas** (Sparkle): una comprobación diaria en segundo plano, **Buscar
@@ -362,6 +365,7 @@ y diff: [docs/es/worktrees.md](docs/es/worktrees.md).
 | ⌘⇧↑ / ⌘⇧↓ | subir / bajar la sesión seleccionada en su proyecto (o arrastrarla en la barra lateral) |
 | ⌘0 | abrir/cerrar la vista general |
 | ⌘, | abrir Ajustes |
+| ⌘⇧F | buscar en las sesiones pasadas (Linux: Ctrl+Shift+H) |
 | ⌘D / ⌘⇧D | dividir el panel enfocado a la derecha / abajo con una sesión nueva del mismo agente y modo |
 | ⌘W | cerrar el panel enfocado (la sesión sigue en marcha; se termina con × en la barra lateral) |
 | ⌘[ / ⌘] | enfocar el panel anterior / siguiente |
@@ -371,7 +375,7 @@ y diff: [docs/es/worktrees.md](docs/es/worktrees.md).
 | ⌘C / ⌘V | copiar la selección / pegar en la terminal |
 | ⌘-clic | abrir en el navegador la URL bajo el puntero (URLs en texto y enlaces OSC 8; solo http y https) |
 | ⇧Enter | salto de línea en el prompt en vez de enviarlo (Claude Code, Codex…); envía un salto de línea (Ctrl-J) |
-| Esc | cerrar la búsqueda, la vista general, Ajustes o la vista de un worktree huérfano |
+| Esc | cerrar la búsqueda, la vista general, Ajustes, las sesiones pasadas o la vista de un worktree huérfano |
 | `Ctrl-\` | desacoplarse de `panal attach` (CLI) |
 
 ## Documentación
