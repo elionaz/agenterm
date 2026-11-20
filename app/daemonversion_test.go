@@ -294,3 +294,23 @@ func TestDaemonStatusProtocol(t *testing.T) {
 		}
 	}
 }
+
+func TestDaemonStatusMoved(t *testing.T) {
+	old := exeExists
+	defer func() { exeExists = old }()
+	exeExists = func(p string) bool { return p != "/Applications/agenterm.app/Contents/MacOS/panal" }
+	gone := protocol.PingResult{Version: "0.13.0", Protocol: protocol.Version, Exe: "/Applications/agenterm.app/Contents/MacOS/panal"}
+	if s := daemonStatus("0.13.0", gone); !s.Moved || !s.Mismatch || s.Newer {
+		t.Fatalf("renamed app: %+v", s)
+	}
+	here := gone
+	here.Exe = "/Applications/panal.app/Contents/MacOS/panal"
+	if s := daemonStatus("0.13.0", here); s.Moved || s.Mismatch {
+		t.Fatalf("same place: %+v", s)
+	}
+	unknown := gone
+	unknown.Exe = "" // daemons before 0.13.1 don't say
+	if s := daemonStatus("0.13.0", unknown); s.Moved || s.Mismatch {
+		t.Fatalf("no exe reported: %+v", s)
+	}
+}

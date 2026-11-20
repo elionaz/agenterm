@@ -108,6 +108,7 @@ export const es: Dict = {
   'empty.launchHint': 'Lanza un agente con <b>+</b> junto a un proyecto.',
   'empty.launchHintKey': 'Lanza un agente con <b>+</b> junto a un proyecto o pulsa <kbd>⌘N</kbd> ({name}).',
   'empty.chooseAgents': 'Elegir agentes…',
+  'banner.daemonMoved': 'panal cambió de lugar (se renombró desde agenterm.app): reinicia el servicio en segundo plano para que los agentes lo encuentren; las sesiones se suspenden y se reanudan.',
   'banner.daemonOld':
     'El servicio en segundo plano es de una versión anterior ({version}). Reinícialo para terminar de actualizar — las sesiones se suspenderán y se reanudarán.',
   'banner.daemonOldUnknown':

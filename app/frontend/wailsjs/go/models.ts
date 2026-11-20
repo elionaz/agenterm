@@ -334,6 +334,7 @@ export namespace main {
 	    daemonVersion: string;
 	    mismatch: boolean;
 	    newer: boolean;
+	    moved?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new DaemonStatus(source);
@@ -345,6 +346,7 @@ export namespace main {
 	        this.daemonVersion = source["daemonVersion"];
 	        this.mismatch = source["mismatch"];
 	        this.newer = source["newer"];
+	        this.moved = source["moved"];
 	    }
 	}
 	export class NotificationInfo {

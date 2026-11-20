@@ -7,6 +7,15 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The app is panal in the Dock and Finder after updating from agenterm.** In-app updates keep the
+  bundle's path, so installs stayed `/Applications/agenterm.app`, and macOS shows a bundle's file
+  name. At launch the app now renames itself to `panal.app` (unless one is already there) and
+  reopens; the CLI symlinks pointing into the old bundle (Homebrew's `agenterm` and `panal`) are
+  retargeted, and the background service is restarted from the new place like after an update
+  (sessions are suspended and resumed).
+
 ## [0.13.0] - 2026-11-20
 
 ### Changed

@@ -32,7 +32,7 @@ import (
 func (s *Server) dispatch(req protocol.Request) (any, error) {
 	switch req.Method {
 	case protocol.MethodDaemonPing:
-		return protocol.PingResult{OK: true, Version: version.Version, Commit: version.Short(), Protocol: protocol.Version}, nil
+		return protocol.PingResult{OK: true, Version: version.Version, Commit: version.Short(), Protocol: protocol.Version, Exe: s.cfg.Exe}, nil
 	case protocol.MethodProjectAdd:
 		p, err := decode[protocol.ProjectAddParams](req.Params)
 		if err != nil {

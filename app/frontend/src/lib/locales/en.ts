@@ -127,6 +127,7 @@ export const en = {
   'empty.launchHintKey': 'Launch an agent with <b>+</b> next to a project or press <kbd>⌘N</kbd> ({name}).',
   'empty.chooseAgents': 'Choose agents…',
   'banner.reconnecting': 'Reconnecting to the daemon…',
+  'banner.daemonMoved': 'panal moved (it was renamed from agenterm.app): restart the background service so agents can reach it — sessions will be suspended and resumed.',
   'banner.daemonOld':
     'The background service is from an older version ({version}). Restart it to finish updating — sessions will be suspended and resumed.',
   'banner.daemonOldUnknown':
