@@ -200,3 +200,30 @@ func TestSessionEnvNamesItsDaemon(t *testing.T) {
 		t.Fatalf("session env %q, want %q", out, want)
 	}
 }
+
+func TestKillLogsWhoAsked(t *testing.T) {
+	c, _, logs, _ := startLoggedDaemon(t)
+	ctx := ctxT(t)
+	proj, err := c.ProjectAdd(ctx, t.TempDir(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sess, err := c.Spawn(ctx, protocol.SpawnParams{ProjectID: proj.ID, ProfileID: "cat"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Kill(ctx, sess.ID); err != nil {
+		t.Fatal(err)
+	}
+	l := logs.String()
+	i := strings.Index(l, "session kill requested")
+	if i < 0 {
+		t.Fatalf("kill not logged:\n%s", l)
+	}
+	line, _, _ := strings.Cut(l[i:], "\n")
+	for _, w := range []string{"id=" + sess.ID, "peer_pid=" + strconv.Itoa(os.Getpid()), "peer_cmd="} {
+		if !strings.Contains(line, w) {
+			t.Errorf("kill line lacks %q: %s", w, line)
+		}
+	}
+}

@@ -354,7 +354,7 @@ En macOS la CLI de Inkscape no queda en el `PATH`; está en
   notificaciones.
 - **Un reinicio del daemon (o de la computadora) mata los procesos.** Las sesiones vuelven como
   `suspended`, con su scrollback, y se relanzan al reanudarlas: Claude Code y codex continúan su
-  conversación por id, opencode con `--continue` y Hermes con `-c` (la *última* sesión de cada
+  conversación por id, opencode y Cursor CLI con `--continue` y Hermes con `-c` (la *última* sesión de cada
   proyecto, que puede no ser la misma si hay varias en una carpeta), otros agentes solo con
   `resume_args`. Una shell vuelve en su carpeta inicial, sin lo que estuviera corriendo en ella. codex solo informa su thread id
   tras el primer turno, así que una sesión de codex que nunca terminó un turno empieza de cero.

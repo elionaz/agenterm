@@ -350,6 +350,13 @@ func (s *Server) serveConn(conn net.Conn) {
 				return
 			}
 			continue
+		case protocol.MethodSessionKill:
+			// Needs the connection (the log says who closed the session).
+			result, err := s.handleKill(conn, req)
+			if werr := writeResponse(conn, req.ID, result, err); werr != nil {
+				return
+			}
+			continue
 		case protocol.MethodSessionAttach:
 			s.handleAttach(conn, br, req)
 			return

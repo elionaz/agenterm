@@ -242,6 +242,7 @@ func (s *Server) closeHandedOff(old *session.Session, keep bool) {
 		return
 	}
 	if _, exited := old.ExitCode(); !exited {
+		s.log.Info("session closed after a handoff", "id", old.ID)
 		s.markStopped(old.ID)
 		old.Kill(s.cfg.KillGrace)
 	}
