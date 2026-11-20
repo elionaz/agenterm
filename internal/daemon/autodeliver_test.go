@@ -12,14 +12,20 @@ import (
 	"github.com/elionaz/agenterm/internal/protocol"
 )
 
+// fakeAgent is an agent that prints back what it is sent: cat, with the
+// terminal's echo off (else a nudge shows twice) and a marker once it is
+// (waitReady), so nothing is typed before stty has run.
+const fakeAgent = "#!/bin/sh\nstty -echo -isig\necho fake-ready\nexec cat\n"
+
 // output collects a session's terminal output in the background.
 type output struct {
 	mu  sync.Mutex
 	buf bytes.Buffer
 }
 
-func collect(t *testing.T, st *client.Stream) *output {
+func collect(t *testing.T, st *client.Stream, replay []byte) *output {
 	o := &output{}
+	o.buf.Write(replay)
 	go func() {
 		for {
 			f, err := st.Recv()
@@ -34,6 +40,24 @@ func collect(t *testing.T, st *client.Stream) *output {
 		}
 	}()
 	return o
+}
+
+// waitReady waits for fakeAgent's marker: its echo is off from then on.
+func (o *output) waitReady(t *testing.T) {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		o.mu.Lock()
+		ok := bytes.Contains(o.buf.Bytes(), []byte("fake-ready"))
+		o.mu.Unlock()
+		if ok {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the fake agent never started")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 }
 
 // nudges counts the "[agenterm] There are new messages…" lines typed.
@@ -75,7 +99,7 @@ func TestAutoDeliver(t *testing.T) {
 	// A stand-in for Claude: takes the --settings agenterm passes, echoes
 	// nothing itself, prints what it is typed (one line per nudge).
 	fake := t.TempDir() + "/fakeclaude"
-	if err := os.WriteFile(fake, []byte("#!/bin/sh\nstty -echo -isig\nexec cat\n"), 0o755); err != nil {
+	if err := os.WriteFile(fake, []byte(fakeAgent), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	profs := testProfiles + "- id: fakeclaude\n  cmd: " + fake + "\n  status: hooks\n  setup_hooks: claude\n"
@@ -102,8 +126,9 @@ func TestAutoDeliver(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer st.Close()
-	readUntil(t, st, func(_ []byte, f protocol.Frame) bool { return f.Type == protocol.FrameReplayDone })
-	out := collect(t, st)
+	replay := readUntil(t, st, func(_ []byte, f protocol.Frame) bool { return f.Type == protocol.FrameReplayDone })
+	out := collect(t, st, replay)
+	out.waitReady(t)
 	idle := func() {
 		t.Helper()
 		if _, err := c.Notify(ctx, b.ID, "running"); err != nil {
@@ -192,7 +217,7 @@ func TestAutoDeliverOnlyReplies(t *testing.T) {
 		t.Fatal(err)
 	}
 	fake := t.TempDir() + "/fakeclaude"
-	if err := os.WriteFile(fake, []byte("#!/bin/sh\nstty -echo -isig\nexec cat\n"), 0o755); err != nil {
+	if err := os.WriteFile(fake, []byte(fakeAgent), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	profs := testProfiles + "- id: fakeclaude\n  cmd: " + fake + "\n  status: hooks\n  setup_hooks: claude\n"
@@ -219,8 +244,9 @@ func TestAutoDeliverOnlyReplies(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer st.Close()
-	readUntil(t, st, func(_ []byte, f protocol.Frame) bool { return f.Type == protocol.FrameReplayDone })
-	out := collect(t, st)
+	replay := readUntil(t, st, func(_ []byte, f protocol.Frame) bool { return f.Type == protocol.FrameReplayDone })
+	out := collect(t, st, replay)
+	out.waitReady(t)
 	if _, err := c.Notify(ctx, b.ID, "running"); err != nil {
 		t.Fatal(err)
 	}
@@ -253,7 +279,7 @@ func TestAutoDeliverDefaultsAndOtherAgents(t *testing.T) {
 		t.Fatal(err)
 	}
 	fake := t.TempDir() + "/fakeagent"
-	if err := os.WriteFile(fake, []byte("#!/bin/sh\nstty -echo -isig\nexec cat\n"), 0o755); err != nil {
+	if err := os.WriteFile(fake, []byte(fakeAgent), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	profs := testProfiles +
@@ -275,8 +301,10 @@ func TestAutoDeliverDefaultsAndOtherAgents(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		readUntil(t, st, func(_ []byte, f protocol.Frame) bool { return f.Type == protocol.FrameReplayDone })
-		return collect(t, st), func() { st.Close() }
+		replay := readUntil(t, st, func(_ []byte, f protocol.Frame) bool { return f.Type == protocol.FrameReplayDone })
+		o := collect(t, st, replay)
+		o.waitReady(t)
+		return o, func() { st.Close() }
 	}
 	hold := func(id string) string {
 		t.Helper()
