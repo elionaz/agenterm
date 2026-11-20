@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elionaz/agenterm/internal/daemon"
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/daemon"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 func TestProfileInstall(t *testing.T) {

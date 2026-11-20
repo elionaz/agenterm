@@ -13,17 +13,17 @@ import (
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"github.com/elionaz/agenterm/internal/client"
-	"github.com/elionaz/agenterm/internal/forge"
-	"github.com/elionaz/agenterm/internal/gitx"
-	"github.com/elionaz/agenterm/internal/i18n"
-	"github.com/elionaz/agenterm/internal/mailbox"
-	"github.com/elionaz/agenterm/internal/paths"
-	"github.com/elionaz/agenterm/internal/profile"
-	"github.com/elionaz/agenterm/internal/project"
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/settings"
-	"github.com/elionaz/agenterm/internal/transport"
+	"github.com/elionaz/panal/internal/client"
+	"github.com/elionaz/panal/internal/forge"
+	"github.com/elionaz/panal/internal/gitx"
+	"github.com/elionaz/panal/internal/i18n"
+	"github.com/elionaz/panal/internal/mailbox"
+	"github.com/elionaz/panal/internal/paths"
+	"github.com/elionaz/panal/internal/profile"
+	"github.com/elionaz/panal/internal/project"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/settings"
+	"github.com/elionaz/panal/internal/transport"
 )
 
 // Output batching: one `pty:<id>` event per window or per chunk.
@@ -97,7 +97,7 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	p, err := paths.Default()
 	if err != nil {
-		log.Printf("agenterm: resolve paths: %v", err)
+		log.Printf("panal: resolve paths: %v", err)
 	}
 	a.emit = func(event string, data ...any) { runtime.EventsEmit(ctx, event, data...) }
 	a.wailsCtx = ctx
@@ -812,7 +812,7 @@ func diffNonNil(d protocol.DiffResult) protocol.DiffResult {
 	return d
 }
 
-// ListWorktrees lists a project's agenterm worktrees.
+// ListWorktrees lists a project's panal worktrees.
 func (a *App) ListWorktrees(projectID string) ([]protocol.WorktreeInfo, error) {
 	var out []protocol.WorktreeInfo
 	err := a.callTimeout(gitTO, func(ctx context.Context) (err error) {
@@ -833,7 +833,7 @@ func (a *App) RemoveWorktree(id string, force, deleteBranch, dryRun bool) (proto
 }
 
 // CopyIntoWorktree copies files from the main folder into a worktree;
-// save also writes them into a new .agenterm.yaml.
+// save also writes them into a new .panal.yaml.
 func (a *App) CopyIntoWorktree(id string, files []string, save bool) (protocol.WorktreeCopyResult, error) {
 	var out protocol.WorktreeCopyResult
 	err := a.callTimeout(gitTO, func(ctx context.Context) (err error) {
@@ -938,7 +938,7 @@ func (a *App) OpenWorktree(id, sessionID, target string) error {
 }
 
 // MessagePeers lists the sessions of sessionID's project, as agents see
-// them (agenterm msg peers).
+// them (panal msg peers).
 func (a *App) MessagePeers(sessionID string) (protocol.MsgPeers, error) {
 	var out protocol.MsgPeers
 	err := a.call(func(ctx context.Context) (err error) {

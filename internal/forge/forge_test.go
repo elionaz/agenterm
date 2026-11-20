@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/apierr"
+	"github.com/elionaz/panal/internal/apierr"
 )
 
 // fakeCLI installs a fake tool (gh or glab) in a temp PATH. Each rule maps

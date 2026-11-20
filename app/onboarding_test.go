@@ -7,14 +7,14 @@ import (
 )
 
 func TestOnboardingFindsTheCLI(t *testing.T) {
-	t.Setenv("AGENTERM_NOTIFY", "off")
+	t.Setenv("PANAL_NOTIFY", "off")
 	dir := t.TempDir()
 	t.Setenv("PATH", dir)
 	a := NewApp()
 	if info := a.Onboarding(); info.CLIPath != "" || info.Notifications != "off" {
 		t.Fatalf("empty PATH: %+v", info)
 	}
-	cli := filepath.Join(dir, "agenterm")
+	cli := filepath.Join(dir, "panal")
 	if err := os.WriteFile(cli, []byte("#!/bin/sh\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}

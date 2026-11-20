@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 func TestReorderProjectsAndSessions(t *testing.T) {

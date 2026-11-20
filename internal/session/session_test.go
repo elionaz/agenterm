@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/status"
+	"github.com/elionaz/panal/internal/status"
 )
 
 func spawn(t *testing.T, o Options) *Session {
@@ -38,7 +38,7 @@ func waitDone(t *testing.T, s *Session) {
 
 func TestSpawnEnvAndExitCode(t *testing.T) {
 	s := spawn(t, Options{ID: "abc", Cmd: "/bin/sh", SockPath: "/tmp/x.sock",
-		Args: []string{"-c", `echo "id=$AGENTERM_SESSION sock=$AGENTERM_SOCK foo=$FOO"; pwd; exit 7`},
+		Args: []string{"-c", `echo "id=$PANAL_SESSION sock=$PANAL_SOCK foo=$FOO"; pwd; exit 7`},
 		Env:  []string{"FOO=bar"}})
 	waitDone(t, s)
 	out := string(s.Scrollback())

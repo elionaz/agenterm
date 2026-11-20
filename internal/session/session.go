@@ -17,10 +17,10 @@ import (
 
 	"github.com/creack/pty"
 
-	"github.com/elionaz/agenterm/internal/paths"
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/status"
-	"github.com/elionaz/agenterm/internal/termsig"
+	"github.com/elionaz/panal/internal/paths"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/status"
+	"github.com/elionaz/panal/internal/termsig"
 )
 
 // Environment variables injected into every session.
@@ -49,9 +49,9 @@ type Options struct {
 	Launch   []string
 	Env      []string // extra KEY=VALUE pairs appended to os.Environ()
 	Cwd      string   // defaults to ProjectDir
-	SockPath string   // exported as AGENTERM_SOCK
-	// Home is exported as AGENTERM_HOME; empty removes any inherited value.
-	// Clients prefer AGENTERM_HOME over AGENTERM_SOCK, so the daemon sets
+	SockPath string   // exported as PANAL_SOCK
+	// Home is exported as PANAL_HOME; empty removes any inherited value.
+	// Clients prefer PANAL_HOME over PANAL_SOCK, so the daemon sets
 	// both consistently (see client.ResolveSocket).
 	Home       string
 	Cols, Rows uint16

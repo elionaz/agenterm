@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/status"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/status"
 )
 
 // The checks of which sessions are alive (the shutdown's, a worktree's
@@ -54,6 +54,6 @@ func TestLivenessChecksDuringStateChanges(t *testing.T) {
 	select {
 	case <-done:
 	case <-time.After(30 * time.Second):
-		t.Fatalf("daemon deadlocked: liveness checks and state changes did not finish\n%s", agentermStacks())
+		t.Fatalf("daemon deadlocked: liveness checks and state changes did not finish\n%s", panalStacks())
 	}
 }

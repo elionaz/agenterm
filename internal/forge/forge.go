@@ -1,6 +1,6 @@
 // Package forge talks to the code host of a repository (GitHub, GitLab)
 // through its official CLI (gh, glab), using the account the user already
-// logged in with. agenterm keeps no tokens: no CLI or no login means the
+// logged in with. panal keeps no tokens: no CLI or no login means the
 // integration is off and the app falls back to pushing and opening the
 // host's page.
 package forge
@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/apierr"
-	"github.com/elionaz/agenterm/internal/gitx"
+	"github.com/elionaz/panal/internal/apierr"
+	"github.com/elionaz/panal/internal/gitx"
 )
 
 // Kinds.
@@ -152,7 +152,7 @@ func For(remoteURL, dir, path string) (Forge, error) {
 		host = r.Host
 	}
 	return nil, apierr.New(apierr.ForgeUnsupported, map[string]any{"host": host},
-		"pull requests from agenterm need a GitHub or GitLab remote (%s is neither)", cmpOr(host, remoteURL))
+		"pull requests from panal need a GitHub or GitLab remote (%s is neither)", cmpOr(host, remoteURL))
 }
 
 // cli runs one tool in a repository.

@@ -1,19 +1,22 @@
 <p align="center">
-  <img src="assets/icon/agenterm-icon-rounded.svg" alt="agenterm" width="96">
+  <img src="assets/icon/panal-icon-rounded.svg" alt="panal" width="96">
 </p>
 
-# agenterm
+# panal
 
 **English** · [Español](README.es.md)
+
+> panal was called **agenterm** up to 0.12.0. Existing installs move over on their own; see the
+> [changelog](CHANGELOG.md).
 
 A desktop workspace for coding agents, organized by project. Terminal tabs can't be grouped by
 project, and once you run several agents (Claude Code, codex, opencode, Gemini, Cursor…) on the same
 repo it's hard to tell which one is working, which one is done and which one is waiting for your
-approval. agenterm groups sessions by project, keeps agents alive even after you close the app and
+approval. panal groups sessions by project, keeps agents alive even after you close the app and
 tells you when one of them needs you.
 
 <p align="center">
-  <img src="docs/img/screenshot.png" alt="agenterm: projects with their badges and sessions in the sidebar, each with its model, branch and live activity, an approval waiting, a message waiting, and the terminal" width="900">
+  <img src="docs/img/screenshot.png" alt="panal: projects with their badges and sessions in the sidebar, each with its model, branch and live activity, an approval waiting, a message waiting, and the terminal" width="900">
 </p>
 
 ## Features
@@ -42,17 +45,17 @@ tells you when one of them needs you.
 - **Live activity**: what each agent is doing ("Editing main.go"), a turn timer, a "stalled?"
   warning, progress bars (OSC 9;4) and an **Overview** of every session (⌘0).
 - **Per-session git worktrees**: new agents start on their own branch and folder by default, so
-  agents working in parallel never share changes. An `.agenterm.yaml` in the repository copies
+  agents working in parallel never share changes. A `.panal.yaml` in the repository copies
   `.env` and other untracked files into each new worktree and runs a setup (`npm install`) before
   the agent starts. The **Changes** tab shows the diff and lets you merge into the base or safely
   remove the worktree.
 - **Pull requests on GitHub and GitLab** from the **Changes** tab, for worktrees and for the
   branch your main folder is on: state, checks and review, the comments (line comments jump to the
   file), merging on the host, and opening a new one with a suggested title and description. It
-  uses your own `gh` / `glab` login; agenterm stores no tokens.
+  uses your own `gh` / `glab` login; panal stores no tokens.
 - **Messages between sessions**: the agents of a project can write to each other
-  (`agenterm msg send`, `agenterm wait`); Claude Code gets its messages by itself, other agents
-  read them with `agenterm msg read`. Idle sessions are told about them by themselves (Claude, and
+  (`panal msg send`, `panal wait`); Claude Code gets its messages by itself, other agents
+  read them with `panal msg read`. Idle sessions are told about them by themselves (Claude, and
   agents that report the end of their turn), and the **Messages** tab says why any message waits. Messages never leave
   their project and the daemon decides who sent each one.
 - **In-app settings**: enable, reorder and edit agents, and configure the language, appearance,
@@ -64,15 +67,15 @@ tells you when one of them needs you.
 
 ## How it works
 
-- **A daemon owns the terminals.** Each session is a real PTY started by the agenterm daemon (no
-  tmux, no screen). The app and the `agenterm` CLI are clients of that daemon over a local unix
+- **A daemon owns the terminals.** Each session is a real PTY started by the panal daemon (no
+  tmux, no screen). The app and the `panal` CLI are clients of that daemon over a local unix
   socket, so closing the window, or the whole app, doesn't stop any agent.
 - **Sessions survive restarts.** The daemon keeps each session's scrollback on disk. If the daemon
   itself restarts (an update, a crash), sessions come back suspended and resume with one click;
   Claude Code and codex continue the same conversation.
 - **Attention comes from the agent when it can say so.** Claude Code reports through hooks and
   codex through its notify setting; any other CLI through terminal signals (bell, OSC
-  notifications) or patterns you configure. agenterm passes its hooks as launch flags and never
+  notifications) or patterns you configure. panal passes its hooks as launch flags and never
   edits your agent's own config. Details in [How attention is detected](#how-attention-is-detected).
 - **Worktrees are plain git.** A worktree session is `git worktree add` on its own `agent/…` branch;
   nothing leaves your machine unless you push or open a pull request.
@@ -95,29 +98,29 @@ universal build (Apple Silicon and Intel) but is mostly tested on Apple Silicon.
 ### Homebrew
 
 ```sh
-brew install --cask elionaz/tap/agenterm
+brew install --cask elionaz/tap/panal
 ```
 
-This installs `agenterm.app` in `/Applications` and puts the `agenterm` CLI on your `PATH` (the CLI
-ships inside the app, at `agenterm.app/Contents/Helpers/agenterm`). The app keeps both up to date
-([Updating](#updating)); `brew uninstall --zap --cask agenterm` also deletes `~/.agenterm` and
-`~/.config/agenterm`.
+This installs `panal.app` in `/Applications` and puts the `panal` CLI on your `PATH` (the CLI
+ships inside the app, at `panal.app/Contents/Helpers/panal`). The app keeps both up to date
+([Updating](#updating)); `brew uninstall --zap --cask panal` also deletes `~/.panal` and
+`~/.config/panal`.
 
 ### Download
 
-Each [release](https://github.com/elionaz/agenterm/releases) has:
+Each [release](https://github.com/elionaz/panal/releases) has:
 
-- `agenterm-<version>-macos-universal.dmg` / `.zip`: the app (open the dmg and drag it to
+- `panal-<version>-macos-universal.dmg` / `.zip`: the app (open the dmg and drag it to
   Applications, or unzip it);
-- `agenterm-<version>-darwin-universal.tar.gz`: just the CLI for macOS;
-- `agenterm-<version>-linux-{amd64,arm64}.AppImage` / `.deb`: the Linux app (experimental, see
+- `panal-<version>-darwin-universal.tar.gz`: just the CLI for macOS;
+- `panal-<version>-linux-{amd64,arm64}.AppImage` / `.deb`: the Linux app (experimental, see
   [Linux](#linux));
-- `agenterm-<version>-linux-{amd64,arm64}.tar.gz`: just the CLI and daemon for Linux;
+- `panal-<version>-linux-{amd64,arm64}.tar.gz`: just the CLI and daemon for Linux;
 - `checksums.txt`: SHA-256 of every file (`shasum -a 256 -c checksums.txt`).
 
 Releases are signed with a Developer ID and notarized by Apple. If a release's notes say it's an
 **unsigned build**, macOS will refuse to open it; after moving it to `/Applications`, run
-`xattr -dr com.apple.quarantine /Applications/agenterm.app`.
+`xattr -dr com.apple.quarantine /Applications/panal.app`.
 
 ### Linux
 
@@ -125,11 +128,11 @@ Experimental: built and packaged on Ubuntu 24.04, lightly tested. It needs **Web
 GTK 3 from your distribution (Ubuntu 22.04+, Debian 12+, Fedora 39+…), which the packages don't
 bundle.
 
-- **.deb** (Ubuntu, Debian): `sudo apt install ./agenterm-<version>-linux-amd64.deb` installs the app
-  (*agenterm* in the applications menu, `agenterm-app`) and puts the `agenterm` CLI on your `PATH`.
-- **AppImage** (any distribution): `chmod +x agenterm-*.AppImage` and run it (install
+- **.deb** (Ubuntu, Debian): `sudo apt install ./panal-<version>-linux-amd64.deb` installs the app
+  (*panal* in the applications menu, `panal-app`) and puts the `panal` CLI on your `PATH`.
+- **AppImage** (any distribution): `chmod +x panal-*.AppImage` and run it (install
   `libwebkit2gtk-4.1-0` first if your system lacks it). On first launch it copies its CLI to
-  `~/.local/share/agenterm/bin/agenterm`, which the daemon runs from (it outlives the window); add
+  `~/.local/share/panal/bin/panal`, which the daemon runs from (it outlives the window); add
   that folder to your `PATH` to use the CLI.
 
 What differs from macOS:
@@ -154,20 +157,20 @@ Requirements:
   must pass).
 
 ```sh
-git clone https://github.com/elionaz/agenterm.git
-cd agenterm
+git clone https://github.com/elionaz/panal.git
+cd panal
 
 # Desktop app (includes the daemon)
-cd app && wails build          # -> app/build/bin/agenterm.app
-open build/bin/agenterm.app    # or copy it to /Applications
+cd app && wails build          # -> app/build/bin/panal.app
+open build/bin/panal.app    # or copy it to /Applications
 
 # CLI (optional)
-cd .. && go build -o agenterm ./cmd/agenterm
+cd .. && go build -o panal ./cmd/panal
 ```
 
 The first time you open the app, macOS asks whether to allow notifications. If you declined:
-*System Settings → Notifications → agenterm* → "Allow notifications" (**Settings → Notifications**
-in agenterm shows the permission, opens that page and sends a test notification). Without that permission (or
+*System Settings → Notifications → panal* → "Allow notifications" (**Settings → Notifications**
+in panal shows the permission, opens that page and sends a test notification). Without that permission (or
 from a daemon outside the `.app`) notifications are not shown, unless you enable the AppleScript
 fallback (`notify.fallback: osascript`; they then show as *Script Editor*). The CLI bundled in the
 app (what Homebrew puts on your `PATH`) starts the daemon as the app, so it gets native
@@ -176,11 +179,11 @@ notifications too.
 ## Updating
 
 - **Homebrew**: the app updates itself, like a downloaded one (below). A plain `brew upgrade`
-  leaves it alone, as with any cask that updates itself; `brew upgrade --cask agenterm` (or
+  leaves it alone, as with any cask that updates itself; `brew upgrade --cask panal` (or
   `--greedy`) still upgrades it. Installs from before 0.4.2 need one last
-  `brew upgrade --cask agenterm` to get there.
-- **Downloaded app** (dmg/zip): agenterm checks for a new release once a day and offers to install
-  it; **agenterm → Check for Updates…** checks right away. When a new version is found while you're
+  `brew upgrade --cask panal` to get there.
+- **Downloaded app** (dmg/zip): panal checks for a new release once a day and offers to install
+  it; **panal → Check for Updates…** checks right away. When a new version is found while you're
   working, a banner says so (**Update**, or **Restart to update** once it's downloaded; **Later**
   hides it for that version until it is downloaded) and **Settings → General → Updates** shows it
   too. Restarting to update only relaunches the window: the background daemon and your sessions
@@ -195,34 +198,34 @@ Sessions run in a background daemon that survives the app, so right after an upd
 still the old version. The app restarts it on its own when no agent is in the middle of a turn
 (the sessions running then are suspended and resumed, whatever `sessions.restore` says; sessions
 you had left suspended stay so). If an agent is working, it shows a banner with **Restart now**
-instead, so you can do it when it suits you, or later from a terminal with `agenterm stop --force`.
+instead, so you can do it when it suits you, or later from a terminal with `panal stop --force`.
 
 ## Uninstall
 
-First stop the daemon: quit the app, then `agenterm stop` (it refuses while sessions are running;
-`agenterm stop --force` kills them). Then:
+First stop the daemon: quit the app, then `panal stop` (it refuses while sessions are running;
+`panal stop --force` kills them). Then:
 
-- **Homebrew**: `brew uninstall --cask agenterm` removes the app and the CLI and keeps your data.
-  `brew uninstall --zap --cask agenterm` also deletes it: `~/.agenterm`, `~/.config/agenterm` and
-  agenterm's files in `~/Library` (caches, preferences, WebKit data, saved window state).
-- **By hand**: delete `/Applications/agenterm.app`, the CLI link if you made one
-  (`/usr/local/bin/agenterm`), and, to delete your data too, `~/.agenterm` (daemon state, scrollback
-  and agenterm's worktrees), `~/.config/agenterm` (settings, profiles, projects) and
+- **Homebrew**: `brew uninstall --cask panal` removes the app and the CLI and keeps your data.
+  `brew uninstall --zap --cask panal` also deletes it: `~/.panal`, `~/.config/panal` and
+  panal's files in `~/Library` (caches, preferences, WebKit data, saved window state).
+- **By hand**: delete `/Applications/panal.app`, the CLI link if you made one
+  (`/usr/local/bin/panal`), and, to delete your data too, `~/.panal` (daemon state, scrollback
+  and panal's worktrees), `~/.config/panal` (settings, profiles, projects) and
   `~/Library/{Caches,WebKit}/com.elionaz.agenterm`,
   `~/Library/Preferences/com.elionaz.agenterm.plist` and
   `~/Library/Saved Application State/com.elionaz.agenterm.savedState`.
 
-**Before deleting `~/.agenterm`**, check `~/.agenterm/worktrees` (or your `git.worktree_dir`): it holds the
-worktrees agenterm created, and any uncommitted work in them is lost with it (`--zap` included). Their branches stay in
+**Before deleting `~/.panal`**, check `~/.panal/worktrees` (or your `git.worktree_dir`): it holds the
+worktrees panal created, and any uncommitted work in them is lost with it (`--zap` included). Their branches stay in
 your repositories; `git worktree prune` cleans up the references afterwards.
 
-Nothing else needs undoing: agenterm doesn't change your agents' configuration (hooks are added to
+Nothing else needs undoing: panal doesn't change your agents' configuration (hooks are added to
 each session it starts, not installed) and doesn't touch your project folders.
 
 ## Quick start
 
 **App.** The first time, a welcome screen shows which agent CLIs were found, lets you allow
-notifications and shows how to put the `agenterm` command on your `PATH`. Click **+ Add your first
+notifications and shows how to put the `panal` command on your `PATH`. Click **+ Add your first
 project** (or the sidebar's **+ Project** button) and pick a folder. With the **+** next to a
 project you choose an agent and whether it runs in a new worktree (the default) or in the project
 folder; **⌘N**
@@ -239,21 +242,21 @@ into the base** or **Create pull request** in the Changes tab. More in
 **CLI.** Any command starts the daemon if it isn't running:
 
 ```sh
-agenterm project add ~/Dev/myapp           # -> <projectId>  myapp  /Users/me/Dev/myapp
-agenterm profiles                          # catalog agents, installed or not
-agenterm spawn myapp claude                # -> <sessionId>
-agenterm spawn --worktree myapp codex      # -> <sessionId>  <branch>  <folder>
-agenterm ls                                # state, attention, activity, branch…
-agenterm attach <sessionId>                # Ctrl-\ to detach; the session keeps running
-agenterm stop                              # refuses while sessions are live (use --force)
+panal project add ~/Dev/myapp           # -> <projectId>  myapp  /Users/me/Dev/myapp
+panal profiles                          # catalog agents, installed or not
+panal spawn myapp claude                # -> <sessionId>
+panal spawn --worktree myapp codex      # -> <sessionId>  <branch>  <folder>
+panal ls                                # state, attention, activity, branch…
+panal attach <sessionId>                # Ctrl-\ to detach; the session keeps running
+panal stop                              # refuses while sessions are live (use --force)
 ```
 
 Full reference: [docs/cli.md](docs/cli.md).
 
 ## How attention is detected
 
-Everything is configured **only for the sessions agenterm launches**, through command-line flags and
-files generated in `~/.agenterm/hooks/`. Your own configuration (`~/.claude/settings.json`,
+Everything is configured **only for the sessions panal launches**, through command-line flags and
+files generated in `~/.panal/hooks/`. Your own configuration (`~/.claude/settings.json`,
 `~/.codex/config.toml`…) and the project folder are never modified.
 
 | agent | mechanism | what it detects |
@@ -267,11 +270,11 @@ Details (states, *ack*, "stalled?", progress, notifications while the app is clo
 
 ## Configuration
 
-| | default | with `AGENTERM_HOME=/x` |
+| | default | with `PANAL_HOME=/x` |
 |---|---|---|
-| daemon socket, pid, log | `~/.agenterm/{d.sock,d.pid,daemon.log}` | `/x/…` |
-| `profiles.yaml`, `settings.yaml`, `projects.json` | `~/.config/agenterm/` | `/x/` |
-| generated hooks, worktrees, `worktrees.json` | `~/.agenterm/{hooks,worktrees,worktrees.json}` | `/x/…` |
+| daemon socket, pid, log | `~/.panal/{d.sock,d.pid,daemon.log}` | `/x/…` |
+| `profiles.yaml`, `settings.yaml`, `projects.json` | `~/.config/panal/` | `/x/` |
+| generated hooks, worktrees, `worktrees.json` | `~/.panal/{hooks,worktrees,worktrees.json}` | `/x/…` |
 
 `profiles.yaml` and `settings.yaml` are optional, and the app edits them from **Settings** (⌘,).
 
@@ -323,7 +326,7 @@ activity:
   stall_seconds: 180     # seconds without output or events before "stalled?"; 0 disables it
 git:
   editor: ""             # for "Open in editor"; empty: code if available, else Finder
-  worktree_dir: ""       # where to create worktrees; empty: ~/.agenterm/worktrees
+  worktree_dir: ""       # where to create worktrees; empty: ~/.panal/worktrees
   default_mode: worktree # worktree | same
 ```
 
@@ -349,7 +352,7 @@ diffs: [docs/worktrees.md](docs/worktrees.md).
 | ⌘-click | open the URL under the pointer in the browser (plain-text URLs and OSC 8 links; http and https only) |
 | ⇧Enter | new line in the prompt instead of sending it (Claude Code, Codex…); sends a line feed (Ctrl-J) |
 | Esc | close the search bar, the overview, Settings or an orphaned worktree's view |
-| `Ctrl-\` | detach from `agenterm attach` (CLI) |
+| `Ctrl-\` | detach from `panal attach` (CLI) |
 
 ## Documentation
 

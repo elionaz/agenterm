@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elionaz/agenterm/internal/status"
+	"github.com/elionaz/panal/internal/status"
 )
 
 // Payload samples copied from https://code.claude.com/docs/en/hooks.
@@ -97,7 +97,7 @@ func TestClipLongMessage(t *testing.T) {
 
 func TestSetupClaudeWritesSettings(t *testing.T) {
 	dir := t.TempDir()
-	exe := "/Applications/My Apps/agenterm.app/Contents/MacOS/agenterm"
+	exe := "/Applications/My Apps/panal.app/Contents/MacOS/panal"
 	inj, err := Setup("claude", dir, exe, "/tmp/agt x/d.sock")
 	if err != nil {
 		t.Fatal(err)
@@ -128,12 +128,12 @@ func TestSetupClaudeWritesSettings(t *testing.T) {
 }
 
 func TestSetupCodexArgs(t *testing.T) {
-	inj, err := Setup("codex", t.TempDir(), "/usr/local/bin/agenterm", "/tmp/a/d.sock")
+	inj, err := Setup("codex", t.TempDir(), "/usr/local/bin/panal", "/tmp/a/d.sock")
 	if err != nil {
 		t.Fatal(err)
 	}
 	joined := strings.Join(inj.Args, " ")
-	if !strings.Contains(joined, `notify=["/usr/local/bin/agenterm","notify","--sock","/tmp/a/d.sock","--from-hook","codex"]`) ||
+	if !strings.Contains(joined, `notify=["/usr/local/bin/panal","notify","--sock","/tmp/a/d.sock","--from-hook","codex"]`) ||
 		!strings.Contains(joined, `tui.notification_method="osc9"`) {
 		t.Fatalf("args %v", inj.Args)
 	}
@@ -205,7 +205,7 @@ func TestClaudeSettingsPreToolUse(t *testing.T) {
 			}
 		}
 	}
-	if err := json.Unmarshal(ClaudeSettings("/x/agenterm", ""), &cfg); err != nil {
+	if err := json.Unmarshal(ClaudeSettings("/x/panal", ""), &cfg); err != nil {
 		t.Fatal(err)
 	}
 	g := cfg.Hooks["PreToolUse"]
@@ -245,7 +245,7 @@ func TestClaudeSettingsListenToSessionStart(t *testing.T) {
 	var cfg struct {
 		Hooks map[string]json.RawMessage `json:"hooks"`
 	}
-	if err := json.Unmarshal(ClaudeSettings("/x/agenterm", "/s.sock"), &cfg); err != nil {
+	if err := json.Unmarshal(ClaudeSettings("/x/panal", "/s.sock"), &cfg); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := cfg.Hooks["SessionStart"]; !ok {

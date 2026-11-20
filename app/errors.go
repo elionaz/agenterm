@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 
-	"github.com/elionaz/agenterm/internal/apierr"
+	"github.com/elionaz/panal/internal/apierr"
 )
 
 // codedError is how a coded daemon refusal reaches the frontend. Wails

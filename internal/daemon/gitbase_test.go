@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/gitx"
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/gitx"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 func gitIn(t *testing.T, dir string, args ...string) {

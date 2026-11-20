@@ -8,7 +8,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/elionaz/agenterm/internal/termsig"
+	"github.com/elionaz/panal/internal/termsig"
 )
 
 // Activity sources.
@@ -293,7 +293,7 @@ func looksLikePrompt(s string) bool {
 		return true
 	}
 	if spaced := len(body) < len(string(r[:len(r)-1])); spaced && dirToken.MatchString(body) {
-		return true // "agenterm %", "~/Dev $"
+		return true // "panal %", "~/Dev $"
 	}
 	prev, _ := utf8.DecodeLastRuneInString(body)
 	return strings.ContainsRune("~/\\])}", prev)

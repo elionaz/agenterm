@@ -1,4 +1,4 @@
-// Package gitx wraps the `git` command line for agenterm: repository
+// Package gitx wraps the `git` command line for panal: repository
 // queries, per-session worktrees, diffs and merges. Every call shells out to
 // git with a context timeout (no libgit2); read-only commands run with
 // GIT_OPTIONAL_LOCKS=0 so they never take index.lock under an agent that is
@@ -18,7 +18,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/apierr"
+	"github.com/elionaz/panal/internal/apierr"
 )
 
 // DefaultTimeout bounds a single git invocation when ctx has no deadline.

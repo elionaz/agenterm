@@ -1,4 +1,4 @@
-// Package protocol defines the wire format between the agenterm daemon and its
+// Package protocol defines the wire format between the panal daemon and its
 // clients.
 //
 // Control traffic is newline-delimited JSON: the client writes one Request
@@ -15,11 +15,11 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/forge"
-	"github.com/elionaz/agenterm/internal/gitx"
-	"github.com/elionaz/agenterm/internal/mailbox"
-	"github.com/elionaz/agenterm/internal/profile"
-	"github.com/elionaz/agenterm/internal/project"
+	"github.com/elionaz/panal/internal/forge"
+	"github.com/elionaz/panal/internal/gitx"
+	"github.com/elionaz/panal/internal/mailbox"
+	"github.com/elionaz/panal/internal/profile"
+	"github.com/elionaz/panal/internal/project"
 )
 
 // Version is the protocol version, reported by daemon.ping. Additive
@@ -31,8 +31,8 @@ const Version = 1
 
 // Environment variables injected into every session.
 const (
-	EnvSession = "AGENTERM_SESSION"
-	EnvSock    = "AGENTERM_SOCK"
+	EnvSession = "PANAL_SESSION"
+	EnvSock    = "PANAL_SOCK"
 )
 
 // Method names.
@@ -83,7 +83,7 @@ const (
 	MethodWorktreePR     = "worktree.pr"
 	MethodWorktreeOpen   = "worktree.open"
 	// MethodWorktreeCopy copies files from the main folder into a worktree
-	// (and can write them into a new .agenterm.yaml).
+	// (and can write them into a new .panal.yaml).
 	MethodWorktreeCopy = "worktree.copy"
 
 	// Pull requests on the code host (GitHub through gh, GitLab through
@@ -94,7 +94,7 @@ const (
 	MethodForgeMerge    = "forge.merge"
 	MethodForgeCreate   = "forge.create"
 
-	// Messages between the sessions of a project (agenterm msg). The
+	// Messages between the sessions of a project (panal msg). The
 	// daemon tells the sender from the connection: a call from inside a
 	// session is from that session whatever its params say.
 	MethodMsgPeers   = "msg.peers"
@@ -240,14 +240,14 @@ type SpawnParams struct {
 	Cols      uint16 `json:"cols,omitempty"`
 	Rows      uint16 `json:"rows,omitempty"`
 	// Mode is same (the project folder; default) or worktree (a new git
-	// worktree on a new branch, under the agenterm runtime dir).
+	// worktree on a new branch, under the panal runtime dir).
 	Mode string `json:"mode,omitempty"`
 	// Branch for a new worktree (default agent/<profile>-<id>; sanitized
 	// and made unique). Base is the branch/commit it starts from (default:
 	// the project's current branch).
 	Branch string `json:"branch,omitempty"`
 	Base   string `json:"base,omitempty"`
-	// WorktreeID reopens an existing agenterm worktree (implies worktree
+	// WorktreeID reopens an existing panal worktree (implies worktree
 	// mode; Branch and Base are ignored).
 	WorktreeID string `json:"worktreeId,omitempty"`
 	// TrustSetup trusts the repository's worktree setup command (as shown
@@ -333,7 +333,7 @@ type WorktreeListParams struct {
 	ProjectID string `json:"projectId"`
 }
 
-// WorktreeInfo describes an agenterm worktree.
+// WorktreeInfo describes a panal worktree.
 type WorktreeInfo struct {
 	ID        string    `json:"id"`
 	ProjectID string    `json:"projectId"`
@@ -646,11 +646,11 @@ type AttachParams struct {
 // SessionInfo describes a session on the wire.
 type SessionInfo struct {
 	// SuggestCopy (only in spawn's answer, for a new worktree of a
-	// repository without .agenterm.yaml): files at its root that git
+	// repository without .panal.yaml): files at its root that git
 	// ignores and the worktree therefore lacks (.env…), to offer copying.
 	SuggestCopy []string `json:"suggestCopy,omitempty"`
 	// Port is the session's own port (PORT…), when its repository's
-	// .agenterm.yaml asks for ports (AGENTERM_PORT is always set).
+	// .panal.yaml asks for ports (PANAL_PORT is always set).
 	Port int `json:"port,omitempty"`
 	// Permission is the permission mode its command line asks for: bypass
 	// (runs everything unasked), auto-edit, plan, or "" (the agent asks).
@@ -689,9 +689,9 @@ type SessionInfo struct {
 	// Model: the agent's model id, when known (hooks or command line).
 	Model string `json:"model,omitempty"`
 	// BrowserURL: the DevTools URL of the session's own Chrome while it
-	// runs (agenterm browser); "" when closed.
+	// runs (panal browser); "" when closed.
 	BrowserURL string `json:"browserUrl,omitempty"`
-	// Stopped: agenterm ended it (stop, close, continue with another
+	// Stopped: panal ended it (stop, close, continue with another
 	// agent), so a non-zero exit code is not a failure.
 	Stopped bool `json:"stopped,omitempty"`
 	// ContinuedFrom are the sessions whose work this one continues
@@ -803,7 +803,7 @@ type Event struct {
 	Model string `json:"model,omitempty"`
 	// BrowserURL (session.browser): the session's Chrome opened ("" closed).
 	BrowserURL string `json:"browserUrl,omitempty"`
-	// Stopped (session.state to exited): agenterm ended it.
+	// Stopped (session.state to exited): panal ended it.
 	Stopped bool `json:"stopped,omitempty"`
 	// Live is filled in session.activity and session.state events.
 	Live
@@ -815,7 +815,7 @@ type RestartMarker struct {
 	Resume []string `json:"resume"`
 }
 
-// MsgPeer is a session of the project, as agenterm msg peers shows it.
+// MsgPeer is a session of the project, as panal msg peers shows it.
 type MsgPeer struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"` // display name (the user's, else the profile's)
@@ -907,7 +907,7 @@ type InstructionTopic struct {
 	Title       string `json:"title"`
 	Description string `json:"description,omitempty"`
 	// Load: "always" (whole text at start) or "on_demand" (the session
-	// reads it with agenterm instructions show).
+	// reads it with panal instructions show).
 	Load string `json:"load"`
 	// Projects it applies to; empty: all.
 	Projects []string `json:"projects,omitempty"`
@@ -927,7 +927,7 @@ type Instructions struct {
 	// Composed is what a session of ProjectID receives at start.
 	Composed string `json:"composed"`
 	// CodexOwn: codex's config.toml sets developer_instructions, which
-	// agenterm leaves alone (its sessions don't get these then).
+	// panal leaves alone (its sessions don't get these then).
 	CodexOwn bool `json:"codexOwn,omitempty"`
 	// MaxBytes bounds each topic's text, MaxTotal what loads "always".
 	MaxBytes int `json:"maxBytes"`
@@ -968,7 +968,7 @@ type MsgDeliverParams struct {
 
 // WorktreeCopyParams copies Files (relative to the repository root) from
 // the main folder into worktree ID; Save also writes them as worktree.copy
-// of a new .agenterm.yaml at the repository root.
+// of a new .panal.yaml at the repository root.
 type WorktreeCopyParams struct {
 	ID    string   `json:"id"`
 	Files []string `json:"files"`
@@ -980,7 +980,7 @@ type WorktreeCopyResult struct {
 	Copied  []string `json:"copied"`
 	Skipped []string `json:"skipped,omitempty"`
 	Missing []string `json:"missing,omitempty"`
-	// Created is the .agenterm.yaml written (Save).
+	// Created is the .panal.yaml written (Save).
 	Created string `json:"created,omitempty"`
 }
 
@@ -1008,7 +1008,7 @@ type BrowserStatus struct {
 	Headless bool `json:"headless"`
 	// Exe is the browser found ("" none: install Chrome or set
 	// browser.path); NPX the npx that runs the MCP server ("" none:
-	// install Node.js; agents can still use agenterm browser).
+	// install Node.js; agents can still use panal browser).
 	Exe string `json:"exe"`
 	NPX string `json:"npx"`
 	// MCP is the server package agents get.

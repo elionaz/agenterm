@@ -8,14 +8,14 @@ import (
 
 func TestAppExeForHelper(t *testing.T) {
 	for in, want := range map[string]string{
-		"/Applications/agenterm.app/Contents/Helpers/agenterm":     "/Applications/agenterm.app/Contents/MacOS/agenterm",
-		"/x/My Apps/Dev.app/Contents/Helpers/agenterm":             "/x/My Apps/Dev.app/Contents/MacOS/agenterm",
-		"/a.app/b/c.app/Contents/Helpers/agenterm":                 "/a.app/b/c.app/Contents/MacOS/agenterm",
-		"/Applications/agenterm.app/Contents/MacOS/agenterm":       "",
-		"/Applications/agenterm.app/Contents/Helpers/sub/agenterm": "",
-		"/Applications/agenterm.app/Contents/Helpers/":             "",
-		"/opt/homebrew/bin/agenterm":                               "",
-		"/Users/me/go/bin/agenterm":                                "",
+		"/Applications/panal.app/Contents/Helpers/panal":     "/Applications/panal.app/Contents/MacOS/panal",
+		"/x/My Apps/Dev.app/Contents/Helpers/panal":          "/x/My Apps/Dev.app/Contents/MacOS/panal",
+		"/a.app/b/c.app/Contents/Helpers/panal":              "/a.app/b/c.app/Contents/MacOS/panal",
+		"/Applications/panal.app/Contents/MacOS/panal":       "",
+		"/Applications/panal.app/Contents/Helpers/sub/panal": "",
+		"/Applications/panal.app/Contents/Helpers/":          "",
+		"/opt/homebrew/bin/panal":                            "",
+		"/Users/me/go/bin/panal":                             "",
 	} {
 		if got := appExeForHelper(in); got != want {
 			t.Errorf("appExeForHelper(%q) = %q, want %q", in, got, want)
@@ -38,13 +38,13 @@ func TestDaemonExecutable(t *testing.T) {
 		}
 		return p
 	}
-	helper := write(filepath.Join(dir, "agenterm.app/Contents/Helpers/agenterm"), 0o755)
-	appExe := write(filepath.Join(dir, "agenterm.app/Contents/MacOS/agenterm"), 0o755)
+	helper := write(filepath.Join(dir, "panal.app/Contents/Helpers/panal"), 0o755)
+	appExe := write(filepath.Join(dir, "panal.app/Contents/MacOS/panal"), 0o755)
 
 	// The bundled CLI, directly and through a symlink chain (Homebrew's
-	// PATH link -> Caskroom link -> Helpers/agenterm).
-	link1 := filepath.Join(dir, "Caskroom", "agenterm")
-	link2 := filepath.Join(dir, "bin", "agenterm")
+	// PATH link -> Caskroom link -> Helpers/panal).
+	link1 := filepath.Join(dir, "Caskroom", "panal")
+	link2 := filepath.Join(dir, "bin", "panal")
 	os.MkdirAll(filepath.Dir(link1), 0o755)
 	os.MkdirAll(filepath.Dir(link2), 0o755)
 	if err := os.Symlink(helper, link1); err != nil {
@@ -60,7 +60,7 @@ func TestDaemonExecutable(t *testing.T) {
 	}
 
 	// Outside a bundle (and for the app's own binary): unchanged.
-	plain := write(filepath.Join(dir, "go/bin/agenterm"), 0o755)
+	plain := write(filepath.Join(dir, "go/bin/panal"), 0o755)
 	for _, exe := range []string{plain, appExe, filepath.Join(dir, "missing")} {
 		if got := DaemonExecutable(exe); got != exe {
 			t.Errorf("DaemonExecutable(%q) = %q, want unchanged", exe, got)
@@ -68,12 +68,12 @@ func TestDaemonExecutable(t *testing.T) {
 	}
 
 	// A bundle whose app binary is missing or not executable: unchanged.
-	lone := write(filepath.Join(dir, "Lone.app/Contents/Helpers/agenterm"), 0o755)
+	lone := write(filepath.Join(dir, "Lone.app/Contents/Helpers/panal"), 0o755)
 	if got := DaemonExecutable(lone); got != lone {
 		t.Errorf("no app binary: got %q", got)
 	}
-	noexec := write(filepath.Join(dir, "NoExec.app/Contents/Helpers/agenterm"), 0o755)
-	write(filepath.Join(dir, "NoExec.app/Contents/MacOS/agenterm"), 0o644)
+	noexec := write(filepath.Join(dir, "NoExec.app/Contents/Helpers/panal"), 0o755)
+	write(filepath.Join(dir, "NoExec.app/Contents/MacOS/panal"), 0o644)
 	if got := DaemonExecutable(noexec); got != noexec {
 		t.Errorf("non-executable app binary: got %q", got)
 	}
@@ -83,8 +83,8 @@ func TestStartupError(t *testing.T) {
 	dir := t.TempDir()
 	log := filepath.Join(dir, "daemon.log")
 	for in, want := range map[string]string{
-		"time=x level=INFO msg=start\nagenterm: projects.json was written by a newer agenterm (format 2; this build reads up to 1): update agenterm\n": "projects.json was written by a newer agenterm (format 2; this build reads up to 1): update agenterm",
-		"agenterm daemon: listen unix /x/d.sock: bind: invalid argument\n":                                                                             "listen unix /x/d.sock: bind: invalid argument",
+		"time=x level=INFO msg=start\npanal: projects.json was written by a newer panal (format 2; this build reads up to 1): update panal\n": "projects.json was written by a newer panal (format 2; this build reads up to 1): update panal",
+		"panal daemon: listen unix /x/d.sock: bind: invalid argument\n":                                                                       "listen unix /x/d.sock: bind: invalid argument",
 		"time=x level=INFO msg=start\n": "",
 		"":                              "",
 	} {
@@ -99,7 +99,7 @@ func TestStartupError(t *testing.T) {
 		t.Errorf("missing log: %q", got)
 	}
 	// An earlier run's error is not this one's.
-	old := "agenterm daemon: an old failure\n"
+	old := "panal daemon: an old failure\n"
 	if err := os.WriteFile(log, []byte(old), 0o600); err != nil {
 		t.Fatal(err)
 	}

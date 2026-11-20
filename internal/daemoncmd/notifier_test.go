@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elionaz/agenterm/internal/daemon"
-	"github.com/elionaz/agenterm/internal/desktopnotify"
+	"github.com/elionaz/panal/internal/daemon"
+	"github.com/elionaz/panal/internal/desktopnotify"
 )
 
 // TestMain: no test here posts a real notification (tests that need the
@@ -24,7 +24,7 @@ func testNotifier(t *testing.T) (*notifier, *bytes.Buffer) {
 	var buf bytes.Buffer
 	log := slog.New(slog.NewTextHandler(&buf, nil))
 	// Not inside an .app bundle: native notifications are unavailable.
-	n := newNotifier(log, "/usr/local/bin/agenterm")
+	n := newNotifier(log, "/usr/local/bin/panal")
 	// Nor the desktop's on Linux: tests never post real notifications.
 	if n.linux != nil {
 		n.linux.Close()
@@ -55,7 +55,7 @@ func TestNotifierKillSwitch(t *testing.T) {
 	t.Setenv(desktopnotify.EnvNotify, "off")
 	n, buf := testNotifier(t)
 	if !n.off {
-		t.Fatal("AGENTERM_NOTIFY=off not honored")
+		t.Fatal("PANAL_NOTIFY=off not honored")
 	}
 	// Even with the osascript fallback allowed nothing is posted.
 	n.Notify(daemon.Notification{Title: "t", Body: "b", SessionID: "s1", Kind: "permission", Osascript: true})

@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/hooks"
-	"github.com/elionaz/agenterm/internal/mailbox"
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/hooks"
+	"github.com/elionaz/panal/internal/mailbox"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 func take(ms ...mailbox.Message) protocol.MsgTakeResult {
@@ -86,7 +86,7 @@ func TestClaudeOutputInstructions(t *testing.T) {
 	on := take()
 	on.Instructions, on.Peers = instr, &protocol.MsgPeers{ProjectName: "web"}
 	got := ctxOf(func() []byte { o, _ := claudeOutput(hooks.ClaudeHook{Event: evSessionStart}, on); return o }())
-	if !strings.HasPrefix(got, instr+"\n\n") || !strings.Contains(got, "agenterm session") {
+	if !strings.HasPrefix(got, instr+"\n\n") || !strings.Contains(got, "panal session") {
 		t.Fatalf("messages on: %q", got)
 	}
 	// Only at start, and never into a subagent.

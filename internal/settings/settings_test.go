@@ -182,7 +182,7 @@ func TestSaveNewAndBrokenFile(t *testing.T) {
 	if got, err := Load(p); err != nil || got != Defaults() {
 		t.Fatalf("new: %+v %v", got, err)
 	}
-	if data, _ := os.ReadFile(p); !strings.HasPrefix(string(data), "# agenterm") {
+	if data, _ := os.ReadFile(p); !strings.HasPrefix(string(data), "# panal") {
 		t.Fatalf("header: %s", data)
 	}
 	os.WriteFile(p, []byte("notify: [broken"), 0o600)

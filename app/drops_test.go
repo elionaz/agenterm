@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/paths"
+	"github.com/elionaz/panal/internal/paths"
 )
 
 func TestDropsGrabScreenshotThumbnails(t *testing.T) {

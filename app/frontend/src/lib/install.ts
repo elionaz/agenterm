@@ -1,5 +1,5 @@
 // A catalog agent's install hint ("npm i -g x   (or brew install y)") split
-// into the command agenterm runs and the alternatives shown as text
+// into the command panal runs and the alternatives shown as text
 // (mirrors profile.InstallCommand).
 export function installCommand(hint: string | undefined): { cmd: string; alt: string } {
   const h = (hint ?? '').trim()

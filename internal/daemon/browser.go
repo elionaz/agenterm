@@ -10,18 +10,18 @@ import (
 	"sync"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/browser"
-	"github.com/elionaz/agenterm/internal/hooks"
-	"github.com/elionaz/agenterm/internal/profile"
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/settings"
+	"github.com/elionaz/panal/internal/browser"
+	"github.com/elionaz/panal/internal/hooks"
+	"github.com/elionaz/panal/internal/profile"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/settings"
 )
 
 // Each session's own Chrome (package browser): a profile folder under
 // <runtime>/browsers/<sessionId> and a DevTools port from 9222, reserved
-// when the session starts (AGENTERM_BROWSER_URL) and kept while it lives.
+// when the session starts (PANAL_BROWSER_URL) and kept while it lives.
 // Nothing runs until an agent needs it: the browser MCP server launches it
-// on its first tool call, or browser.open (agenterm browser) does. The
+// on its first tool call, or browser.open (panal browser) does. The
 // daemon watches the port (session.browser events), stops the browser when
 // the session exits and deletes the profile when the session is removed.
 
@@ -124,7 +124,7 @@ func (s *Server) browserEnv(id string) []string {
 	if p == 0 {
 		return nil
 	}
-	return []string{fmt.Sprintf("AGENTERM_BROWSER_URL=http://127.0.0.1:%d", p)}
+	return []string{fmt.Sprintf("PANAL_BROWSER_URL=http://127.0.0.1:%d", p)}
 }
 
 func (s *Server) browserSpec(id string) (browser.Spec, error) {
@@ -303,12 +303,12 @@ func (s *Server) browserCloseAll() {
 
 // browserNote is the instruction that steers agents to their own browser.
 const browserNote = "## Browser\n\nFor browser work (opening pages, testing a web app, screenshots), use your own " +
-	"isolated Chrome for this session: the `agenterm-browser` MCP tools, or run `agenterm browser` for its " +
-	"DevTools URL (also in $AGENTERM_BROWSER_URL, e.g. for Playwright's connectOverCDP). Never drive the " +
+	"isolated Chrome for this session: the `panal-browser` MCP tools, or run `panal browser` for its " +
+	"DevTools URL (also in $PANAL_BROWSER_URL, e.g. for Playwright's connectOverCDP). Never drive the " +
 	"user's own Chrome (no Claude in Chrome or other extension tools): it has their tabs and logins."
 
 // browserMCPArgs are the agent arguments that give a session the browser
-// MCP server (`agenterm browser mcp`), for agents with an integration;
+// MCP server (`panal browser mcp`), for agents with an integration;
 // nil when the browser is off or misses Chrome or npx.
 func (s *Server) browserMCPArgs(agent string) []string {
 	if !hooks.ReceivesInstructions(agent) || !s.browserReady() {
@@ -318,7 +318,7 @@ func (s *Server) browserMCPArgs(agent string) []string {
 	switch agent {
 	case hooks.AgentClaude:
 		cfg, _ := json.Marshal(map[string]any{"mcpServers": map[string]any{
-			"agenterm-browser": map[string]any{"type": "stdio", "command": s.cfg.Exe, "args": argv},
+			"panal-browser": map[string]any{"type": "stdio", "command": s.cfg.Exe, "args": argv},
 		}})
 		file := filepath.Join(s.cfg.Paths.HooksDir(), "browser-mcp.json")
 		if err := hooks.WriteIfChanged(file, append(cfg, '\n')); err != nil {
@@ -332,8 +332,8 @@ func (s *Server) browserMCPArgs(agent string) []string {
 		cmd, _ := json.Marshal(s.cfg.Exe)
 		args, _ := json.Marshal(argv)
 		return []string{
-			"-c", "mcp_servers.agenterm-browser.command=" + string(cmd),
-			"-c", "mcp_servers.agenterm-browser.args=" + string(args),
+			"-c", "mcp_servers.panal-browser.command=" + string(cmd),
+			"-c", "mcp_servers.panal-browser.args=" + string(args),
 		}
 	}
 	return nil

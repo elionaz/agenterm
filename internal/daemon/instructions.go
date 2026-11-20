@@ -3,11 +3,11 @@ package daemon
 import (
 	"errors"
 
-	"github.com/elionaz/agenterm/internal/apierr"
-	"github.com/elionaz/agenterm/internal/hooks"
-	"github.com/elionaz/agenterm/internal/instructions"
-	"github.com/elionaz/agenterm/internal/project"
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/apierr"
+	"github.com/elionaz/panal/internal/hooks"
+	"github.com/elionaz/panal/internal/instructions"
+	"github.com/elionaz/panal/internal/project"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 // The user's standing instructions (package instructions, one file per
@@ -102,14 +102,14 @@ func (s *Server) sessionInstructions(proj project.Project) string {
 	text := s.instr().For(proj.ID, proj.Name)
 	if cfg := s.browserSettings(); cfg.Enabled && s.browserExe(cfg) != "" {
 		if text == "" {
-			text = "From agenterm:"
+			text = "From panal:"
 		}
 		text += "\n\n" + browserNote
 	}
 	return text
 }
 
-// agentArgs are the arguments agenterm adds before a profile's own: the
+// agentArgs are the arguments panal adds before a profile's own: the
 // hook integration, plus the instructions for codex (unless the user's
 // config.toml sets its own developer_instructions).
 func (s *Server) agentArgs(lp launchProfile, proj project.Project) []string {

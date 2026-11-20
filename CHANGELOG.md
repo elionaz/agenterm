@@ -7,6 +7,16 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Changed
+
+- **agenterm is now panal.** Another project already used the name. The CLI is `panal` (`agenterm`
+  still works for a while, with a notice), the app is panal.app, the per-repository file is
+  `.panal.yaml` (an `.agenterm.yaml` is still read) and the variables are `PANAL_*` (`AGENTERM_*`
+  still work). On its first start the daemon moves `~/.agenterm` and `~/.config/agenterm` to
+  `~/.panal` and `~/.config/panal`, leaving links at the old paths, so sessions, messages, worktrees
+  and settings carry over. In-app updates keep working (the bundle id stays `com.elionaz.agenterm`).
+  Homebrew: `brew install --cask elionaz/tap/panal`.
+
 ### Added
 
 - **A Linux app (experimental).** Each release has an AppImage and a .deb for amd64 and arm64
@@ -22,9 +32,9 @@ releases may include breaking changes.
   commits, and the end of its terminal, secrets removed. Claude Code and codex get it as their first
   prompt. Or hand it to **an existing session** (preselected when another agent works in the
   same folder), which gets it as a message from you. The old session closes unless you keep it, and
-  folds under the one that continues it in the sidebar (**⇠ name**). `agenterm handoff` does the
+  folds under the one that continues it in the sidebar (**⇠ name**). `panal handoff` does the
   same.
-- **Stopped, not failed.** A session agenterm ended (stop, close, continue) reads *stopped* in grey
+- **Stopped, not failed.** A session panal ended (stop, close, continue) reads *stopped* in grey
   instead of a red `exit 129`.
 - **Move to a worktree** in the *Shared folder* notice of the Changes tab: the same, preset to the
   session's agent and a new worktree, so two agents stop editing the same folder.
@@ -500,23 +510,23 @@ First public release: a macOS desktop app (universal: Apple Silicon and Intel, m
   `.zip` downloads, CLI archives for macOS and Linux, and a Homebrew cask
   (`brew install --cask elionaz/tap/agenterm`).
 
-[Unreleased]: https://github.com/elionaz/agenterm/compare/v0.12.0...HEAD
-[0.12.0]: https://github.com/elionaz/agenterm/compare/v0.11.0...v0.12.0
-[0.11.0]: https://github.com/elionaz/agenterm/compare/v0.10.0...v0.11.0
-[0.10.0]: https://github.com/elionaz/agenterm/compare/v0.9.0...v0.10.0
-[0.9.0]: https://github.com/elionaz/agenterm/compare/v0.8.1...v0.9.0
-[0.8.1]: https://github.com/elionaz/agenterm/compare/v0.8.0...v0.8.1
-[0.8.0]: https://github.com/elionaz/agenterm/compare/v0.7.0...v0.8.0
-[0.7.0]: https://github.com/elionaz/agenterm/compare/v0.6.0...v0.7.0
-[0.6.0]: https://github.com/elionaz/agenterm/compare/v0.5.0...v0.6.0
-[0.5.0]: https://github.com/elionaz/agenterm/compare/v0.4.3...v0.5.0
-[0.4.3]: https://github.com/elionaz/agenterm/compare/v0.4.2...v0.4.3
-[0.4.2]: https://github.com/elionaz/agenterm/compare/v0.4.1...v0.4.2
-[0.4.1]: https://github.com/elionaz/agenterm/compare/v0.4.0...v0.4.1
-[0.4.0]: https://github.com/elionaz/agenterm/compare/v0.3.1...v0.4.0
-[0.3.1]: https://github.com/elionaz/agenterm/compare/v0.3.0...v0.3.1
-[0.3.0]: https://github.com/elionaz/agenterm/compare/v0.2.1...v0.3.0
-[0.2.1]: https://github.com/elionaz/agenterm/compare/v0.2.0...v0.2.1
-[0.2.0]: https://github.com/elionaz/agenterm/compare/v0.1.1...v0.2.0
-[0.1.1]: https://github.com/elionaz/agenterm/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/elionaz/agenterm/releases/tag/v0.1.0
+[Unreleased]: https://github.com/elionaz/panal/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/elionaz/panal/compare/v0.11.0...v0.12.0
+[0.11.0]: https://github.com/elionaz/panal/compare/v0.10.0...v0.11.0
+[0.10.0]: https://github.com/elionaz/panal/compare/v0.9.0...v0.10.0
+[0.9.0]: https://github.com/elionaz/panal/compare/v0.8.1...v0.9.0
+[0.8.1]: https://github.com/elionaz/panal/compare/v0.8.0...v0.8.1
+[0.8.0]: https://github.com/elionaz/panal/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/elionaz/panal/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/elionaz/panal/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/elionaz/panal/compare/v0.4.3...v0.5.0
+[0.4.3]: https://github.com/elionaz/panal/compare/v0.4.2...v0.4.3
+[0.4.2]: https://github.com/elionaz/panal/compare/v0.4.1...v0.4.2
+[0.4.1]: https://github.com/elionaz/panal/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/elionaz/panal/compare/v0.3.1...v0.4.0
+[0.3.1]: https://github.com/elionaz/panal/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/elionaz/panal/compare/v0.2.1...v0.3.0
+[0.2.1]: https://github.com/elionaz/panal/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/elionaz/panal/compare/v0.1.1...v0.2.0
+[0.1.1]: https://github.com/elionaz/panal/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/elionaz/panal/releases/tag/v0.1.0

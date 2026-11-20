@@ -1,13 +1,13 @@
-// Package fileformat versions agenterm's on-disk files.
+// Package fileformat versions panal's on-disk files.
 //
-// Every file agenterm writes carries a format version: a top-level
+// Every file panal writes carries a format version: a top-level
 // `version` key in settings.yaml and profiles.yaml, and a JSON envelope
 // {"version": N, "<items>": [...]} in projects.json, worktrees.json and
 // sessions.json. Files written before 0.4.0 have no version; they are format
 // 1 and are still read (and rewritten with the version on the next save).
 //
 // A file whose version is newer than the build understands was written by a
-// newer agenterm: it is refused with a TooNewError and never overwritten, so
+// newer panal: it is refused with a TooNewError and never overwritten, so
 // running an older build after a downgrade cannot destroy data.
 package fileformat
 
@@ -31,7 +31,7 @@ type TooNewError struct {
 }
 
 func (e *TooNewError) Error() string {
-	return fmt.Sprintf("%s was written by a newer agenterm (format %d; this build reads up to %d): update agenterm",
+	return fmt.Sprintf("%s was written by a newer panal (format %d; this build reads up to %d): update panal",
 		filepath.Base(e.Path), e.Version, e.Max)
 }
 
@@ -42,19 +42,19 @@ func IsTooNew(err error) bool {
 }
 
 // BadVersionError: path has a version that is not a whole number, which no
-// agenterm writes. It is treated like a newer format: refused, not touched.
+// panal writes. It is treated like a newer format: refused, not touched.
 type BadVersionError struct {
 	Path string
 	Raw  string
 }
 
 func (e *BadVersionError) Error() string {
-	return fmt.Sprintf("%s has a format version this agenterm does not understand (%s): update agenterm or fix the file",
+	return fmt.Sprintf("%s has a format version this panal does not understand (%s): update panal or fix the file",
 		filepath.Base(e.Path), e.Raw)
 }
 
 // Protected reports whether err means the file must be left alone: written
-// by a newer agenterm (TooNewError) or with an unreadable version
+// by a newer panal (TooNewError) or with an unreadable version
 // (BadVersionError).
 func Protected(err error) bool {
 	var b *BadVersionError

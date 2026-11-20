@@ -4,14 +4,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/i18n"
+	"github.com/elionaz/panal/internal/i18n"
 )
 
 func TestWording(t *testing.T) {
 	if got := Title("web", "claude"); got != "web · claude" {
 		t.Fatal(got)
 	}
-	if got := Title("", ""); got != "agenterm" {
+	if got := Title("", ""); got != "panal" {
 		t.Fatal(got)
 	}
 	if Body(i18n.ES, "permission", "") != "Necesita tu aprobación" || Body(i18n.ES, "done", "") != "Terminó" || Body(i18n.ES, "done", "x") != "x" {

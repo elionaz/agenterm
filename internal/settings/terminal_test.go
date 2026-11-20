@@ -59,7 +59,7 @@ func TestTerminalAndAppearance(t *testing.T) {
 }
 
 func TestRetiredThemesMapToTheirReplacements(t *testing.T) {
-	for in, want := range map[string]string{"agenterm-dark": "bright-lights", " Agenterm-Light ": "alphabetical", "nord": "silent-alarm", "Dracula": "funeral",
+	for in, want := range map[string]string{"panal-dark": "bright-lights", " Panal-Light ": "alphabetical", "nord": "silent-alarm", "Dracula": "funeral",
 		"gruvbox-dark": "is-this-it", "solarized-dark": "z", "solarized-light": "hot-fuss", "z": "z", "nope": DefaultTheme} {
 		if got := normTerminal(Terminal{Theme: in}).Theme; got != want {
 			t.Errorf("%q: got %q, want %q", in, got, want)

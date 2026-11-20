@@ -10,9 +10,9 @@ import (
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"github.com/elionaz/agenterm/internal/desktopnotify"
-	"github.com/elionaz/agenterm/internal/macnotify"
-	"github.com/elionaz/agenterm/internal/settings"
+	"github.com/elionaz/panal/internal/desktopnotify"
+	"github.com/elionaz/panal/internal/macnotify"
+	"github.com/elionaz/panal/internal/settings"
 )
 
 // The welcome screen (shown while there are no projects) reports what a new
@@ -22,9 +22,9 @@ import (
 // OnboardingInfo is what the welcome screen shows.
 type OnboardingInfo struct {
 	// Notifications: authorized | denied | not-determined | unknown, or
-	// off (AGENTERM_NOTIFY=off) and unsupported (no .app bundle).
+	// off (PANAL_NOTIFY=off) and unsupported (no .app bundle).
 	Notifications string `json:"notifications"`
-	// CLIPath is the `agenterm` found on the login shell's PATH ("" if none).
+	// CLIPath is the `panal` found on the login shell's PATH ("" if none).
 	CLIPath string `json:"cliPath"`
 	// BundledCLI is the CLI inside this .app ("" outside a bundle).
 	BundledCLI string `json:"bundledCli"`
@@ -34,7 +34,7 @@ type OnboardingInfo struct {
 // installed.
 func (a *App) Onboarding() OnboardingInfo {
 	info := OnboardingInfo{Notifications: notificationState()}
-	if p, err := exec.LookPath("agenterm"); err == nil {
+	if p, err := exec.LookPath("panal"); err == nil {
 		info.CLIPath = p
 	}
 	info.BundledCLI = bundledCLI()
@@ -62,7 +62,7 @@ type NotificationInfo struct {
 	Detail string `json:"detail,omitempty"`
 }
 
-// NotificationStatus reports macOS's permission for agenterm, re-reading it
+// NotificationStatus reports macOS's permission for panal, re-reading it
 // (a change in System Settings applies without a relaunch).
 func (a *App) NotificationStatus() NotificationInfo {
 	if s := notificationState0(); s != "" {
@@ -87,7 +87,7 @@ func (a *App) TestNotification(title, body string) error {
 }
 
 // OpenNotificationSettings opens System Settings → Notifications on
-// agenterm's entry (for a permission the user denied).
+// panal's entry (for a permission the user denied).
 func (a *App) OpenNotificationSettings() error {
 	url := "x-apple.systempreferences:com.apple.Notifications-Settings.extension"
 	if id := bundleIdentifier(); id != "" {
@@ -115,7 +115,7 @@ func notificationState0() string {
 	return ""
 }
 
-// bundledCLI is Contents/Helpers/agenterm next to this executable (on
+// bundledCLI is Contents/Helpers/panal next to this executable (on
 // Linux: the CLI shipped next to the app, see daemonExe).
 func bundledCLI() string {
 	exe, err := os.Executable()
@@ -132,7 +132,7 @@ func bundledCLI() string {
 	if bundle == "" {
 		return ""
 	}
-	p := filepath.Join(bundle, "Contents", "Helpers", "agenterm")
+	p := filepath.Join(bundle, "Contents", "Helpers", "panal")
 	if _, err := os.Stat(p); err != nil {
 		return ""
 	}

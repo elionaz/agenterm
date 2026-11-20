@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elionaz/agenterm/internal/fileformat"
+	"github.com/elionaz/panal/internal/fileformat"
 )
 
 func TestLegacyFileIsReadAndUpgraded(t *testing.T) {

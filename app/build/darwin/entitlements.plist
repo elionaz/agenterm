@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  Hardened-runtime entitlements for agenterm.app and its bundled CLI
+  Hardened-runtime entitlements for panal.app and its bundled CLI
   (scripts/release-local.sh signs with them; not used by `wails build`).
 
   Intentionally empty:

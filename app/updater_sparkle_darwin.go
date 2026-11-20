@@ -83,7 +83,7 @@ func agtSparkleUpdate(version *C.char, ready C.int) {
 	select {
 	case sparkleUpdates <- u:
 	default:
-		log.Printf("agenterm: updater: dropped an update report")
+		log.Printf("panal: updater: dropped an update report")
 	}
 }
 

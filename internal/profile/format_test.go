@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elionaz/agenterm/internal/fileformat"
+	"github.com/elionaz/panal/internal/fileformat"
 )
 
 func TestParseFormats(t *testing.T) {

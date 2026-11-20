@@ -28,7 +28,7 @@
              placeholder with $SPARKLE_PUBLIC_ED_KEY or removes the key:
              without it the updater stays off). -->
         <key>SUFeedURL</key>
-        <string>https://github.com/elionaz/agenterm/releases/latest/download/appcast.xml</string>
+        <string>https://github.com/elionaz/panal/releases/latest/download/appcast.xml</string>
         <key>SUPublicEDKey</key>
         <string>@SPARKLE_PUBLIC_ED_KEY@</string>
         <key>SUEnableAutomaticChecks</key>

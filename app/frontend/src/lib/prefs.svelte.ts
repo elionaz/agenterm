@@ -6,8 +6,8 @@ import { normPrefs, type TermPrefs, type TermPrefsInput } from './themes'
 
 export type Appearance = 'system' | 'dark' | 'light'
 
-const TERM_KEY = 'agenterm.terminal'
-const APPEARANCE_KEY = 'agenterm.appearance'
+const TERM_KEY = 'panal.terminal'
+const APPEARANCE_KEY = 'panal.appearance'
 
 function normAppearance(v: string | null | undefined): Appearance {
   return v === 'dark' || v === 'light' ? v : 'system'

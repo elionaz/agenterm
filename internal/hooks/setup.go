@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// Injection is what a session needs to report to agenterm: extra arguments
+// Injection is what a session needs to report to panal: extra arguments
 // placed before the profile's own and extra environment variables.
 type Injection struct {
 	Args []string
@@ -21,7 +21,7 @@ const (
 	AgentCodex  = "codex"
 )
 
-// claudeEvents are the Claude Code hook events agenterm listens to; see
+// claudeEvents are the Claude Code hook events panal listens to; see
 // parseClaude for what each one means. SessionStart carries no state: it
 // reports the (new) session_id early, so a daemon restart can resume the
 // conversation even before the first prompt (SessionRef).
@@ -39,11 +39,11 @@ const (
 // Setup prepares the hook integration for agent. exe is the absolute path
 // of a binary implementing `notify --from-hook` (the daemon's own
 // executable); sock is the daemon's socket, passed explicitly (`--sock`) so
-// hooks reach that daemon whatever AGENTERM_HOME / AGENTERM_SOCK the
+// hooks reach that daemon whatever PANAL_HOME / PANAL_SOCK the
 // agent's environment ends up with; dir is where generated files go
 // (paths.HooksDir, which belongs to that same daemon). Nothing is
 // written outside dir: the user's agent configuration and the project are
-// left alone, and the integration only applies to sessions agenterm spawns.
+// left alone, and the integration only applies to sessions panal spawns.
 // An empty agent (or "none") means no integration.
 func Setup(agent, dir, exe, sock string) (Injection, error) {
 	switch agent {

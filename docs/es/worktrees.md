@@ -17,7 +17,7 @@ cambia de rama, hace stash o commitea, se lleva el trabajo a medias de los otros
 barra lateral y la pestaña Cambios muestran esa carpeta, así que todas las sesiones de ahí muestran
 los mismos archivos.
 
-Para agentes trabajando en paralelo, dale a cada uno su propio **worktree**. Es lo que agenterm
+Para agentes trabajando en paralelo, dale a cada uno su propio **worktree**. Es lo que panal
 hace por defecto (`git.default_mode: worktree`, desde 0.7.0): un agente nuevo empieza en su propia
 rama y carpeta, y un **Shell** simple empieza en la carpeta del proyecto. **Misma carpeta** sigue a
 un clic en el menú **+**.
@@ -30,7 +30,7 @@ un clic en el menú **+**.
 - Una sesión que sí comparte la carpeta lo dice: la pestaña Cambios muestra *Carpeta compartida* con
   los otros agentes, y también el tooltip del **±N**. **Pasar a un worktree**, ahí mismo, la
   continúa en un worktree propio (ver abajo).
-- `agenterm spawn` sin `--worktree` avisa en stderr cuando la sesión nueva comparte la carpeta
+- `panal spawn` sin `--worktree` avisa en stderr cuando la sesión nueva comparte la carpeta
   (stdout sigue siendo solo el id).
 
 El trabajo de cada worktree vuelve con **Merge a la base** o **Crear pull request** (abajo).
@@ -53,13 +53,13 @@ pestaña Cambios de una carpeta compartida) abre *Continuar con otro agente*:
   antes de continuar.
 
 La sesión nueva recibe el resumen como primer mensaje (Claude Code, codex) o, en otros agentes, una
-línea escrita en su prompt que apunta al archivo (`~/.agenterm/handoffs/<sessionId>.md`). Conserva
+línea escrita en su prompt que apunta al archivo (`~/.panal/handoffs/<sessionId>.md`). Conserva
 el nombre de la sesión anterior. La sesión anterior se cierra, para que dos agentes no editen los
 mismos archivos, salvo que marques *Dejar esta sesión abierta*. Una vez cerrada, queda plegada bajo
 la sesión que la continúa en la barra lateral (**⇠ nombre** en esa fila la muestra), y una sesión
-que detuvo agenterm dice *detenida*, no un código de salida en rojo. Desde la CLI:
-`agenterm handoff [--worktree] [--keep] [--note ARCHIVO|-] <sessionId> <perfil>`,
-`agenterm handoff --into <sessionId> <sessionId>` (una sesión existente), `--print` muestra el
+que detuvo panal dice *detenida*, no un código de salida en rojo. Desde la CLI:
+`panal handoff [--worktree] [--keep] [--note ARCHIVO|-] <sessionId> <perfil>`,
+`panal handoff --into <sessionId> <sessionId>` (una sesión existente), `--print` muestra el
 resumen.
 
 ## Modos de una sesión
@@ -72,7 +72,7 @@ resumen.
   - **Base**: por defecto la rama actual del proyecto (o `main`/`master` si `HEAD` está separado).
     Puede ser cualquier rama o commit.
   - **Carpeta**: `<worktrees>/<proyecto>-<projectId>/<sessionId>/`, donde `<worktrees>` es
-    `~/.agenterm/worktrees` (o `git.worktree_dir`) y `<proyecto>` es el nombre del proyecto en
+    `~/.panal/worktrees` (o `git.worktree_dir`) y `<proyecto>` es el nombre del proyecto en
     minúsculas y saneado. Los worktrees **nunca** se crean dentro del proyecto.
   - Se permite aunque la carpeta principal tenga cambios: el worktree parte del commit de la base.
   - Si el proyecto es una subcarpeta del repo, la sesión arranca en esa misma subcarpeta del
@@ -80,7 +80,7 @@ resumen.
   - Errores claros si el proyecto no es un repo git (en la app la opción sale desactivada, con el
     motivo), si el repo no tiene commits todavía o si la base no existe.
 - **Reabrir un worktree** (`--in-worktree <id>` en la CLI, *Abrir shell aquí* en la app): una
-  sesión nueva en un worktree de agenterm que ya existe.
+  sesión nueva en un worktree de panal que ya existe.
 
 El id de un worktree es el de la sesión que lo creó.
 
@@ -91,7 +91,7 @@ confianza la primera vez para la carpeta nueva.
 ## Preparar los worktrees nuevos
 
 Un worktree nuevo solo tiene lo que git sigue, así que la primera corrida de un agente suele fallar:
-no hay `.env` ni `node_modules`. Un **`.agenterm.yaml`** en la raíz del repositorio (haz commit para
+no hay `.env` ni `node_modules`. Un **`.panal.yaml`** en la raíz del repositorio (haz commit para
 compartirlo) dice qué recibe cada worktree nuevo:
 
 ```yaml
@@ -108,24 +108,24 @@ worktree:
 - **`setup`**: un comando de shell que corre en la terminal de la sesión, en tu shell de login,
   antes de que arranque el agente; ves su salida ahí. Si falla, la terminal lo dice y espera:
   **Enter** arranca el agente igual, **Ctrl-C** termina la sesión.
-- **Confianza**: un repositorio puede traer cualquier comando, así que agenterm solo corre un
+- **Confianza**: un repositorio puede traer cualquier comando, así que panal solo corre un
   `setup` cuando confiaste en él. La primera vez (y cada vez que el comando cambia) la app lo
   muestra y pregunta: **Confiar y crear**, **Crear sin setup** o cancelar. Desde la CLI:
-  `agenterm spawn --worktree --trust-setup` o `--no-setup` (sin ninguno, el spawn falla con
+  `panal spawn --worktree --trust-setup` o `--no-setup` (sin ninguno, el spawn falla con
   `setup_untrusted` y el comando). Lo que confiaste se guarda por repositorio en
-  `~/.agenterm/trust.json` (solo un hash del comando).
+  `~/.panal/trust.json` (solo un hash del comando).
 - **Solo worktrees nuevos**: retomar una sesión o reabrir un worktree no vuelve a correr nada.
 - **`node_modules`**: deja que `setup` lo instale (`npm install`, `pnpm i`…) en vez de copiarlo:
   las ramas pueden tener dependencias distintas, y una carpeta compartida las mezclaría.
-- **Sin el archivo**: si un repositorio no tiene `.agenterm.yaml` y git ignora archivos `.env*` en
+- **Sin el archivo**: si un repositorio no tiene `.panal.yaml` y git ignora archivos `.env*` en
   su raíz, la app ofrece copiarlos al worktree nuevo, una vez o escribiendo un primer
-  `.agenterm.yaml` con ellos (`agenterm spawn` imprime una nota en su lugar).
+  `.panal.yaml` con ellos (`panal spawn` imprime una nota en su lugar).
 
 ## Un puerto por sesión
 
 Dos agentes que arrancan un dev server quieren el puerto 3000. Cada sesión recibe
-**`AGENTERM_PORT`**, un puerto propio: el más bajo desde 3000 que no tenga otra sesión del proyecto
-y en el que nada escuche. La sesión lo conserva al retomarla. Cuando el `.agenterm.yaml` del
+**`PANAL_PORT`**, un puerto propio: el más bajo desde 3000 que no tenga otra sesión del proyecto
+y en el que nada escuche. La sesión lo conserva al retomarla. Cuando el `.panal.yaml` del
 repositorio pide puertos, también se pone **`PORT`**, y la barra lateral y la barra de título lo
 muestran (`:3001`; clic para copiar `localhost:3001`):
 
@@ -136,15 +136,15 @@ ports:
 ```
 
 Next.js, Express, Rails, Flask y la mayoría de los servidores leen `PORT`. **Vite no**: arráncalo
-con `vite --port $AGENTERM_PORT` (en tu script `dev`), o lee `process.env.VITE_PORT` en
+con `vite --port $PANAL_PORT` (en tu script `dev`), o lee `process.env.VITE_PORT` en
 `vite.config` y agrégalo: `env: [PORT, VITE_PORT]`. Sin `ports.base` solo se pone
-`AGENTERM_PORT`, así que nada cambia para los servidores que esperan su puerto de siempre.
+`PANAL_PORT`, así que nada cambia para los servidores que esperan su puerto de siempre.
 
 ## Ciclo de vida
 
 - **Matar una sesión nunca borra su worktree.** El registro (`worktrees.json`) sobrevive a los
   reinicios del daemon.
-- Estados de un worktree (`agenterm worktrees <proyecto>`):
+- Estados de un worktree (`panal worktrees <proyecto>`):
   - `live`: una sesión viva lo usa;
   - `exited`: solo lo usan sesiones ya terminadas que siguen en la lista, o sesiones `suspended`
     tras un reinicio del daemon (reanudar una la vuelve a abrir en este worktree);
@@ -181,7 +181,7 @@ con `vite --port $AGENTERM_PORT` (en tu script `dev`), o lee `process.env.VITE_P
 
 ## Acciones
 
-- **Merge a la base** (`agenterm worktree merge <id>`): `git merge --no-ff` de la rama en la
+- **Merge a la base** (`panal worktree merge <id>`): `git merge --no-ff` de la rama en la
   **carpeta principal** del repo. Solo si:
   - la carpeta principal está en la rama base;
   - no tiene cambios en archivos con seguimiento (los sin seguimiento no bloquean; no hay stash
@@ -194,7 +194,7 @@ con `vite --port $AGENTERM_PORT` (en tu script `dev`), o lee `process.env.VITE_P
   commitear del worktree no entran en el merge (se avisa cuántos quedaron fuera). En la app, tras un
   merge correcto se ofrece eliminar el worktree y su rama (la confirmación de siempre, con *Borrar
   también la rama* ya marcada).
-- **Crear pull request** (`agenterm worktree pr [--no-open] <id>`): `git push -u <remoto> <rama>` y
+- **Crear pull request** (`panal worktree pr [--no-open] <id>`): `git push -u <remoto> <rama>` y
   luego abre la página del servidor para crear el pull request hacia la base. No usa `gh`, nunca
   hace push forzado ni sube la base.
   - Remoto: el mismo al que haría push git: `branch.<rama>.pushRemote`; si no, `remote.pushDefault`;
@@ -212,7 +212,7 @@ con `vite --port $AGENTERM_PORT` (en tu script `dev`), o lee `process.env.VITE_P
     `github.com-work` cuentan como GitHub). Otros servidores: se sube la rama y el pull request
     lo abres tú allí.
   - Los cambios sin commitear del worktree no se suben (se avisa cuántos quedaron fuera).
-- **Eliminar worktree** (`agenterm worktree rm <id>`):
+- **Eliminar worktree** (`panal worktree rm <id>`):
   - se niega si una sesión viva lo usa;
   - sin *force* también se niega si se perderían cambios sin commitear o, con *borrar también la
     rama* (`--delete-branch`), commits sin mergear en la base; el error lista qué se perdería;
@@ -220,7 +220,7 @@ con `vite --port $AGENTERM_PORT` (en tu script `dev`), o lee `process.env.VITE_P
   - tras borrar: `git worktree prune` y, si se pidió, `git branch -D` (seguro: los commits sin
     mergear ya se comprobaron contra la base, salvo con *force*).
 - **Abrir en editor** (`git.editor`; por defecto `code` si está en el `PATH`, si no Finder) y
-  **Abrir en Finder** (`agenterm worktree open [--finder] <id>`).
+  **Abrir en Finder** (`panal worktree open [--finder] <id>`).
 - **Copiar rama** (solo en la app, al portapapeles).
 
 ## Pull requests en GitHub y GitLab
@@ -229,7 +229,7 @@ La pestaña **Cambios** muestra el pull request de la rama, en sesiones con work
 de la carpeta principal (la rama en la que está; nada en la rama base). Pasa por la CLI del propio
 servidor con tu sesión: [`gh`](https://cli.github.com) para GitHub y
 [`glab`](https://gitlab.com/gitlab-org/cli) para GitLab (gitlab.com y servidores cuyo nombre
-contiene `gitlab`). agenterm no guarda tokens. Sin la CLI, o sin sesión, Cambios explica cómo
+contiene `gitlab`). panal no guarda tokens. Sin la CLI, o sin sesión, Cambios explica cómo
 activarla (`brew install gh`, `gh auth login`) y mantiene el flujo de subir y abrir la página de
 arriba.
 

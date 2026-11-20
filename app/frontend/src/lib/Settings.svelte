@@ -83,9 +83,9 @@
     { field: 'notifyOnError', key: 'error' },
     { field: 'notifyOnStall', key: 'stall' },
   ] as const
-  const DETECTION_URL = 'https://github.com/elionaz/agenterm/blob/main/docs/attention-and-activity.md#where-the-signals-come-from'
+  const DETECTION_URL = 'https://github.com/elionaz/panal/blob/main/docs/attention-and-activity.md#where-the-signals-come-from'
   let notify = $state<Settings['notify'] | null>(null)
-  /** macOS's permission for agenterm (re-read when the tab opens and when
+  /** macOS's permission for panal (re-read when the tab opens and when
    * the window comes back, e.g. from System Settings). */
   let perm = $state<{ state: string; detail?: string } | null>(null)
   let permBusy = $state(false)
@@ -109,7 +109,7 @@
   async function sendTest() {
     testResult = null
     try {
-      await api.testNotification('agenterm', t('settings.n.testBody'))
+      await api.testNotification('panal', t('settings.n.testBody'))
       testResult = { ok: true, text: t('settings.n.testSent') }
     } catch (e) {
       testResult = { ok: false, text: errorMessage(e) }
@@ -1010,7 +1010,7 @@
           {t('settings.about.by')}
           <button class="link" onclick={() => BrowserOpenURL('https://github.com/elionaz')}>@elionaz</button>
           ·
-          <button class="link" onclick={() => BrowserOpenURL('https://github.com/elionaz/agenterm')}>github.com/elionaz/agenterm</button>
+          <button class="link" onclick={() => BrowserOpenURL('https://github.com/elionaz/panal')}>github.com/elionaz/panal</button>
         </p>
       </section>
     {:else if tab === 'appearance'}
@@ -1541,7 +1541,7 @@
               <b>{t('settings.g.dir')}</b>
               <em>{@html th('settings.g.dirHelp')}</em>
             </span>
-            <input class="text" bind:value={git.worktreeDir} placeholder="~/.agenterm/worktrees" spellcheck="false" />
+            <input class="text" bind:value={git.worktreeDir} placeholder="~/.panal/worktrees" spellcheck="false" />
           </label>
           <div class="editor-actions left">
             <button class="btn primary" disabled={!gitDirty} onclick={saveGit}>{t('settings.save')}</button>

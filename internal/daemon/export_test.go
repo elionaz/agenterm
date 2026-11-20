@@ -3,8 +3,8 @@ package daemon
 import (
 	"time"
 
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/status"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/status"
 )
 
 // SetAutoTiming shortens the automatic-delivery delays for a test; the

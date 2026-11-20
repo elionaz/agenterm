@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/apierr"
+	"github.com/elionaz/panal/internal/apierr"
 )
 
 // TestMain isolates git from the user's configuration: no system config,

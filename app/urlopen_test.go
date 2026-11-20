@@ -8,7 +8,7 @@ func TestOpenURLColdLaunchKeepsFocusForFrontend(t *testing.T) {
 	a.emit = rec.emit
 
 	// Before startup (cold launch by URL): only remembered.
-	a.openURL("agenterm://session/a1b2c3d4")
+	a.openURL("panal://session/a1b2c3d4")
 	a.openURL("https://evil.example/x") // ignored
 	if rec.has(evFocusSession) {
 		t.Fatal("focus emitted before startup")
@@ -24,7 +24,7 @@ func TestOpenURLColdLaunchKeepsFocusForFrontend(t *testing.T) {
 	}
 
 	// Frontend ready: focus right away, nothing pending.
-	a.openURL("agenterm://session/beef0001")
+	a.openURL("panal://session/beef0001")
 	if !rec.has(evFocusSession) {
 		t.Fatal("focus not emitted once running")
 	}

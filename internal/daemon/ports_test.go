@@ -8,15 +8,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 // envOf has run write the port variables of a shell session to a file
-// and returns them as "PORT VITE_PORT AGENTERM_PORT" ("-" when unset).
+// and returns them as "PORT VITE_PORT PANAL_PORT" ("-" when unset).
 func envOf(t *testing.T, run func(cmd string), dir, name string) string {
 	t.Helper()
 	out := filepath.Join(dir, name)
-	run(`printf '%s %s %s' "${PORT:--}" "${VITE_PORT:--}" "${AGENTERM_PORT:--}" > ` + out)
+	run(`printf '%s %s %s' "${PORT:--}" "${VITE_PORT:--}" "${PANAL_PORT:--}" > ` + out)
 	b, err := os.ReadFile(out)
 	if err != nil {
 		t.Fatal(err)
@@ -35,7 +35,7 @@ func TestSessionPorts(t *testing.T) {
 		t.Skipf("port %d busy: %v", base+1, err)
 	}
 	defer l.Close()
-	os.WriteFile(filepath.Join(repo, ".agenterm.yaml"), []byte(fmt.Sprintf("ports:\n  base: %d\n  env: [PORT, VITE_PORT]\n", base)), 0o644)
+	os.WriteFile(filepath.Join(repo, ".panal.yaml"), []byte(fmt.Sprintf("ports:\n  base: %d\n  env: [PORT, VITE_PORT]\n", base)), 0o644)
 	proj, err := c.ProjectAdd(ctx, repo, "ports")
 	if err != nil {
 		t.Fatal(err)
@@ -66,7 +66,7 @@ func TestSessionPorts(t *testing.T) {
 		t.Fatalf("b env = %q", got)
 	}
 
-	// A project that did not ask: AGENTERM_PORT only, nothing shown.
+	// A project that did not ask: PANAL_PORT only, nothing shown.
 	plain, err := c.ProjectAdd(ctx, t.TempDir(), "plain")
 	if err != nil {
 		t.Fatal(err)
@@ -76,7 +76,7 @@ func TestSessionPorts(t *testing.T) {
 		t.Fatalf("port shown without ports.base: %d", q.Port)
 	}
 	if got := vars(q.ID, "q"); !strings.HasPrefix(got, "- - ") || strings.HasSuffix(got, " -") {
-		t.Fatalf("plain env = %q (want only AGENTERM_PORT)", got)
+		t.Fatalf("plain env = %q (want only PANAL_PORT)", got)
 	}
 
 	// Resumed after a daemon restart: the same port.

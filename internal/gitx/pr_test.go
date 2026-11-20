@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/apierr"
+	"github.com/elionaz/panal/internal/apierr"
 )
 
 func TestCompareURL(t *testing.T) {
@@ -199,8 +199,8 @@ func TestRemoteOf(t *testing.T) {
 		host, path     string
 		github, gitlab bool
 	}{
-		{"git@github.com:elionaz/agenterm.git", "github.com", "elionaz/agenterm", true, false},
-		{"https://github.com/elionaz/agenterm", "github.com", "elionaz/agenterm", true, false},
+		{"git@github.com:elionaz/panal.git", "github.com", "elionaz/panal", true, false},
+		{"https://github.com/elionaz/panal", "github.com", "elionaz/panal", true, false},
 		{"git@github.com-work:acme/app.git", "github.com", "acme/app", true, false},
 		{"https://gitlab.com/group/sub/proj.git", "gitlab.com", "group/sub/proj", false, true},
 		{"ssh://git@gitlab.example.org/team/proj.git", "gitlab.example.org", "team/proj", false, true},

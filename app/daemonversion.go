@@ -12,11 +12,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/atomicfile"
+	"github.com/elionaz/panal/internal/atomicfile"
 
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/status"
-	"github.com/elionaz/agenterm/internal/version"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/status"
+	"github.com/elionaz/panal/internal/version"
 )
 
 // After an in-app update the window runs the new build while the daemon
@@ -246,20 +246,20 @@ func processAlive(pid int) bool {
 	return !errors.Is(syscall.Kill(pid, 0), syscall.ESRCH)
 }
 
-// isDaemonProc: pid is (still) an agenterm process. An in-process daemon
+// isDaemonProc: pid is (still) a panal process. An in-process daemon
 // (tests) shares our pid; an unknown name counts as ours (keep waiting).
 func isDaemonProc(pid int) bool {
 	if pid == os.Getpid() {
 		return true
 	}
 	n := procName(pid)
-	return n == "" || strings.HasPrefix(n, "agenterm")
+	return n == "" || strings.HasPrefix(n, "panal")
 }
 
 // killStuckDaemon SIGKILLs a daemon that did not exit in time and waits
 // briefly for it to go; false if it cannot (not ours, or still there).
 func killStuckDaemon(pid int) bool {
-	if pid <= 0 || pid == os.Getpid() || !strings.HasPrefix(procName(pid), "agenterm") {
+	if pid <= 0 || pid == os.Getpid() || !strings.HasPrefix(procName(pid), "panal") {
 		return false
 	}
 	_ = syscall.Kill(pid, syscall.SIGKILL)

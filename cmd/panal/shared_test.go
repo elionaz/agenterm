@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 func TestFolderSharers(t *testing.T) {

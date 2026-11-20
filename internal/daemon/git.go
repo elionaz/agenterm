@@ -10,13 +10,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/apierr"
-	"github.com/elionaz/agenterm/internal/gitx"
-	"github.com/elionaz/agenterm/internal/project"
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/session"
-	"github.com/elionaz/agenterm/internal/settings"
-	"github.com/elionaz/agenterm/internal/worktree"
+	"github.com/elionaz/panal/internal/apierr"
+	"github.com/elionaz/panal/internal/gitx"
+	"github.com/elionaz/panal/internal/project"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/session"
+	"github.com/elionaz/panal/internal/settings"
+	"github.com/elionaz/panal/internal/worktree"
 )
 
 // Git timeouts: queries that feed the UI lazily, and explicit actions.
@@ -586,7 +586,7 @@ func recGit(rec worktree.Record) sessGit {
 }
 
 // worktreeList lists a project's worktrees. Records whose folder is gone
-// are dropped (and pruned); agenterm worktrees git knows about but the
+// are dropped (and pruned); panal worktrees git knows about but the
 // registry does not (lost worktrees.json) are adopted.
 func (s *Server) worktreeList(p protocol.WorktreeListParams) (protocol.WorktreeList, error) {
 	proj, err := s.projects.Get(p.ProjectID)

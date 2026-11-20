@@ -3,8 +3,8 @@ package daemon_test
 import (
 	"testing"
 
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/version"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/version"
 )
 
 // daemon.ping reports the daemon's build, which is how the app notices a

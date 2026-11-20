@@ -4,15 +4,15 @@ import (
 	"context"
 	"errors"
 
-	"github.com/elionaz/agenterm/internal/apierr"
-	"github.com/elionaz/agenterm/internal/gitx"
-	"github.com/elionaz/agenterm/internal/project"
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/repoconfig"
-	"github.com/elionaz/agenterm/internal/worktree"
+	"github.com/elionaz/panal/internal/apierr"
+	"github.com/elionaz/panal/internal/gitx"
+	"github.com/elionaz/panal/internal/project"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/repoconfig"
+	"github.com/elionaz/panal/internal/worktree"
 )
 
-// Setting up a new worktree from the repository's .agenterm.yaml
+// Setting up a new worktree from the repository's .panal.yaml
 // (internal/repoconfig): worktree.copy is copied from the main folder
 // right after `git worktree add`, and worktree.setup runs in the session's
 // terminal before the agent starts (setupLaunch), once the user trusted
@@ -25,7 +25,7 @@ type worktreePrep struct {
 	repo    string // the main checkout
 	cfg     repoconfig.Config
 	run     string   // setup command to run ("" none)
-	suggest []string // no .agenterm.yaml: ignored .env* files to offer copying
+	suggest []string // no .panal.yaml: ignored .env* files to offer copying
 }
 
 // worktreeSetup reads the configuration of proj's repository and checks
@@ -64,7 +64,7 @@ func (s *Server) worktreeSetup(proj project.Project, p protocol.SpawnParams) (wo
 		prep.run = cmd
 	default:
 		return prep, apierr.New(apierr.SetupUntrusted, map[string]any{"repo": prep.repo, "file": prep.cfg.Path, "command": cmd},
-			"%s asks to run %q in every new worktree: trust it (agenterm spawn --trust-setup) or create the worktree without it (--no-setup)",
+			"%s asks to run %q in every new worktree: trust it (panal spawn --trust-setup) or create the worktree without it (--no-setup)",
 			prep.cfg.Path, cmd)
 	}
 	return prep, nil
@@ -85,26 +85,26 @@ func (s *Server) prepareWorktree(rec worktree.Record, prep worktreePrep) error {
 	return nil
 }
 
-// setupScript runs $AGENTERM_SETUP in the user's login shell, then execs
+// setupScript runs $PANAL_SETUP in the user's login shell, then execs
 // the agent ("$@"). A failed setup says so and waits: Enter starts the
 // agent anyway, Ctrl-C ends the session.
-const setupScript = `printf '\033[2m[agenterm] %s: %s\033[0m\n' "${AGENTERM_SETUP_TITLE:-worktree setup}" "$AGENTERM_SETUP"
-"${SHELL:-/bin/sh}" -lc "$AGENTERM_SETUP"
+const setupScript = `printf '\033[2m[panal] %s: %s\033[0m\n' "${PANAL_SETUP_TITLE:-worktree setup}" "$PANAL_SETUP"
+"${SHELL:-/bin/sh}" -lc "$PANAL_SETUP"
 s=$?
 if [ "$s" -ne 0 ]; then
-  printf '\n\033[33m[agenterm] the setup failed (exit %d). Press Enter to start the agent anyway, or Ctrl-C to end the session.\033[0m\n' "$s"
+  printf '\n\033[33m[panal] the setup failed (exit %d). Press Enter to start the agent anyway, or Ctrl-C to end the session.\033[0m\n' "$s"
   read -r _ || exit "$s"
 fi
-unset AGENTERM_SETUP AGENTERM_SETUP_TITLE
+unset PANAL_SETUP PANAL_SETUP_TITLE
 exec "$@"`
 
 // setupLaunch is the argv that runs the worktree setup and then cmd args.
 func setupLaunch(cmd string, args []string) []string {
-	return append([]string{"/bin/sh", "-c", setupScript, "agenterm-setup", cmd}, args...)
+	return append([]string{"/bin/sh", "-c", setupScript, "panal-setup", cmd}, args...)
 }
 
 // worktreeCopy copies files from the main folder into a worktree and,
-// with Save, writes them into a new .agenterm.yaml (the "copy these .env
+// with Save, writes them into a new .panal.yaml (the "copy these .env
 // files" offer of a repository that has none).
 func (s *Server) worktreeCopy(p protocol.WorktreeCopyParams) (protocol.WorktreeCopyResult, error) {
 	var out protocol.WorktreeCopyResult

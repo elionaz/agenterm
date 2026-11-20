@@ -233,7 +233,7 @@ export function parse(json: string | null): Layout | null {
   }
 }
 
-const key = (projectId: string) => `agenterm.panes.${projectId}`
+const key = (projectId: string) => `panal.panes.${projectId}`
 
 export function loadLayout(projectId: string): Layout | null {
   try {

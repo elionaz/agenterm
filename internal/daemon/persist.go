@@ -11,15 +11,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/apierr"
-	"github.com/elionaz/agenterm/internal/hooks"
-	"github.com/elionaz/agenterm/internal/i18n"
-	"github.com/elionaz/agenterm/internal/peercred"
-	"github.com/elionaz/agenterm/internal/profile"
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/session"
-	"github.com/elionaz/agenterm/internal/sessionstore"
-	"github.com/elionaz/agenterm/internal/settings"
+	"github.com/elionaz/panal/internal/apierr"
+	"github.com/elionaz/panal/internal/hooks"
+	"github.com/elionaz/panal/internal/i18n"
+	"github.com/elionaz/panal/internal/peercred"
+	"github.com/elionaz/panal/internal/profile"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/session"
+	"github.com/elionaz/panal/internal/sessionstore"
+	"github.com/elionaz/panal/internal/settings"
 )
 
 // Persistence & resume.

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/elionaz/agenterm/internal/apierr"
-	"github.com/elionaz/agenterm/internal/client"
+	"github.com/elionaz/panal/internal/apierr"
+	"github.com/elionaz/panal/internal/client"
 )
 
 func TestFormatError(t *testing.T) {

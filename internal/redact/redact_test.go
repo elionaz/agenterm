@@ -23,7 +23,7 @@ func TestString(t *testing.T) {
 		// Ordinary prose stays.
 		{"fix the token refresh bug in auth.go", "fix the token refresh bug in auth.go"},
 		{"the password field must be hidden", "the password field must be hidden"},
-		{"see https://github.com/elionaz/agenterm", "see https://github.com/elionaz/agenterm"},
+		{"see https://github.com/elionaz/panal", "see https://github.com/elionaz/panal"},
 	}
 	for _, c := range cases {
 		if got := String(c.in); got != c.want {

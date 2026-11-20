@@ -4,11 +4,11 @@ import "testing"
 
 func TestBundlePath(t *testing.T) {
 	cases := map[string]string{
-		"/Applications/agenterm.app/Contents/MacOS/agenterm": "/Applications/agenterm.app",
-		"/x/My Apps/agenterm.app/Contents/MacOS/agenterm":    "/x/My Apps/agenterm.app",
-		"/usr/local/bin/agenterm":                            "",
-		"/x/agenterm.app/Contents/MacOS/sub/agenterm":        "",
-		"/x/agenterm.app/Contents/Resources/agenterm":        "",
+		"/Applications/panal.app/Contents/MacOS/panal": "/Applications/panal.app",
+		"/x/My Apps/panal.app/Contents/MacOS/panal":    "/x/My Apps/panal.app",
+		"/usr/local/bin/panal":                         "",
+		"/x/panal.app/Contents/MacOS/sub/panal":        "",
+		"/x/panal.app/Contents/Resources/panal":        "",
 	}
 	for exe, want := range cases {
 		if got := BundlePath(exe); got != want {
@@ -19,13 +19,13 @@ func TestBundlePath(t *testing.T) {
 
 func TestSessionURL(t *testing.T) {
 	u := SessionURL("a1b2c3d4")
-	if u != "agenterm://session/a1b2c3d4" {
+	if u != "panal://session/a1b2c3d4" {
 		t.Fatalf("url %q", u)
 	}
 	if id, ok := ParseSessionURL(u); !ok || id != "a1b2c3d4" {
 		t.Fatalf("parse %q -> %q %v", u, id, ok)
 	}
-	for _, bad := range []string{"", "agenterm://session/", "agenterm://other/x", "http://session/x", "agenterm://session/../../etc", "agenterm://session/a%20b"} {
+	for _, bad := range []string{"", "panal://session/", "panal://other/x", "http://session/x", "panal://session/../../etc", "panal://session/a%20b"} {
 		if id, ok := ParseSessionURL(bad); ok {
 			t.Errorf("%q parsed as %q", bad, id)
 		}

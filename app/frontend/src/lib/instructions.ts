@@ -8,7 +8,7 @@ export interface Receivers {
 
 /**
  * Splits the usable agents (installed, enabled, valid; not the plain
- * shell) by whether agenterm hands them the instructions: Claude Code in
+ * shell) by whether panal hands them the instructions: Claude Code in
  * its SessionStart hook, codex as developer_instructions, unless the
  * user's config.toml sets its own (codexOwn). Names, without duplicates.
  */

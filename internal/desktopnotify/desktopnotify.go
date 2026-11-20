@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/i18n"
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/i18n"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 // Title is "<project> · <profile>" (either part may be missing).
@@ -25,7 +25,7 @@ func Title(projectName, profileID string) string {
 	case profileID != "":
 		return profileID
 	}
-	return "agenterm"
+	return "panal"
 }
 
 // Body is the attention message (kept verbatim: it comes from the agent),
@@ -49,13 +49,13 @@ func Body(lang i18n.Lang, kind, message string) string {
 	return i18n.T(lang, i18n.NotifyAttention)
 }
 
-// EnvNotify is the kill switch for desktop notifications: AGENTERM_NOTIFY=off
+// EnvNotify is the kill switch for desktop notifications: PANAL_NOTIFY=off
 // disables every notification the app and the daemon would post (native and
 // osascript), whatever settings.yaml says. Meant for test and demo
-// instances, next to AGENTERM_HOME.
-const EnvNotify = "AGENTERM_NOTIFY"
+// instances, next to PANAL_HOME.
+const EnvNotify = "PANAL_NOTIFY"
 
-// Disabled reports whether AGENTERM_NOTIFY turns desktop notifications off
+// Disabled reports whether PANAL_NOTIFY turns desktop notifications off
 // ("off", "0", "false" or "no", any case).
 func Disabled() bool {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv(EnvNotify))) {
@@ -67,7 +67,7 @@ func Disabled() bool {
 
 // Osascript posts a notification through AppleScript. macOS attributes it
 // to Script Editor, and clicking it opens Script Editor rather than
-// agenterm, so it is only an opt-in fallback (notify.fallback: osascript).
+// panal, so it is only an opt-in fallback (notify.fallback: osascript).
 // Best effort and bounded in time; a no-op outside macOS and when Disabled.
 func Osascript(title, body string, sound bool) error {
 	if runtime.GOOS != "darwin" || Disabled() {
