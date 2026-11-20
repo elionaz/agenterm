@@ -16,7 +16,7 @@ y cuál está esperando tu aprobación. panal agrupa las sesiones por proyecto, 
 vivos aunque cierres la app y te avisa cuando alguno te necesita.
 
 <p align="center">
-  <img src="docs/img/screenshot-es.png" alt="panal: proyectos con sus insignias y sesiones en la barra lateral, cada una con su modelo, su rama y su actividad en vivo, una aprobación pendiente, un mensaje esperando y la terminal" width="900">
+  <img src="docs/img/screenshot-es.png" alt="panal: tres proyectos en la barra lateral, cada sesión con su modelo, rama, cambios y estado en vivo (trabajando, una aprobación esperando, terminada), un mensaje esperando, el navegador propio de una sesión abierto (globo) y una sesión que continúa a otra (⇠ Changelog draft); a la derecha, la terminal del agente elegido" width="900">
 </p>
 
 ## Funciones
@@ -61,13 +61,24 @@ vivos aunque cierres la app y te avisa cuando alguno te necesita.
   los leen con `panal msg read`. A las sesiones en espera se les avisa solo (Claude, y los agentes
   que avisan el fin de su turno), y la pestaña **Mensajes** dice por qué espera un mensaje. Los mensajes
   nunca salen de su proyecto y el daemon decide quién envió cada uno.
-- **Ajustes en la app**: activar, ordenar y editar agentes, y configurar el idioma, la apariencia,
-  las notificaciones y git.
+- **Continuar con otro agente**: pasa el trabajo de una sesión a una nueva (cualquier agente, en la
+  misma carpeta o en un worktree nuevo) o a una que ya está corriendo, con un resumen editable de lo
+  pedido, los cambios y el final de su terminal; la sesión anterior queda plegada bajo la nueva.
+- **Instrucciones para tus agentes**, por temas (seguridad, arquitectura, git…): cada una se carga
+  siempre o solo cuando el trabajo la necesita, para todos los proyectos o solo algunos. Claude
+  Code y codex las reciben al empezar cada sesión, sin tocar su configuración ni tu repositorio.
+- **Un navegador propio por sesión**: los agentes prueban páginas y toman capturas en un Chrome
+  aislado (perfil, ventana y puerto propios) que solo se abre cuando hace falta, nunca en el tuyo.
+  Claude Code y codex lo reciben como herramientas de navegador.
+- **Ajustes en la app**: activar, ordenar y editar agentes, instalar los que todavía no tienes, y
+  configurar el idioma, la apariencia, las notificaciones, git y el navegador de los agentes.
 - **Actualizaciones integradas** (Sparkle): una comprobación diaria en segundo plano, **Buscar
   actualizaciones…** en el menú de la app y una sección *Actualizaciones* en *Ajustes → General*,
   también en las instalaciones con Homebrew.
 - **En inglés y español**: la app sigue los idiomas preferidos de macOS (con inglés como respaldo)
   o el idioma que elijas en *Ajustes → General*.
+- **macOS y Linux**: una app universal para macOS y una experimental para Linux (AppImage y .deb,
+  amd64 y arm64); ver [Linux](#linux).
 
 ## Cómo funciona
 
@@ -90,8 +101,10 @@ Más en [docs/es/architecture.md](docs/es/architecture.md).
 
 | | | |
 |---|---|---|
-| <img src="docs/img/overview-es.png" alt="La Vista general: una tarjeta por sesión con su estado, modelo, rama, actividad y el final de su terminal" width="280"> | <img src="docs/img/changes-es.png" alt="La pestaña Cambios de una sesión con worktree: archivos cambiados, diff lado a lado y Merge a main / Crear pull request" width="280"> | <img src="docs/img/messages-es.png" alt="La pestaña Mensajes: un mensaje entregado a otra sesión y una respuesta esperando, con el botón Entregar" width="280"> |
+| <img src="docs/img/overview-es.png" alt="La Vista general: una tarjeta por sesión con su estado, modelo, rama, actividad y el final de su terminal" width="280"> | <img src="docs/img/changes-es.png" alt="La pestaña Cambios de una sesión con worktree: archivos cambiados, diff lado a lado y Merge a main / Crear pull request" width="280"> | <img src="docs/img/messages-es.png" alt="La pestaña Mensajes: un mensaje enviado a otra sesión y su respuesta esperando a ser entregada" width="280"> |
 | **Vista general** (⌘0): todas las sesiones de un vistazo | **Cambios**: el diff, merge o pull request | **Mensajes** entre las sesiones de un proyecto |
+| <img src="docs/img/instructions-es.png" alt="Ajustes, Instrucciones: temas que se cargan siempre o cuando hace falta, para todos los proyectos o solo algunos, y qué agentes los reciben" width="280"> | <img src="docs/img/handoff-es.png" alt="Continuar con otro agente: una sesión nueva o una existente, el agente, dónde trabaja y un resumen editable del trabajo hasta ahora" width="280"> | |
+| **Instrucciones** para tus agentes, por temas | **Continuar con** otro agente | |
 
 ## Instalación
 

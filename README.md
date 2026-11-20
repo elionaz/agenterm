@@ -16,7 +16,7 @@ approval. panal groups sessions by project, keeps agents alive even after you cl
 tells you when one of them needs you.
 
 <p align="center">
-  <img src="docs/img/screenshot.png" alt="panal: projects with their badges and sessions in the sidebar, each with its model, branch and live activity, an approval waiting, a message waiting, and the terminal" width="900">
+  <img src="docs/img/screenshot.png" alt="panal: three projects in the sidebar, each session with its model, branch, changes and live state (working, an approval waiting, done), a message waiting, a session's own browser open (globe) and a session continued from another (⇠ Changelog draft); the selected agent's terminal on the right" width="900">
 </p>
 
 ## Features
@@ -58,12 +58,23 @@ tells you when one of them needs you.
   read them with `panal msg read`. Idle sessions are told about them by themselves (Claude, and
   agents that report the end of their turn), and the **Messages** tab says why any message waits. Messages never leave
   their project and the daemon decides who sent each one.
-- **In-app settings**: enable, reorder and edit agents, and configure the language, appearance,
-  notifications and git.
+- **Continue with another agent**: hand a session's work to a new session (any agent, in the same
+  folder or a new worktree) or to one that is already running, with an editable summary of what was
+  asked, the changes and the end of its terminal; the old session folds under the new one.
+- **Instructions for your agents**, by topic (security, architecture, git…): each loads always or
+  only when the work needs it, for every project or only some. Claude Code and codex get them when
+  a session starts, without touching their configuration or your repository.
+- **A browser of its own per session**: agents test pages and take screenshots in an isolated
+  Chrome (own profile, window and port) that opens only when needed, never in yours. Claude Code
+  and codex get it as browser tools.
+- **In-app settings**: enable, reorder and edit agents, install the ones you don't have yet, and
+  configure the language, appearance, notifications, git and the agents' browser.
 - **In-app updates** (Sparkle): a daily background check, **Check for Updates…** in the app menu
   and an *Updates* section in **Settings → General**, Homebrew installs included.
 - **English and Spanish**: the app follows your macOS preferred languages (falling back to English)
   or the language you pick in **Settings → General**.
+- **macOS and Linux**: a universal macOS app, and an experimental Linux one (AppImage and .deb,
+  amd64 and arm64); see [Linux](#linux).
 
 ## How it works
 
@@ -86,8 +97,10 @@ More in [docs/architecture.md](docs/architecture.md).
 
 | | | |
 |---|---|---|
-| <img src="docs/img/overview.png" alt="The Overview: a card per session with its state, model, branch, activity and the end of its terminal" width="280"> | <img src="docs/img/changes.png" alt="The Changes tab of a worktree session: changed files, a side-by-side diff, and Merge into main / Create pull request" width="280"> | <img src="docs/img/messages.png" alt="The Messages tab: a message delivered to another session and a reply waiting, with the Deliver button" width="280"> |
+| <img src="docs/img/overview.png" alt="The Overview: a card per session with its state, model, branch, activity and the end of its terminal" width="280"> | <img src="docs/img/changes.png" alt="The Changes tab of a worktree session: changed files, a side-by-side diff, and Merge into main / Create pull request" width="280"> | <img src="docs/img/messages.png" alt="The Messages tab: a message sent to another session and its reply waiting to be delivered" width="280"> |
 | **Overview** (⌘0): every session at a glance | **Changes**: the diff, merge or pull request | **Messages** between the sessions of a project |
+| <img src="docs/img/instructions.png" alt="Settings, Instructions: topics that load always or on demand, for every project or only some, and which agents receive them" width="280"> | <img src="docs/img/handoff.png" alt="Continue with another agent: a new or an existing session, the agent, where it works, and an editable summary of the work so far" width="280"> | |
+| **Instructions** for your agents, by topic | **Continue with** another agent | |
 
 ## Install
 
