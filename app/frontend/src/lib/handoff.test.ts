@@ -11,6 +11,7 @@ describe('arrange', () => {
     expect(ids(arrange(list, {}))).toEqual(['x', 'b'])
     expect(ids(arrange(list, { b: true }))).toEqual(['x', 'b', '↳a'])
     expect(arrange(list, {}).find((r) => r.s.id === 'b')?.earlier).toBe(1)
+    expect(arrange(list, {}).find((r) => r.s.id === 'b')?.from?.id).toBe('a')
   })
   it('chains earlier sessions', () => {
     const list = [s('a', 'exited'), s('b', 'exited', 'a'), s('c', 'idle', 'b')]

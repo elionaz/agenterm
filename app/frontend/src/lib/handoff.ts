@@ -12,6 +12,8 @@ export interface Row<S> {
   child: boolean
   /** For a session continued from others: how many earlier ones it has. */
   earlier: number
+  /** The session it continues directly (shown, or folded under it). */
+  from?: S
   /** Position among the top-level rows (⌘1–9), from 0; -1 for children. */
   n: number
 }
@@ -43,7 +45,7 @@ export function arrange<S extends Info>(list: S[], expanded: Record<string, bool
   for (const s of list) {
     if (folded.has(s.id)) continue
     const earlier = earlierOf(s)
-    rows.push({ s, child: false, earlier: earlier.length, n: n++ })
+    rows.push({ s, child: false, earlier: earlier.length, from: earlier[0], n: n++ })
     if (expanded[s.id]) for (const e of earlier) rows.push({ s: e, child: true, earlier: 0, n: -1 })
   }
   return rows

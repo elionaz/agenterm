@@ -8,7 +8,7 @@ export const es: Dict = {
   'state.exited': 'terminado',
   'state.stopped': 'detenida',
   'sidebar.earlierTag': 'anterior',
-  'sidebar.earlierShow': 'Mostrar la(s) {n} sesión(es) anterior(es) que continúa',
+  'sidebar.earlierShow': 'Continúa el trabajo de {name}: mostrar la(s) sesión(es) anterior(es)',
   'sidebar.earlierHide': 'Ocultar las sesiones anteriores',
   'state.exitCode': 'exit {code}',
   'state.suspended': 'suspendida',

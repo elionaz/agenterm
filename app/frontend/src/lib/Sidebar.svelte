@@ -644,11 +644,11 @@
                       <button
                         class="earlier"
                         class:open={expanded[s.id]}
-                        title={t(expanded[s.id] ? 'sidebar.earlierHide' : 'sidebar.earlierShow', { n: row.earlier })}
+                        title={t(expanded[s.id] ? 'sidebar.earlierHide' : 'sidebar.earlierShow', { name: row.from ? sessionTitle(row.from) : '' })}
                         onclick={(e) => {
                           e.stopPropagation()
                           expanded = { ...expanded, [s.id]: !expanded[s.id] }
-                        }}>⇠ {row.earlier}</button
+                        }}>⇠ {row.from ? sessionTitle(row.from) : ''}{row.earlier > 1 ? ` +${row.earlier - 1}` : ''}</button
                       >
                     {/if}
                     {#if s.permission === 'bypass'}<span class="perm" title={permHelp(s.permission)}>⚠</span>{/if}
@@ -1426,6 +1426,10 @@
   }
   .earlier {
     flex: none;
+    max-width: 10em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     padding: 0 4px;
     border-radius: 6px;
     font-size: 10px;

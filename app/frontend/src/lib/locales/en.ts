@@ -20,7 +20,7 @@ export const en = {
   'state.exited': 'exited',
   'state.stopped': 'stopped',
   'sidebar.earlierTag': 'earlier',
-  'sidebar.earlierShow': 'Show the {n} earlier session(s) it continues',
+  'sidebar.earlierShow': 'Continues the work of {name}: show the earlier session(s)',
   'sidebar.earlierHide': 'Hide the earlier sessions',
   'state.exitCode': 'exit {code}',
   'state.suspended': 'suspended',
