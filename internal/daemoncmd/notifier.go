@@ -122,6 +122,11 @@ func (n *notifier) dropped(reason string) {
 		return
 	}
 	n.lastReason = reason
+	if runtime.GOOS == "linux" {
+		n.log.Warn("notifications not shown: no notification service on the D-Bus session bus (org.freedesktop.Notifications)",
+			"reason", reason)
+		return
+	}
 	n.log.Warn("notifications not shown; set notify.fallback: osascript in settings.yaml to use AppleScript (shows as Script Editor)",
 		"reason", reason)
 }

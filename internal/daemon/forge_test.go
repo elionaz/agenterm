@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/elionaz/agenterm/internal/apierr"
+	"github.com/elionaz/agenterm/internal/profile"
 	"github.com/elionaz/agenterm/internal/protocol"
 )
 
@@ -83,10 +84,13 @@ func TestForgeStatusInMainFolder(t *testing.T) {
 		t.Fatalf("non-ASCII title: %q, %v", st.Title, err)
 	}
 
-	// Without gh: the integration is off, not an error.
+	// Without gh: the integration is off, not an error (unless the
+	// system itself has one in /usr/bin or /bin, as CI's Ubuntu does).
 	testExtraPath.Store("")
-	st, err = c.ForgeStatus(ctxT(t), ref)
-	if err != nil || st.Unavailable != apierr.ForgeCLIMissing {
-		t.Fatalf("no gh: %+v, %v", st, err)
+	if _, sys := profile.LookPathIn("gh", hermeticPath()); !sys {
+		st, err = c.ForgeStatus(ctxT(t), ref)
+		if err != nil || st.Unavailable != apierr.ForgeCLIMissing {
+			t.Fatalf("no gh: %+v, %v", st, err)
+		}
 	}
 }
