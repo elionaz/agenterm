@@ -24,6 +24,10 @@ releases may include breaking changes.
 
 ### Fixed
 
+- **`panal` is on the PATH after updating from agenterm.** The old Homebrew cask linked only the
+  `agenterm` command; at launch the app now adds a `panal` link next to any `agenterm` link into
+  its bundle (in `/opt/homebrew/bin`, `/usr/local/bin`, `~/.local/bin` and `~/bin`), and never
+  replaces an existing `panal`.
 - **Deleting a squash-merged branch no longer asks to force.** Removing a worktree with its branch
   counted the commits of a pull request merged with squash or rebase as unmerged; now commits whose
   changes the base already has don't count.

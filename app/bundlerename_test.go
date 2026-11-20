@@ -60,3 +60,59 @@ func TestRelink(t *testing.T) {
 		}
 	}
 }
+
+func TestAddPanalLinks(t *testing.T) {
+	root := t.TempDir()
+	bundle := filepath.Join(root, "Applications", "panal.app")
+	helpers := filepath.Join(bundle, "Contents", "Helpers")
+	if err := os.MkdirAll(helpers, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{"panal", "agenterm"} {
+		if err := os.WriteFile(filepath.Join(helpers, f), nil, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dir := func(name string) string {
+		d := filepath.Join(root, name)
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		return d
+	}
+	brew, user, taken, other := dir("brew"), dir("user"), dir("taken"), dir("other")
+	link := func(target, d string) {
+		if err := os.Symlink(target, filepath.Join(d, "agenterm")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	link(helpers+"/agenterm", brew)
+	link(helpers+"/agenterm", user)
+	link(helpers+"/agenterm", taken)
+	os.WriteFile(filepath.Join(taken, "panal"), []byte("someone else's"), 0o755)
+	link("/elsewhere/agenterm", other)
+
+	got := addPanalLinks([]string{brew, user, taken, other, filepath.Join(root, "missing")}, bundle)
+	if len(got) != 2 {
+		t.Fatalf("linked %v", got)
+	}
+	for _, d := range []string{brew, user} {
+		if l, _ := os.Readlink(filepath.Join(d, "panal")); l != helpers+"/panal" {
+			t.Errorf("%s/panal -> %q", d, l)
+		}
+	}
+	if b, _ := os.ReadFile(filepath.Join(taken, "panal")); string(b) != "someone else's" {
+		t.Error("an existing panal was replaced")
+	}
+	if pathExists(filepath.Join(other, "panal")) {
+		t.Error("linked next to an agenterm of another install")
+	}
+	// Run again: nothing new.
+	if again := addPanalLinks([]string{brew, user}, bundle); len(again) != 0 {
+		t.Fatalf("second run linked %v", again)
+	}
+	// No helper in the bundle (a dev build): nothing.
+	if n := addPanalLinks([]string{brew}, filepath.Join(root, "dev.app")); n != nil {
+		t.Fatalf("dev build linked %v", n)
+	}
+}
