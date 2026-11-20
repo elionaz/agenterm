@@ -82,6 +82,14 @@ export function GetSettings() {
   return window['go']['main']['App']['GetSettings']();
 }
 
+export function Handoff(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
+  return window['go']['main']['App']['Handoff'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+}
+
+export function HandoffNote(arg1) {
+  return window['go']['main']['App']['HandoffNote'](arg1);
+}
+
 export function Input(arg1, arg2) {
   return window['go']['main']['App']['Input'](arg1, arg2);
 }

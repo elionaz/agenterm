@@ -940,6 +940,20 @@ export namespace protocol {
 		}
 	}
 	
+	export class HandoffNote {
+	    text: string;
+	    shared?: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new HandoffNote(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.text = source["text"];
+	        this.shared = source["shared"];
+	    }
+	}
 	export class InstructionTopic {
 	    slug: string;
 	    title: string;

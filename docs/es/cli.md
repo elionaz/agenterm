@@ -171,6 +171,7 @@ Mensajes entre las sesiones de un proyecto; ver [messages.md](messages.md).
 | `agenterm instructions [<proyecto>]` | las instrucciones que recibe al empezar una sesión del proyecto (dentro de una sesión: su proyecto; sin proyecto: los temas de todos los proyectos); ver [configuration.md](configuration.md#instrucciones-para-los-agentes) |
 | `agenterm instructions list [<proyecto>]` | los temas de instrucciones: nombre, título, carga, proyectos, activo, tamaño |
 | `agenterm instructions show <tema>` | el texto de un tema (lo que corre un agente para un tema bajo demanda) |
+| `agenterm handoff [--worktree] [--keep] [--note ARCHIVO\|-] <sessionId> <perfil>` | continúa el trabajo de una sesión con otro agente (o con el mismo en un worktree nuevo): un resumen armado (o `--note`) como su primer mensaje; la sesión se cierra salvo con `--keep`. `--print <sessionId>` muestra el resumen. Ver [worktrees.md](worktrees.md#continuar-con-otro-agente) |
 | `agenterm browser [open\|url\|close\|status\|mcp] [--session ID]` | el Chrome propio de la sesión (dentro de una sesión: el suyo). `open` (por defecto) lo abre e imprime su dirección de DevTools; `url` solo la imprime; `close` lo cierra; `status` muestra los ajustes y el Chrome y `npx` encontrados; `mcp` corre el servidor MCP de navegador conectado a él (lo que reciben Claude Code y codex). Ver [configuration.md](configuration.md#navegador-para-los-agentes) |
 
 ## Git

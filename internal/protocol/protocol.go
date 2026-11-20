@@ -112,6 +112,12 @@ const (
 	MethodInstructionsReorder = "instructions.reorder"
 	MethodInstructionsShow    = "instructions.show"
 
+	// Continue a session's work with another agent (or the same one in a
+	// worktree): handoffNote drafts the summary, handoff starts the new
+	// session with it and closes the old one.
+	MethodSessionHandoffNote = "session.handoffNote"
+	MethodSessionHandoff     = "session.handoff"
+
 	// The isolated Chrome of each session (package browser).
 	MethodBrowserStatus  = "browser.status"
 	MethodBrowserPrepare = "browser.prepare"
@@ -999,4 +1005,37 @@ type BrowserStatus struct {
 	NPX string `json:"npx"`
 	// MCP is the server package agents get.
 	MCP string `json:"mcp"`
+}
+
+// HandoffNoteParams: the session whose work is handed over.
+type HandoffNoteParams struct {
+	SessionID string `json:"sessionId"`
+}
+
+// HandoffNote is the summary a new agent gets: what the user asked (Claude
+// Code transcripts), where it worked, its git changes and commits, and the
+// end of its terminal; secrets removed.
+type HandoffNote struct {
+	Text string `json:"text"`
+	// Shared: other live agents work in the same folder (a new worktree
+	// is the safer choice).
+	Shared bool `json:"shared,omitempty"`
+}
+
+// Handoff "where" values.
+const (
+	HandoffSame     = "same"     // the session's folder or worktree
+	HandoffWorktree = "worktree" // a new worktree from its current commit
+)
+
+// HandoffParams starts ProfileID with Note where SessionID worked (Where)
+// and closes SessionID unless Keep.
+type HandoffParams struct {
+	SessionID string `json:"sessionId"`
+	ProfileID string `json:"profileId"`
+	Where     string `json:"where,omitempty"`
+	Note      string `json:"note"`
+	Keep      bool   `json:"keep,omitempty"`
+	Cols      uint16 `json:"cols,omitempty"`
+	Rows      uint16 `json:"rows,omitempty"`
 }

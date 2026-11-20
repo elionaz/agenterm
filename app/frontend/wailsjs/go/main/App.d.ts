@@ -49,6 +49,10 @@ export function ForgeStatus(arg1:string,arg2:string,arg3:string):Promise<protoco
 
 export function GetSettings():Promise<settings.Settings>;
 
+export function Handoff(arg1:string,arg2:string,arg3:string,arg4:string,arg5:boolean,arg6:number,arg7:number):Promise<protocol.SessionInfo>;
+
+export function HandoffNote(arg1:string):Promise<protocol.HandoffNote>;
+
 export function Input(arg1:string,arg2:string):Promise<void>;
 
 export function InputBase64(arg1:string,arg2:string):Promise<void>;

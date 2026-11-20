@@ -28,11 +28,33 @@ un clic en el menú **+**.
   sugerencia no se recuerda como el modo del proyecto. Un **Shell** simple ni cuenta ni recibe la
   sugerencia: una terminal junto a un agente en su carpeta está bien.
 - Una sesión que sí comparte la carpeta lo dice: la pestaña Cambios muestra *Carpeta compartida* con
-  los otros agentes, y también el tooltip del **±N**.
+  los otros agentes, y también el tooltip del **±N**. **Pasar a un worktree**, ahí mismo, la
+  continúa en un worktree propio (ver abajo).
 - `agenterm spawn` sin `--worktree` avisa en stderr cuando la sesión nueva comparte la carpeta
   (stdout sigue siendo solo el id).
 
 El trabajo de cada worktree vuelve con **Merge a la base** o **Crear pull request** (abajo).
+
+### Continuar con otro agente
+
+Un proceso que ya corre no puede cambiar de carpeta, así que una sesión nunca se "mueve": su trabajo
+lo **continúa** una sesión nueva. **⇢** en la fila de una sesión (o **Pasar a un worktree** en la
+pestaña Cambios de una carpeta compartida) abre *Continuar con otro agente*:
+
+- **Agente:** cualquiera de los instalados, incluido el mismo.
+- **Dónde:** la misma carpeta o worktree, o **un worktree nuevo** en una rama nueva desde el commit
+  actual de la sesión (sus commits van incluidos; los cambios sin commit se quedan donde están). En
+  una carpeta compartida el worktree nuevo viene elegido.
+- **Resumen:** armado a partir de la sesión (los mensajes que escribiste, en Claude Code; su carpeta
+  y rama, los archivos sin commit y los commits; el final de su terminal), sin secretos. Edítalo
+  antes de continuar.
+
+La sesión nueva recibe el resumen como primer mensaje (Claude Code, codex) o, en otros agentes, una
+línea escrita en su prompt que apunta al archivo (`~/.agenterm/handoffs/<sessionId>.md`). Conserva
+el nombre de la sesión anterior. La sesión anterior se cierra, para que dos agentes no editen los
+mismos archivos, salvo que marques *Dejar esta sesión abierta*. Desde la CLI:
+`agenterm handoff [--worktree] [--keep] [--note ARCHIVO|-] <sessionId> <perfil>`
+(`--print` muestra el resumen).
 
 ## Modos de una sesión
 

@@ -16,6 +16,7 @@
   import { activityText, mergeLive, progressOf, timerInfo } from './lib/activity'
   import { shortBranch } from './lib/branch'
   import TrustSetup from './lib/TrustSetup.svelte'
+  import Handoff from './lib/Handoff.svelte'
   import { setLangSetting, setSystemLang, t, th } from './lib/i18n.svelte'
   import { TerminalManager } from './lib/terminals'
   import {
@@ -723,6 +724,18 @@
     select(info.id)
   }
 
+  /** "Continue with…": the session whose work is handed over, and the preset. */
+  let handoffFor = $state<{ session: Session; preset?: { profileId?: string; where?: SpawnMode } } | null>(null)
+  function openHandoff(id: string, preset?: { profileId?: string; where?: SpawnMode }) {
+    const s = sessions.find((x) => x.id === id)
+    if (s) handoffFor = { session: s, preset }
+  }
+  function handedOff(info: Session) {
+    handoffFor = null
+    if (!sessions.some((s) => s.id === info.id)) sessions = [...sessions, info]
+    select(info.id)
+  }
+
   async function kill(id: string) {
     const info = await guard(api.kill(id))
     if (!info) return
@@ -1037,6 +1050,7 @@
     onSelectProject={leavingSettings(selectProject)}
     onSpawn={leavingSettings(spawn)}
     onKill={kill}
+    onHandoff={(id) => openHandoff(id)}
     onRename={rename}
     onResume={resume}
     onDiscard={discard}
@@ -1149,6 +1163,9 @@
                     sessionId={selected.id}
                     live={selected.state !== 'exited'}
                     sharedWith={inProjectFolder(selected) ? folderSharers(sessions, selected.projectId, selected.id).map(sessionTitle) : []}
+                    onMoveToWorktree={selected.state !== 'exited' && selected.profileId !== SHELL_PROFILE
+                      ? () => selected && openHandoff(selected.id, { profileId: selected.profileId, where: 'worktree' })
+                      : undefined}
                     gitStamp={selected.git ? `${selected.git.head ?? ''}|${selected.git.files}|${selected.git.uncommitted}|${selected.git.ahead}` : ''}
                     prStamp={selected.git ? `${selected.git.head ?? ''}|${selected.git.ahead}` : ''}
                     onError={showError}
@@ -1337,6 +1354,18 @@
           <button onclick={() => (copyOffer = null)}>{t('setup.dismiss')}</button>
         {/if}
       </div>
+    {/if}
+    {#if handoffFor}
+      {@const ps = paneSize()}
+      <Handoff
+        session={handoffFor.session}
+        {profiles}
+        preset={handoffFor.preset}
+        cols={ps.cols}
+        rows={ps.rows}
+        onDone={handedOff}
+        onClose={() => (handoffFor = null)}
+      />
     {/if}
     {#if setupAsk}
       <TrustSetup command={setupAsk.command} file={setupAsk.file} onChoose={setupAsk.resolve} />

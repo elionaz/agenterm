@@ -423,6 +423,29 @@ func (a *App) ReorderInstructions(slugs []string, projectID string) (protocol.In
 	return out, err
 }
 
+// HandoffNote drafts the summary for continuing sessionID's work with
+// another agent.
+func (a *App) HandoffNote(sessionID string) (protocol.HandoffNote, error) {
+	var out protocol.HandoffNote
+	err := a.call(func(ctx context.Context) (err error) {
+		out, err = a.client.HandoffNote(ctx, sessionID)
+		return err
+	})
+	return out, err
+}
+
+// Handoff starts profileID with note where sessionID worked (where: same
+// or worktree) and closes sessionID unless keep.
+func (a *App) Handoff(sessionID, profileID, where, note string, keep bool, cols, rows int) (protocol.SessionInfo, error) {
+	var out protocol.SessionInfo
+	err := a.call(func(ctx context.Context) (err error) {
+		out, err = a.client.Handoff(ctx, protocol.HandoffParams{SessionID: sessionID, ProfileID: profileID, Where: where,
+			Note: note, Keep: keep, Cols: uint16(max(cols, 0)), Rows: uint16(max(rows, 0))})
+		return err
+	})
+	return out, err
+}
+
 // BrowserStatus says whether sessions get their own browser and what was
 // found for it (Chrome, npx).
 func (a *App) BrowserStatus() (protocol.BrowserStatus, error) {

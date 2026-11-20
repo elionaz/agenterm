@@ -50,6 +50,8 @@
     /** Opens an orphaned worktree's changes (optionally with removal asked). */
     onOpenWorktree: (worktreeId: string, remove?: boolean) => void
     onKill: (id: string) => void
+    /** "Continue with…" another agent. */
+    onHandoff?: (id: string) => void
     /** Suspended sessions (restored after a daemon restart). */
     onResume: (id: string) => void
     onDiscard: (id: string) => void
@@ -84,6 +86,7 @@
     onSelectProject,
     onSpawn,
     onKill,
+    onHandoff,
     onResume,
     onDiscard,
     onResumeAll,
@@ -666,6 +669,16 @@
                       >
                     {:else}
                       {#if i < 9 && p.id === currentProjectId && s.id === selectedId}<span class="kbd">⌘{i + 1}</span>{/if}
+                      {#if onHandoff && s.state !== 'exited' && s.profileId !== SHELL_PROFILE}
+                        <button
+                          class="icon handoff"
+                          title={t('sidebar.handoff')}
+                          onclick={(e) => {
+                            e.stopPropagation()
+                            onHandoff(s.id)
+                          }}>⇢</button
+                        >
+                      {/if}
                       <button
                         class="icon kill"
                         title={s.state === 'exited' ? t('sidebar.removeFromList') : t('sidebar.stopSession')}
@@ -1122,10 +1135,12 @@
     color: var(--muted);
     opacity: 0.7;
   }
-  .session .kill {
+  .session .kill,
+  .session .handoff {
     display: none;
   }
-  .session:hover .kill {
+  .session:hover .kill,
+  .session:hover .handoff {
     display: inline-block;
   }
   .session:hover .kbd {

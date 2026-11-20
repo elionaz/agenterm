@@ -16,6 +16,7 @@ export type Settings = Omit<settings.Settings, 'convertValues'>
 export type Instructions = Omit<protocol.Instructions, 'convertValues'>
 export type InstructionTopic = protocol.InstructionTopic
 export type BrowserStatus = protocol.BrowserStatus
+export type HandoffNote = protocol.HandoffNote
 export type Session = Omit<protocol.SessionInfo, 'convertValues'>
 /** suspended: restored from a previous daemon run, no process (resume or discard it). */
 export type SessionState = 'running' | 'waiting_input' | 'idle' | 'exited' | 'suspended'
@@ -161,6 +162,11 @@ export const api = {
   reorderProfiles: (ids: string[]): Promise<Profile[]> => App.ReorderProfiles(ids),
   rescanProfiles: (): Promise<Profile[]> => App.RescanProfiles(),
   getSettings: (): Promise<Settings> => App.GetSettings(),
+  /** The drafted summary for continuing a session's work with another agent. */
+  handoffNote: (sessionId: string): Promise<HandoffNote> => App.HandoffNote(sessionId),
+  /** Starts profileId with note where sessionId worked (or in a new worktree); closes it unless keep. */
+  handoff: (sessionId: string, profileId: string, where: SpawnMode, note: string, keep: boolean, cols: number, rows: number): Promise<Session> =>
+    App.Handoff(sessionId, profileId, where, note, keep, cols, rows),
   /** Whether sessions get their own browser, and the Chrome and npx found. */
   browserStatus: (): Promise<BrowserStatus> => App.BrowserStatus(),
   closeBrowser: (sessionId: string): Promise<void> => App.CloseBrowser(sessionId),
