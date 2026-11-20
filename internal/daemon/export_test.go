@@ -10,9 +10,15 @@ import (
 // SetAutoTiming shortens the automatic-delivery delays for a test; the
 // returned func restores them.
 func SetAutoTiming(delay, quiet, retry time.Duration) func() {
-	d, q, r := autoDelay, autoQuiet, autoRetry
-	autoDelay, autoQuiet, autoRetry = delay, quiet, retry
-	return func() { autoDelay, autoQuiet, autoRetry = d, q, r }
+	d, q, r := autoDelay.get(), autoQuiet.get(), autoRetry.get()
+	autoDelay.set(delay)
+	autoQuiet.set(quiet)
+	autoRetry.set(retry)
+	return func() {
+		autoDelay.set(d)
+		autoQuiet.set(q)
+		autoRetry.set(r)
+	}
 }
 
 // AutoChainMax is the automatic-delivery chain limit.
