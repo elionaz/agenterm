@@ -95,7 +95,7 @@ func copyPath(ctx context.Context, from, to string) error {
 	return nil
 }
 
-// Suggest lists what a repository without .agenterm.yaml probably wants
+// Suggest lists what a repository without .panal.yaml probably wants
 // copied into new worktrees: the .env* files at the root of its main
 // checkout that git ignores (so a worktree never has them).
 func Suggest(ctx context.Context, root string) []string {

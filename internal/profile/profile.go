@@ -18,9 +18,9 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/elionaz/agenterm/internal/fileformat"
+	"github.com/elionaz/panal/internal/fileformat"
 
-	"github.com/elionaz/agenterm/internal/status"
+	"github.com/elionaz/panal/internal/status"
 )
 
 // Profile sources.
@@ -38,7 +38,7 @@ type Profile struct {
 	Args   []string          `json:"args,omitempty"`
 	Env    map[string]string `json:"env,omitempty"`
 	Status status.Mode       `json:"status"`
-	// SetupHooks wires the agent's own hooks to agenterm for sessions it
+	// SetupHooks wires the agent's own hooks to panal for sessions it
 	// spawns: claude | codex | none (see internal/hooks).
 	SetupHooks string `json:"setupHooks,omitempty"`
 	// AttentionPatterns are regular expressions matched against recent

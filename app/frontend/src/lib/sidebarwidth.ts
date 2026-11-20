@@ -3,7 +3,7 @@
 export const SIDEBAR_DEFAULT = 248
 export const SIDEBAR_MIN = 220
 export const SIDEBAR_MAX = 420
-const KEY = 'agenterm.sidebarWidth'
+const KEY = 'panal.sidebarWidth'
 
 /** w rounded and kept within [SIDEBAR_MIN, SIDEBAR_MAX]; the default for
  * anything that is not a finite number. */

@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-const pathMarker = "__AGENTERM_PATH__"
+const pathMarker = "__PANAL_PATH__"
 
 // LoginPath asks the user's login shell for its PATH. It returns "" on any
 // failure (or after a 3 s timeout).

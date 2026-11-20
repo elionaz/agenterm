@@ -1,6 +1,6 @@
 // Package macnotify posts native macOS notifications (UNUserNotificationCenter)
 // for both the desktop app and the daemon the app starts, so they show as
-// agenterm with its icon. It needs the process to belong to an .app bundle
+// panal with its icon. It needs the process to belong to an .app bundle
 // (a bundle identifier); elsewhere every call is a no-op or ErrUnavailable
 // and callers fall back to osascript.
 //
@@ -50,10 +50,10 @@ func (s Status) String() string {
 
 // NotificationID is the notification identifier used for a session, shared
 // by app and daemon so either can replace or withdraw the other's.
-func NotificationID(sessionID string) string { return "agenterm-" + sessionID }
+func NotificationID(sessionID string) string { return "panal-" + sessionID }
 
 // BundlePath returns the .app bundle that contains exe
-// ("/A/agenterm.app/Contents/MacOS/agenterm" -> "/A/agenterm.app"), or ""
+// ("/A/panal.app/Contents/MacOS/panal" -> "/A/panal.app"), or ""
 // when exe is not inside one.
 func BundlePath(exe string) string {
 	const marker = ".app/Contents/MacOS/"
@@ -65,17 +65,17 @@ func BundlePath(exe string) string {
 }
 
 // URLScheme is the app's URL scheme (CFBundleURLTypes in Info.plist).
-const URLScheme = "agenterm"
+const URLScheme = "panal"
 
 var sessionIDRe = regexp.MustCompile(`^[0-9A-Za-z_-]{1,64}$`)
 
-// SessionURL is agenterm://session/<id>: opening it selects that session in
+// SessionURL is panal://session/<id>: opening it selects that session in
 // the app (launching it if needed).
 func SessionURL(sessionID string) string {
 	return URLScheme + "://session/" + url.PathEscape(sessionID)
 }
 
-// ParseSessionURL extracts the session id from agenterm://session/<id>.
+// ParseSessionURL extracts the session id from panal://session/<id>.
 func ParseSessionURL(raw string) (string, bool) {
 	u, err := url.Parse(raw)
 	if err != nil || u.Scheme != URLScheme || u.Host != "session" {

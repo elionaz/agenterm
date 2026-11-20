@@ -8,16 +8,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/apierr"
-	"github.com/elionaz/agenterm/internal/client"
-	"github.com/elionaz/agenterm/internal/daemon"
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/apierr"
+	"github.com/elionaz/panal/internal/client"
+	"github.com/elionaz/panal/internal/daemon"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 // TestMain isolates git (and the shells the tests spawn) from the user's
 // configuration: no system config, an empty global one, a throwaway HOME.
 func TestMain(m *testing.M) {
-	if os.Getenv("AGENTERM_FAKE_CHROME") != "" {
+	if os.Getenv("PANAL_FAKE_CHROME") != "" {
 		fakeChrome() // the test binary as the agents' browser (browser_test.go)
 		return
 	}
@@ -32,7 +32,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("GIT_CONFIG_GLOBAL", global)
 	// Test daemons never post real desktop notifications (they also get a
 	// no-op or recording Notifier).
-	os.Setenv("AGENTERM_NOTIFY", "off")
+	os.Setenv("PANAL_NOTIFY", "off")
 	code := m.Run()
 	os.RemoveAll(home)
 	os.Exit(code)

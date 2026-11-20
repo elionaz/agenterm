@@ -12,11 +12,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/apierr"
-	"github.com/elionaz/agenterm/internal/client"
-	"github.com/elionaz/agenterm/internal/daemon"
-	"github.com/elionaz/agenterm/internal/paths"
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/apierr"
+	"github.com/elionaz/panal/internal/client"
+	"github.com/elionaz/panal/internal/daemon"
+	"github.com/elionaz/panal/internal/paths"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 type syncBuffer struct {
@@ -55,7 +55,7 @@ func startLoggedDaemon(t *testing.T) (*client.Client, paths.Paths, *syncBuffer, 
 		IdleAfter:  time.Hour,
 		KillGrace:  time.Second,
 		Logger:     slog.New(slog.NewTextHandler(logs, nil)),
-		Exe:        "/opt/agenterm test/agenterm",
+		Exe:        "/opt/panal test/panal",
 		Notifier:   func(daemon.Notification) {},
 		SearchPath: hermeticPath,
 	})
@@ -169,7 +169,7 @@ func TestShutdownIgnoresExitedSessions(t *testing.T) {
 	}
 }
 
-// Sessions must resolve their own daemon: AGENTERM_HOME (which clients
+// Sessions must resolve their own daemon: PANAL_HOME (which clients
 // prefer) is replaced by the daemon's, even if the daemon inherited another.
 func TestSessionEnvNamesItsDaemon(t *testing.T) {
 	t.Setenv(paths.EnvHome, "/nonexistent/other-home")
@@ -179,7 +179,7 @@ func TestSessionEnvNamesItsDaemon(t *testing.T) {
 	writeProfiles(t, p.Profiles(), `
 - id: env
   cmd: /bin/sh
-  args: ["-c", "echo \"HOME=$AGENTERM_HOME SOCK=$AGENTERM_SOCK END\"; sleep 5"]
+  args: ["-c", "echo \"HOME=$PANAL_HOME SOCK=$PANAL_SOCK END\"; sleep 5"]
 `)
 	proj, err := c.ProjectAdd(ctx, t.TempDir(), "")
 	if err != nil {

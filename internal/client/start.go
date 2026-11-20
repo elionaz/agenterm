@@ -11,14 +11,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/paths"
-	"github.com/elionaz/agenterm/internal/transport"
+	"github.com/elionaz/panal/internal/paths"
+	"github.com/elionaz/panal/internal/transport"
 )
 
-// DaemonExecutable is the binary that should run `daemon` for the agenterm
-// executable exe. The CLI bundled in agenterm.app (Contents/Helpers/agenterm,
+// DaemonExecutable is the binary that should run `daemon` for the panal
+// executable exe. The CLI bundled in panal.app (Contents/Helpers/panal,
 // which Homebrew symlinks into PATH) defers to the app's own executable
-// (Contents/MacOS/agenterm) when it exists and is executable: only a process
+// (Contents/MacOS/panal) when it exists and is executable: only a process
 // of the bundle gets native notifications and their clicks. Any other exe
 // is returned unchanged.
 func DaemonExecutable(exe string) string {
@@ -36,20 +36,20 @@ func DaemonExecutable(exe string) string {
 	return app
 }
 
-// appExeForHelper maps "/A/X.app/Contents/Helpers/agenterm" to
-// "/A/X.app/Contents/MacOS/agenterm"; "" when path is not a bundle helper.
+// appExeForHelper maps "/A/X.app/Contents/Helpers/panal" to
+// "/A/X.app/Contents/MacOS/panal"; "" when path is not a bundle helper.
 func appExeForHelper(path string) string {
 	const marker = ".app/Contents/Helpers/"
 	i := strings.LastIndex(path, marker)
 	if i < 0 || strings.Contains(path[i+len(marker):], "/") || i+len(marker) == len(path) {
 		return ""
 	}
-	return path[:i+len(".app")] + "/Contents/MacOS/agenterm"
+	return path[:i+len(".app")] + "/Contents/MacOS/panal"
 }
 
 // StartDaemon launches `<exe> daemon` detached from the caller (new session,
 // stdio to the daemon log) and waits until its socket accepts connections.
-// exe is typically os.Executable() of the agenterm binary.
+// exe is typically os.Executable() of the panal binary.
 func StartDaemon(ctx context.Context, exe string, p paths.Paths) error {
 	if err := p.Ensure(); err != nil {
 		return err
@@ -98,8 +98,8 @@ func StartDaemon(ctx context.Context, exe string, p paths.Paths) error {
 }
 
 // startupError is the reason a daemon that failed to start printed last in
-// its log ("agenterm: <error>" from the CLI, "agenterm daemon: <error>"
-// from the app binary; e.g. a file written by a newer agenterm),
+// its log ("panal: <error>" from the CLI, "panal daemon: <error>"
+// from the app binary; e.g. a file written by a newer panal),
 // or "". Only what was written from offset from on is looked at.
 func startupError(logFile string, from int64) string {
 	f, err := os.Open(logFile)
@@ -114,7 +114,7 @@ func startupError(logFile string, from int64) string {
 	data, _ := io.ReadAll(f)
 	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
 	last := lines[len(lines)-1]
-	for _, prefix := range []string{"agenterm daemon: ", "agenterm: "} {
+	for _, prefix := range []string{"panal daemon: ", "panal: "} {
 		if why, ok := strings.CutPrefix(last, prefix); ok {
 			return why
 		}

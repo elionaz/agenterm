@@ -1,4 +1,4 @@
-// Messages between the sessions of a project (agenterm msg): what the
+// Messages between the sessions of a project (panal msg): what the
 // Messages tab shows.
 import type { mailbox } from '../../wailsjs/go/models'
 import type { Session } from './api'

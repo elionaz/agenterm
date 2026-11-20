@@ -3,17 +3,17 @@ package main
 import (
 	"log"
 
-	"github.com/elionaz/agenterm/internal/macnotify"
+	"github.com/elionaz/panal/internal/macnotify"
 )
 
-// openURL handles agenterm://session/<id> (options.Mac.OnUrlOpen): what the
+// openURL handles panal://session/<id> (options.Mac.OnUrlOpen): what the
 // daemon opens when one of its notifications is clicked while the app was
 // closed. On a cold launch it arrives before the frontend listens, so the
 // id is also kept until the frontend asks for it (TakePendingFocus).
 func (a *App) openURL(raw string) {
 	id, ok := macnotify.ParseSessionURL(raw)
 	if !ok {
-		log.Printf("agenterm: ignoring URL %q", raw)
+		log.Printf("panal: ignoring URL %q", raw)
 		return
 	}
 	a.focusMu.Lock()

@@ -8,13 +8,13 @@ import (
 	"io"
 	"os"
 
-	"github.com/elionaz/agenterm/internal/client"
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/client"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
-const handoffUsage = "usage: agenterm handoff [--worktree] [--keep] [--note FILE|-] <sessionId> <profile>\n" +
-	"       agenterm handoff --into <sessionId> [--keep] [--note FILE|-] <sessionId>\n" +
-	"       agenterm handoff --print <sessionId>"
+const handoffUsage = "usage: panal handoff [--worktree] [--keep] [--note FILE|-] <sessionId> <profile>\n" +
+	"       panal handoff --into <sessionId> [--keep] [--note FILE|-] <sessionId>\n" +
+	"       panal handoff --print <sessionId>"
 
 // cmdHandoff continues a session's work with another agent (or the same
 // one in a new worktree): it drafts the summary (or reads --note), starts

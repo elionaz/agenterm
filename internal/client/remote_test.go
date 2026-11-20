@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elionaz/agenterm/internal/apierr"
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/apierr"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 func TestRemoteErrorUnknownMethod(t *testing.T) {
@@ -14,7 +14,7 @@ func TestRemoteErrorUnknownMethod(t *testing.T) {
 		"before 0.4.0": {Error: `unknown method "worktree.pr"`},
 	} {
 		e := remoteError("worktree.pr", resp)
-		if e.Code != apierr.UnknownMethod || !strings.Contains(e.Msg, "does not support worktree.pr: it is older than this agenterm") ||
+		if e.Code != apierr.UnknownMethod || !strings.Contains(e.Msg, "does not support worktree.pr: it is older than this panal") ||
 			string(e.Data) != `{"method":"worktree.pr"}` {
 			t.Errorf("%s: %+v", name, e)
 		}

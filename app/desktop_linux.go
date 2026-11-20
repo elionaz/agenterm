@@ -7,9 +7,9 @@ import (
 	"log"
 	"sync/atomic"
 
-	"github.com/elionaz/agenterm/internal/desktopnotify"
-	"github.com/elionaz/agenterm/internal/linuxnotify"
-	"github.com/elionaz/agenterm/internal/macnotify"
+	"github.com/elionaz/panal/internal/desktopnotify"
+	"github.com/elionaz/panal/internal/linuxnotify"
+	"github.com/elionaz/panal/internal/macnotify"
 )
 
 // linuxDesktop: notifications through the freedesktop notification
@@ -24,9 +24,9 @@ func newDesktop(_ context.Context, onClick func(string)) desktop {
 	if desktopnotify.Disabled() {
 		return linuxDesktop{err: linuxnotify.ErrUnavailable}
 	}
-	n, err := linuxnotify.New("agenterm", onClick)
+	n, err := linuxnotify.New("panal", onClick)
 	if err != nil {
-		log.Printf("agenterm: notifications: %v", err)
+		log.Printf("panal: notifications: %v", err)
 	}
 	return linuxDesktop{n: n, err: err}
 }
@@ -58,7 +58,7 @@ func (linuxDesktop) Activate()         {} // focusSession shows the window
 
 func (d linuxDesktop) Refresh() (macnotify.Status, string) {
 	if desktopnotify.Disabled() {
-		return macnotify.StatusUnknown, "notifications are off (AGENTERM_NOTIFY)"
+		return macnotify.StatusUnknown, "notifications are off (PANAL_NOTIFY)"
 	}
 	if d.n == nil {
 		return macnotify.StatusUnknown, d.err.Error()

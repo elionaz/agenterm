@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/elionaz/agenterm/internal/desktopnotify"
+	"github.com/elionaz/panal/internal/desktopnotify"
 )
 
 func TestMain(m *testing.M) {

@@ -6,7 +6,7 @@
 import { BrowserOpenURL } from '../../wailsjs/runtime/runtime'
 import { api, type UpdateInfo } from './api'
 
-const DISMISSED_KEY = 'agenterm.updateDismissed'
+const DISMISSED_KEY = 'panal.updateDismissed'
 /** How long the button says "Downloading…" before it can be tried again. */
 const BUSY_MS = 15_000
 

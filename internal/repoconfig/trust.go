@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/elionaz/agenterm/internal/fileformat"
+	"github.com/elionaz/panal/internal/fileformat"
 )
 
 // TrustFormat is the newest version of trust.json this build reads.
@@ -17,7 +17,7 @@ const TrustFormat = 1
 
 // Trust remembers which setup commands the user allowed, per repository:
 // a command runs only while it is exactly the one trusted (any change to
-// .agenterm.yaml's worktree.setup asks again).
+// .panal.yaml's worktree.setup asks again).
 type Trust struct {
 	path string
 	mu   sync.Mutex

@@ -1,4 +1,4 @@
-// Package client talks to the agenterm daemon. It is used by the CLI and is
+// Package client talks to the panal daemon. It is used by the CLI and is
 // meant to be reused by the desktop UI.
 package client
 
@@ -14,17 +14,17 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/elionaz/agenterm/internal/apierr"
-	"github.com/elionaz/agenterm/internal/forge"
-	"github.com/elionaz/agenterm/internal/gitx"
-	"github.com/elionaz/agenterm/internal/mailbox"
-	"github.com/elionaz/agenterm/internal/paths"
-	"github.com/elionaz/agenterm/internal/profile"
-	"github.com/elionaz/agenterm/internal/project"
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/settings"
-	"github.com/elionaz/agenterm/internal/transport"
-	"github.com/elionaz/agenterm/internal/version"
+	"github.com/elionaz/panal/internal/apierr"
+	"github.com/elionaz/panal/internal/forge"
+	"github.com/elionaz/panal/internal/gitx"
+	"github.com/elionaz/panal/internal/mailbox"
+	"github.com/elionaz/panal/internal/paths"
+	"github.com/elionaz/panal/internal/profile"
+	"github.com/elionaz/panal/internal/project"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/settings"
+	"github.com/elionaz/panal/internal/transport"
+	"github.com/elionaz/panal/internal/version"
 )
 
 // Client is a daemon client. Each control call uses its own short-lived
@@ -53,11 +53,11 @@ func SocketFromEnv() (string, error) {
 }
 
 // ResolveSocket picks the daemon socket from the environment. An explicit
-// AGENTERM_HOME always wins (so `AGENTERM_HOME=/tmp/x agenterm stop` run
+// PANAL_HOME always wins (so `PANAL_HOME=/tmp/x panal stop` run
 // inside a session targets /tmp/x, not the session's daemon);
-// $AGENTERM_SOCK, which the daemon injects into its sessions, applies only
-// when AGENTERM_HOME is unset; otherwise the default home. fromSession
-// reports that $AGENTERM_SOCK was used (callers must not auto-start a
+// $PANAL_SOCK, which the daemon injects into its sessions, applies only
+// when PANAL_HOME is unset; otherwise the default home. fromSession
+// reports that $PANAL_SOCK was used (callers must not auto-start a
 // daemon for it).
 func ResolveSocket() (sock string, fromSession bool, err error) {
 	if os.Getenv(paths.EnvHome) == "" {
@@ -92,8 +92,8 @@ func remoteError(method string, resp protocol.Response) *RemoteError {
 	if e.Code == apierr.UnknownMethod || (e.Code == "" && strings.HasPrefix(e.Msg, "unknown method ")) {
 		e.Code = apierr.UnknownMethod
 		e.Data, _ = json.Marshal(map[string]string{"method": method})
-		e.Msg = fmt.Sprintf("the agenterm daemon does not support %s: it is older than this agenterm (%s). "+
-			"Restart it (\"Restart now\" in the app, or `agenterm stop` and run the command again)", method, version.Version)
+		e.Msg = fmt.Sprintf("the panal daemon does not support %s: it is older than this panal (%s). "+
+			"Restart it (\"Restart now\" in the app, or `panal stop` and run the command again)", method, version.Version)
 	}
 	return e
 }
@@ -535,7 +535,7 @@ func (c *Client) WorktreeDiff(ctx context.Context, id string, stat bool) (protoc
 	return r, err
 }
 
-// Worktrees lists a project's agenterm worktrees (live and orphaned).
+// Worktrees lists a project's panal worktrees (live and orphaned).
 func (c *Client) Worktrees(ctx context.Context, projectID string) ([]protocol.WorktreeInfo, error) {
 	var r protocol.WorktreeList
 	err := c.Call(ctx, protocol.MethodWorktreeList, protocol.WorktreeListParams{ProjectID: projectID}, &r)
@@ -550,7 +550,7 @@ func (c *Client) WorktreeRemove(ctx context.Context, p protocol.WorktreeRemovePa
 }
 
 // WorktreeCopy copies files from the main folder into a worktree (and,
-// with Save, writes them into a new .agenterm.yaml).
+// with Save, writes them into a new .panal.yaml).
 func (c *Client) WorktreeCopy(ctx context.Context, p protocol.WorktreeCopyParams) (protocol.WorktreeCopyResult, error) {
 	var r protocol.WorktreeCopyResult
 	err := c.Call(ctx, protocol.MethodWorktreeCopy, p, &r)

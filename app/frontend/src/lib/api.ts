@@ -117,7 +117,7 @@ export interface DaemonEvent extends Live {
   msgHold?: string
   /** session.model: the agent's model id. */
   model?: string
-  /** session.state to exited: agenterm ended it (no failure). */
+  /** session.state to exited: panal ended it (no failure). */
   stopped?: boolean
   /** session.browser: the session's own Chrome opened (its DevTools URL) or closed (absent). */
   browserUrl?: string
@@ -207,7 +207,7 @@ export const api = {
   installAgent: (profileId: string, projectId: string, cols: number, rows: number): Promise<Session> =>
     App.InstallAgent(profileId, projectId, cols, rows),
   /** Copies files from the main folder into a worktree; save also writes
-   * them into a new .agenterm.yaml. */
+   * them into a new .panal.yaml. */
   copyIntoWorktree: (id: string, files: string[], save: boolean) => App.CopyIntoWorktree(id, files, save),
   /** Whether a project can use worktrees, its branches and default base. */
   projectGit: (projectId: string): Promise<ProjectGit> => App.ProjectGit(projectId),
@@ -234,7 +234,7 @@ export const api = {
     App.ForgeMerge(sessionId, worktreeId, branch, n, method, head, deleteBranch),
   forgeCreate: (sessionId: string, worktreeId: string, title: string, body: string, draft: boolean): Promise<ForgeStatus> =>
     App.ForgeCreate(sessionId, worktreeId, title, body, draft),
-  /** Messages sent by or to a session (agenterm msg). */
+  /** Messages sent by or to a session (panal msg). */
   listMessages: (sessionId: string): Promise<Message[]> => App.ListMessages(sessionId, ''),
   /** From the user to a session (id). */
   sendMessage: (to: string, body: string): Promise<Message[]> => App.SendMessage(to, '', body),
@@ -299,7 +299,7 @@ export function changesLabel(g: GitInfo | undefined | null): string {
 // Per project, the mode last picked for an agent. The key changed in 0.6.1,
 // when worktree became the default: choices made before (mostly the then
 // default "same") no longer win over it.
-const modeKey = (projectId: string) => `agenterm.spawnMode2.${projectId}`
+const modeKey = (projectId: string) => `panal.spawnMode2.${projectId}`
 
 export function rememberedMode(projectId: string, fallback: SpawnMode): SpawnMode {
   try {
@@ -361,7 +361,7 @@ export function joinArgs(args: string[] | undefined): string {
   return (args ?? []).map((a) => (a === '' || /[\s'"\\]/.test(a) ? `'${a.replace(/'/g, `'\\''`)}'` : a)).join(' ')
 }
 
-/** joinArgs for tooltips: the instructions agenterm hands codex
+/** joinArgs for tooltips: the instructions panal hands codex
  * (developer_instructions=…) are shortened, they can be long. */
 export function displayArgs(args: string[] | undefined): string {
   return joinArgs((args ?? []).map((a) => (a.startsWith('developer_instructions=') ? 'developer_instructions=…' : a)))

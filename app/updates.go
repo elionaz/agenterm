@@ -10,9 +10,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/i18n"
-	"github.com/elionaz/agenterm/internal/paths"
-	"github.com/elionaz/agenterm/internal/version"
+	"github.com/elionaz/panal/internal/i18n"
+	"github.com/elionaz/panal/internal/paths"
+	"github.com/elionaz/panal/internal/version"
 )
 
 // In-app updates (Sparkle 2, updater_sparkle_darwin.go). Release builds are
@@ -24,7 +24,7 @@ import (
 const (
 	updNone        = ""
 	updUnsupported = "unsupported" // built without Sparkle (dev builds, other OSes)
-	updNoBundle    = "nobundle"    // not running from agenterm.app, or Sparkle.framework missing
+	updNoBundle    = "nobundle"    // not running from panal.app, or Sparkle.framework missing
 	updNoKey       = "nokey"       // no SUPublicEDKey (built without SPARKLE_PUBLIC_ED_KEY)
 	updError       = "error"       // Sparkle refused to start (see the log)
 )
@@ -58,7 +58,7 @@ type UpdateInfo struct {
 
 // bundleInfo describes the running bundle (from NSBundle).
 type bundleInfo struct {
-	Path        string // …/agenterm.app ("" when not in a bundle)
+	Path        string // …/panal.app ("" when not in a bundle)
 	Version     string // CFBundleShortVersionString
 	PublicEDKey string // SUPublicEDKey
 	HasSparkle  bool   // Sparkle.framework loaded
@@ -98,11 +98,11 @@ func (a *App) startUpdater(p paths.Paths) {
 		f := a.setAvailable
 		onSparkleUpdate.Store(&f)
 		if err := sparkleStart(); err != nil {
-			log.Printf("agenterm: updater: %v", err)
+			log.Printf("panal: updater: %v", err)
 			reason = updError
 		}
 	} else {
-		log.Printf("agenterm: in-app updates off (%s)", reason)
+		log.Printf("panal: in-app updates off (%s)", reason)
 	}
 	a.upd.mu.Lock()
 	a.upd.reason = reason

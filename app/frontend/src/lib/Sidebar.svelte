@@ -47,7 +47,7 @@
     onRename: (id: string, name: string) => void
     onSelectProject: (id: string) => void
     onSpawn: (projectId: string, profileId: string, opts?: Partial<SpawnOptions>) => void
-    /** agenterm worktrees per project (orphans are listed under it). */
+    /** panal worktrees per project (orphans are listed under it). */
     worktrees: Record<string, WorktreeInfo[]>
     /** Opens an orphaned worktree's changes (optionally with removal asked). */
     onOpenWorktree: (worktreeId: string, remove?: boolean) => void
@@ -232,7 +232,7 @@
   let expanded = $state<Record<string, boolean>>({})
 
   function badgeClass(s: Session): string {
-    // Ended by agenterm (stop, continue…): a signal's exit code, no failure.
+    // Ended by panal (stop, continue…): a signal's exit code, no failure.
     if (s.state === 'exited') return s.exitCode && !s.stopped ? 'exited fail' : 'exited'
     if (needsAttention(s)) return `${s.state} attention ${s.attentionKind}`
     return s.state
@@ -410,7 +410,7 @@
 
 <aside class="sidebar" style:width="{width}px" style:min-width="{width}px">
   <div class="titlebar drag">
-    <span class="brand">agenterm</span>
+    <span class="brand">panal</span>
   </div>
 
   <div class="nav">

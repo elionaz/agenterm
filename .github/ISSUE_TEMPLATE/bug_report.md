@@ -16,8 +16,8 @@ labels: bug
 
 **Environment**
 - OS and version:
-- agenterm version / commit:
+- panal version / commit:
 - CLI or desktop app:
 - Agent (claude, codex, shell…):
 
-**Logs** (`~/.agenterm/…` or daemon output, if applicable)
+**Logs** (`~/.panal/…` or daemon output, if applicable)

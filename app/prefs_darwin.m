@@ -42,7 +42,7 @@ static void agtInsertPreferences(int attempts) {
 	item.keyEquivalentModifierMask = NSEventModifierFlagCommand;
 	item.target = agtPrefsTarget;
 	item.tag = agtPrefsTag;
-	// Right after "About agenterm" (and "Check for Updates…") + separator,
+	// Right after "About panal" (and "Check for Updates…") + separator,
 	// as in every Mac app.
 	NSInteger at = 0;
 	for (NSInteger i = 1; i < appMenu.numberOfItems && i <= 2; i++) {

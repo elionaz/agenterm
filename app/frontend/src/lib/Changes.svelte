@@ -42,7 +42,7 @@
 
   let { sessionId, worktreeId, live = false, sharedWith = [], onMoveToWorktree, gitStamp, prStamp, startRemove = false, onError, onRemoved, onClose }: Props = $props()
 
-  const STYLE_KEY = 'agenterm.diffStyle'
+  const STYLE_KEY = 'panal.diffStyle'
   /** Below this width (px) the automatic style is unified: two columns
    * would cut most lines. */
   const NARROW_DIFF = 900

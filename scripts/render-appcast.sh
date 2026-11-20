@@ -9,7 +9,7 @@
 # Release notes: the "## [<version>]" section of CHANGELOG.md as simple
 # HTML (headings, bullet lists, `code`, **bold**, *italics*, [links](https://…)), plus a link to the GitHub
 # release; without such a section, Sparkle shows the release page instead.
-# GITHUB_REPOSITORY (owner/name) defaults to elionaz/agenterm.
+# GITHUB_REPOSITORY (owner/name) defaults to elionaz/panal.
 set -euo pipefail
 
 [[ $# -ge 3 && $# -le 4 ]] || { echo "usage: $0 <version> <zip> <edSignature> [min macOS]" >&2; exit 1; }
@@ -21,7 +21,7 @@ MIN_MACOS=${4:-13.0}
 [[ -f $ZIP ]] || { echo "no such file: $ZIP" >&2; exit 1; }
 [[ $SIG =~ ^[A-Za-z0-9+/=]+$ ]] || { echo "invalid EdDSA signature" >&2; exit 1; }
 
-REPO=${GITHUB_REPOSITORY:-elionaz/agenterm}
+REPO=${GITHUB_REPOSITORY:-elionaz/panal}
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 LENGTH=$(stat -f%z "$ZIP")
 URL="https://github.com/$REPO/releases/download/v$VERSION/$(basename "$ZIP")"
@@ -71,12 +71,12 @@ cat <<EOF
 <?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>
-    <title>agenterm</title>
+    <title>panal</title>
     <link>https://github.com/$REPO</link>
-    <description>agenterm releases</description>
+    <description>panal releases</description>
     <language>en</language>
     <item>
-      <title>agenterm $VERSION</title>
+      <title>panal $VERSION</title>
       <pubDate>$PUBDATE</pubDate>
       <sparkle:version>$VERSION</sparkle:version>
       <sparkle:shortVersionString>$VERSION</sparkle:shortVersionString>

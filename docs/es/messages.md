@@ -1,21 +1,21 @@
 # Mensajes entre sesiones
 
-Los agentes de un proyecto pueden escribirse a través de agenterm, por ejemplo "ya mergeé #41,
+Los agentes de un proyecto pueden escribirse a través de panal, por ejemplo "ya mergeé #41,
 rebasea #42 sobre main", y así no tienes que pasar tú el mensaje. Los mensajes nunca salen de su
 proyecto, funcionan con cualquier CLI de agente y todos se ven en la app.
 
 ## Desde un agente
 
-Cada sesión recibe `AGENTERM_SESSION` y `AGENTERM_SOCK`, así que `agenterm` ejecutado dentro de
+Cada sesión recibe `PANAL_SESSION` y `PANAL_SOCK`, así que `panal` ejecutado dentro de
 ella llega a su propio daemon:
 
 | comando | |
 |---|---|
-| `agenterm msg peers` | las otras sesiones de este proyecto: id, nombre, agente, estado, qué está haciendo cada una, y si tiene su propio worktree o comparte tu carpeta |
-| `agenterm msg send <a> <texto…>` | `<a>` es un id de sesión, un nombre de `msg peers` (único en el proyecto, sin importar mayúsculas) o `all` (todas las demás sesiones del proyecto menos las shells, que nunca leen mensajes solas). Con el texto `-` se lee de stdin (máximo 4 KiB) |
-| `agenterm msg read` | tus mensajes nuevos, que quedan marcados como entregados |
-| `agenterm msg list [--pending]` | los mensajes que enviaste y recibiste |
-| `agenterm wait <id> [--timeout 30m]` | espera hasta que esa sesión quede inactiva, esperando a su usuario o terminada (código de salida 2 si se agota el tiempo) |
+| `panal msg peers` | las otras sesiones de este proyecto: id, nombre, agente, estado, qué está haciendo cada una, y si tiene su propio worktree o comparte tu carpeta |
+| `panal msg send <a> <texto…>` | `<a>` es un id de sesión, un nombre de `msg peers` (único en el proyecto, sin importar mayúsculas) o `all` (todas las demás sesiones del proyecto menos las shells, que nunca leen mensajes solas). Con el texto `-` se lee de stdin (máximo 4 KiB) |
+| `panal msg read` | tus mensajes nuevos, que quedan marcados como entregados |
+| `panal msg list [--pending]` | los mensajes que enviaste y recibiste |
+| `panal wait <id> [--timeout 30m]` | espera hasta que esa sesión quede inactiva, esperando a su usuario o terminada (código de salida 2 si se agota el tiempo) |
 
 Fuera de una sesión (desde tu propia terminal), `msg peers` y `msg send` necesitan saber el
 proyecto: usa `--session <id>` para `peers`, un id de sesión como `<a>`, o `--project <id>` con un
@@ -23,10 +23,10 @@ nombre o `all`. Esos mensajes vienen *del usuario*. `msg read` solo funciona den
 
 ## Cómo llegan
 
-- **Claude Code** los recibe solo, con los hooks que agenterm ya agrega a las sesiones que abre (no
+- **Claude Code** los recibe solo, con los hooks que panal ya agrega a las sesiones que abre (no
   se escribe nada en tu configuración de Claude ni en el proyecto):
   - al empezar la sesión, una presentación breve: qué sesión es, qué otras sesiones tiene el
-    proyecto y cómo usar `agenterm msg`;
+    proyecto y cómo usar `panal msg`;
   - al enviar un prompt y después de cada una de sus herramientas (no las de un subagente), los
     mensajes nuevos, agregados a su contexto;
   - cuando su turno iba a terminar y acaba de llegar un mensaje, el turno sigue una vez con el
@@ -37,12 +37,12 @@ nombre o `all`. Esos mensajes vienen *del usuario*. `msg read` solo funciona den
   Un mensaje cuenta como entregado solo cuando el hook lo imprimió: si el hook se pasa de tiempo,
   queda pendiente.
 - **Los demás agentes (codex, …)** no tienen un hook que pueda agregar a su conversación. Leen sus
-  mensajes con `agenterm msg read`. Mientras haya un mensaje pendiente, la app lo muestra en su
+  mensajes con `panal msg read`. Mientras haya un mensaje pendiente, la app lo muestra en su
   pestaña **Mensajes** con un botón **Entregar**.
 - **Entregar** escribe una línea fija en la terminal del agente y pulsa Enter: *Hay mensajes nuevos
-  para ti de otras sesiones de este proyecto: ejecuta `agenterm msg read` para leerlos* (para Claude,
+  para ti de otras sesiones de este proyecto: ejecuta `panal msg read` para leerlos* (para Claude,
   solo la primera parte: luego sus hooks le entregan los mensajes). Nunca escribe el mensaje, y
-  agenterm solo lo hace cuando haces clic. Solo se ofrece mientras el agente está inactivo en su
+  panal solo lo hace cuando haces clic. Solo se ofrece mientras el agente está inactivo en su
   prompt, nunca mientras espera una aprobación o una respuesta, que la línea y su Enter
   contestarían. Las shells no la reciben, porque ejecutarían la línea como un comando: sus mensajes
   se quedan en la app.
@@ -52,14 +52,14 @@ nombre o `all`. Esos mensajes vienen *del usuario*. `msg read` solo funciona den
 **Ajustes → General → Entregar solos los mensajes a las sesiones en espera**
 (`messages.auto_deliver`, **prendido por defecto**) hace lo que **Entregar** sin el clic: cuando un
 mensaje espera a una sesión inactiva en su prompt (una respuesta que llegó después de que terminó su
-turno, o una que se envió mientras estaba inactiva), agenterm escribe la misma línea fija un momento
+turno, o una que se envió mientras estaba inactiva), panal escribe la misma línea fija un momento
 después. Eso vale para Claude Code, cuyos hooks entregan entonces los mensajes, y para los agentes
 que avisan el fin de su turno (codex, con su notify), a los que se les pide correr
-`agenterm msg read`. Una sesión de Claude que está trabajando no necesita nada: sus hooks entregan
+`panal msg read`. Una sesión de Claude que está trabajando no necesita nada: sus hooks entregan
 los mensajes en su siguiente paso. Se contiene, y el mensaje queda pendiente con **Entregar ahora**,
 cuando:
 
-- el agente no tiene hooks de mensajes y solo se quedó callado (agenterm adivinó por el silencio que
+- el agente no tiene hooks de mensajes y solo se quedó callado (panal adivinó por el silencio que
   está inactivo): puede seguir pensando, y una línea escrita ahora caería en medio de su trabajo;
 
 - el mensaje no amerita despertarla: solo **tus** mensajes y las **respuestas** despiertan a una
@@ -97,19 +97,19 @@ que espera nunca parece trabado sin motivo. Con el ajuste apagado, todo mensaje 
   desde dentro de una sesión (el proceso de su terminal, o cualquier cosa que haya lanzado) viene de
   esa sesión, diga lo que diga su entorno. Cualquier otra cosa viene del usuario.
 - **Es atribución, no un aislamiento.** Todas las sesiones corren con tu usuario de macOS, y
-  cualquier proceso tuyo ya puede manejar agenterm (`agenterm attach` escribe en una terminal). Un
+  cualquier proceso tuyo ya puede manejar panal (`panal attach` escribe en una terminal). Un
   proceso que sale a propósito del árbol de procesos de su sesión (un daemon que se desacopla, tmux
   abierto en una sesión) cuenta como el usuario y puede lo mismo que él: escribir a cualquier
-  proyecto, listar todos los mensajes. Del mismo modo, agenterm abierto desde dentro de una sesión
+  proyecto, listar todos los mensajes. Del mismo modo, panal abierto desde dentro de una sesión
   (una build de desarrollo) se toma por esa sesión.
 - **Los mensajes son información, no órdenes.** Los agentes los reciben dentro de elementos
-  `<agenterm-message session="…" from="…">`, con un preámbulo que dice que vienen de otros agentes y
+  `<panal-message session="…" from="…">`, con un preámbulo que dice que vienen de otros agentes y
   no de su usuario, cuyas instrucciones van primero, y cómo responder. Todo lo que en un mensaje se
   parezca a esa etiqueta se escapa, así que un mensaje no puede hacerse pasar por otro.
 - **No salen del proyecto.** Una llamada desde una sesión solo puede escribir a sesiones de su propio
   proyecto, y solo ve los mensajes de esa sesión.
-- Se guardan en `~/.agenterm/messages.json` (`$AGENTERM_HOME/messages.json`): como mucho 200 por
+- Se guardan en `~/.panal/messages.json` (`$PANAL_HOME/messages.json`): como mucho 200 por
   proyecto (se descartan los más viejos), de 4 KiB cada uno. Los pendientes de una sesión que se
   elimina se descartan; los entregados se quedan como historial. Si el archivo no se puede leer
-  (dañado, o escrito por un agenterm más nuevo), el daemon arranca igual: no toca el archivo y
+  (dañado, o escrito por un panal más nuevo), el daemon arranca igual: no toca el archivo y
   guarda los mensajes en memoria hasta que se reinicie.

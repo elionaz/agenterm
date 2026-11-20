@@ -10,7 +10,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/elionaz/agenterm/internal/atomicfile"
+	"github.com/elionaz/panal/internal/atomicfile"
 )
 
 // Store edits profiles.yaml. The file stays the source of truth: every
@@ -191,7 +191,7 @@ func (s *Store) write(es []Entry, order []string) ([]Profile, error) {
 	return Resolve(out, s.Look), nil
 }
 
-const fileHeader = `# agenterm agent profiles. Each entry overrides the catalog agent with the
+const fileHeader = `# panal agent profiles. Each entry overrides the catalog agent with the
 # same id (missing fields are inherited) or defines a new one (cmd required,
 # or extends: <id>). The list order is the menu order; the first one is ⌘N's.
 # "enabled: false" hides it. "version" is the file format. See README.

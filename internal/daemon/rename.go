@@ -5,8 +5,8 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/sessionstore"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/sessionstore"
 )
 
 // Session display names (session.rename). They live in s.names (guarded

@@ -10,10 +10,10 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/elionaz/agenterm/internal/apierr"
-	"github.com/elionaz/agenterm/internal/forge"
-	"github.com/elionaz/agenterm/internal/gitx"
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/apierr"
+	"github.com/elionaz/panal/internal/forge"
+	"github.com/elionaz/panal/internal/gitx"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 // Pull requests on the code host (forge.*), for the branch of a worktree

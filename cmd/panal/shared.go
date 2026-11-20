@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/status"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/status"
 )
 
 // shellProfile is the plain shell: a terminal next to the agents, not one

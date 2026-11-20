@@ -18,10 +18,10 @@ datos de **actividad** (qué está haciendo ahora, cuánto lleva, si parece trab
 Hay dos fuentes:
 
 - **Heurística** (perfiles `status: heuristic`): salida → `running`; 3 s sin salida (o
-  `idle_seconds` del perfil, o `agenterm daemon --idle`) → `idle`. `waiting_input` no lo termina la
+  `idle_seconds` del perfil, o `panal daemon --idle`) → `idle`. `waiting_input` no lo termina la
   salida (los spinners siguen pintando), sino lo que escribas. Las respuestas automáticas de la
   terminal (foco, DA, DSR…) no cuentan como escribir.
-- **Eventos explícitos** (hooks de los agentes o `agenterm notify`). En perfiles `status: hooks`, el
+- **Eventos explícitos** (hooks de los agentes o `panal notify`). En perfiles `status: hooks`, el
   primer evento explícito desactiva la heurística para esa sesión.
 
 ## Atención
@@ -35,7 +35,7 @@ Hay dos fuentes:
 
 - `unread` se borra cuando la sesión está **a la vista** en la app, seleccionada o en cualquier
   panel, con la ventana activa (RPC `session.ack`), al **escribir en
-  ella** o con `agenterm ack <id>`. La excepción es una sesión que sigue esperando una aprobación o
+  ella** o con `panal ack <id>`. La excepción es una sesión que sigue esperando una aprobación o
   una respuesta (`waiting_input`): mirarla no la responde, así que sigue marcada hasta que escribas
   en ella o el agente avance.
 - Un `idle` explícito tras un turno (hook `Stop` de Claude Code, `agent-turn-complete` de codex) es
@@ -43,16 +43,16 @@ Hay dos fuentes:
 
 ## De dónde salen las señales
 
-Las integraciones solo se aplican a las sesiones que lanza agenterm. Nunca se tocan
+Las integraciones solo se aplican a las sesiones que lanza panal. Nunca se tocan
 `~/.claude/settings.json`, `~/.codex/config.toml`, la configuración de opencode ni el proyecto:
-todo va por flags en la línea de comandos y archivos generados en `~/.agenterm/hooks/` (o
-`$AGENTERM_HOME/hooks/`). Los hooks llaman a `<ejecutable del daemon> notify --sock <socket>
+todo va por flags en la línea de comandos y archivos generados en `~/.panal/hooks/` (o
+`$PANAL_HOME/hooks/`). Los hooks llaman a `<ejecutable del daemon> notify --sock <socket>
 --from-hook …` con rutas absolutas: la CLI, o el propio ejecutable del `.app` si el daemon lo
 arrancó la app.
 
 ### Claude Code (`setup_hooks: claude`)
 
-agenterm genera `hooks/claude-settings.json` y lanza `claude --settings <ese archivo> …`. Los hooks
+panal genera `hooks/claude-settings.json` y lanza `claude --settings <ese archivo> …`. Los hooks
 de `--settings` se **suman** a los tuyos. Timeout de 5 s por hook (3 s para `PreToolUse`).
 
 | hook | efecto |
@@ -115,7 +115,7 @@ La app se suscribe al daemon como cliente `ui` y es ella quien notifica:
 - Badge del Dock con el número de sesiones pendientes y rebote del icono en aprobaciones (si la app
   no está al frente).
 - En la sidebar: punto ámbar pulsante, etiqueta (aprobación / pregunta / terminó / error), tooltip
-  con el mensaje, contador por proyecto y `agenterm (N)` en el título de la ventana.
+  con el mensaje, contador por proyecto y `panal (N)` en el título de la ventana.
 - Al marcar la atención como vista se retira la notificación entregada.
 
 ### Con la app cerrada
@@ -123,23 +123,23 @@ La app se suscribe al daemon como cliente `ui` y es ella quien notifica:
 Cuando ningún cliente `ui` está suscrito, avisa el daemon:
 
 - Si su ejecutable está dentro de un `.app` y el bundle tiene permiso, usa
-  `UNUserNotificationCenter`: la notificación sale como **agenterm**, con su icono y el mismo
-  identificador que usa la app (`agenterm-<sessionId>`). La primera vez pide el permiso.
+  `UNUserNotificationCenter`: la notificación sale como **panal**, con su icono y el mismo
+  identificador que usa la app (`panal-<sessionId>`). La primera vez pide el permiso.
 - El daemon corre como el ejecutable de la app lo arranque quien lo arranque: la app, y también la
-  CLI incluida en el `.app` (`Contents/Helpers/agenterm`, que Homebrew enlaza en tu `PATH`) — su
-  arranque automático y `agenterm daemon [--detach]` ejecutan `agenterm.app/Contents/MacOS/agenterm
+  CLI incluida en el `.app` (`Contents/Helpers/panal`, que Homebrew enlaza en tu `PATH`) — su
+  arranque automático y `panal daemon [--detach]` ejecutan `panal.app/Contents/MacOS/panal
   daemon` en vez de a sí mismos. Solo una CLI instalada fuera del bundle (`go install`, los
   archivos de la CLI) corre el daemon como ella misma.
-- Al pulsarla, el daemon ejecuta `open -a <su .app> [--env AGENTERM_HOME=…]
-  agenterm://session/<id>`: la app se abre (o se activa) y selecciona esa sesión.
+- Al pulsarla, el daemon ejecuta `open -a <su .app> [--env PANAL_HOME=…]
+  panal://session/<id>`: la app se abre (o se activa) y selecciona esa sesión.
 - Si no se pueden usar las notificaciones nativas (el daemon no está en un bundle, no hay permiso o
   falla el envío), lo que pasa depende de `notify.fallback`:
   - `none` (por defecto): la notificación no se muestra; `daemon.log` lo dice, con el motivo, una
     vez.
   - `osascript`: se envía con `osascript` (`display notification`). macOS la atribuye a *Editor de
-    Scripts* y pulsarla abre Editor de Scripts, no agenterm. La app aplica el mismo ajuste a sus
+    Scripts* y pulsarla abre Editor de Scripts, no panal. La app aplica el mismo ajuste a sus
     propias notificaciones (*Ajustes → Notificaciones → Alternativa con AppleScript*).
-- `AGENTERM_NOTIFY=off` en el entorno de la app o del daemon desactiva todas las notificaciones de
+- `PANAL_NOTIFY=off` en el entorno de la app o del daemon desactiva todas las notificaciones de
   escritorio (nativas y alternativa), diga lo que diga `settings.yaml`: para instancias de prueba y
   demos (ver [development.md](development.md#probar-sin-tocar-tu-instalación)).
 - Nada de esto bloquea el daemon: el envío nativo tiene un límite de ~3 s y `osascript` de 5 s.
@@ -149,20 +149,20 @@ Cuando ningún cliente `ui` está suscrito, avisa el daemon:
 ### Permiso de notificaciones
 
 La primera vez que abras el `.app` macOS pregunta si permites notificaciones. Si lo rechazaste:
-*Ajustes del Sistema → Notificaciones → agenterm* → "Permitir notificaciones" (y estilo "Alertas"
+*Ajustes del Sistema → Notificaciones → panal* → "Permitir notificaciones" (y estilo "Alertas"
 si quieres que se queden en pantalla). Con `notify.fallback: osascript`, esas notificaciones se
 controlan en *Notificaciones → Editor de Scripts*.
 
 **Ajustes → Notificaciones** muestra ese permiso arriba (permitido, no permitido, aún sin
 preguntar), con **Pedir a macOS** mientras no ha preguntado, **Abrir Ajustes del Sistema** en la
-entrada de agenterm y **Enviar una notificación de prueba**, que muestra una al momento y dice por
+entrada de panal y **Enviar una notificación de prueba**, que muestra una al momento y dice por
 qué cuando no puede. La app vuelve a leer el permiso al volver de Ajustes del Sistema y antes de una
 notificación que tuvo que descartar (como mucho cada 30 segundos), así que un permiso dado después de abrirla se aplica sin
 reiniciarla.
 
 ### Esquema de URL
 
-`agenterm://session/<id>` abre la app en esa sesión. Está registrado en `CFBundleURLTypes` (vía
+`panal://session/<id>` abre la app en esa sesión. Está registrado en `CFBundleURLTypes` (vía
 `protocols` en `app/wails.json`) y la app lo recibe con `mac.Options.OnUrlOpen`; si la app no estaba
 abierta, selecciona la sesión al terminar de cargar.
 
@@ -196,7 +196,7 @@ Cada sesión lleva, en `session.list` y en los eventos:
   terminadas en `$ % # > ❯ ➜` en las formas típicas, o empezando por `usuario@host`), así que en una
   shell ves la última salida y no `usuario@mac ~ %`. En TUIs que redibujan la pantalla (opencode,
   codex…) es la última línea que pintaron, que no siempre es la más informativa.
-- `agenterm notify --activity "texto"` también la fija (como `hook`).
+- `panal notify --activity "texto"` también la fija (como `hook`).
 - El daemon emite `session.activity` agrupado: como mucho uno cada 500 ms por sesión (siempre con el
   último valor), más un latido cada 5 s mientras haya salida.
 

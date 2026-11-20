@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/apierr"
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/apierr"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 // fakeGHPerBranch answers `pr list --head B` with a PR for the branches

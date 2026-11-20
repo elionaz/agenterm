@@ -71,14 +71,14 @@ func (n *Notifier) Post(note Note) error {
 	n.mu.Lock()
 	replaces := n.byKey[note.Key]
 	n.mu.Unlock()
-	hints := map[string]dbus.Variant{"desktop-entry": dbus.MakeVariant("agenterm")}
+	hints := map[string]dbus.Variant{"desktop-entry": dbus.MakeVariant("panal")}
 	if note.Sound {
 		hints["sound-name"] = dbus.MakeVariant("message-new-instant")
 	} else {
 		hints["suppress-sound"] = dbus.MakeVariant(true)
 	}
 	var id uint32
-	err := n.obj.Call("org.freedesktop.Notifications.Notify", 0, n.app, replaces, "agenterm", note.Title, note.Body,
+	err := n.obj.Call("org.freedesktop.Notifications.Notify", 0, n.app, replaces, "panal", note.Title, note.Body,
 		[]string{"default", "Open"}, hints, int32(-1)).Store(&id)
 	if err != nil {
 		return err

@@ -8,14 +8,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/apierr"
-	"github.com/elionaz/agenterm/internal/gitx"
-	"github.com/elionaz/agenterm/internal/hooks"
-	"github.com/elionaz/agenterm/internal/profile"
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/redact"
-	"github.com/elionaz/agenterm/internal/session"
-	"github.com/elionaz/agenterm/internal/status"
+	"github.com/elionaz/panal/internal/apierr"
+	"github.com/elionaz/panal/internal/gitx"
+	"github.com/elionaz/panal/internal/hooks"
+	"github.com/elionaz/panal/internal/profile"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/redact"
+	"github.com/elionaz/panal/internal/session"
+	"github.com/elionaz/panal/internal/status"
 )
 
 // Continue a session's work with another agent ("Continue with…"), or with
@@ -48,7 +48,7 @@ func (s *Server) handoffNote(id string) (protocol.HandoffNote, error) {
 	var b strings.Builder
 	agent := s.profileName(info.ProfileID)
 	fmt.Fprintf(&b, "# Handoff: continue the work of a previous session\n\n")
-	fmt.Fprintf(&b, "Another agent (%s, agenterm session %s", agent, info.ID)
+	fmt.Fprintf(&b, "Another agent (%s, panal session %s", agent, info.ID)
 	if info.Name != "" {
 		fmt.Fprintf(&b, " %q", info.Name)
 	}
@@ -78,7 +78,7 @@ func (s *Server) handoffNote(id string) (protocol.HandoffNote, error) {
 			fmt.Fprintf(&b, ", branch %s", branch)
 		}
 		if g.Mode == protocol.ModeWorktree {
-			b.WriteString(" (an agenterm worktree)")
+			b.WriteString(" (a panal worktree)")
 		}
 		b.WriteString(".\n")
 		if st, err := gitx.GetStatus(ctx, g.Dir); err == nil && st.Dirty() {

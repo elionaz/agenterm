@@ -8,12 +8,12 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/elionaz/agenterm/internal/browser"
-	"github.com/elionaz/agenterm/internal/client"
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/browser"
+	"github.com/elionaz/panal/internal/client"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
-const browserUsage = "usage: agenterm browser [--session ID] [open|url|close|status|mcp]"
+const browserUsage = "usage: panal browser [--session ID] [open|url|close|status|mcp]"
 
 // cmdBrowser: the session's own Chrome (inside a session: its own).
 //
@@ -25,7 +25,7 @@ const browserUsage = "usage: agenterm browser [--session ID] [open|url|close|sta
 //	                Claude Code and codex sessions get)
 func cmdBrowser(ctx context.Context, c *client.Client, args []string) error {
 	fs := flag.NewFlagSet("browser", flag.ContinueOnError)
-	sessionID := fs.String("session", os.Getenv("AGENTERM_SESSION"), "session id")
+	sessionID := fs.String("session", os.Getenv("PANAL_SESSION"), "session id")
 	sock := fs.String("sock", "", "daemon socket (agent integrations pass it)")
 	if err := parseInterspersed(fs, args); err != nil {
 		return err
@@ -51,7 +51,7 @@ func cmdBrowser(ctx context.Context, c *client.Client, args []string) error {
 		return nil
 	}
 	if *sessionID == "" {
-		return errors.New("not inside an agenterm session: pass --session ID")
+		return errors.New("not inside a panal session: pass --session ID")
 	}
 	switch sub {
 	case "open":

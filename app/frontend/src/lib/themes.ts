@@ -12,8 +12,8 @@ export const DEFAULT_THEME = 'bright-lights'
 
 /** Retired names and their replacements (mirrors internal/settings ThemeAliases). */
 export const themeAliases: Record<string, string> = {
-  'agenterm-dark': 'bright-lights',
-  'agenterm-light': 'alphabetical',
+  'panal-dark': 'bright-lights',
+  'panal-light': 'alphabetical',
   'solarized-dark': 'z',
   'solarized-light': 'hot-fuss',
   dracula: 'funeral',

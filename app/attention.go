@@ -8,10 +8,10 @@ import (
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"github.com/elionaz/agenterm/internal/desktopnotify"
-	"github.com/elionaz/agenterm/internal/macnotify"
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/settings"
+	"github.com/elionaz/panal/internal/desktopnotify"
+	"github.com/elionaz/panal/internal/macnotify"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/settings"
 )
 
 // evFocusSession asks the frontend to select a session (notification
@@ -132,7 +132,7 @@ func (a *App) updateBadge() {
 func (a *App) notify(e protocol.Event) {
 	st, err := settings.Load(a.paths.Settings())
 	if err != nil {
-		log.Printf("agenterm: settings: %v", err)
+		log.Printf("panal: settings: %v", err)
 	}
 	active := a.desk.IsActive()
 	a.att.mu.Lock()
@@ -160,7 +160,7 @@ func (a *App) notify(e protocol.Event) {
 	}
 	go func() {
 		if err := a.desk.Notify(n); err != nil {
-			log.Printf("agenterm: notify: %v", err)
+			log.Printf("panal: notify: %v", err)
 		}
 	}()
 	if e.AttentionKind == "permission" && !active {

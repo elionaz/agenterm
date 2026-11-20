@@ -10,24 +10,24 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/elionaz/agenterm/internal/apierr"
-	"github.com/elionaz/agenterm/internal/hooks"
-	"github.com/elionaz/agenterm/internal/i18n"
-	"github.com/elionaz/agenterm/internal/mailbox"
-	"github.com/elionaz/agenterm/internal/peercred"
-	"github.com/elionaz/agenterm/internal/profile"
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/session"
-	"github.com/elionaz/agenterm/internal/settings"
-	"github.com/elionaz/agenterm/internal/status"
+	"github.com/elionaz/panal/internal/apierr"
+	"github.com/elionaz/panal/internal/hooks"
+	"github.com/elionaz/panal/internal/i18n"
+	"github.com/elionaz/panal/internal/mailbox"
+	"github.com/elionaz/panal/internal/peercred"
+	"github.com/elionaz/panal/internal/profile"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/session"
+	"github.com/elionaz/panal/internal/settings"
+	"github.com/elionaz/panal/internal/status"
 )
 
 // Messages between the sessions of a project (msg.*). Who sends is never
 // taken from the request: a call from a process inside a session (its
 // PTY's session, or a descendant) is from that session; anything else (the
-// app, a terminal outside agenterm) is from the user. Messages are
+// app, a terminal outside panal) is from the user. Messages are
 // delivered by agent hooks (msg.take from `notify --from-hook`), by
-// `agenterm msg read`, or nudged by the user (msg.deliver, which types a
+// `panal msg read`, or nudged by the user (msg.deliver, which types a
 // fixed line, never the message, into the recipient's terminal).
 
 // maxAncestors bounds the walk up a caller's process tree.
@@ -198,7 +198,7 @@ func (s *Server) msgPeers(caller *session.Session, sessionID string) (protocol.M
 	if ref == nil {
 		if sessionID == "" {
 			return protocol.MsgPeers{}, apierr.New(apierr.MsgNotInSession, nil,
-				"not inside an agenterm session: name one (--session) to see its project")
+				"not inside a panal session: name one (--session) to see its project")
 		}
 		sess, err := s.lookup(sessionID)
 		if err != nil {
@@ -264,7 +264,7 @@ func (s *Server) resolveTo(from *session.Session, projectID, to string) ([]*sess
 		return nil, apierr.New(apierr.MsgNoSession, map[string]any{"to": to}, "there are no other agent sessions in this project (all skips shells)")
 	case len(out) == 0:
 		return nil, apierr.New(apierr.MsgNoSession, map[string]any{"to": to},
-			"no session of this project is called %q (agenterm msg peers lists them)", to)
+			"no session of this project is called %q (panal msg peers lists them)", to)
 	case len(out) > 1 && !strings.EqualFold(to, "all"):
 		ids := make([]string, len(out))
 		for i, sess := range out {
@@ -318,7 +318,7 @@ func (s *Server) msgSend(caller *session.Session, p protocol.MsgSendParams) (pro
 func (s *Server) msgTake(caller *session.Session, p protocol.MsgTakeParams) (protocol.MsgTakeResult, error) {
 	if caller == nil {
 		return protocol.MsgTakeResult{}, apierr.New(apierr.MsgNotInSession, nil,
-			"only a session can read its messages: run it inside an agenterm session")
+			"only a session can read its messages: run it inside a panal session")
 	}
 	res := protocol.MsgTakeResult{Messages: []mailbox.Message{}, Enabled: s.messagesEnabled(), Self: caller.ID}
 	if p.Intro {

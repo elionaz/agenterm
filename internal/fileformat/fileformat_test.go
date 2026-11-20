@@ -43,7 +43,7 @@ func TestDecodeTooNew(t *testing.T) {
 	if !IsTooNew(err) || v != 2 {
 		t.Fatalf("got %d %v", v, err)
 	}
-	if !strings.Contains(err.Error(), "p.json was written by a newer agenterm (format 2; this build reads up to 1)") {
+	if !strings.Contains(err.Error(), "p.json was written by a newer panal (format 2; this build reads up to 1)") {
 		t.Fatalf("message: %v", err)
 	}
 }

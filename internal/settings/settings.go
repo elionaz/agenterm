@@ -1,5 +1,5 @@
 // Package settings reads the optional user settings file
-// (~/.config/agenterm/settings.yaml). Every toggle defaults to "on".
+// (~/.config/panal/settings.yaml). Every toggle defaults to "on".
 package settings
 
 import (
@@ -15,9 +15,9 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/elionaz/agenterm/internal/atomicfile"
-	"github.com/elionaz/agenterm/internal/fileformat"
-	"github.com/elionaz/agenterm/internal/i18n"
+	"github.com/elionaz/panal/internal/atomicfile"
+	"github.com/elionaz/panal/internal/fileformat"
+	"github.com/elionaz/panal/internal/i18n"
 )
 
 // Notify controls attention notifications.
@@ -76,7 +76,7 @@ type Git struct {
 	// ("Visual Studio Code"). Empty: `code` if found, else Finder.
 	Editor string `json:"editor"`
 	// WorktreeDir overrides where worktrees are created (default
-	// ~/.agenterm/worktrees; "~/" is expanded).
+	// ~/.panal/worktrees; "~/" is expanded).
 	WorktreeDir string `json:"worktreeDir"`
 	// DefaultMode is what the spawn menu preselects for agents: worktree
 	// (the default: each one on its own branch) or same. Shells always
@@ -154,8 +154,8 @@ var Themes = []string{"bright-lights", "room-on-fire", "is-this-it", "funeral", 
 // ThemeAliases maps retired theme names to the closest current palette, so an
 // older settings.yaml keeps a similar look.
 var ThemeAliases = map[string]string{
-	"agenterm-dark":   "bright-lights",
-	"agenterm-light":  "alphabetical",
+	"panal-dark":      "bright-lights",
+	"panal-light":     "alphabetical",
 	"solarized-dark":  "z",
 	"solarized-light": "hot-fuss",
 	"dracula":         "funeral",
@@ -219,7 +219,7 @@ func normRestore(v string) string {
 	return RestoreAsk
 }
 
-// Messages configures messages between sessions (agenterm msg).
+// Messages configures messages between sessions (panal msg).
 type Messages struct {
 	// Enabled: sessions may send each other messages, and agent hooks
 	// deliver them.
@@ -230,12 +230,12 @@ type Messages struct {
 	AutoDeliver bool `json:"autoDeliver"`
 }
 
-// Browser configures the isolated Chrome agenterm gives each session for
+// Browser configures the isolated Chrome panal gives each session for
 // agents' browser work (see internal/browser).
 type Browser struct {
 	// Enabled (default): Claude Code and codex sessions get a browser MCP
 	// server bound to the session's own Chrome; every session can start it
-	// with agenterm browser.
+	// with panal browser.
 	Enabled bool `json:"enabled"`
 	// Headless: no window.
 	Headless bool `json:"headless"`
@@ -321,12 +321,12 @@ type file struct {
 	Browser  fileBrowser  `yaml:"browser"`
 }
 
-const header = "# agenterm settings (see README)\n"
+const header = "# panal settings (see README)\n"
 
 // Save writes s to path atomically (keeping a .bak of the previous file).
 // The existing file is edited in place: unknown keys and comments are kept,
 // only the known keys are set. A file that does not parse is replaced; one
-// written by a newer agenterm is left alone (fileformat.TooNewError).
+// written by a newer panal is left alone (fileformat.TooNewError).
 func Save(path string, s Settings) error {
 	var doc yaml.Node
 	if old, err := os.ReadFile(path); err == nil {
@@ -449,7 +449,7 @@ func normMode(m string) string {
 }
 
 // Parse decodes YAML, filling missing keys with defaults. A file written by
-// a newer agenterm is still read as far as this build understands it, and
+// a newer panal is still read as far as this build understands it, and
 // returned with a fileformat.TooNewError.
 func Parse(data []byte) (Settings, error) {
 	var doc yaml.Node

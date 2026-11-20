@@ -5,14 +5,14 @@ import (
 	"net"
 	"strings"
 
-	"github.com/elionaz/agenterm/internal/apierr"
-	"github.com/elionaz/agenterm/internal/peercred"
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/session"
+	"github.com/elionaz/panal/internal/apierr"
+	"github.com/elionaz/panal/internal/peercred"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/session"
 )
 
 // handleShutdown serves daemon.shutdown. Without force it refuses while any
-// session is alive, so a stray `agenterm stop` (a test cleanup aimed at the
+// session is alive, so a stray `panal stop` (a test cleanup aimed at the
 // wrong daemon…) cannot take live work down. Every request is logged with
 // the requesting process. Signals (SIGTERM/SIGINT) bypass this: that is the
 // OS asking.

@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/daemon"
-	"github.com/elionaz/agenterm/internal/notifycmd"
-	"github.com/elionaz/agenterm/internal/paths"
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/daemon"
+	"github.com/elionaz/panal/internal/notifycmd"
+	"github.com/elionaz/panal/internal/paths"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 func TestHookActivityAndTimers(t *testing.T) {

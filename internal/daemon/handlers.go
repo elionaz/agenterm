@@ -13,20 +13,20 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/apierr"
-	"github.com/elionaz/agenterm/internal/fileformat"
-	"github.com/elionaz/agenterm/internal/hooks"
-	"github.com/elionaz/agenterm/internal/order"
-	"github.com/elionaz/agenterm/internal/profile"
-	"github.com/elionaz/agenterm/internal/project"
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/repoconfig"
-	"github.com/elionaz/agenterm/internal/session"
-	"github.com/elionaz/agenterm/internal/sessionstore"
-	"github.com/elionaz/agenterm/internal/settings"
-	"github.com/elionaz/agenterm/internal/status"
-	"github.com/elionaz/agenterm/internal/version"
-	"github.com/elionaz/agenterm/internal/worktree"
+	"github.com/elionaz/panal/internal/apierr"
+	"github.com/elionaz/panal/internal/fileformat"
+	"github.com/elionaz/panal/internal/hooks"
+	"github.com/elionaz/panal/internal/order"
+	"github.com/elionaz/panal/internal/profile"
+	"github.com/elionaz/panal/internal/project"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/repoconfig"
+	"github.com/elionaz/panal/internal/session"
+	"github.com/elionaz/panal/internal/sessionstore"
+	"github.com/elionaz/panal/internal/settings"
+	"github.com/elionaz/panal/internal/status"
+	"github.com/elionaz/panal/internal/version"
+	"github.com/elionaz/panal/internal/worktree"
 )
 
 func (s *Server) dispatch(req protocol.Request) (any, error) {
@@ -626,9 +626,9 @@ func (s *Server) startSession(sp startSpec) (protocol.SessionInfo, error) {
 	var launch []string
 	if sp.setup != "" {
 		launch = setupLaunch(sp.lp.cmd, sp.args)
-		env = append(env, "AGENTERM_SETUP="+sp.setup)
+		env = append(env, "PANAL_SETUP="+sp.setup)
 		if sp.setupTitle != "" {
-			env = append(env, "AGENTERM_SETUP_TITLE="+sp.setupTitle)
+			env = append(env, "PANAL_SETUP_TITLE="+sp.setupTitle)
 		}
 	}
 	sess, err := session.Spawn(session.Options{
@@ -820,7 +820,7 @@ func (s *Server) handleAttach(conn net.Conn, br *bufio.Reader, req protocol.Requ
 		writeResponse(conn, req.ID, nil, err)
 		return
 	}
-	// Input from a session (an agent running agenterm attach) is not the
+	// Input from a session (an agent running panal attach) is not the
 	// user acting: it doesn't reset automatic delivery's chain.
 	fromUser := s.callerSession(conn) == nil
 	if p.Cols > 0 && p.Rows > 0 {

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elionaz/agenterm/internal/apierr"
+	"github.com/elionaz/panal/internal/apierr"
 )
 
 // hostRepo makes repo's main track a bare origin and returns a clone of

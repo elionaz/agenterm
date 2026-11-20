@@ -5,9 +5,9 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/session"
-	"github.com/elionaz/agenterm/internal/sessionstore"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/session"
+	"github.com/elionaz/panal/internal/sessionstore"
 )
 
 // The model each session's agent uses, as the sidebar shows it. Claude

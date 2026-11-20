@@ -3,8 +3,8 @@ package daemon
 import (
 	"fmt"
 
-	"github.com/elionaz/agenterm/internal/profile"
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/profile"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 // profileInstall runs catalog agent p.ProfileID's install command in a new
@@ -12,11 +12,11 @@ import (
 // shell, so its output (and a sudo or keychain prompt) are in view; the
 // shell stays open afterwards. Only commands from the built-in catalog are
 // run, never a profiles.yaml value. A successful install rescans the
-// agents (agenterm profiles scan, which tells the UIs).
+// agents (panal profiles scan, which tells the UIs).
 func (s *Server) profileInstall(p protocol.ProfileInstallParams) (protocol.SessionInfo, error) {
 	name, cmd := catalogInstall(p.ProfileID)
 	if cmd == "" {
-		return protocol.SessionInfo{}, fmt.Errorf("%s is not a catalog agent agenterm knows how to install", p.ProfileID)
+		return protocol.SessionInfo{}, fmt.Errorf("%s is not a catalog agent panal knows how to install", p.ProfileID)
 	}
 	if ps, err := s.profiles.List(); err == nil {
 		if cur, ok := profile.Find(ps, p.ProfileID); ok && cur.Installed {

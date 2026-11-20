@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/sessionstore"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/sessionstore"
 )
 
 func TestRenderNotes(t *testing.T) {

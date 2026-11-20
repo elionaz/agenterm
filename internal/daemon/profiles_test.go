@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elionaz/agenterm/internal/profile"
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/settings"
+	"github.com/elionaz/panal/internal/profile"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/settings"
 )
 
 func TestProfileRPCs(t *testing.T) {

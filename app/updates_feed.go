@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/version"
+	"github.com/elionaz/panal/internal/version"
 )
 
 // Without Sparkle (Linux), updates are not installed by the app: it reads
@@ -21,8 +21,8 @@ import (
 
 const (
 	updManual    = "manual"
-	releaseFeed  = "https://github.com/elionaz/agenterm/releases/latest/download/appcast.xml"
-	releasePage  = "https://github.com/elionaz/agenterm/releases/tag/v"
+	releaseFeed  = "https://github.com/elionaz/panal/releases/latest/download/appcast.xml"
+	releasePage  = "https://github.com/elionaz/panal/releases/tag/v"
 	feedEvery    = 6 * time.Hour
 	feedFirst    = 10 * time.Second
 	feedTimeout  = 20 * time.Second
@@ -81,7 +81,7 @@ func fetchFeed(ctx context.Context, url string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("User-Agent", "agenterm/"+version.Version)
+	req.Header.Set("User-Agent", "panal/"+version.Version)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", err
@@ -122,7 +122,7 @@ func (a *App) feedLoop(ctx context.Context) {
 		case <-t.C:
 		}
 		if err := a.checkFeed(ctx); err != nil {
-			log.Printf("agenterm: update check: %v", err)
+			log.Printf("panal: update check: %v", err)
 		}
 		t.Reset(feedEvery)
 	}

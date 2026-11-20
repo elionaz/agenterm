@@ -6,8 +6,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/elionaz/agenterm/internal/desktopnotify"
-	"github.com/elionaz/agenterm/internal/macnotify"
+	"github.com/elionaz/panal/internal/desktopnotify"
+	"github.com/elionaz/panal/internal/macnotify"
 )
 
 type otherDesktop struct{}

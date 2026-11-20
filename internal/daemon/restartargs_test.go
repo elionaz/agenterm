@@ -6,9 +6,9 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/elionaz/agenterm/internal/profile"
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/sessionstore"
+	"github.com/elionaz/panal/internal/profile"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/sessionstore"
 )
 
 func TestRestartArgs(t *testing.T) {

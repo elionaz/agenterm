@@ -46,10 +46,10 @@ func TestStorePersists(t *testing.T) {
 
 func TestProjectSlug(t *testing.T) {
 	for in, want := range map[[2]string]string{
-		{"Mi Repo", "ab12"}:  "mi-repo-ab12",
-		{"ñ/../x", "cd34"}:   "x-cd34",
-		{"", "ef56"}:         "ef56",
-		{"agenterm", "0000"}: "agenterm-0000",
+		{"Mi Repo", "ab12"}: "mi-repo-ab12",
+		{"ñ/../x", "cd34"}:  "x-cd34",
+		{"", "ef56"}:        "ef56",
+		{"panal", "0000"}:   "panal-0000",
 	} {
 		if got := ProjectSlug(in[0], in[1]); got != want {
 			t.Errorf("ProjectSlug(%q) = %q, want %q", in, got, want)

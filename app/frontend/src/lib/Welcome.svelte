@@ -24,10 +24,10 @@
   let copied = $state(false)
 
   const installed = $derived(profiles.filter((p) => p.installed && p.id !== 'shell'))
-  /** Quoted for the shell: the bundled CLI lives in /Applications/agenterm.app. */
+  /** Quoted for the shell: the bundled CLI lives in /Applications/panal.app. */
   const linkCmd = $derived(
     info?.bundledCli
-      ? `sudo mkdir -p /usr/local/bin && sudo ln -sf '${info.bundledCli.replaceAll("'", "'\\''")}' /usr/local/bin/agenterm`
+      ? `sudo mkdir -p /usr/local/bin && sudo ln -sf '${info.bundledCli.replaceAll("'", "'\\''")}' /usr/local/bin/panal`
       : '',
   )
 

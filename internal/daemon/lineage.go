@@ -3,10 +3,10 @@ package daemon
 import (
 	"slices"
 
-	"github.com/elionaz/agenterm/internal/sessionstore"
+	"github.com/elionaz/panal/internal/sessionstore"
 )
 
-// Lineage of sessions, for the UIs: which ones agenterm ended (stop,
+// Lineage of sessions, for the UIs: which ones panal ended (stop,
 // close, continue with another agent: their exit code is not a failure)
 // and whose work each one continues (session.handoff), so the earlier
 // ones show under it instead of as sessions of their own.
@@ -17,7 +17,7 @@ func (s *Server) markStopped(id string) {
 	s.namesMu.Unlock()
 }
 
-// lineage is whether agenterm ended session id and the sessions it
+// lineage is whether panal ended session id and the sessions it
 // continues, oldest first.
 func (s *Server) lineage(id string) (stopped bool, from []string) {
 	s.namesMu.Lock()

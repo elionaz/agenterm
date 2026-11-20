@@ -50,10 +50,23 @@ func TestLoad(t *testing.T) {
 	if c, err := Load(root); err != nil || c.Path != "" {
 		t.Fatalf("no file = %+v, %v", c, err)
 	}
-	os.WriteFile(filepath.Join(root, ".agenterm.yml"), []byte("worktree:\n  setup: make\n"), 0o644)
+	os.WriteFile(filepath.Join(root, ".panal.yml"), []byte("worktree:\n  setup: make\n"), 0o644)
 	c, err := Load(root)
-	if err != nil || c.Worktree.Setup != "make" || filepath.Base(c.Path) != ".agenterm.yml" {
+	if err != nil || c.Worktree.Setup != "make" || filepath.Base(c.Path) != ".panal.yml" {
 		t.Fatalf("yml = %+v, %v", c, err)
+	}
+}
+
+func TestLoadLegacyName(t *testing.T) {
+	root := t.TempDir()
+	os.WriteFile(filepath.Join(root, ".agenterm.yaml"), []byte("worktree:\n  setup: old\n"), 0o644)
+	c, err := Load(root)
+	if err != nil || c.Worktree.Setup != "old" {
+		t.Fatalf("legacy = %+v, %v", c, err)
+	}
+	os.WriteFile(filepath.Join(root, ".panal.yaml"), []byte("worktree:\n  setup: new\n"), 0o644)
+	if c, err := Load(root); err != nil || c.Worktree.Setup != "new" {
+		t.Fatalf("panal file should win: %+v, %v", c, err)
 	}
 }
 

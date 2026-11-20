@@ -3,9 +3,9 @@ package daemon
 import (
 	"cmp"
 
-	"github.com/elionaz/agenterm/internal/desktopnotify"
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/settings"
+	"github.com/elionaz/panal/internal/desktopnotify"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/settings"
 )
 
 // fallbackNotify is used while no desktop app is subscribed, so attention

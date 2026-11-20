@@ -3,7 +3,7 @@ package profile
 import (
 	"strings"
 
-	"github.com/elionaz/agenterm/internal/status"
+	"github.com/elionaz/panal/internal/status"
 )
 
 // CatalogEntry is a known agent CLI. Users override any field (or hide the
@@ -137,7 +137,7 @@ func catalogIndex(id string) int {
 	return -1
 }
 
-// InstallCommand splits a catalog Install hint into the command agenterm
+// InstallCommand splits a catalog Install hint into the command panal
 // can run ("npm i -g @openai/codex") and the alternatives shown as text
 // ("brew install --cask codex"), from "cmd   (or alt)".
 func InstallCommand(hint string) (cmd, alt string) {
@@ -150,7 +150,7 @@ func InstallCommand(hint string) (cmd, alt string) {
 }
 
 // CatalogInstall is the install command of catalog agent id ("" when it is
-// not in the catalog or has none): only these are run by agenterm, never a
+// not in the catalog or has none): only these are run by panal, never a
 // profiles.yaml value.
 func CatalogInstall(id string) (name, cmd string) {
 	if i := catalogIndex(id); i >= 0 {

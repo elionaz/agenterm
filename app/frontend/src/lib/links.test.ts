@@ -18,7 +18,7 @@ describe('openLink', () => {
     expect(opened).toEqual(['https://example.com/a?b=1', 'http://localhost:5173/'])
   })
 
-  it.each(['javascript:alert(1)', 'file:///etc/passwd', 'agenterm://session/x', 'not a url', ''])(
+  it.each(['javascript:alert(1)', 'file:///etc/passwd', 'panal://session/x', 'not a url', ''])(
     'refuses %j',
     (bad) => {
       const opened: string[] = []

@@ -1,11 +1,11 @@
 [Desktop Entry]
 Type=Application
-Name=agenterm
+Name=panal
 GenericName=Agent workspace
 Comment=Desktop workspace for coding agents
-Exec=agenterm-app %U
-Icon=agenterm
+Exec=panal-app %U
+Icon=panal
 Terminal=false
 Categories=Development;
-StartupWMClass=agenterm
-MimeType=x-scheme-handler/agenterm;
+StartupWMClass=panal
+MimeType=x-scheme-handler/panal;

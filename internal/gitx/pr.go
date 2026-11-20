@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/elionaz/agenterm/internal/apierr"
+	"github.com/elionaz/panal/internal/apierr"
 )
 
 // PRResult describes a pull request preparation: the branch pushed to

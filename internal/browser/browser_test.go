@@ -13,10 +13,10 @@ import (
 	"time"
 )
 
-// The test binary doubles as a fake Chrome: with AGENTERM_FAKE_CHROME set
+// The test binary doubles as a fake Chrome: with PANAL_FAKE_CHROME set
 // it serves /json/version on its --remote-debugging-port.
 func TestMain(m *testing.M) {
-	if os.Getenv("AGENTERM_FAKE_CHROME") != "" {
+	if os.Getenv("PANAL_FAKE_CHROME") != "" {
 		fakeChrome()
 		return
 	}
@@ -102,14 +102,14 @@ func TestMatchProfile(t *testing.T) {
 		"  102 /Applications/Google Chrome.app/Contents/Frameworks/Helper --type=renderer --user-data-dir=/h/browsers/s1\n" +
 		"  103 Google Chrome --user-data-dir=/h/browsers/s10\n" +
 		"  104 Google Chrome\n" +
-		"  105 agenterm --user-data-dir=/h/browsers/s1\n"
+		"  105 panal --user-data-dir=/h/browsers/s1\n"
 	if got := matchProfile(ps, "/h/browsers/s1", 105); !slices.Equal(got, []int{101, 102}) {
 		t.Fatalf("pids = %v", got)
 	}
 }
 
 func TestLaunchStop(t *testing.T) {
-	t.Setenv("AGENTERM_FAKE_CHROME", "1")
+	t.Setenv("PANAL_FAKE_CHROME", "1")
 	exe, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)

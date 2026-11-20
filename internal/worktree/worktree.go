@@ -1,4 +1,4 @@
-// Package worktree persists the git worktrees agenterm created for its
+// Package worktree persists the git worktrees panal created for its
 // sessions (runtime dir, worktrees.json), so the daemon still knows them —
 // and can offer to reopen, review or remove them — after the session ended
 // or the daemon restarted.
@@ -12,15 +12,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/apierr"
-	"github.com/elionaz/agenterm/internal/atomicfile"
-	"github.com/elionaz/agenterm/internal/fileformat"
+	"github.com/elionaz/panal/internal/apierr"
+	"github.com/elionaz/panal/internal/atomicfile"
+	"github.com/elionaz/panal/internal/fileformat"
 )
 
 // Format is the worktrees.json format version (see internal/fileformat).
 const Format = 1
 
-// Record is one agenterm-managed worktree.
+// Record is one panal-managed worktree.
 type Record struct {
 	// ID is the id of the session it was created for (also its directory
 	// name).
