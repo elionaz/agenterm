@@ -3,6 +3,7 @@
 // the "updates.available" event; "Later" hides the banner for that version
 // and stage (a later "Restart to update" for it shows again), remembered in
 // localStorage.
+import { BrowserOpenURL } from '../../wailsjs/runtime/runtime'
 import { api, type UpdateInfo } from './api'
 
 const DISMISSED_KEY = 'agenterm.updateDismissed'
@@ -63,6 +64,11 @@ export function updateDownloading(): boolean {
 /** The update button: Sparkle shows its window for the update ("Install and
  * Relaunch" once it's downloaded). */
 export async function updateNow() {
+  // Builds that don't install updates (Linux): open the download page.
+  if (state.info?.url) {
+    BrowserOpenURL(state.info.url)
+    return
+  }
   if (await api.installUpdateNow()) return
   // Busy downloading: the "ready" event resets this; else allow a retry.
   state.downloading = true

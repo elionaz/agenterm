@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { keyLabel } from './platform'
   import { ClipboardSetText } from '../../wailsjs/runtime/runtime'
   import { permHelp } from './permission'
   import {
@@ -416,7 +417,7 @@
     <button class="overview" class:active={overviewOpen} title={t('sidebar.overview')} onclick={() => onOpenGrid()}>
       <span class="overview-icon"><GridIcon size={13} /></span>
       <span class="overview-label">{t('sidebar.overviewLabel')}</span>
-      <kbd>⌘0</kbd>
+      <kbd>{keyLabel('⌘0')}</kbd>
     </button>
   </div>
 
@@ -523,7 +524,7 @@
                   onclick={() => {
                     closeMenu()
                     onOpenSettings()
-                  }}><span>{t('sidebar.chooseAgents')}</span><span class="menu-cmd">⌘,</span></button
+                  }}><span>{t('sidebar.chooseAgents')}</span><span class="menu-cmd">{keyLabel('⌘,')}</span></button
                 >
               {:else}
                 <form
@@ -688,7 +689,7 @@
                         }}>×</button
                       >
                     {:else}
-                      {#if row.n >= 0 && row.n < 9 && p.id === currentProjectId && s.id === selectedId}<span class="kbd">⌘{row.n + 1}</span>{/if}
+                      {#if row.n >= 0 && row.n < 9 && p.id === currentProjectId && s.id === selectedId}<span class="kbd">{keyLabel(`⌘${row.n + 1}`)}</span>{/if}
                       {#if onHandoff && s.state !== 'exited' && s.profileId !== SHELL_PROFILE}
                         <button
                           class="icon handoff"

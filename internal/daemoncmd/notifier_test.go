@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"log/slog"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -23,7 +24,13 @@ func testNotifier(t *testing.T) (*notifier, *bytes.Buffer) {
 	var buf bytes.Buffer
 	log := slog.New(slog.NewTextHandler(&buf, nil))
 	// Not inside an .app bundle: native notifications are unavailable.
-	return newNotifier(log, "/usr/local/bin/agenterm"), &buf
+	n := newNotifier(log, "/usr/local/bin/agenterm")
+	// Nor the desktop's on Linux: tests never post real notifications.
+	if n.linux != nil {
+		n.linux.Close()
+		n.linux = nil
+	}
+	return n, &buf
 }
 
 func TestNotifierFallbackNoneDropsAndLogsOnce(t *testing.T) {
@@ -39,7 +46,7 @@ func TestNotifierFallbackNoneDropsAndLogsOnce(t *testing.T) {
 	if c := strings.Count(out, "notifications not shown"); c != 1 {
 		t.Fatalf("logged %d times:\n%s", c, out)
 	}
-	if !strings.Contains(out, "no app bundle") || strings.Contains(out, "notification posted") {
+	if !strings.Contains(out, wantReason()) || strings.Contains(out, "notification posted") {
 		t.Fatalf("log:\n%s", out)
 	}
 }
@@ -56,4 +63,12 @@ func TestNotifierKillSwitch(t *testing.T) {
 	if !strings.Contains(out, "notifications disabled") || strings.Contains(out, "notification posted") || strings.Contains(out, "not shown") {
 		t.Fatalf("log:\n%s", out)
 	}
+}
+
+// wantReason is why a test notifier drops notifications on this OS.
+func wantReason() string {
+	if runtime.GOOS == "linux" {
+		return "no desktop notification service"
+	}
+	return "no app bundle"
 }

@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"log"
+	goruntime "runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -49,6 +51,9 @@ type UpdateInfo struct {
 	// Downloaded by Sparkle: installed on quit, or now from the prompt
 	// InstallUpdateNow brings up.
 	Ready bool `json:"ready"`
+	// URL: its download page, for builds that don't install updates
+	// themselves (Linux, reason "manual").
+	URL string `json:"url,omitempty"`
 }
 
 // bundleInfo describes the running bundle (from NSBundle).
@@ -69,6 +74,7 @@ type updaterCtl struct {
 	mu        sync.Mutex
 	reason    string      // updStarting until startUpdater ran
 	available *UpdateInfo // see UpdaterState.Available
+	lastFeed  time.Time   // last feed check (reason "manual")
 }
 
 const updStarting = "starting"
@@ -77,6 +83,15 @@ const updStarting = "starting"
 // called once, after the Wails app is up. It also installs the "Check for
 // Updates…" menu item, which shows a hint instead when the updater is off.
 func (a *App) startUpdater(p paths.Paths) {
+	if goruntime.GOOS == "linux" {
+		a.upd.mu.Lock()
+		a.upd.reason = updManual
+		a.upd.mu.Unlock()
+		if a.wailsCtx != nil {
+			go a.feedLoop(a.wailsCtx)
+		}
+		return
+	}
 	b := sparkleBundle()
 	reason := decideUpdater(sparkleBuilt, b)
 	if reason == updNone {
@@ -154,7 +169,15 @@ func (a *App) UpdaterState() UpdaterState {
 		c := *u
 		st.Available = &c
 	}
+	last := a.upd.lastFeed
 	a.upd.mu.Unlock()
+	if st.Reason == updManual {
+		st.CanCheck = true
+		if !last.IsZero() {
+			st.LastCheck = last.UTC().Format(time.RFC3339)
+		}
+		return st
+	}
 	if st.Reason != updNone {
 		return st
 	}
@@ -170,6 +193,9 @@ func (a *App) UpdaterState() UpdaterState {
 // CheckForUpdates runs a user-initiated check (Sparkle's own window shows
 // the result).
 func (a *App) CheckForUpdates() error {
+	if a.updaterReason() == updManual {
+		return a.checkFeed(context.Background())
+	}
 	if r := a.updaterReason(); r != updNone {
 		_, hint := updatesMenuText(uiLang(a.paths), r)
 		return errors.New(hint)

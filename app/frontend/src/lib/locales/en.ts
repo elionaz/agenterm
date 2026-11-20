@@ -148,6 +148,8 @@ export const en = {
   'banner.updateDownloadingButton': 'Downloading…',
   'banner.update': 'Update',
   'banner.updateRestart': 'Restart to update',
+  'banner.download': 'Download',
+  'settings.updates.manual': 'This build doesn’t install updates itself: it checks for new versions every few hours and the banner links to the download.',
   'banner.later': 'Later',
 
   // Terminal (terminals.ts).

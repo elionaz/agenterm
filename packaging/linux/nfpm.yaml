@@ -1,0 +1,38 @@
+# .deb of the Linux app (scripts/package-linux.sh fills the @…@ fields).
+name: agenterm
+arch: @DEB_ARCH@
+platform: linux
+version: @VERSION@
+section: devel
+priority: optional
+maintainer: agenterm <agenterm@users.noreply.github.com>
+description: |
+  Desktop workspace for coding agents: groups terminals and agent CLIs
+  (Claude Code, Codex, …) per project, with notifications, worktrees and
+  messages between sessions. Experimental on Linux.
+vendor: elionaz
+homepage: https://github.com/elionaz/agenterm
+license: MIT
+depends:
+  - libgtk-3-0 | libgtk-3-0t64
+  - libwebkit2gtk-4.1-0
+  - git
+contents:
+  - src: @WORK@/agenterm-app
+    dst: /usr/lib/agenterm/agenterm-app
+    file_info: {mode: 0755}
+  - src: @WORK@/agenterm
+    dst: /usr/lib/agenterm/agenterm
+    file_info: {mode: 0755}
+  - src: /usr/lib/agenterm/agenterm
+    dst: /usr/bin/agenterm
+    type: symlink
+  - src: /usr/lib/agenterm/agenterm-app
+    dst: /usr/bin/agenterm-app
+    type: symlink
+  - src: packaging/linux/agenterm.desktop
+    dst: /usr/share/applications/agenterm.desktop
+  - src: app/build/appicon.png
+    dst: /usr/share/icons/hicolor/512x512/apps/agenterm.png
+  - src: LICENSE
+    dst: /usr/share/doc/agenterm/copyright
