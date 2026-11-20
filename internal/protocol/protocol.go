@@ -496,6 +496,10 @@ type PingResult struct {
 	Version  string `json:"version,omitempty"`
 	Commit   string `json:"commit,omitempty"`
 	Protocol int    `json:"protocol,omitempty"`
+	// Exe is the daemon's executable (what agent hooks run): when it no
+	// longer exists (the app was renamed or moved), the daemon needs a
+	// restart from the new place.
+	Exe string `json:"exe,omitempty"`
 }
 
 // ProtocolOf is the protocol version r reports (1 for daemons before 0.4.0).

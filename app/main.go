@@ -55,6 +55,11 @@ func main() {
 		return
 	}
 
+	// An install updated from agenterm: become panal.app (Dock, Finder).
+	if renameLegacyBundle() {
+		return
+	}
+
 	app := NewApp()
 	lang := i18n.EN
 	if p, err := paths.Default(); err == nil {

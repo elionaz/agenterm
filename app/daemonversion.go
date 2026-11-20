@@ -33,6 +33,10 @@ type DaemonStatus struct {
 	// was started against a newer daemon). Restarting would downgrade the
 	// daemon, so the app asks to be updated instead.
 	Newer bool `json:"newer"`
+	// Moved: the daemon's executable is gone (the app was renamed, e.g.
+	// agenterm.app → panal.app, or moved): agent hooks would run a path
+	// that no longer exists until the daemon restarts. Mismatch is set too.
+	Moved bool `json:"moved,omitempty"`
 }
 
 // daemonMismatch: the daemon is older than the app (an update installed a
@@ -133,8 +137,16 @@ func (a *App) DaemonStatus() (DaemonStatus, error) {
 // daemonStatus compares a daemon's ping with this app (version app).
 func daemonStatus(app string, r protocol.PingResult) DaemonStatus {
 	newer := r.ProtocolOf() > protocol.Version
+	moved := !newer && r.Exe != "" && !exeExists(r.Exe)
 	return DaemonStatus{AppVersion: app, DaemonVersion: r.Version,
-		Mismatch: !newer && daemonMismatch(app, r.Version), Newer: newer}
+		Mismatch: !newer && (moved || daemonMismatch(app, r.Version)), Newer: newer, Moved: moved}
+}
+
+// exeExists reports whether the daemon's executable is still there (tests
+// replace it).
+var exeExists = func(p string) bool {
+	_, err := os.Stat(p)
+	return err == nil
 }
 
 // RestartDaemon replaces the running daemon with one from this executable.

@@ -1329,9 +1329,11 @@
         {:else if daemonOld.newer}
           {t('banner.daemonNewer', { version: daemonOld.daemonVersion })}
         {:else}
-          {daemonOld.daemonVersion
-            ? t('banner.daemonOld', { version: daemonOld.daemonVersion })
-            : t('banner.daemonOldUnknown')}
+          {daemonOld.moved
+            ? t('banner.daemonMoved')
+            : daemonOld.daemonVersion
+              ? t('banner.daemonOld', { version: daemonOld.daemonVersion })
+              : t('banner.daemonOldUnknown')}
           <button disabled={restartingDaemon} onclick={() => restartDaemon()}>
             {restartingDaemon ? t('banner.restarting') : t('banner.restartNow')}
           </button>
