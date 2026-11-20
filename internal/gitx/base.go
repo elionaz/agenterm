@@ -13,7 +13,9 @@ func Upstream(ctx context.Context, dir, branch string) string {
 	if branch == "" || !BranchExists(ctx, dir, branch) {
 		return ""
 	}
-	if out, err := git(ctx, dir, "rev-parse", "--symbolic-full-name", "refs/heads/"+branch+"@{upstream}"); err == nil {
+	// for-each-ref, not rev-parse <branch>@{upstream}: refs/heads/x@{upstream}
+	// is not valid syntax, and a bare x could name a tag.
+	if out, err := git(ctx, dir, "for-each-ref", "--format=%(upstream)", "refs/heads/"+branch); err == nil {
 		if ref := strings.TrimSpace(out); strings.HasPrefix(ref, "refs/remotes/") {
 			return ref
 		}

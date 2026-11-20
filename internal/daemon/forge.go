@@ -175,6 +175,14 @@ func (s *Server) forgeStatusCtx(ctx context.Context, ref protocol.ForgeRef) (pro
 	if res.Ahead > 0 && (pr == nil || pr.State == forge.StateMerged || pr.State == forge.StateClosed) {
 		res.Session = s.prSessionNotes(t)
 	}
+	if res.Ahead > 0 && pr != nil && pr.State == forge.StateMerged && t.branch == t.current && t.g.Mode == protocol.ModeWorktree {
+		// Merged on the host and not seen here yet: fetch the base now
+		// (the session's Changes follow) instead of at the next periodic
+		// fetch.
+		if _, _, merged, err := compareBase(ctx, t.g); err == nil && !merged {
+			s.fetchBase(t.g, mergedFetchInterval, "merged")
+		}
+	}
 	return res, nil
 }
 
