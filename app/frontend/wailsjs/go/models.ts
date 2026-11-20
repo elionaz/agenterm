@@ -1173,6 +1173,8 @@ export namespace protocol {
 	    msgHold?: string;
 	    model?: string;
 	    browserUrl?: string;
+	    stopped?: boolean;
+	    continuedFrom?: string;
 	    mode?: string;
 	    worktreeId?: string;
 	    worktreePath?: string;
@@ -1236,6 +1238,8 @@ export namespace protocol {
 	        this.msgHold = source["msgHold"];
 	        this.model = source["model"];
 	        this.browserUrl = source["browserUrl"];
+	        this.stopped = source["stopped"];
+	        this.continuedFrom = source["continuedFrom"];
 	        this.mode = source["mode"];
 	        this.worktreeId = source["worktreeId"];
 	        this.worktreePath = source["worktreePath"];

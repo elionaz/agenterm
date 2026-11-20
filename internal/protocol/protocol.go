@@ -691,6 +691,12 @@ type SessionInfo struct {
 	// BrowserURL: the DevTools URL of the session's own Chrome while it
 	// runs (agenterm browser); "" when closed.
 	BrowserURL string `json:"browserUrl,omitempty"`
+	// Stopped: agenterm ended it (stop, close, continue with another
+	// agent), so a non-zero exit code is not a failure.
+	Stopped bool `json:"stopped,omitempty"`
+	// ContinuedFrom is the session whose work this one continues
+	// (session.handoff).
+	ContinuedFrom string `json:"continuedFrom,omitempty"`
 	// Mode is same | worktree; worktree sessions name their worktree.
 	Mode         string   `json:"mode,omitempty"`
 	WorktreeID   string   `json:"worktreeId,omitempty"`
@@ -797,6 +803,8 @@ type Event struct {
 	Model string `json:"model,omitempty"`
 	// BrowserURL (session.browser): the session's Chrome opened ("" closed).
 	BrowserURL string `json:"browserUrl,omitempty"`
+	// Stopped (session.state to exited): agenterm ended it.
+	Stopped bool `json:"stopped,omitempty"`
 	// Live is filled in session.activity and session.state events.
 	Live
 }

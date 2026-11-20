@@ -781,9 +781,11 @@ func (s *Server) kill(id string) (protocol.SessionInfo, error) {
 		s.forgetMessages(sess)
 		go s.browserForget(id)
 		s.forgetHandoff(id)
+		s.forgetLineage(id)
 		s.bus.publish(protocol.Event{Type: protocol.EventSessionRemoved, SessionID: id, At: time.Now().UTC()})
 		return info, nil
 	}
+	s.markStopped(id)
 	sess.Kill(s.cfg.KillGrace)
 	return s.sessionInfo(sess), nil
 }

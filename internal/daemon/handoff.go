@@ -227,8 +227,11 @@ func (s *Server) handoff(p protocol.HandoffParams) (protocol.SessionInfo, error)
 			}
 		}
 	}
+	s.setContinued(info.ID, old.ID)
+	info.ContinuedFrom = old.ID
 	if !p.Keep {
 		if _, exited := old.ExitCode(); !exited {
+			s.markStopped(old.ID)
 			old.Kill(s.cfg.KillGrace)
 		}
 	}

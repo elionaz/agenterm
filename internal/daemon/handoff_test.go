@@ -59,6 +59,12 @@ func TestHandoff(t *testing.T) {
 		t.Fatalf("claude handoff = %+v", cl)
 	}
 	waitFor(t, "original closed", func() bool { return findSession(t, c, old.ID).State == "exited" })
+	if cl.ContinuedFrom != old.ID || findSession(t, c, cl.ID).ContinuedFrom != old.ID {
+		t.Fatalf("continuedFrom = %q, want %s", findSession(t, c, cl.ID).ContinuedFrom, old.ID)
+	}
+	if o := findSession(t, c, old.ID); !o.Stopped {
+		t.Fatalf("handed-off session not marked stopped: %+v", o)
+	}
 
 	// A new worktree from the current commit, kept original, an agent
 	// without integration: it is told where the note is.
@@ -86,5 +92,41 @@ func TestHandoff(t *testing.T) {
 	})
 	if s := findSession(t, c, src.ID); s.State == "exited" {
 		t.Fatal("kept original closed")
+	}
+}
+
+func TestStoppedVsFailed(t *testing.T) {
+	c, _, stop := startDaemon(t)
+	defer stop()
+	ctx := context.Background()
+	proj, err := c.ProjectAdd(ctx, t.TempDir(), "p")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := c.Spawn(ctx, protocol.SpawnParams{ProjectID: proj.ID, ProfileID: "shell"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Kill(ctx, a.ID); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "stopped exit", func() bool { return findSession(t, c, a.ID).State == "exited" })
+	if s := findSession(t, c, a.ID); !s.Stopped {
+		t.Fatalf("stopped session: %+v", s)
+	}
+	b, err := c.Spawn(ctx, protocol.SpawnParams{ProjectID: proj.ID, ProfileID: "shell"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runIn(t, c, b.ID, "true")
+	st, err := c.Attach(ctx, b.ID, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = st.Input([]byte("exit 3\n"))
+	st.Close()
+	waitFor(t, "failed exit", func() bool { return findSession(t, c, b.ID).State == "exited" })
+	if s := findSession(t, c, b.ID); s.Stopped || s.ExitCode == nil || *s.ExitCode != 3 {
+		t.Fatalf("failed session: stopped %v exit %v", s.Stopped, s.ExitCode)
 	}
 }

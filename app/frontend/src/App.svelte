@@ -17,6 +17,7 @@
   import { shortBranch } from './lib/branch'
   import TrustSetup from './lib/TrustSetup.svelte'
   import Handoff from './lib/Handoff.svelte'
+  import { topLevel } from './lib/handoff'
   import { setLangSetting, setSystemLang, t, th } from './lib/i18n.svelte'
   import { TerminalManager } from './lib/terminals'
   import {
@@ -847,6 +848,7 @@
                   ...s,
                   state: ev.state ?? s.state,
                   exitCode: ev.exitCode ?? s.exitCode,
+                  stopped: ev.stopped ?? s.stopped,
                   attentionKind: ev.attentionKind,
                   attentionMessage: ev.attentionMessage,
                   attentionAt: ev.attentionAt,
@@ -927,7 +929,7 @@
         else openGrid()
         return
       case 'session': {
-        const list = sessions.filter((s) => s.projectId === currentProjectId)
+        const list = topLevel(sessions.filter((s) => s.projectId === currentProjectId))
         if (list[sc.n - 1]) select(list[sc.n - 1].id)
         return
       }

@@ -117,6 +117,8 @@ export interface DaemonEvent extends Live {
   msgHold?: string
   /** session.model: the agent's model id. */
   model?: string
+  /** session.state to exited: agenterm ended it (no failure). */
+  stopped?: boolean
   /** session.browser: the session's own Chrome opened (its DevTools URL) or closed (absent). */
   browserUrl?: string
 }
