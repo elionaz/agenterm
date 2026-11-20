@@ -315,7 +315,9 @@ func (s *Server) autoDeliverBlock(sess *session.Session, lastNudge time.Time) st
 		return holdNoTurnEnd
 	}
 	if time.Since(lastNudge) < autoQuiet {
-		return "nudged just now"
+		// Told moments ago: for the UIs that is "nudged" (a check that
+		// ran meanwhile must not turn it into something to deliver again).
+		return holdNudged
 	}
 	draft, at := sess.Draft()
 	if draft {
