@@ -128,10 +128,13 @@ func TestMessagesBetweenSessions(t *testing.T) {
 	if err := st.Input([]byte("half typed")); err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, "draft seen", func() bool {
-		_, err := c.MsgDeliver(ctx, b.ID)
-		return hasCode(err, apierr.MsgUnsentInput)
-	})
+	// Its echo means the daemon has the input (and the draft): asking
+	// before that would deliver, and every later ask would then fall in
+	// the quiet time after a nudge.
+	readUntil(t, st, func(o []byte, _ protocol.Frame) bool { return bytes.Contains(o, []byte("half typed")) })
+	if _, err := c.MsgDeliver(ctx, b.ID); !hasCode(err, apierr.MsgUnsentInput) {
+		t.Fatalf("deliver over unsent text: %v", err)
+	}
 	if err := st.Input([]byte("\r")); err != nil {
 		t.Fatal(err)
 	}
