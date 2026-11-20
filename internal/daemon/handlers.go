@@ -154,6 +154,19 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 		}
 		return s.instructionsShow(p)
 
+	case protocol.MethodSessionHandoffNote:
+		p, err := decode[protocol.HandoffNoteParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.handoffNote(p.SessionID)
+	case protocol.MethodSessionHandoff:
+		p, err := decode[protocol.HandoffParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.handoff(p)
+
 	case protocol.MethodBrowserStatus:
 		return s.browserStatus(), nil
 	case protocol.MethodBrowserPrepare, protocol.MethodBrowserOpen, protocol.MethodBrowserClose:
@@ -478,6 +491,8 @@ func (s *Server) resolveLaunch(profileID string) (launchProfile, error) {
 // in its terminal before the profile's (see setupLaunch) and its title.
 type spawnExtra struct {
 	setup, setupTitle string
+	// args go after the profile's own (a handoff's first prompt).
+	args []string
 }
 
 func (s *Server) spawn(p protocol.SpawnParams) (protocol.SessionInfo, error) {
@@ -561,7 +576,7 @@ func (s *Server) spawnWith(p protocol.SpawnParams, extra spawnExtra) (protocol.S
 
 	info, err := s.startSession(startSpec{
 		id: id, proj: proj, lp: lp, cwd: cwd, g: g, cols: p.Cols, rows: p.Rows,
-		args:  append(s.agentArgs(lp, proj), prof.Args...),
+		args:  append(append(s.agentArgs(lp, proj), prof.Args...), extra.args...),
 		setup: setup, setupTitle: extra.setupTitle,
 	})
 	if err != nil {
@@ -765,9 +780,12 @@ func (s *Server) kill(id string) (protocol.SessionInfo, error) {
 		s.forgetPort(id)
 		s.forgetMessages(sess)
 		go s.browserForget(id)
+		s.forgetHandoff(id)
+		s.forgetLineage(id)
 		s.bus.publish(protocol.Event{Type: protocol.EventSessionRemoved, SessionID: id, At: time.Now().UTC()})
 		return info, nil
 	}
+	s.markStopped(id)
 	sess.Kill(s.cfg.KillGrace)
 	return s.sessionInfo(sess), nil
 }

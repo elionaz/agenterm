@@ -95,10 +95,12 @@ type Server struct {
 	resuming map[string]bool
 
 	// names are the sessions' display names (rename.go).
-	namesMu sync.Mutex
-	names   map[string]string
-	models  map[string]string   // the agents' models (model.go), same lock
-	ports   map[string]sessPort // each session's port (ports.go), same lock
+	namesMu  sync.Mutex
+	names    map[string]string
+	models   map[string]string   // the agents' models (model.go), same lock
+	ports    map[string]sessPort // each session's port (ports.go), same lock
+	stopped  map[string]bool     // sessions agenterm ended (lineage.go), same lock
+	contFrom map[string][]string // session → the ones it continues, same lock
 
 	// Persistence: the session registry and when each scrollback was
 	// last saved (OutputTotal; guarded by persistMu).
@@ -191,6 +193,8 @@ func New(cfg Config) (*Server, error) {
 		names:    make(map[string]string),
 		models:   make(map[string]string),
 		ports:    make(map[string]sessPort),
+		stopped:  make(map[string]bool),
+		contFrom: make(map[string][]string),
 		store:    store,
 		mail:     mail,
 		saved:    make(map[string]int64),
@@ -419,6 +423,7 @@ func (s *Server) sessionInfo(sess *session.Session) protocol.SessionInfo {
 	info.MsgHold = s.msgHold(sess.ID)
 	info.BrowserURL = s.browserURL(sess.ID)
 	info.Model = s.sessionModel(sess.ID)
+	info.Stopped, info.ContinuedFrom = s.lineage(sess.ID)
 	if p := s.sessionPort(sess.ID); len(p.Env) > 0 {
 		info.Port = p.Port // the project asked for ports: show it
 	}
@@ -552,6 +557,7 @@ func (s *Server) publishState(id, projectName, profileID string, c status.Change
 		code := c.ExitCode
 		ev.ExitCode = &code
 		go s.browserClose(id) // its agent is gone; the profile stays until it is removed
+		ev.Stopped, _ = s.lineage(id)
 	}
 	s.bus.publish(ev)
 	// Messages that came while it worked; not after a failed turn (an API

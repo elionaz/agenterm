@@ -112,6 +112,12 @@ const (
 	MethodInstructionsReorder = "instructions.reorder"
 	MethodInstructionsShow    = "instructions.show"
 
+	// Continue a session's work with another agent (or the same one in a
+	// worktree): handoffNote drafts the summary, handoff starts the new
+	// session with it and closes the old one.
+	MethodSessionHandoffNote = "session.handoffNote"
+	MethodSessionHandoff     = "session.handoff"
+
 	// The isolated Chrome of each session (package browser).
 	MethodBrowserStatus  = "browser.status"
 	MethodBrowserPrepare = "browser.prepare"
@@ -685,6 +691,12 @@ type SessionInfo struct {
 	// BrowserURL: the DevTools URL of the session's own Chrome while it
 	// runs (agenterm browser); "" when closed.
 	BrowserURL string `json:"browserUrl,omitempty"`
+	// Stopped: agenterm ended it (stop, close, continue with another
+	// agent), so a non-zero exit code is not a failure.
+	Stopped bool `json:"stopped,omitempty"`
+	// ContinuedFrom are the sessions whose work this one continues
+	// (session.handoff), oldest first.
+	ContinuedFrom []string `json:"continuedFrom,omitempty"`
 	// Mode is same | worktree; worktree sessions name their worktree.
 	Mode         string   `json:"mode,omitempty"`
 	WorktreeID   string   `json:"worktreeId,omitempty"`
@@ -791,6 +803,8 @@ type Event struct {
 	Model string `json:"model,omitempty"`
 	// BrowserURL (session.browser): the session's Chrome opened ("" closed).
 	BrowserURL string `json:"browserUrl,omitempty"`
+	// Stopped (session.state to exited): agenterm ended it.
+	Stopped bool `json:"stopped,omitempty"`
 	// Live is filled in session.activity and session.state events.
 	Live
 }
@@ -999,4 +1013,39 @@ type BrowserStatus struct {
 	NPX string `json:"npx"`
 	// MCP is the server package agents get.
 	MCP string `json:"mcp"`
+}
+
+// HandoffNoteParams: the session whose work is handed over.
+type HandoffNoteParams struct {
+	SessionID string `json:"sessionId"`
+}
+
+// HandoffNote is the summary a new agent gets: what the user asked (Claude
+// Code transcripts), where it worked, its git changes and commits, and the
+// end of its terminal; secrets removed.
+type HandoffNote struct {
+	Text string `json:"text"`
+	// Shared: other live agents work in the same folder (a new worktree
+	// is the safer choice).
+	Shared bool `json:"shared,omitempty"`
+}
+
+// Handoff "where" values.
+const (
+	HandoffSame     = "same"     // the session's folder or worktree
+	HandoffWorktree = "worktree" // a new worktree from its current commit
+)
+
+// HandoffParams starts ProfileID with Note where SessionID worked (Where),
+// or hands Note to the live session TargetID of the same project (ProfileID
+// and Where are then ignored), and closes SessionID unless Keep.
+type HandoffParams struct {
+	SessionID string `json:"sessionId"`
+	TargetID  string `json:"targetId,omitempty"`
+	ProfileID string `json:"profileId"`
+	Where     string `json:"where,omitempty"`
+	Note      string `json:"note"`
+	Keep      bool   `json:"keep,omitempty"`
+	Cols      uint16 `json:"cols,omitempty"`
+	Rows      uint16 `json:"rows,omitempty"`
 }

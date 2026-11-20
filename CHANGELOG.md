@@ -7,6 +7,21 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- **Continue with another agent.** **⇢** on a session's row hands its work to a new session (any
+  agent, the same one included) in the same folder or a new worktree from its current commit, with
+  a summary you can edit: the prompts you typed (Claude Code), its branch, uncommitted files and
+  commits, and the end of its terminal, secrets removed. Claude Code and codex get it as their first
+  prompt. Or hand it to **an existing session** (preselected when another agent works in the
+  same folder), which gets it as a message from you. The old session closes unless you keep it, and
+  folds under the one that continues it in the sidebar (**⇠ name**). `agenterm handoff` does the
+  same.
+- **Stopped, not failed.** A session agenterm ended (stop, close, continue) reads *stopped* in grey
+  instead of a red `exit 129`.
+- **Move to a worktree** in the *Shared folder* notice of the Changes tab: the same, preset to the
+  session's agent and a new worktree, so two agents stop editing the same folder.
+
 ## [0.12.0] - 2026-11-19
 
 ### Added

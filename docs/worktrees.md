@@ -27,11 +27,38 @@ in the **+** menu.
   isn't remembered as the project's mode. A plain **Shell** neither counts nor gets the suggestion:
   a terminal next to an agent in its folder is fine.
 - A session that does share the folder says so: the Changes tab shows *Shared folder* with the
-  other agents, and so does the **±N** tooltip.
+  other agents, and so does the **±N** tooltip. **Move to a worktree** there continues it in a
+  worktree of its own (see below).
 - `agenterm spawn` without `--worktree` prints a note on stderr when the new session shares the
   folder (stdout is still just the id).
 
 Each worktree's work comes back with **Merge into the base** or **Create pull request** (below).
+
+### Continue with another agent
+
+A running process can't change folders, so a session is never "moved": its work is **continued** by
+a new session. **⇢** on a session's row (or **Move to a worktree** in a shared folder's Changes tab)
+opens *Continue with another agent*:
+
+- **Continue in:** a new session, or **an existing session** of the project that takes the work
+  over (preselected when another agent works in the same folder): it gets the summary as a message
+  from you (see [messages.md](messages.md)), and nothing new starts.
+- **Agent** (new session): any installed one, the same included.
+- **Where** (new session): the same folder or worktree, or **a new worktree** on a new branch from the session's
+  current commit (its commits come along; uncommitted changes stay where they are). In a shared
+  folder the new worktree is preselected.
+- **Summary:** drafted from the session (the prompts you typed, for Claude Code; its folder and
+  branch, uncommitted files and commits; the end of its terminal), with secrets removed. Edit it
+  before continuing.
+
+The new session gets the summary as its first prompt (Claude Code, codex) or, for other agents, a
+line typed at its prompt pointing to it as a file (`~/.agenterm/handoffs/<sessionId>.md`). It keeps
+the old session's name. The old session closes, so two agents don't edit the same files, unless you
+tick *Keep this session open*. Once closed, it folds under the session that continues it in the
+sidebar (**⇠ name** on that row shows it), and a session stopped by agenterm reads *stopped*, not a
+red exit code. From the CLI:
+`agenterm handoff [--worktree] [--keep] [--note FILE|-] <sessionId> <profile>`,
+`agenterm handoff --into <sessionId> <sessionId>` (an existing session), `--print` shows the summary.
 
 ## Session modes
 
