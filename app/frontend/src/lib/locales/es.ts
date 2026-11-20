@@ -86,7 +86,7 @@ export const es: Dict = {
   'welcome.agents': 'Tus agentes',
   'welcome.agentsFound': { one: 'Se encontró 1 CLI de agente:', other: 'Se encontraron {n} CLIs de agentes:' },
   'welcome.agentsNone': 'No hay ninguna CLI de agente en tu PATH. Instala una (Claude Code, Codex…) y vuelve a buscar.',
-  'welcome.agentsHooks': 'Claude Code y Codex informan lo que hacen mediante hooks que panal añade a cada sesión que abre; tu configuración no se modifica.',
+  'welcome.agentsHooks': 'Claude Code, Codex, Gemini CLI, opencode y Cursor CLI informan lo que hacen mediante hooks que panal añade a cada sesión que abre; tu configuración no se modifica.',
   'welcome.rescan': 'Volver a buscar',
   'welcome.chooseAgents': 'Elegir agentes…',
   'welcome.notifications': 'Notificaciones',
@@ -726,7 +726,7 @@ export const es: Dict = {
   'settings.messages': 'Mensajes entre sesiones',
   'settings.autoDeliver': 'Entregar solos los mensajes a las sesiones en espera',
   'settings.autoDeliverHelp':
-    'Prendido por defecto. Tus mensajes y las respuestas llegan a una sesión de Claude en espera, o a un agente que avisa el fin de su turno (codex), sin el clic en Entregar. Nunca sobre texto que escribiste sin enviar, nunca mientras espera una aprobación, y como mucho 5 veces por sesión hasta que vuelvas a intervenir en ella. Apagado: todo espera a Entregar (messages.auto_deliver).',
+    'Prendido por defecto. Tus mensajes y las respuestas llegan a una sesión de Claude en espera, o a un agente que avisa el fin de su turno (codex, Gemini CLI, opencode), sin el clic en Entregar. Nunca sobre texto que escribiste sin enviar, nunca mientras espera una aprobación, y como mucho 5 veces por sesión hasta que vuelvas a intervenir en ella. Apagado: todo espera a Entregar (messages.auto_deliver).',
   'settings.messagesHelp': 'Los agentes de un proyecto pueden escribirse (panal msg) y Claude recibe sus mensajes solo (messages.enabled).',
   'err.msg_disabled': 'Los mensajes entre sesiones están desactivados (Ajustes › General).',
   'err.msg_no_session': 'Ninguna sesión de este proyecto coincide con “{to}”.',

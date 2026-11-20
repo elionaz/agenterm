@@ -38,15 +38,15 @@ There are two sources:
   **type into it** or with `panal ack <id>`. A session still waiting for an approval or an
   answer (`waiting_input`) is the exception: looking at it doesn't answer it, so it stays flagged
   until you type into it or the agent moves on.
-- An explicit `idle` after a turn (Claude Code's `Stop` hook, codex's `agent-turn-complete`) is a
-  `done`. A heuristic `idle` does **not** notify: no output doesn't mean it's finished.
+- An explicit `idle` after a turn (Claude Code's `Stop` hook, codex's `agent-turn-complete`, Gemini
+  CLI's `AfterAgent`, opencode's `session.execution.succeeded`) is a `done`. A heuristic `idle` does **not** notify: no output doesn't mean it's finished.
 
 ## Where the signals come from
 
 Integrations only apply to the sessions panal launches. `~/.claude/settings.json`,
-`~/.codex/config.toml`, opencode's configuration and the project are never touched: everything goes
-through command-line flags and files generated in `~/.panal/hooks/` (or
-`$PANAL_HOME/hooks/`). Hooks call `<daemon executable> notify --sock <socket> --from-hook …` with
+`~/.codex/config.toml`, `~/.gemini/`, opencode's configuration, `~/.cursor/` and the project are
+never touched: everything goes through command-line flags, environment variables and files
+generated in `~/.panal/hooks/` (or `$PANAL_HOME/hooks/`). Hooks call `<daemon executable> notify --sock <socket> --from-hook …` with
 absolute paths: the CLI, or the `.app`'s own executable if the app started the daemon.
 
 ### Claude Code (`setup_hooks: claude`)
@@ -84,6 +84,79 @@ codex -c 'notify=["<exe>","notify","--sock","<socket>","--from-hook","codex"]' \
 - Approvals and questions arrive as OSC 9 notifications from the TUI and are picked up by the
   terminal-signal parser.
 - codex doesn't report when it starts working again, so the profile uses `status: heuristic`.
+
+### Gemini CLI (`setup_hooks: gemini`)
+
+Gemini CLI has no `--settings` flag, but it reads its *system* settings from the file in
+`GEMINI_CLI_SYSTEM_SETTINGS_PATH`, and hook lists from every settings scope are **added** together.
+panal generates `hooks/gemini-settings.json` and launches `gemini` with that variable pointing at it.
+If a real system settings file exists (`/Library/Application Support/GeminiCli/settings.json`,
+`/etc/gemini-cli/settings.json`), it is copied into the generated file so nothing of it is lost. If it
+isn't plain JSON (comments), panal leaves it in charge and the session runs without hooks.
+`GEMINI_CLI_SYSTEM_DEFAULTS_PATH` keeps pointing at the real `system-defaults.json`.
+
+| hook | effect |
+|---|---|
+| `SessionStart` | no state change: records Gemini's `session_id` (for `gemini --resume <id>`) and the model from its transcript; hands over the standing instructions and the introduction to the other sessions |
+| `BeforeAgent` | `running`, "Thinking…" and a new turn; hands over pending messages |
+| `BeforeTool` | `running` and an activity line (`run_shell_command` → Bash, `write_file`/`replace` → editing…) |
+| `AfterTool` | `running` |
+| `Notification` `ToolPermission` | `waiting_input` + `permission` ("Shell: rm -rf build", "Edit: main.go") |
+| `AfterAgent` | `idle` + `done` with the reply; with pending messages it **blocks** the end of the turn and hands them over as the next prompt (like Claude's `Stop`), never twice in a row |
+
+- Gemini only runs settings hooks in **trusted folders**: in a folder you haven't trusted, the session
+  runs without them (the heuristic still works).
+- A turn that fails or that you cancel doesn't fire `AfterAgent`, so the profile keeps `status:
+  heuristic`: such a turn goes back to `idle` once the output is quiet.
+- Messages from other sessions are handled as with Claude Code (see
+  [messages](messages.md)).
+
+### opencode (`setup_hooks: opencode`)
+
+opencode 2 has no hook commands; it has plugins that run inside its server. panal generates a
+plugin in `hooks/opencode-plugin/` and launches `opencode --standalone` with
+`OPENCODE_CONFIG_CONTENT={"plugins":[{"package":"<that folder>"}],"instructions":["<file>"]}`, an
+extra configuration document merged over yours and the project's. `--standalone` gives the session
+its own server, which inherits that environment (by default opencode 2 uses a shared background
+service started with its own environment). The plugin forwards the events below to `notify
+--from-hook opencode`, one at a time and in order.
+
+| event | effect |
+|---|---|
+| `session.created` | no state change: records the session id (for `opencode --session <id>`) and the model |
+| `session.execution.started` | `running`, "Thinking…" and a new turn |
+| `session.tool.called` | `running` and an activity line |
+| `permission.asked` | `waiting_input` + `permission` ("bash: rm -rf dist") |
+| `form.created` | `waiting_input` + `question` (its title) |
+| `permission.replied`, `form.replied`, `form.cancelled` | `running` |
+| `session.execution.succeeded` | `idle` + `done` |
+| `session.execution.failed` | `idle` + `error`, with the error |
+| `session.execution.interrupted` (by you) | `idle` + `done` ("Interrupted") |
+| `session.step.started`, `session.model.selected` | the model, when it changes |
+
+- Every turn reports its end, so the profile uses `status: hooks`.
+- Subagent sessions only report what waits for you (permissions, questions), for the main session.
+- Standing instructions arrive as an instructions file (`hooks/instructions/<project>.md`).
+- Needs opencode 2 or later (`opencode --version`); with opencode 1, or if `OPENCODE_CONFIG_CONTENT`
+  is already set (in your environment or the profile's `env`), the session runs without the
+  integration (the daemon log says why).
+- Messages are delivered like codex's: a line asking it to run `panal msg read` once it has finished
+  its turn.
+
+### Cursor CLI (`setup_hooks: cursor`)
+
+`cursor-agent --plugin-dir <dir>` loads a local plugin for that invocation. panal generates one in
+`hooks/cursor-plugin/` (`.cursor-plugin/plugin.json` and `hooks/hooks.json`).
+
+| hook | effect |
+|---|---|
+| `sessionStart` | no state change: records the chat id (`conversation_id`, for `cursor-agent --resume <id>`) and the model; hands over the standing instructions as `additional_context` (new chats only: Cursor doesn't run it when resuming) |
+| `preToolUse` | `running` and an activity line (`Shell` → Bash, `MCP:<tool>`…); prints nothing, so it never answers a permission |
+| `postToolUse`, `postToolUseFailure` | `running` |
+| `beforeSubmitPrompt`, `stop` | `running` + new turn / `idle` + `done` or `error`; registered, but as of cursor-agent 2026.11 the CLI only runs them from `~/.cursor/hooks.json` or the project's, not from plugins |
+
+- No turn end and no approval event reach panal, so the profile keeps `status: heuristic` and its
+  attention patterns for Cursor's approval menus.
 
 ### Terminal signals (any agent)
 

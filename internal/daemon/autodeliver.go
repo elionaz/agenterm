@@ -327,7 +327,7 @@ func (s *Server) autoDeliverBlock(sess *session.Session, lastNudge time.Time) st
 	// when they reported the end of their turn (codex's notify): one that
 	// merely went quiet may still be thinking, and the line would land in
 	// the middle of its work.
-	if !s.hookDelivers(sess.ProfileID) && sess.IdleSource() != status.SourceEvent {
+	if !s.idleFromHooks(sess.ProfileID) && sess.IdleSource() != status.SourceEvent {
 		return holdNoTurnEnd
 	}
 	if time.Since(lastNudge) < autoQuiet.get() {

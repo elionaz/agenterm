@@ -523,6 +523,9 @@ func (s *Server) discard(id string) (protocol.SessionInfo, error) {
 //
 //   - claude with a known session id: <hooks> --resume <id> <profile args>;
 //   - codex with a known thread id: resume <hooks> <profile args> <id>;
+//   - gemini / cursor-agent with a known session (chat) id:
+//     <hooks> --resume <id> <profile args>;
+//   - opencode with a known session id: <hooks> --session <id> <profile args>;
 //   - otherwise: <hooks> <profile args> <resume_args> (args mode), or just
 //     <hooks> <profile args> without resume_args (fresh).
 //
@@ -534,6 +537,10 @@ func restartArgs(prof profile.Profile, inj []string, r *sessionstore.Resume) ([]
 		return concat(inj, []string{"--resume", r.SessionID}, prof.Args), protocol.ResumeAgent
 	case known && prof.SetupHooks == hooks.AgentCodex:
 		return concat([]string{"resume"}, inj, prof.Args, []string{r.SessionID}), protocol.ResumeAgent
+	case known && (prof.SetupHooks == hooks.AgentGemini || prof.SetupHooks == hooks.AgentCursor):
+		return concat(inj, []string{"--resume", r.SessionID}, prof.Args), protocol.ResumeAgent
+	case known && prof.SetupHooks == hooks.AgentOpencode:
+		return concat(inj, []string{"--session", r.SessionID}, prof.Args), protocol.ResumeAgent
 	case len(prof.ResumeArgs) > 0:
 		return concat(inj, prof.Args, prof.ResumeArgs), protocol.ResumeArgs
 	}

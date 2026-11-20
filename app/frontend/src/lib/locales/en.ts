@@ -102,7 +102,7 @@ export const en = {
   'welcome.agents': 'Your agents',
   'welcome.agentsFound': { one: 'Found 1 agent CLI:', other: 'Found {n} agent CLIs:' },
   'welcome.agentsNone': 'No agent CLI found on your PATH. Install one (Claude Code, Codex…) and rescan.',
-  'welcome.agentsHooks': 'Claude Code and Codex report what they are doing through hooks panal adds to each session it starts; your own configuration is not changed.',
+  'welcome.agentsHooks': 'Claude Code, Codex, Gemini CLI, opencode and Cursor CLI report what they are doing through hooks panal adds to each session it starts; your own configuration is not changed.',
   'welcome.rescan': 'Rescan',
   'welcome.chooseAgents': 'Choose agents…',
   'welcome.notifications': 'Notifications',
@@ -766,7 +766,7 @@ export const en = {
   'settings.messages': 'Messages between sessions',
   'settings.autoDeliver': 'Deliver messages to idle sessions by themselves',
   'settings.autoDeliverHelp':
-    'On by default. Your messages and replies reach an idle Claude session, or an agent that reports the end of its turn (codex), without the Deliver click. Never over text you typed without sending, never while it waits for an approval, and at most 5 times per session before you act on it again. Off: everything waits for Deliver (messages.auto_deliver).',
+    'On by default. Your messages and replies reach an idle Claude session, or an agent that reports the end of its turn (codex, Gemini CLI, opencode), without the Deliver click. Never over text you typed without sending, never while it waits for an approval, and at most 5 times per session before you act on it again. Off: everything waits for Deliver (messages.auto_deliver).',
   'settings.messagesHelp': 'Agents of a project can write to each other (panal msg) and Claude gets their messages by itself (messages.enabled).',
   'err.msg_disabled': 'Messages between sessions are off (Settings › General).',
   'err.msg_no_session': 'No session of this project matches “{to}”.',

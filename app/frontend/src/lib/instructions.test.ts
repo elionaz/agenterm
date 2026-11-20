@@ -21,6 +21,10 @@ describe('receivers', () => {
     )
     expect(r).toEqual({ yes: ['claude', 'codex'], no: ['gemini'] })
   })
+  it('gemini, opencode and cursor get them through their integration', () => {
+    const r = receivers([p('gemini', 'gemini'), p('opencode', 'opencode'), p('cursor-agent', 'cursor', { name: 'Cursor CLI' }), p('amp', '')], true)
+    expect(r).toEqual({ yes: ['gemini', 'opencode', 'Cursor CLI'], no: ['amp'] })
+  })
   it('codex keeps its own developer_instructions', () => {
     expect(receivers([p('codex', 'codex')], true)).toEqual({ yes: [], no: ['codex'] })
   })

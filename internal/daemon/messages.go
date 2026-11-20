@@ -397,7 +397,20 @@ func (s *Server) hookDelivers(profileID string) bool {
 		return false
 	}
 	p, ok := profile.Find(ps, profileID)
-	return ok && p.SetupHooks == hooks.AgentClaude
+	return ok && hooks.DeliversMessages(p.SetupHooks)
+}
+
+// idleFromHooks reports whether profileID's idle state always comes from
+// its hooks (status: hooks with message hooks, i.e. Claude): there an idle
+// session is at its prompt even without a turn-end event of its own. In
+// heuristic profiles (Gemini CLI) a quiet agent may still be thinking.
+func (s *Server) idleFromHooks(profileID string) bool {
+	ps, err := s.profiles.List()
+	if err != nil {
+		return false
+	}
+	p, ok := profile.Find(ps, profileID)
+	return ok && hooks.DeliversMessages(p.SetupHooks) && p.Status == status.ModeHooks
 }
 
 func (s *Server) msgDeliver(caller *session.Session, id string) (map[string]any, error) {

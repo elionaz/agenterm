@@ -209,7 +209,7 @@ func (s *Server) handoff(p protocol.HandoffParams) (protocol.SessionInfo, error)
 	// Claude Code and codex take a first prompt as their last argument;
 	// the others are told where the note is once they wait for input.
 	var extra spawnExtra
-	prompted := hooks.ReceivesInstructions(lp.prof.SetupHooks)
+	prompted := hooks.TakesPrompt(lp.prof.SetupHooks)
 	if prompted {
 		extra.args = []string{note}
 	}

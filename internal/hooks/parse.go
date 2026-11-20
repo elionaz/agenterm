@@ -28,6 +28,12 @@ func Parse(agent string, payload []byte) (ev status.Event, ok bool, err error) {
 		return parseClaude(payload)
 	case "codex":
 		return parseCodex(payload)
+	case AgentGemini:
+		return parseGemini(payload)
+	case AgentOpencode:
+		return parseOpencode(payload)
+	case AgentCursor:
+		return parseCursor(payload)
 	}
 	return status.Event{}, false, fmt.Errorf("unknown hook agent %q", agent)
 }
@@ -118,11 +124,11 @@ func ToolActivityParts(tool string, input json.RawMessage) (kind, target string)
 	arg := func(s string) string { return clipTo(s, maxTarget) }
 	switch tool {
 	case "Edit", "Write", "MultiEdit":
-		return i18n.ActEdit, arg(base(str("file_path", "path")))
+		return i18n.ActEdit, arg(base(str("file_path", "path", "filePath", "absolute_path")))
 	case "NotebookEdit":
 		return i18n.ActEdit, arg(base(str("notebook_path", "file_path")))
 	case "Read":
-		return i18n.ActRead, arg(base(str("file_path", "path")))
+		return i18n.ActRead, arg(base(str("file_path", "path", "filePath", "absolute_path")))
 	case "Bash":
 		return i18n.ActBash, clipTo(str("command"), maxCommand)
 	case "Grep", "Glob":
@@ -148,6 +154,44 @@ func ToolActivityParts(tool string, input json.RawMessage) (kind, target string)
 		return i18n.ActMCP, arg(server)
 	}
 	return i18n.ActTool, clipTo(tool, maxActivity)
+}
+
+// toolAliases maps other agents' built-in tool names to the Claude Code
+// tool ToolActivityParts describes. Gemini CLI:
+// https://geminicli.com/docs/tools/; opencode:
+// https://opencode.ai/docs/tools/; Cursor: the tool_name values of
+// https://cursor.com/docs/agent/hooks.
+var toolAliases = map[string]map[string]string{
+	AgentGemini: {
+		"run_shell_command": "Bash", "read_file": "Read", "read_many_files": "Read",
+		"write_file": "Write", "replace": "Edit", "edit": "Edit",
+		"glob": "Glob", "search_file_content": "Grep", "grep_search": "Grep", "grep": "Grep",
+		"list_directory": "Glob", "web_fetch": "WebFetch", "google_web_search": "WebSearch",
+		"write_todos": "TodoWrite",
+	},
+	AgentOpencode: {
+		"bash": "Bash", "read": "Read", "write": "Write", "edit": "Edit", "patch": "Edit",
+		"apply_patch": "Edit", "multiedit": "Edit", "glob": "Glob", "grep": "Grep", "list": "Glob",
+		"webfetch": "WebFetch", "websearch": "WebSearch", "task": "Task", "todowrite": "TodoWrite",
+	},
+	AgentCursor: {
+		"Shell": "Bash", "Read": "Read", "Write": "Write", "Edit": "Edit", "Delete": "Edit",
+		"Grep": "Grep", "Glob": "Glob", "Task": "Task",
+	},
+}
+
+// canonicalTool is agent's tool under its Claude Code name (MCP tools as
+// mcp__server__tool) when there is one; tool otherwise.
+func canonicalTool(agent, tool string) string {
+	if c, ok := toolAliases[agent][tool]; ok {
+		return c
+	}
+	if agent == AgentCursor {
+		if rest, ok := strings.CutPrefix(tool, "MCP:"); ok {
+			return "mcp__" + rest
+		}
+	}
+	return tool
 }
 
 // withActivity sets ev's activity from its structured form.
@@ -205,6 +249,31 @@ func SessionRef(agent string, payload []byte) (id, transcript string) {
 		}
 		if json.Unmarshal(payload, &p) == nil && validRef(p.ThreadID) {
 			return p.ThreadID, ""
+		}
+	case AgentGemini:
+		// session_id is what `gemini --resume <id>` takes (a resumed
+		// session keeps its id).
+		var p struct {
+			SessionID      string `json:"session_id"`
+			TranscriptPath string `json:"transcript_path"`
+		}
+		if json.Unmarshal(payload, &p) == nil && validRef(p.SessionID) {
+			return p.SessionID, p.TranscriptPath
+		}
+	case AgentOpencode:
+		var p struct {
+			SessionID string `json:"sessionID"`
+		}
+		if json.Unmarshal(payload, &p) == nil && validRef(p.SessionID) {
+			return p.SessionID, ""
+		}
+	case AgentCursor:
+		// conversation_id is the chat id `cursor-agent --resume` takes.
+		var p struct {
+			ConversationID string `json:"conversation_id"`
+		}
+		if json.Unmarshal(payload, &p) == nil && validRef(p.ConversationID) {
+			return p.ConversationID, ""
 		}
 	}
 	return "", ""

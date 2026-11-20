@@ -14,6 +14,20 @@ releases may include breaking changes.
   *merged · can be removed* and listed first, and **Remove merged (N)** removes them all with
   their branches in one go. From the command line: `panal worktree rm --merged <project>`. It
   never forces: one with uncommitted changes or a newer commit is kept, with the reason.
+- **Hooks for Gemini CLI, opencode and Cursor CLI.** Their sessions now report what they do
+  through the agent's own hooks instead of only terminal-output guessing, set up per session without
+  touching their configuration or the project (`setup_hooks: gemini`, `opencode`, `cursor`):
+  - **Gemini CLI**: working, approvals ("Shell: rm -rf build"), end of turn with its reply, the
+    activity line, the model, resume by session id, the standing instructions and messages from
+    other sessions (like Claude Code). Through a generated system-settings file
+    (`GEMINI_CLI_SYSTEM_SETTINGS_PATH`); only in folders Gemini trusts.
+  - **opencode** (2 or later): a generated plugin reports each turn's start and end, failures with
+    the error, approvals, questions, the activity line and the model; resume by session id; the
+    standing instructions as an instructions file. Sessions run `opencode --standalone` so the
+    plugin is theirs alone.
+  - **Cursor CLI**: the activity line, the model, resume by chat id and the standing instructions,
+    through a plugin loaded with `--plugin-dir`. Cursor doesn't run a plugin's end-of-turn hook
+    yet, so working/idle stay heuristic.
 
 ### Fixed
 

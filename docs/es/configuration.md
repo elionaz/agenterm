@@ -40,9 +40,9 @@ cada sugerencia; las alternativas se muestran como texto), nunca un valor de `pr
 |---|---|---|---|---|---|
 | `claude` | Claude Code | `claude` | `hooks` | `claude` | |
 | `codex` | Codex CLI | `codex` | `heuristic` | `codex` | `notify` solo avisa el fin de turno, así que "trabajando" lo decide la heurística |
-| `opencode` | opencode | `opencode` | `heuristic` | | |
-| `gemini` | Gemini CLI | `gemini` | `heuristic` | | |
-| `cursor-agent` | Cursor CLI | `cursor-agent` | `heuristic` | | patrones de atención `Run this command\?` y `Skip & tell the agent what to do instead` (sus menús de aprobación) |
+| `opencode` | opencode | `opencode` | `hooks` | `opencode` | un plugin avisa cada turno (inicio, fin, fallo), aprobaciones y preguntas; requiere opencode 2 |
+| `gemini` | Gemini CLI | `gemini` | `heuristic` | `gemini` | no hay hook para un turno que falla o se cancela, así que la heurística los devuelve a idle |
+| `cursor-agent` | Cursor CLI | `cursor-agent` | `heuristic` | `cursor` | la CLI no corre hooks de fin de turno desde plugins; patrones de atención `Run this command\?` y `Skip & tell the agent what to do instead` (sus menús de aprobación) |
 | `copilot` | GitHub Copilot CLI | `copilot` | `heuristic` | | |
 | `aider` | Aider | `aider` | `heuristic` | | patrón de atención `\(Y\)es/\(N\)o` |
 | `amp` | Amp | `amp` | `heuristic` | | |
@@ -77,10 +77,10 @@ tiene un `id` obligatorio y único, y se **superpone** al catálogo:
 | `args` | lista de argumentos |
 | `env` | mapa `CLAVE: valor` (los valores también expanden `$VARIABLES`) |
 | `status` | `hooks` o `heuristic` |
-| `setup_hooks` | `claude`, `codex` o `none` |
+| `setup_hooks` | `claude`, `codex`, `gemini`, `opencode`, `cursor` o `none` |
 | `idle_seconds` | segundos sin salida para pasar a inactivo (sobrescribe el valor del daemon, 3 s) |
 | `attention_patterns` | expresiones regulares (sintaxis de Go) sobre la salida reciente sin ANSI; una coincidencia marca la sesión como esperando tu respuesta |
-| `resume_args` | argumentos que se añaden (después de `args`) al reanudar una sesión de este perfil tras un reinicio del daemon cuando no hay id de sesión del agente que reanudar; p. ej. `["--continue"]`. El catálogo lo define para opencode y Cursor CLI (`--continue`) y Hermes (`-c`): la última sesión del proyecto. claude y codex reanudan por id y solo lo usan como alternativa. No aparece en el editor de la app (guardar desde la app lo conserva) |
+| `resume_args` | argumentos que se añaden (después de `args`) al reanudar una sesión de este perfil tras un reinicio del daemon cuando no hay id de sesión del agente que reanudar; p. ej. `["--continue"]`. El catálogo lo define para opencode y Cursor CLI (`--continue`) y Hermes (`-c`): la última sesión del proyecto. claude, codex, gemini, opencode y Cursor CLI reanudan por id (con su integración) y solo lo usan como alternativa. No aparece en el editor de la app (guardar desde la app lo conserva) |
 
 ### Reglas de combinación
 
@@ -117,7 +117,7 @@ profiles:
     args: []
     env: {}
     status: heuristic         # hooks | heuristic
-    setup_hooks: none         # claude | codex | none
+    setup_hooks: none         # claude | codex | gemini | opencode | cursor | none
     idle_seconds: 3
     attention_patterns:
       - '\(y/n\)'
@@ -284,6 +284,12 @@ Un archivo sin encabezado se carga siempre, en todos los proyectos.
 - **codex** (`setup_hooks: codex`) las recibe como `-c developer_instructions=…` en esa invocación.
   Si tu `~/.codex/config.toml` (o `$CODEX_HOME/config.toml`) ya define `developer_instructions`,
   panal no lo toca y las sesiones de codex no reciben estas (la pestaña lo avisa).
+- **Gemini CLI** (`setup_hooks: gemini`) las recibe en su hook `SessionStart` (inicio, reanudación,
+  `/clear`), en carpetas en las que Gemini confía.
+- **opencode** (`setup_hooks: opencode`) las recibe como archivo de instrucciones
+  (`hooks/instructions/<proyecto>.md`) listado en su configuración de esa sesión.
+- **Cursor CLI** (`setup_hooks: cursor`) las recibe en su hook `sessionStart`, cuando empieza un chat
+  (un chat reanudado ya las tiene).
 - Los demás agentes no tienen forma de recibirlas sin editar sus archivos, cosa que panal nunca
   hace; la pestaña los lista.
 
