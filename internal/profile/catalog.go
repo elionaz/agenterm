@@ -65,7 +65,9 @@ var catalog = []CatalogEntry{
 	{ID: "gemini", Name: "Gemini CLI", Binaries: []string{"gemini"}, Status: status.ModeHeuristic,
 		Homepage: "https://github.com/google-gemini/gemini-cli",
 		Install:  "npm i -g @google/gemini-cli   (or brew install gemini-cli)"},
+	// `cursor-agent --continue` reopens the folder's last chat.
 	{ID: "cursor-agent", Name: "Cursor CLI", Binaries: []string{"cursor-agent"}, Status: status.ModeHeuristic,
+		ResumeArgs: []string{"--continue"},
 		// Its approval menus ("Run this command?", file edits…) end with
 		// "Skip & tell the agent what to do instead (esc or n)".
 		AttentionPatterns: []string{`Run this command\?`, `Skip & tell the agent what to do instead`},

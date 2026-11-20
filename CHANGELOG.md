@@ -7,6 +7,14 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Cursor CLI sessions keep their chat across a daemon restart** (an update, for example): they
+  come back with `cursor-agent --continue` instead of a fresh chat.
+- **The daemon log says who closed a session** (`session kill requested`, with the requesting
+  process and, when another session asked, its id). Before, a closed session only showed its exit
+  code, which looks the same as the agent quitting on a hangup.
+
 ## [0.12.0] - 2026-11-19
 
 ### Added

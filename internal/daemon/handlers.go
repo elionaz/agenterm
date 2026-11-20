@@ -740,6 +740,22 @@ func (s *Server) list() protocol.SessionList {
 
 // kill terminates a live session. Killing an already-exited session removes
 // it from the daemon.
+// handleKill is session.kill from a connection: like kill, and the log
+// says who asked (a live session's exit code alone, 129 or 143, cannot
+// tell the user closing it from the agent quitting).
+func (s *Server) handleKill(conn net.Conn, req protocol.Request) (protocol.SessionInfo, error) {
+	p, err := decode[protocol.SessionRef](req.Params)
+	if err != nil {
+		return protocol.SessionInfo{}, err
+	}
+	attrs := append([]any{"id", p.SessionID}, peerAttrs(conn)...)
+	if caller := s.callerSession(conn); caller != nil {
+		attrs = append(attrs, "from_session", caller.ID)
+	}
+	s.log.Info("session kill requested", attrs...)
+	return s.kill(p.SessionID)
+}
+
 func (s *Server) kill(id string) (protocol.SessionInfo, error) {
 	sess, err := s.lookup(id)
 	if err != nil {
