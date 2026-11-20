@@ -71,6 +71,11 @@ Usage:
                                       (inside a session: its project; none: the all-project ones)
   agenterm instructions list [<project>]   the instruction topics
   agenterm instructions show <topic>  one topic's text (for topics that load on demand)
+  agenterm handoff [--worktree] [--keep] [--note FILE|-] <sessionId> <profile>
+                                      continue a session's work with another agent (a summary as
+                                      its first prompt); closes the session unless --keep
+  agenterm handoff --into <targetId> <sessionId>   hand it to a live session instead
+  agenterm handoff --print <sessionId>   the summary it would hand over
   agenterm browser [open|url|close|status|mcp] [--session ID]
                                       the session's own isolated Chrome (open: start it, print
                                       its DevTools URL; mcp: the browser MCP server bound to it)
@@ -189,6 +194,8 @@ func run(args []string) error {
 		return cmdInstructions(ctx, c, rest)
 	case "browser":
 		return cmdBrowser(ctx, c, rest)
+	case "handoff":
+		return cmdHandoff(ctx, c, rest)
 	case "kill":
 		if len(rest) != 1 {
 			return errors.New("usage: agenterm kill <sessionId>")

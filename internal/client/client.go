@@ -317,6 +317,21 @@ func (c *Client) ShowInstruction(ctx context.Context, slug string) (protocol.Ins
 	return r, err
 }
 
+// HandoffNote drafts the summary handed to the agent that continues a
+// session's work.
+func (c *Client) HandoffNote(ctx context.Context, sessionID string) (protocol.HandoffNote, error) {
+	var r protocol.HandoffNote
+	err := c.Call(ctx, protocol.MethodSessionHandoffNote, protocol.HandoffNoteParams{SessionID: sessionID}, &r)
+	return r, err
+}
+
+// Handoff continues a session's work in a new session.
+func (c *Client) Handoff(ctx context.Context, p protocol.HandoffParams) (protocol.SessionInfo, error) {
+	var r protocol.SessionInfo
+	err := c.Call(ctx, protocol.MethodSessionHandoff, p, &r)
+	return r, err
+}
+
 // BrowserStatus says whether sessions get a browser and what it needs.
 func (c *Client) BrowserStatus(ctx context.Context) (protocol.BrowserStatus, error) {
 	var r protocol.BrowserStatus

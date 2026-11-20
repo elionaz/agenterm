@@ -940,6 +940,20 @@ export namespace protocol {
 		}
 	}
 	
+	export class HandoffNote {
+	    text: string;
+	    shared?: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new HandoffNote(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.text = source["text"];
+	        this.shared = source["shared"];
+	    }
+	}
 	export class InstructionTopic {
 	    slug: string;
 	    title: string;
@@ -1159,6 +1173,8 @@ export namespace protocol {
 	    msgHold?: string;
 	    model?: string;
 	    browserUrl?: string;
+	    stopped?: boolean;
+	    continuedFrom?: string[];
 	    mode?: string;
 	    worktreeId?: string;
 	    worktreePath?: string;
@@ -1222,6 +1238,8 @@ export namespace protocol {
 	        this.msgHold = source["msgHold"];
 	        this.model = source["model"];
 	        this.browserUrl = source["browserUrl"];
+	        this.stopped = source["stopped"];
+	        this.continuedFrom = source["continuedFrom"];
 	        this.mode = source["mode"];
 	        this.worktreeId = source["worktreeId"];
 	        this.worktreePath = source["worktreePath"];
