@@ -351,7 +351,10 @@ En macOS la CLI de Inkscape no queda en el `PATH`; está en
 - **Actualizar no reinicia el daemon**: tras instalar una versión nueva, un daemon que ya estaba
   corriendo sigue con el código viejo hasta `panal stop` (o un reinicio de la computadora).
 - La **app de Linux** (AppImage, .deb) es experimental: el CI la compila, prueba y empaqueta en
-  Ubuntu 24.04 (`scripts/package-linux.sh`), pero está poco probada en escritorios reales.
+  Ubuntu 24.04 (`scripts/package-linux.sh`), pero está poco probada en escritorios reales. Cada
+  cambio corre los tests del daemon y la CLI en Ubuntu (`linux` de ci.yml, sin GTK); los tests y
+  el empaquetado de la app (`linux-app.yml`, con GTK/WebKitGTK) corren en main y en los pull
+  requests que tocan `app/`, `packaging/`, los workflows o las dependencias.
 - **Un reinicio del daemon (o de la computadora) mata los procesos.** Las sesiones vuelven como
   `suspended`, con su scrollback, y se relanzan al reanudarlas: Claude Code y codex continúan su
   conversación por id, opencode y Cursor CLI con `--continue` y Hermes con `-c` (la *última* sesión de cada
