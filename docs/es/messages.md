@@ -33,6 +33,9 @@ nombre o `all`. Esos mensajes vienen *del usuario*. `msg read` solo funciona den
     mensaje, así que nada espera a que vuelvas a escribir. Un turno que ya siguió así termina
     normalmente, y lo que llegue entonces espera al siguiente prompt o herramienta: dos agentes no
     pueden mantenerse trabajando el uno al otro sin fin.
+- **Gemini CLI** los recibe igual con sus hooks (`SessionStart`, `BeforeAgent` al enviar un prompt,
+  `AfterAgent` cuando su turno iba a terminar), salvo después de cada herramienta: Gemini no tiene
+  un hook que agregue a la conversación ahí.
 
   Un mensaje cuenta como entregado solo cuando el hook lo imprimió: si el hook se pasa de tiempo,
   queda pendiente.
@@ -53,9 +56,10 @@ nombre o `all`. Esos mensajes vienen *del usuario*. `msg read` solo funciona den
 (`messages.auto_deliver`, **prendido por defecto**) hace lo que **Entregar** sin el clic: cuando un
 mensaje espera a una sesión inactiva en su prompt (una respuesta que llegó después de que terminó su
 turno, o una que se envió mientras estaba inactiva), panal escribe la misma línea fija un momento
-después. Eso vale para Claude Code, cuyos hooks entregan entonces los mensajes, y para los agentes
-que avisan el fin de su turno (codex, con su notify), a los que se les pide correr
-`panal msg read`. Una sesión de Claude que está trabajando no necesita nada: sus hooks entregan
+después. Eso vale para Claude Code y Gemini CLI, cuyos hooks entregan entonces los mensajes, y para
+los agentes que avisan el fin de su turno (codex con su notify, opencode con su plugin), a los que
+se les pide correr `panal msg read`. Gemini CLI solo la recibe cuando avisó el fin de su turno, ya
+que una salida quieta no significa que terminó. Una sesión de Claude que está trabajando no necesita nada: sus hooks entregan
 los mensajes en su siguiente paso. Se contiene, y el mensaje queda pendiente con **Entregar ahora**,
 cuando:
 

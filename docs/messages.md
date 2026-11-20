@@ -33,6 +33,9 @@ or `all`. Such messages come from *the user*. `msg read` only works inside a ses
     so nothing waits until you type again. A turn that already went on that way ends normally, and
     what arrives then waits for the next prompt or tool call, so two agents can't keep each other
     going forever.
+- **Gemini CLI** gets them the same way through its hooks (`SessionStart`, `BeforeAgent` when you
+  submit a prompt, `AfterAgent` when its turn would end), except after each tool call: Gemini has no
+  hook that adds to the conversation there.
 
   A message counts as delivered only once the hook has printed it: a hook that times out leaves it
   pending.
@@ -52,9 +55,10 @@ or `all`. Such messages come from *the user*. `msg read` only works inside a ses
 **Settings → General → Deliver messages to idle sessions by themselves** (`messages.auto_deliver`,
 **on by default**) does what **Deliver** does without the click: when a message waits for a session
 that is idle at its prompt (a reply that came after its turn ended, or one sent while it was idle),
-panal types the same fixed line, a moment later. That is Claude Code, whose hooks then hand the
-messages over, and agents that report the end of their turn (codex, through its notify), which are
-told to run `panal msg read`. A Claude session that is working needs nothing: its hooks hand
+panal types the same fixed line, a moment later. That is Claude Code and Gemini CLI, whose hooks
+then hand the messages over, and agents that report the end of their turn (codex through its
+notify, opencode through its plugin), which are told to run `panal msg read`. Gemini CLI only gets
+it once it has reported the end of its turn, as quiet output alone doesn't mean it's done. A Claude session that is working needs nothing: its hooks hand
 messages over at its next step. It holds back, leaving the message pending with **Deliver now**,
 when:
 

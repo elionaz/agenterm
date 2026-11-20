@@ -45,7 +45,7 @@ internal/transport      Listen/Dial/Cleanup over a unix socket
 internal/session        PTY (creack/pty), ring buffer, fan-out, kill/wait, activity, tail
 internal/status         state machine + attention + heuristic + "stalled?"
 internal/termsig        streaming parser for BEL / OSC 9 / 777 / 99 and OSC 9;4 progress
-internal/hooks          per-session hook setup (claude, codex) and payload parsing
+internal/hooks          per-session hook setup (claude, codex, gemini, opencode, cursor) and payload parsing
 internal/profile        agent catalog, detection, merging with profiles.yaml and writing
 internal/settings       settings.yaml (reading with defaults and in-place editing)
 internal/gitx           git via the CLI: repo, branches, status, worktrees, diff, merge, open in editor
@@ -249,13 +249,18 @@ modes a full-screen program left on reset (alternate screen, mouse, hidden curso
 |---|---|---|
 | `setup_hooks: claude` with a known session id | `claude --settings <hooks> --resume <session_id> <args>` | `agent` |
 | `setup_hooks: codex` with a known thread id | `codex resume -c notify=… <args> <thread-id>` | `agent` |
-| with `resume_args` (opencode: `--continue`) | `<cmd> <hooks> <args> <resume_args>` | `args` |
+| `setup_hooks: gemini` / `cursor` with a known session (chat) id | `<cmd> <hooks> --resume <id> <args>` | `agent` |
+| `setup_hooks: opencode` with a known session id | `opencode --standalone --session <id> <args>` | `agent` |
+| with `resume_args` (opencode, Cursor CLI: `--continue`) | `<cmd> <hooks> <args> <resume_args>` | `args` |
 | anything else (shell, agents without a session id yet) | `<cmd> <hooks> <args>`: a fresh process | `fresh` |
 
 Claude's `session_id` comes with every hook payload (panal also listens to `SessionStart`, so it
 is known from the start and follows `/clear`); codex reports its `thread-id` in the `notify`
 payload, i.e. after its first turn. Both flags were checked with `claude --help` (`--resume <id>`)
-and `codex resume --help` (`codex resume [OPTIONS] [SESSION_ID]`).
+and `codex resume --help` (`codex resume [OPTIONS] [SESSION_ID]`). Gemini CLI's `session_id`
+(`--resume` takes it; a resumed session keeps it) and Cursor's `conversation_id` (`--resume
+[chatId]`) arrive in their session-start hooks; opencode's session id in the plugin's events
+(`--session` continues it).
 
 What is **not** restored: the process itself. A shell comes back in the session's starting folder
 with nothing running; whatever was running in it (servers, `vim`…) is gone. An agent without a

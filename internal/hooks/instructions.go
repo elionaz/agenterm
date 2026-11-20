@@ -10,13 +10,30 @@ import (
 )
 
 // The user's standing instructions (package instructions) reach each agent
-// through the integration it has: Claude Code in its SessionStart hook
-// output (notify --from-hook), codex as developer_instructions for the
-// invocation. Other agents don't get them.
+// through the integration it has: Claude Code and Gemini CLI in their
+// SessionStart hook output, Cursor in its sessionStart hook output (new
+// chats; a resumed chat already has them), all through notify --from-hook;
+// codex as developer_instructions for the invocation; opencode as an
+// instructions file in its per-session config. Other agents don't get
+// them.
 
 // ReceivesInstructions reports whether an agent with setup_hooks agent
 // gets the instructions.
 func ReceivesInstructions(agent string) bool {
+	return Known(agent) && agent != "" && agent != "none"
+}
+
+// DeliversMessages reports whether agent's hooks hand a session its
+// messages from other sessions themselves (in the conversation, and by
+// keeping a turn going), rather than the agent running `panal msg read`.
+func DeliversMessages(agent string) bool {
+	return agent == AgentClaude || agent == AgentGemini
+}
+
+// TakesPrompt reports whether agent takes a first prompt as its last
+// argument and still starts its interactive session (others would run
+// it non-interactively, or not take one).
+func TakesPrompt(agent string) bool {
 	return agent == AgentClaude || agent == AgentCodex
 }
 

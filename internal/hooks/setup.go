@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -13,13 +14,28 @@ import (
 type Injection struct {
 	Args []string
 	Env  []string
+	// Note says why an agent's integration is off for this launch (the
+	// session then runs without it); "" normally.
+	Note string
 }
 
 // Agents with built-in hook integration (profile `setup_hooks`).
 const (
-	AgentClaude = "claude"
-	AgentCodex  = "codex"
+	AgentClaude   = "claude"
+	AgentCodex    = "codex"
+	AgentGemini   = "gemini"
+	AgentOpencode = "opencode"
+	AgentCursor   = "cursor"
 )
+
+// Agents lists the setup_hooks values with an integration.
+var Agents = []string{AgentClaude, AgentCodex, AgentGemini, AgentOpencode, AgentCursor}
+
+// Known reports whether agent is a valid setup_hooks value ("" and "none"
+// included: no integration).
+func Known(agent string) bool {
+	return agent == "" || agent == "none" || slices.Contains(Agents, agent)
+}
 
 // claudeEvents are the Claude Code hook events panal listens to; see
 // parseClaude for what each one means. SessionStart carries no state: it
@@ -69,8 +85,14 @@ func Setup(agent, dir, exe, sock string) (Injection, error) {
 			"-c", `tui.notification_method="osc9"`,
 			"-c", `tui.notification_condition="always"`,
 		}}, nil
+	case AgentGemini:
+		return setupGemini(dir, exe, sock)
+	case AgentOpencode:
+		return setupOpencode(dir, exe, sock)
+	case AgentCursor:
+		return setupCursor(dir, exe, sock)
 	}
-	return Injection{}, fmt.Errorf("unknown setup_hooks %q (want claude, codex or none)", agent)
+	return Injection{}, fmt.Errorf("unknown setup_hooks %q (want %s or none)", agent, strings.Join(Agents, ", "))
 }
 
 // notifyArgv is `<exe> notify [--sock <sock>]`.
@@ -86,11 +108,7 @@ func notifyArgv(exe, sock string) []string {
 // Code hook event to `<exe> notify [--sock S] --from-hook claude`, which
 // reads the event from stdin, prints nothing and always exits 0.
 func ClaudeSettings(exe, sock string) []byte {
-	var parts []string
-	for _, a := range notifyArgv(exe, sock) {
-		parts = append(parts, shellQuote(a))
-	}
-	cmd := strings.Join(parts, " ") + " --from-hook claude"
+	cmd := hookCommand(exe, sock, AgentClaude)
 	type handler struct {
 		Type    string `json:"type"`
 		Command string `json:"command"`

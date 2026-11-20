@@ -40,9 +40,9 @@ text), never a value from `profiles.yaml`.
 |---|---|---|---|---|---|
 | `claude` | Claude Code | `claude` | `hooks` | `claude` | |
 | `codex` | Codex CLI | `codex` | `heuristic` | `codex` | `notify` only reports the end of a turn, so "working" is decided by the heuristic |
-| `opencode` | opencode | `opencode` | `heuristic` | | |
-| `gemini` | Gemini CLI | `gemini` | `heuristic` | | |
-| `cursor-agent` | Cursor CLI | `cursor-agent` | `heuristic` | | attention patterns `Run this command\?` and `Skip & tell the agent what to do instead` (its approval menus) |
+| `opencode` | opencode | `opencode` | `hooks` | `opencode` | a plugin reports every turn (start, end, failure), approvals and questions; needs opencode 2 |
+| `gemini` | Gemini CLI | `gemini` | `heuristic` | `gemini` | no hook for a failed or cancelled turn, so the heuristic brings those back to idle |
+| `cursor-agent` | Cursor CLI | `cursor-agent` | `heuristic` | `cursor` | the CLI runs no turn-end hook from plugins; attention patterns `Run this command\?` and `Skip & tell the agent what to do instead` (its approval menus) |
 | `copilot` | GitHub Copilot CLI | `copilot` | `heuristic` | | |
 | `aider` | Aider | `aider` | `heuristic` | | attention pattern `\(Y\)es/\(N\)o` |
 | `amp` | Amp | `amp` | `heuristic` | | |
@@ -76,10 +76,10 @@ from before 0.4.0 are just the list, and are still read). Each entry has a requi
 | `args` | list of arguments |
 | `env` | `KEY: value` map (values also expand `$VARIABLES`) |
 | `status` | `hooks` or `heuristic` |
-| `setup_hooks` | `claude`, `codex` or `none` |
+| `setup_hooks` | `claude`, `codex`, `gemini`, `opencode`, `cursor` or `none` |
 | `idle_seconds` | seconds without output before going idle (overrides the daemon's value, 3 s) |
 | `attention_patterns` | regular expressions (Go syntax) over recent output with ANSI stripped; a match marks the session as waiting for your reply |
-| `resume_args` | arguments appended (after `args`) when a session of this profile is resumed after a daemon restart and there is no agent session id to resume; e.g. `["--continue"]`. The catalog sets it for opencode and Cursor CLI (`--continue`) and Hermes (`-c`): the project's last session. claude and codex resume by id and only use it as a fallback. Not shown in the app's editor (saving from the app keeps it) |
+| `resume_args` | arguments appended (after `args`) when a session of this profile is resumed after a daemon restart and there is no agent session id to resume; e.g. `["--continue"]`. The catalog sets it for opencode and Cursor CLI (`--continue`) and Hermes (`-c`): the project's last session. claude, codex, gemini, opencode and Cursor CLI resume by id (with their integration) and only use it as a fallback. Not shown in the app's editor (saving from the app keeps it) |
 
 ### Merge rules
 
@@ -115,7 +115,7 @@ profiles:
     args: []
     env: {}
     status: heuristic         # hooks | heuristic
-    setup_hooks: none         # claude | codex | none
+    setup_hooks: none         # claude | codex | gemini | opencode | cursor | none
     idle_seconds: 3
     attention_patterns:
       - '\(y/n\)'
@@ -279,6 +279,12 @@ A file without front matter loads always, in every project.
 - **codex** (`setup_hooks: codex`) gets them as `-c developer_instructions=…` for that invocation.
   If your `~/.codex/config.toml` (or `$CODEX_HOME/config.toml`) sets `developer_instructions`
   itself, panal leaves it alone and codex sessions don't get these (the tab says so).
+- **Gemini CLI** (`setup_hooks: gemini`) gets them in its `SessionStart` hook (start, resume,
+  `/clear`), in folders Gemini trusts.
+- **opencode** (`setup_hooks: opencode`) gets them as an instructions file
+  (`hooks/instructions/<project>.md`) listed in its per-session configuration.
+- **Cursor CLI** (`setup_hooks: cursor`) gets them in its `sessionStart` hook, when a chat starts
+  (a resumed chat already has them).
 - Other agents have no way to receive them without editing their files, which panal never does;
   the tab lists them.
 

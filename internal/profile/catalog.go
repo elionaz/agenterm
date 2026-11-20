@@ -57,16 +57,22 @@ var catalog = []CatalogEntry{
 	{ID: "codex", Name: "Codex CLI", Binaries: []string{"codex"}, Status: status.ModeHeuristic, SetupHooks: "codex",
 		Homepage: "https://github.com/openai/codex",
 		Install:  "npm i -g @openai/codex   (or brew install --cask codex)"},
-	// `opencode --continue` reopens the project's last session.
-	{ID: "opencode", Name: "opencode", Binaries: []string{"opencode"}, Status: status.ModeHeuristic,
+	// opencode's plugin reports every turn's start and end (success,
+	// failure, interruption), approvals and questions. `--continue`
+	// reopens the project's last session when its id is unknown.
+	{ID: "opencode", Name: "opencode", Binaries: []string{"opencode"}, Status: status.ModeHooks, SetupHooks: "opencode",
 		ResumeArgs: []string{"--continue"},
 		Homepage:   "https://opencode.ai",
 		Install:    "curl -fsSL https://opencode.ai/install | bash   (or brew install sst/tap/opencode)"},
-	{ID: "gemini", Name: "Gemini CLI", Binaries: []string{"gemini"}, Status: status.ModeHeuristic,
+	// Gemini CLI has no hook for a turn that fails or is cancelled, so the
+	// heuristic stays in charge of bringing such a turn back to idle.
+	{ID: "gemini", Name: "Gemini CLI", Binaries: []string{"gemini"}, Status: status.ModeHeuristic, SetupHooks: "gemini",
 		Homepage: "https://github.com/google-gemini/gemini-cli",
 		Install:  "npm i -g @google/gemini-cli   (or brew install gemini-cli)"},
-	// `cursor-agent --continue` reopens the folder's last chat.
-	{ID: "cursor-agent", Name: "Cursor CLI", Binaries: []string{"cursor-agent"}, Status: status.ModeHeuristic,
+	// Cursor CLI runs a plugin's session and tool hooks but not its stop
+	// hook (end of turn), so the heuristic decides working/idle.
+	// `--continue` reopens the folder's last chat when its id is unknown.
+	{ID: "cursor-agent", Name: "Cursor CLI", Binaries: []string{"cursor-agent"}, Status: status.ModeHeuristic, SetupHooks: "cursor",
 		ResumeArgs: []string{"--continue"},
 		// Its approval menus ("Run this command?", file edits…) end with
 		// "Skip & tell the agent what to do instead (esc or n)".

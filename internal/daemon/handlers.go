@@ -506,9 +506,22 @@ func (s *Server) resolveLaunch(profileID string) (launchProfile, error) {
 	if err != nil {
 		return launchProfile{}, err
 	}
-	inj, err := hooks.Setup(prof.SetupHooks, s.cfg.Paths.HooksDir(), s.cfg.Exe, s.sock)
+	var inj hooks.Injection
+	switch {
+	case prof.SetupHooks == hooks.AgentOpencode && prof.Env["OPENCODE_CONFIG_CONTENT"] != "":
+		// The profile's own inline config would be replaced.
+		inj.Note = "opencode hooks off: the profile sets OPENCODE_CONFIG_CONTENT"
+	case prof.SetupHooks == hooks.AgentOpencode && !hooks.OpencodeSupported(cmd):
+		// opencode 1.x has neither the plugin API nor --standalone.
+		inj.Note = "opencode hooks off: needs opencode 2 or later"
+	default:
+		inj, err = hooks.Setup(prof.SetupHooks, s.cfg.Paths.HooksDir(), s.cfg.Exe, s.sock)
+	}
 	if err != nil {
 		return launchProfile{}, fmt.Errorf("profile %s: %w", prof.ID, err)
+	}
+	if inj.Note != "" {
+		s.log.Warn("agent integration", "profile", prof.ID, "note", inj.Note)
 	}
 	idle := s.cfg.IdleAfter
 	if prof.IdleSeconds > 0 {
@@ -651,7 +664,8 @@ func (s *Server) startSession(sp startSpec) (protocol.SessionInfo, error) {
 	if err != nil {
 		s.log.Warn("settings", "err", err)
 	}
-	env := append(append(prof.Environ(), sp.lp.inj.Env...), portEnv(s.sessionPort(id))...)
+	env := append(append(prof.Environ(), sp.lp.inj.Env...), s.agentEnv(sp.lp, proj)...)
+	env = append(env, portEnv(s.sessionPort(id))...)
 	env = append(env, s.browserEnv(id)...)
 	var launch []string
 	if sp.setup != "" {

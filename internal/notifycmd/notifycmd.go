@@ -24,7 +24,7 @@ const Name = "notify"
 
 // Usage is the one-line synopsis.
 const Usage = `panal notify [--session ID] [--sock PATH] [--state S] [--kind K] [--message M] [--activity A]
-  panal notify [--sock PATH] --from-hook claude|codex [JSON]   (hook payload on stdin or as last arg)`
+  panal notify [--sock PATH] --from-hook claude|codex|gemini|opencode|cursor [JSON]   (hook payload on stdin or as last arg)`
 
 const (
 	timeout     = 3 * time.Second
@@ -43,7 +43,7 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	kind := fs.String("kind", "", "permission | question | done | error (implies --state when omitted)")
 	msg := fs.String("message", "", "message shown in the notification")
 	activity := fs.String("activity", "", "what the agent is doing (activity line); alone it only updates that")
-	fromHook := fs.String("from-hook", "", "read an agent hook payload: claude (stdin) | codex (last argument)")
+	fromHook := fs.String("from-hook", "", "read an agent hook payload: claude, gemini, opencode, cursor (stdin) | codex (last argument)")
 	sock := fs.String("sock", "", "daemon socket (default: $PANAL_HOME's, else $PANAL_SOCK)")
 	if err := fs.Parse(args); err != nil {
 		if *fromHook != "" || hasHookFlag(args) {
@@ -52,7 +52,9 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return err
 	}
 	if *fromHook != "" {
-		if err := runHook(*fromHook, *id, *sock, fs.Args(), stdin, stdout); err != nil {
+		// Gemini CLI takes a hook's stderr as its output when stdout is
+		// empty, and shows it: keep quiet there.
+		if err := runHook(*fromHook, *id, *sock, fs.Args(), stdin, stdout); err != nil && *fromHook != hooks.AgentGemini {
 			fmt.Fprintln(stderr, "panal notify:", err)
 		}
 		return nil
@@ -120,17 +122,16 @@ func runHook(agent, id, sock string, rest []string, stdin io.Reader, stdout io.W
 	ref, transcript := hooks.SessionRef(agent, payload)
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
-	// Messages from other sessions (Claude only: its hooks can add to the
-	// conversation). The daemon knows this session from the connection.
-	// They are only marked delivered once printed (msg.ack): a hook that
-	// times out or fails leaves them pending.
+	// The instructions and messages from other sessions, for agents whose
+	// hooks can add to the conversation (inboxHookFor). The daemon knows
+	// this session from the connection. Messages are only marked
+	// delivered once printed (msg.ack): a hook that times out or fails
+	// leaves them pending.
 	var inboxErr error
-	if agent == hooks.AgentClaude {
-		if h := hooks.ClaudeEvent(payload); inboxEvent(h.Event) {
-			inboxErr = deliverInbox(ctx, sock, h, stdout)
-			if h.Event == evStop && inboxErr == errContinued {
-				ok, inboxErr = false, nil // the turn goes on: not idle
-			}
+	if h, delivers := inboxHookFor(agent, payload); delivers {
+		inboxErr = deliverInbox(ctx, sock, h, stdout)
+		if h.stop && inboxErr == errContinued {
+			ok, inboxErr = false, nil // the turn goes on: not idle
 		}
 	}
 	model := hooks.Model(agent, payload)
@@ -196,16 +197,19 @@ var errContinued = errors.New("turn continued")
 
 // deliverInbox prints the session's pending messages for hook h and
 // acknowledges them. It returns errContinued when a Stop was blocked.
-func deliverInbox(ctx context.Context, sock string, h hooks.ClaudeHook, stdout io.Writer) error {
+func deliverInbox(ctx context.Context, sock string, h inboxHook, stdout io.Writer) error {
+	if h.hold {
+		return nil
+	}
 	c, err := hookClient(sock)
 	if err != nil {
 		return err
 	}
-	r, err := c.MsgTakePeek(ctx, h.Event == evSessionStart)
+	r, err := c.MsgTakePeek(ctx, h.start)
 	if err != nil {
 		return err
 	}
-	out, ids := claudeOutput(h, r)
+	out, ids := hookOutput(h, r)
 	if out == nil {
 		return nil
 	}
@@ -217,7 +221,7 @@ func deliverInbox(ctx context.Context, sock string, h hooks.ClaudeHook, stdout i
 			return err
 		}
 	}
-	if h.Event == evStop {
+	if h.stop {
 		return errContinued
 	}
 	return nil

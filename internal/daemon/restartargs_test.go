@@ -17,6 +17,9 @@ func TestRestartArgs(t *testing.T) {
 	claude := profile.Profile{ID: "claude", Args: []string{"--model", "opus"}, SetupHooks: "claude"}
 	codex := profile.Profile{ID: "codex", Args: []string{"-m", "o3"}, SetupHooks: "codex"}
 	opencode := profile.Profile{ID: "opencode", ResumeArgs: []string{"--continue"}}
+	ocHooks := profile.Profile{ID: "opencode", ResumeArgs: []string{"--continue"}, SetupHooks: "opencode"}
+	gemini := profile.Profile{ID: "gemini", Args: []string{"-m", "flash"}, SetupHooks: "gemini"}
+	cursor := profile.Profile{ID: "cursor-agent", ResumeArgs: []string{"--continue"}, SetupHooks: "cursor"}
 	custom := profile.Profile{ID: "mine", Args: []string{"--fast"}, ResumeArgs: []string{"--resume", "last"}}
 	shell := profile.Profile{ID: "shell"}
 	ref := func(agent, id string) *sessionstore.Resume { return &sessionstore.Resume{Agent: agent, SessionID: id} }
@@ -39,6 +42,16 @@ func TestRestartArgs(t *testing.T) {
 			[]string{"resume", "-c", "notify=[...]", "-m", "o3", "t-9"}, protocol.ResumeAgent},
 		{"codex without id", codex, codexInj, nil, []string{"-c", "notify=[...]", "-m", "o3"}, protocol.ResumeFresh},
 		{"opencode resume_args", opencode, nil, nil, []string{"--continue"}, protocol.ResumeArgs},
+		{"opencode with session id", ocHooks, []string{"--standalone"}, ref("opencode", "ses_01ab"),
+			[]string{"--standalone", "--session", "ses_01ab"}, protocol.ResumeAgent},
+		{"opencode hooks without id", ocHooks, []string{"--standalone"}, nil,
+			[]string{"--standalone", "--continue"}, protocol.ResumeArgs},
+		{"gemini with session id", gemini, nil, ref("gemini", "8f0c-uuid"),
+			[]string{"--resume", "8f0c-uuid", "-m", "flash"}, protocol.ResumeAgent},
+		{"cursor with chat id", cursor, []string{"--plugin-dir", "/h/cursor-plugin"}, ref("cursor", "d82f-uuid"),
+			[]string{"--plugin-dir", "/h/cursor-plugin", "--resume", "d82f-uuid"}, protocol.ResumeAgent},
+		{"cursor without id", cursor, []string{"--plugin-dir", "/h/cursor-plugin"}, nil,
+			[]string{"--plugin-dir", "/h/cursor-plugin", "--continue"}, protocol.ResumeArgs},
 		{"custom resume_args", custom, nil, nil, []string{"--fast", "--resume", "last"}, protocol.ResumeArgs},
 		{"shell", shell, nil, nil, []string{}, protocol.ResumeFresh},
 	}

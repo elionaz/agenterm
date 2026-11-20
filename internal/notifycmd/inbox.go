@@ -21,7 +21,7 @@ const (
 	evStop             = "Stop"
 )
 
-// inboxEvent reports whether event delivers messages.
+// inboxEvent reports whether a Claude Code event delivers messages.
 func inboxEvent(event string) bool {
 	switch event {
 	case evSessionStart, evUserPromptSubmit, evPostToolUse, evStop:
@@ -30,27 +30,71 @@ func inboxEvent(event string) bool {
 	return false
 }
 
-// claudeOutput is what the hook prints for h (nil: nothing) and the
-// messages that output hands over (to acknowledge once printed).
-func claudeOutput(h hooks.ClaudeHook, r protocol.MsgTakeResult) ([]byte, []int) {
-	event := h.Event
-	if h.AgentID != "" {
-		return nil, nil // a subagent's context is not the conversation's
+// inboxHook is a hook that can add text to the agent's conversation.
+type inboxHook struct {
+	agent string
+	event string // the agent's own name for it
+	// start: the session starts (or is cleared, resumed, compacted); it
+	// gets the instructions and the introduction too.
+	start bool
+	// stop: the turn would end; blocking it keeps the turn going.
+	stop bool
+	// hold: nothing may be added here (a subagent's context, or a turn a
+	// Stop hook already kept going: two agents must not keep each other's
+	// turns going forever; what is pending arrives with the next prompt).
+	hold bool
+}
+
+// inboxHookFor is the inboxHook of agent's payload; false when that event
+// adds nothing to the conversation. Gemini CLI's SessionStart, BeforeAgent
+// and AfterAgent take the same output as Claude's SessionStart,
+// UserPromptSubmit and Stop (https://geminicli.com/docs/hooks/reference/);
+// Cursor only reads additional_context from sessionStart.
+func inboxHookFor(agent string, payload []byte) (inboxHook, bool) {
+	switch agent {
+	case hooks.AgentClaude:
+		h := hooks.ClaudeEvent(payload)
+		return claudeInbox(h), inboxEvent(h.Event)
+	case hooks.AgentGemini:
+		h := hooks.GeminiEvent(payload)
+		ih := inboxHook{agent: agent, event: h.Event, start: h.Event == "SessionStart", stop: h.Event == "AfterAgent"}
+		ih.hold = ih.stop && h.StopActive
+		return ih, ih.start || ih.stop || h.Event == "BeforeAgent"
+	case hooks.AgentCursor:
+		var p struct {
+			Event string `json:"hook_event_name"`
+		}
+		_ = json.Unmarshal(payload, &p)
+		return inboxHook{agent: agent, event: p.Event, start: true}, p.Event == "sessionStart"
 	}
-	// Claude already goes on because of a Stop hook: let this turn end;
-	// what is pending arrives with the next prompt or tool call (two
-	// agents must not keep each other's turns going forever).
-	if event == evStop && h.StopActive {
+	return inboxHook{}, false
+}
+
+func claudeInbox(h hooks.ClaudeHook) inboxHook {
+	ih := inboxHook{agent: hooks.AgentClaude, event: h.Event, start: h.Event == evSessionStart, stop: h.Event == evStop}
+	ih.hold = h.AgentID != "" || (ih.stop && h.StopActive)
+	return ih
+}
+
+// claudeOutput is hookOutput for a Claude Code hook.
+func claudeOutput(h hooks.ClaudeHook, r protocol.MsgTakeResult) ([]byte, []int) {
+	return hookOutput(claudeInbox(h), r)
+}
+
+// hookOutput is what the hook prints for h (nil: nothing) and the
+// messages that output hands over (to acknowledge once printed).
+func hookOutput(h inboxHook, r protocol.MsgTakeResult) ([]byte, []int) {
+	if h.hold {
 		return nil, nil
 	}
 	var ctx []string
 	// The user's standing instructions, also when messages are off.
-	if event == evSessionStart && r.Instructions != "" {
+	if h.start && r.Instructions != "" {
 		ctx = append(ctx, r.Instructions)
 	}
 	if !r.Enabled {
 		r.Messages = nil
-	} else if event == evSessionStart && r.Peers != nil {
+	} else if h.start && r.Peers != nil {
 		ctx = append(ctx, intro(r.Self, *r.Peers))
 	}
 	if len(r.Messages) > 0 {
@@ -61,10 +105,13 @@ func claudeOutput(h hooks.ClaudeHook, r protocol.MsgTakeResult) ([]byte, []int) 
 	}
 	text := strings.Join(ctx, "\n\n")
 	var v any
-	if event == evStop {
+	switch {
+	case h.agent == hooks.AgentCursor:
+		v = map[string]any{"additional_context": text}
+	case h.stop:
 		v = map[string]any{"decision": "block", "reason": text}
-	} else {
-		v = map[string]any{"hookSpecificOutput": map[string]any{"hookEventName": event, "additionalContext": text}}
+	default:
+		v = map[string]any{"hookSpecificOutput": map[string]any{"hookEventName": h.event, "additionalContext": text}}
 	}
 	ids := make([]int, len(r.Messages))
 	for i, m := range r.Messages {
