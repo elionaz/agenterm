@@ -7,6 +7,8 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-11-20
+
 ### Fixed
 
 - **The app is panal in the Dock and Finder after updating from agenterm.** In-app updates keep the
@@ -521,7 +523,8 @@ First public release: a macOS desktop app (universal: Apple Silicon and Intel, m
   `.zip` downloads, CLI archives for macOS and Linux, and a Homebrew cask
   (`brew install --cask elionaz/tap/agenterm`).
 
-[Unreleased]: https://github.com/elionaz/panal/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/elionaz/panal/compare/v0.13.1...HEAD
+[0.13.1]: https://github.com/elionaz/panal/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/elionaz/panal/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/elionaz/panal/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/elionaz/panal/compare/v0.10.0...v0.11.0
