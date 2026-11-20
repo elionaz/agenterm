@@ -7,6 +7,20 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- **Remove merged worktrees.** Orphaned worktrees whose branch is already in its base (merged,
+  squash- or rebase-merged on the host) and that have nothing uncommitted are marked
+  *merged · can be removed* and listed first, and **Remove merged (N)** removes them all with
+  their branches in one go. From the command line: `panal worktree rm --merged <project>`. It
+  never forces: one with uncommitted changes or a newer commit is kept, with the reason.
+
+### Fixed
+
+- **Deleting a squash-merged branch no longer asks to force.** Removing a worktree with its branch
+  counted the commits of a pull request merged with squash or rebase as unmerged; now commits whose
+  changes the base already has don't count.
+
 ## [0.13.1] - 2026-11-20
 
 ### Fixed

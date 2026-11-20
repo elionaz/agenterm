@@ -215,7 +215,13 @@ set, so nothing changes for servers that expect their usual port.
     lost;
   - `--dry-run` only runs the check;
   - after removing: `git worktree prune` and, if requested, `git branch -D` (safe: unmerged commits
-    were already checked against the base, unless *force* is used).
+    were already checked against the base, unless *force* is used);
+  - commits whose changes the base already has (a pull request squash- or rebase-merged on the
+    host) don't count as unmerged: deleting a merged branch needs no *force*.
+- **Remove merged** (`panal worktree rm --merged [--dry-run] <project>`): removes, with their
+  branches, every orphaned worktree whose branch is already merged into its base (by a merge, a
+  squash or a rebase) and that has nothing uncommitted. It never forces: a worktree with
+  uncommitted changes, or with a commit made since, is kept and listed with the reason.
 - **Open in editor** (`git.editor`; `code` by default if it's on the `PATH`, otherwise Finder) and
   **Open in Finder** (`panal worktree open [--finder] <id>`).
 - **Copy branch** (app only, to the clipboard).
@@ -282,4 +288,6 @@ looked up (and opened) there. Comments are read in pages of 100, all of them.
   and remove worktree with a confirmation that shows what would be lost, a
   checkbox to also delete the branch and another to force).
 - Under each project, **orphaned worktrees** (if any): view changes, open a shell here (a new
-  `shell` session in that worktree) and remove.
+  `shell` session in that worktree) and remove. Those already merged and clean come first, marked
+  **merged · can be removed**, and the title offers **Remove merged (N)**, which asks once and
+  removes them with their branches.

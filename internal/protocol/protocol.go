@@ -79,9 +79,12 @@ const (
 	MethodWorktreeDiff   = "worktree.diff"
 	MethodWorktreeList   = "worktree.list"
 	MethodWorktreeRemove = "worktree.remove"
-	MethodWorktreeMerge  = "worktree.merge"
-	MethodWorktreePR     = "worktree.pr"
-	MethodWorktreeOpen   = "worktree.open"
+	// MethodWorktreeRemoveMerged removes a project's orphaned worktrees
+	// whose branch is already merged (and that have nothing uncommitted).
+	MethodWorktreeRemoveMerged = "worktree.removeMerged"
+	MethodWorktreeMerge        = "worktree.merge"
+	MethodWorktreePR           = "worktree.pr"
+	MethodWorktreeOpen         = "worktree.open"
 	// MethodWorktreeCopy copies files from the main folder into a worktree
 	// (and can write them into a new .panal.yaml).
 	MethodWorktreeCopy = "worktree.copy"
@@ -269,8 +272,12 @@ type GitInfo struct {
 	// Ahead: commits on the branch that the base does not have.
 	Ahead int `json:"ahead"`
 	// Head: the branch checked out (empty: detached HEAD).
-	Head string    `json:"head,omitempty"`
-	At   time.Time `json:"at"`
+	Head string `json:"head,omitempty"`
+	// Merged (worktrees): the branch has commits of its own and the base
+	// already holds them, merged or squash-merged. With no uncommitted
+	// changes the worktree can go without losing anything.
+	Merged bool      `json:"merged,omitempty"`
+	At     time.Time `json:"at"`
 }
 
 // ProjectGitParams / ProjectGit: what the spawn menu needs to offer the
@@ -368,6 +375,24 @@ type WorktreeRemoveParams struct {
 type WorktreeRemoveResult struct {
 	Removed bool            `json:"removed"`
 	Loss    *gitx.LossError `json:"loss,omitempty"`
+}
+
+// WorktreeRemoveMergedParams: DryRun only lists what would be removed.
+type WorktreeRemoveMergedParams struct {
+	ProjectID string `json:"projectId"`
+	DryRun    bool   `json:"dryRun,omitempty"`
+}
+
+// WorktreeRemoveMergedResult lists the worktrees removed (with DryRun:
+// those that would be) and the merged ones left, with why.
+type WorktreeRemoveMergedResult struct {
+	Removed []WorktreeInfo    `json:"removed"`
+	Skipped []WorktreeSkipped `json:"skipped"`
+}
+
+type WorktreeSkipped struct {
+	Worktree WorktreeInfo `json:"worktree"`
+	Reason   string       `json:"reason"`
 }
 
 type WorktreeRef struct {

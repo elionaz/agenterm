@@ -32,6 +32,7 @@ export type DiffResult = Omit<protocol.DiffResult, 'convertValues'>
 export type WorktreeInfo = Omit<protocol.WorktreeInfo, 'convertValues'>
 export type ProjectGit = protocol.ProjectGit
 export type LossInfo = Omit<gitx.LossError, 'convertValues'>
+export type RemoveMergedResult = Omit<protocol.WorktreeRemoveMergedResult, 'convertValues'>
 export type MergeResult = gitx.MergeResult
 /** url '' = a host we cannot build a pull request page for (pushed only). */
 export type PRResult = gitx.PRResult
@@ -217,6 +218,9 @@ export const api = {
   /** dryRun: only report what would be lost (result.loss). */
   removeWorktree: (id: string, o: { force?: boolean; deleteBranch?: boolean; dryRun?: boolean }) =>
     App.RemoveWorktree(id, !!o.force, !!o.deleteBranch, !!o.dryRun),
+  /** Removes the project's orphaned worktrees already merged and clean, with their branches. */
+  removeMergedWorktrees: (projectId: string, dryRun = false): Promise<RemoveMergedResult> =>
+    App.RemoveMergedWorktrees(projectId, dryRun),
   mergeWorktree: (id: string): Promise<MergeResult> => App.MergeWorktree(id),
   /** Pushes the branch and returns the pull request page; dryRun: only remote and URL. */
   pullRequest: (id: string, dryRun = false): Promise<PRResult> => App.PullRequestWorktree(id, dryRun),

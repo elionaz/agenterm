@@ -45,6 +45,9 @@ Usage:
   panal diff [--stat] <sessionId|worktreeId>   changes (worktree: vs its base)
   panal worktrees <projectId|name> list panal worktrees (live / exited / orphan)
   panal worktree rm [--force] [--delete-branch] [--dry-run] <id>
+  panal worktree rm --merged [--dry-run] <projectId|name>
+                                      remove the orphaned worktrees already merged, with
+                                      their branches (never forced)
   panal worktree merge <id>        merge its branch into the base (main folder must be
                                       clean and on the base branch)
   panal worktree pr [--no-open] <id>   push its branch and open the pull request page

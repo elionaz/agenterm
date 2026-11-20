@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -364,4 +365,112 @@ func TestWorktreePR(t *testing.T) {
 func hasCode(err error, code string) bool {
 	c, _, ok := apierr.Code(err)
 	return ok && c == code
+}
+
+// orphanWorktree spawns a shell in a new worktree and forgets the session,
+// leaving the worktree orphaned; it returns the worktree's id and folder.
+func orphanWorktree(t *testing.T, c *client.Client, projectID string) (string, string) {
+	t.Helper()
+	ctx := ctxT(t)
+	info, err := c.Spawn(ctx, protocol.SpawnParams{ProjectID: projectID, ProfileID: "shell", Mode: protocol.ModeWorktree})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Kill(ctx, info.ID); err != nil {
+		t.Fatal(err)
+	}
+	waitState(t, c, info.ID, "exited")
+	if _, err := c.Kill(ctx, info.ID); err != nil { // remove from the list
+		t.Fatal(err)
+	}
+	return info.WorktreeID, info.WorktreePath
+}
+
+func commitFile(t *testing.T, dir, name, content, msg string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitT(t, dir, "add", "-A")
+	gitT(t, dir, "commit", "-q", "-m", msg)
+}
+
+func TestWorktreeRemoveMerged(t *testing.T) {
+	c, _, _ := startDaemon(t)
+	ctx := ctxT(t)
+	repo := tempRepo(t)
+	proj, err := c.ProjectAdd(ctx, repo, "merged")
+	if err != nil {
+		t.Fatal(err)
+	}
+	squashed, sqDir := orphanWorktree(t, c, proj.ID) // squash-merged into main
+	merged, mDir := orphanWorktree(t, c, proj.ID)    // merged with a merge commit
+	dirty, dDir := orphanWorktree(t, c, proj.ID)     // squash-merged, then edited
+	open, oDir := orphanWorktree(t, c, proj.ID)      // a commit main lacks
+	fresh, _ := orphanWorktree(t, c, proj.ID)        // no commits at all
+
+	commitFile(t, sqDir, "sq.txt", "sq\n", "sq work")
+	commitFile(t, repo, "sq.txt", "sq\n", "squashed sq")
+	commitFile(t, mDir, "m.txt", "m\n", "m work")
+	mBranch := gitT(t, mDir, "branch", "--show-current")
+	gitT(t, repo, "merge", "-q", "--no-ff", "-m", "merge m", mBranch)
+	commitFile(t, dDir, "d.txt", "d\n", "d work")
+	commitFile(t, repo, "d.txt", "d\n", "squashed d")
+	os.WriteFile(filepath.Join(dDir, "d.txt"), []byte("edited after\n"), 0o644)
+	commitFile(t, oDir, "o.txt", "o\n", "o work")
+
+	byID := map[string]protocol.WorktreeInfo{}
+	for _, w := range listWorktrees(t, c, proj.ID) {
+		byID[w.ID] = w
+	}
+	for id, want := range map[string]bool{squashed: true, merged: true, dirty: true, open: false, fresh: false} {
+		if w := byID[id]; w.Git == nil || w.Git.Merged != want {
+			t.Errorf("%s: git = %+v, want merged %v", filepath.Base(w.Path), w.Git, want)
+		}
+	}
+	// Removing a squash-merged worktree with its branch needs no force.
+	if dry, err := c.WorktreeRemove(ctx, protocol.WorktreeRemoveParams{ID: squashed, DeleteBranch: true, DryRun: true}); err != nil || dry.Loss != nil {
+		t.Fatalf("dry run on a squash-merged worktree = %+v, %v", dry.Loss, err)
+	}
+
+	ids := func(ws []protocol.WorktreeInfo) string {
+		var out []string
+		for _, w := range ws {
+			out = append(out, w.ID)
+		}
+		sort.Strings(out)
+		return strings.Join(out, ",")
+	}
+	want := []string{squashed, merged}
+	sort.Strings(want)
+	dry, err := c.WorktreeRemoveMerged(ctx, protocol.WorktreeRemoveMergedParams{ProjectID: proj.ID, DryRun: true})
+	if err != nil || ids(dry.Removed) != strings.Join(want, ",") || len(dry.Skipped) != 1 || dry.Skipped[0].Worktree.ID != dirty ||
+		!strings.Contains(dry.Skipped[0].Reason, "uncommitted") {
+		t.Fatalf("dry run = %+v, %v", dry, err)
+	}
+	if len(listWorktrees(t, c, proj.ID)) != 5 {
+		t.Fatal("dry run removed something")
+	}
+
+	res, err := c.WorktreeRemoveMerged(ctx, protocol.WorktreeRemoveMergedParams{ProjectID: proj.ID})
+	if err != nil || ids(res.Removed) != strings.Join(want, ",") || len(res.Skipped) != 1 {
+		t.Fatalf("remove merged = %+v, %v", res, err)
+	}
+	left := listWorktrees(t, c, proj.ID)
+	stay := []string{dirty, open, fresh}
+	sort.Strings(stay)
+	if got := ids(left); got != strings.Join(stay, ",") {
+		t.Fatalf("left = %s", got)
+	}
+	for _, dir := range []string{sqDir, mDir} {
+		if _, err := os.Stat(dir); !os.IsNotExist(err) {
+			t.Errorf("%s still there", dir)
+		}
+	}
+	if out := gitT(t, repo, "branch", "--list", mBranch); out != "" {
+		t.Errorf("branch %s not deleted", mBranch)
+	}
+	if _, err := os.Stat(filepath.Join(dDir, "d.txt")); err != nil {
+		t.Error("the dirty worktree lost its file")
+	}
 }

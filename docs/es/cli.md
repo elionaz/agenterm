@@ -181,6 +181,7 @@ Mensajes entre las sesiones de un proyecto; ver [messages.md](messages.md).
 | `panal diff [--stat] <sessionId\|worktreeId>` | diff unificado de la sesión (worktree: contra su base; misma carpeta: contra `HEAD`). Con `--stat`, resumen por archivo, commits por delante y totales |
 | `panal worktrees <proyecto>` | worktrees de panal del proyecto: `ID BRANCH BASE STATE GIT SESSIONS PATH`, con `STATE` = `live`, `exited` u `orphan` |
 | `panal worktree rm [--force] [--delete-branch] [--dry-run] <id>` (o `remove`) | elimina un worktree. `--dry-run` solo dice qué se perdería |
+| `panal worktree rm --merged [--dry-run] <projectId\|nombre>` | elimina los worktrees huérfanos del proyecto ya mergeados y limpios, con sus ramas; nunca fuerza. `--dry-run` los lista |
 | `panal worktree merge <id>` | `git merge --no-ff` de su rama en la carpeta principal |
 | `panal worktree pr [--no-open] <id>` | sube su rama (`git push -u`, nunca forzado) e imprime la página para crear el pull request hacia la base (GitHub / GitLab), y la abre salvo con `--no-open`. Otros servidores: solo el push |
 | `panal worktree open [--finder] <id>` | abre el worktree en el editor (`git.editor`) o, con `--finder`, en Finder |
