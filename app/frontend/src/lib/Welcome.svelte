@@ -2,6 +2,7 @@
      the CLI, and adding the first project. Nothing here is required: it
      only explains and offers shortcuts. -->
 <script lang="ts">
+  import { keyLabel } from './platform'
   import { onMount } from 'svelte'
   import { ClipboardSetText } from '../../wailsjs/runtime/runtime'
   import { api, type OnboardingInfo, type Profile } from './api'
@@ -89,7 +90,7 @@
     {/if}
     <div class="actions">
       <button disabled={rescanning} onclick={rescan}>{t('welcome.rescan')}</button>
-      <button class="linkish" onclick={onOpenSettings}>{t('welcome.chooseAgents')} <kbd>⌘,</kbd></button>
+      <button class="linkish" onclick={onOpenSettings}>{t('welcome.chooseAgents')} <kbd>{keyLabel('⌘,')}</kbd></button>
     </div>
   </section>
 

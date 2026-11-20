@@ -5,11 +5,13 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"runtime"
 	"sync"
 	"time"
 
 	"github.com/elionaz/agenterm/internal/daemon"
 	"github.com/elionaz/agenterm/internal/desktopnotify"
+	"github.com/elionaz/agenterm/internal/linuxnotify"
 	"github.com/elionaz/agenterm/internal/macnotify"
 	"github.com/elionaz/agenterm/internal/paths"
 )
@@ -22,10 +24,11 @@ import (
 // AGENTERM_NOTIFY=off turns it off entirely.
 type notifier struct {
 	log       *slog.Logger
-	off       bool   // AGENTERM_NOTIFY=off
-	bundle    string // the .app containing the daemon executable; "" if none
-	native    bool   // bundle with a bundle identifier
-	clicks    bool   // our delegate is installed (clicks reach onClick)
+	off       bool                  // AGENTERM_NOTIFY=off
+	bundle    string                // the .app containing the daemon executable; "" if none
+	native    bool                  // bundle with a bundle identifier
+	clicks    bool                  // our delegate is installed (clicks reach onClick)
+	linux     *linuxnotify.Notifier // the freedesktop notification service (Linux)
 	askedOnce sync.Once
 
 	mu         sync.Mutex
@@ -42,7 +45,13 @@ func newNotifier(log *slog.Logger, exe string) *notifier {
 	if n.native {
 		n.clicks = macnotify.SetClickHandler(n.onClick)
 	}
-	log.Info("notifications", "native", n.native, "bundle", n.bundle, "click_handler", n.clicks)
+	if runtime.GOOS == "linux" {
+		var err error
+		if n.linux, err = linuxnotify.New("agenterm", nil); err != nil {
+			log.Info("no desktop notification service", "err", err)
+		}
+	}
+	log.Info("notifications", "native", n.native, "bundle", n.bundle, "click_handler", n.clicks, "freedesktop", n.linux != nil)
 	return n
 }
 
@@ -58,6 +67,16 @@ func (n *notifier) Notify(note daemon.Notification) {
 		return
 	}
 	reason := "no app bundle (daemon not running as agenterm.app)"
+	if n.linux != nil {
+		err := n.linux.Post(linuxnotify.Note{Key: note.SessionID, Title: note.Title, Body: note.Body, Sound: note.Sound})
+		if err == nil {
+			n.log.Info("notification posted", "notifier", "freedesktop", "session", note.SessionID, "kind", note.Kind)
+			return
+		}
+		reason = "desktop notification failed: " + err.Error()
+	} else if runtime.GOOS == "linux" {
+		reason = "no desktop notification service on the session bus"
+	}
 	if n.native {
 		st := macnotify.AuthStatus(2 * time.Second)
 		if st == macnotify.StatusNotDetermined {

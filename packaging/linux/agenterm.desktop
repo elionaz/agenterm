@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=agenterm
+GenericName=Agent workspace
+Comment=Desktop workspace for coding agents
+Exec=agenterm-app %U
+Icon=agenterm
+Terminal=false
+Categories=Development;
+StartupWMClass=agenterm
+MimeType=x-scheme-handler/agenterm;

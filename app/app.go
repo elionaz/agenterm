@@ -167,7 +167,7 @@ func (a *App) ensureDaemonLocked(ctx context.Context) error {
 		return err
 	}
 	prepareDaemonEnv()
-	return client.StartDaemon(ctx, exe, a.paths)
+	return client.StartDaemon(ctx, daemonExe(exe), a.paths)
 }
 
 // call runs fn with a timeout, starting the daemon first if needed.

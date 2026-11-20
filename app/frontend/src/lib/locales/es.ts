@@ -125,6 +125,8 @@ export const es: Dict = {
   'banner.updateDownloadingButton': 'Descargando…',
   'banner.update': 'Actualizar',
   'banner.updateRestart': 'Reiniciar para actualizar',
+  'banner.download': 'Descargar',
+  'settings.updates.manual': 'Esta versión no se actualiza sola: busca versiones nuevas cada pocas horas y el aviso lleva a la descarga.',
   'banner.later': 'Más tarde',
   'banner.reconnecting': 'Reconectando con el daemon…',
 

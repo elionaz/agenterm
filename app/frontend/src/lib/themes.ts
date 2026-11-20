@@ -308,7 +308,7 @@ export const MIN_FONT_SIZE = 8
 export const MAX_FONT_SIZE = 32
 
 export const defaultPrefs: TermPrefs = {
-  fontFamily: '"SF Mono", Menlo, Monaco, monospace',
+  fontFamily: '"SF Mono", Menlo, Monaco, "DejaVu Sans Mono", "Ubuntu Mono", "Liberation Mono", monospace',
   fontSize: DEFAULT_FONT_SIZE,
   lineHeight: 1.15,
   cursorStyle: 'block',

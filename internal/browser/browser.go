@@ -189,7 +189,7 @@ func Launch(ctx context.Context, s Spec, timeout time.Duration) (*os.Process, er
 // ProfileProcs are the pids of processes started with --user-data-dir=dir
 // (the browser, whoever launched it, and its helpers); ps lists them.
 func ProfileProcs(ctx context.Context, dir string) []int {
-	out, err := exec.CommandContext(ctx, "ps", "-axww", "-o", "pid=,command=").Output()
+	out, err := exec.CommandContext(ctx, "ps", "axww", "-o", "pid=,command=").Output()
 	if err != nil {
 		return nil
 	}

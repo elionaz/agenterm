@@ -141,7 +141,7 @@
       placeholder={t('msg.compose')}
       spellcheck="false"
       onkeydown={(e) => {
-        if (e.key === 'Enter' && e.metaKey) {
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
           e.preventDefault()
           void send()
         }

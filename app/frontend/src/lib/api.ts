@@ -161,6 +161,8 @@ export const api = {
   reorderProfiles: (ids: string[]): Promise<Profile[]> => App.ReorderProfiles(ids),
   rescanProfiles: (): Promise<Profile[]> => App.RescanProfiles(),
   getSettings: (): Promise<Settings> => App.GetSettings(),
+  /** The window gained or lost the focus (Linux; macOS asks NSApp). */
+  windowFocus: (focused: boolean): Promise<void> => App.WindowFocus(focused),
   /** Whether sessions get their own browser, and the Chrome and npx found. */
   browserStatus: (): Promise<BrowserStatus> => App.BrowserStatus(),
   closeBrowser: (sessionId: string): Promise<void> => App.CloseBrowser(sessionId),

@@ -446,6 +446,7 @@ export namespace main {
 	export class UpdateInfo {
 	    version: string;
 	    ready: boolean;
+	    url?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new UpdateInfo(source);
@@ -455,6 +456,7 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.version = source["version"];
 	        this.ready = source["ready"];
+	        this.url = source["url"];
 	    }
 	}
 	export class UpdaterState {

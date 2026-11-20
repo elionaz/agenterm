@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { keyLabel } from './platform'
   import { ClipboardSetText } from '../../wailsjs/runtime/runtime'
   import { permHelp } from './permission'
   import {
@@ -407,7 +408,7 @@
     <button class="overview" class:active={overviewOpen} title={t('sidebar.overview')} onclick={() => onOpenGrid()}>
       <span class="overview-icon"><GridIcon size={13} /></span>
       <span class="overview-label">{t('sidebar.overviewLabel')}</span>
-      <kbd>⌘0</kbd>
+      <kbd>{keyLabel('⌘0')}</kbd>
     </button>
   </div>
 
@@ -514,7 +515,7 @@
                   onclick={() => {
                     closeMenu()
                     onOpenSettings()
-                  }}><span>{t('sidebar.chooseAgents')}</span><span class="menu-cmd">⌘,</span></button
+                  }}><span>{t('sidebar.chooseAgents')}</span><span class="menu-cmd">{keyLabel('⌘,')}</span></button
                 >
               {:else}
                 <form
@@ -665,7 +666,7 @@
                         }}>×</button
                       >
                     {:else}
-                      {#if i < 9 && p.id === currentProjectId && s.id === selectedId}<span class="kbd">⌘{i + 1}</span>{/if}
+                      {#if i < 9 && p.id === currentProjectId && s.id === selectedId}<span class="kbd">{keyLabel(`⌘${i + 1}`)}</span>{/if}
                       <button
                         class="icon kill"
                         title={s.state === 'exited' ? t('sidebar.removeFromList') : t('sidebar.stopSession')}

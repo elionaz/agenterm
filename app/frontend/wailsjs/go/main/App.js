@@ -282,6 +282,10 @@ export function UpdaterState() {
   return window['go']['main']['App']['UpdaterState']();
 }
 
+export function WindowFocus(arg1) {
+  return window['go']['main']['App']['WindowFocus'](arg1);
+}
+
 export function WorktreeDiff(arg1) {
   return window['go']['main']['App']['WorktreeDiff'](arg1);
 }

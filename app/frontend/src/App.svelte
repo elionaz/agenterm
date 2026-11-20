@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { keyLabel } from './lib/platform'
   import { permHelp, permLabel } from './lib/permission'
   import { onDestroy, onMount, tick } from 'svelte'
   import { EventsOn, WindowSetTitle } from '../wailsjs/runtime/runtime'
@@ -980,7 +981,16 @@
   const offs: Array<() => void> = []
   onMount(() => {
     terms.mount(parkingEl)
+    // Linux can't be asked whether the window is focused (macOS can): tell
+    // the backend, which skips notifying about what is in view.
+    const onWinFocus = () => void api.windowFocus(true)
+    const onWinBlur = () => void api.windowFocus(false)
+    window.addEventListener('focus', onWinFocus)
+    window.addEventListener('blur', onWinBlur)
+    if (document.hasFocus()) onWinFocus()
     offs.push(
+      () => window.removeEventListener('focus', onWinFocus),
+      () => window.removeEventListener('blur', onWinBlur),
       EventsOn('daemon:event', onDaemonEvent),
       EventsOn('daemon:resync', () => {
         daemonDown = null
@@ -1240,7 +1250,7 @@
                 {/each}
               </div>
             {/if}
-            <button class="linkish" onclick={openSettings}>{t('empty.chooseAgents')} <kbd>⌘,</kbd></button>
+            <button class="linkish" onclick={openSettings}>{t('empty.chooseAgents')} <kbd>{keyLabel('⌘,')}</kbd></button>
           {/if}
         </div>
       {/if}
@@ -1320,7 +1330,7 @@
             ? t('banner.updateDownloading', { version: u.version })
             : t('banner.updateAvailable', { version: u.version })}
           <button disabled={updateDownloading()} onclick={() => void guard(updateNow())}>
-            {updateDownloading() ? t('banner.updateDownloadingButton') : t('banner.update')}
+            {updateDownloading() ? t('banner.updateDownloadingButton') : u.url ? t('banner.download') : t('banner.update')}
           </button>
         {/if}
         <button onclick={dismissUpdate}>{t('banner.later')}</button>
