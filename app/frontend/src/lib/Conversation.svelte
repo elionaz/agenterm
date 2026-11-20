@@ -283,7 +283,7 @@
   .msg {
     max-width: 760px;
     padding: 7px 10px;
-    border-radius: 8px;
+    border-radius: 0 8px 8px 0; /* the colored bar stays straight */
     border-left: 3px solid var(--c);
     background: color-mix(in srgb, var(--c) 7%, transparent);
   }
