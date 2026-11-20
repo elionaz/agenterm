@@ -39,7 +39,8 @@ type Profile struct {
 	Env    map[string]string `json:"env,omitempty"`
 	Status status.Mode       `json:"status"`
 	// SetupHooks wires the agent's own hooks to panal for sessions it
-	// spawns: claude | codex | none (see internal/hooks).
+	// spawns: claude | codex | gemini | opencode | cursor | none (see
+	// internal/hooks).
 	SetupHooks string `json:"setupHooks,omitempty"`
 	// AttentionPatterns are regular expressions matched against recent
 	// output (ANSI removed); a match marks the session as waiting for you.
@@ -357,9 +358,9 @@ func validate(p Profile) error {
 		return err
 	}
 	switch p.SetupHooks {
-	case "", "none", "claude", "codex":
+	case "", "none", "claude", "codex", "gemini", "opencode", "cursor":
 	default:
-		return fmt.Errorf("unknown setup_hooks %q (want claude, codex or none)", p.SetupHooks)
+		return fmt.Errorf("unknown setup_hooks %q (want claude, codex, gemini, opencode, cursor or none)", p.SetupHooks)
 	}
 	if p.IdleSeconds < 0 {
 		return errors.New("idle_seconds must be positive")

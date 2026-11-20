@@ -44,7 +44,7 @@ internal/transport      Listen/Dial/Cleanup sobre socket unix
 internal/session        PTY (creack/pty), ring buffer, fan-out, kill/wait, actividad, tail
 internal/status         máquina de estados + atención + heurística + «¿trabado?»
 internal/termsig        parser streaming de BEL / OSC 9 / 777 / 99 y progreso OSC 9;4
-internal/hooks          configuración de hooks por sesión (claude, codex) y parseo de payloads
+internal/hooks          configuración de hooks por sesión (claude, codex, gemini, opencode, cursor) y parseo de payloads
 internal/profile        catálogo de agentes, detección, combinación con profiles.yaml y escritura
 internal/settings       settings.yaml (lectura con valores por defecto y edición en su sitio)
 internal/gitx           git por CLI: repo, ramas, status, worktrees, diff, merge, abrir en editor
@@ -212,7 +212,7 @@ hooks generados pasan además `--sock <socket del daemon>`, así que llegan a su
 |---|---|---|
 | procesos de las sesiones | sí | **no** (se relanzan al reanudar) |
 | lista de sesiones y scrollback | sí | sí (como sesiones `suspended`) |
-| la conversación del agente | sí | claude y codex: sí (se reanudan por id); otros: con `resume_args` |
+| la conversación del agente | sí | claude, codex, gemini, opencode y Cursor CLI: sí (se reanudan por id); otros: con `resume_args` |
 | proyectos (`projects.json`), perfiles, ajustes | sí | sí |
 | worktrees y su registro (`worktrees.json`) | sí | sí |
 
@@ -252,13 +252,18 @@ Cómo se relanza el agente (`resumeMode`):
 |---|---|---|
 | `setup_hooks: claude` con id de sesión conocido | `claude --settings <hooks> --resume <session_id> <args>` | `agent` |
 | `setup_hooks: codex` con thread id conocido | `codex resume -c notify=… <args> <thread-id>` | `agent` |
-| con `resume_args` (opencode: `--continue`) | `<cmd> <hooks> <args> <resume_args>` | `args` |
+| `setup_hooks: gemini` / `cursor` con id de sesión (chat) conocido | `<cmd> <hooks> --resume <id> <args>` | `agent` |
+| `setup_hooks: opencode` con id de sesión conocido | `opencode --standalone --session <id> <args>` | `agent` |
+| con `resume_args` (opencode, Cursor CLI: `--continue`) | `<cmd> <hooks> <args> <resume_args>` | `args` |
 | cualquier otro (shell, agentes aún sin id de sesión) | `<cmd> <hooks> <args>`: un proceso nuevo | `fresh` |
 
 El `session_id` de Claude llega con cada payload de hook (panal escucha también `SessionStart`,
 así que se conoce desde el principio y sigue a `/clear`); codex informa su `thread-id` en el
 payload de `notify`, es decir, tras su primer turno. Ambos flags se comprobaron con
 `claude --help` (`--resume <id>`) y `codex resume --help` (`codex resume [OPTIONS] [SESSION_ID]`).
+El `session_id` de Gemini CLI (lo acepta `--resume`; una sesión reanudada lo conserva) y el
+`conversation_id` de Cursor (`--resume [chatId]`) llegan en sus hooks de inicio de sesión; el id de
+sesión de opencode, en los eventos del plugin (`--session` la continúa).
 
 Lo que **no** se restaura: el proceso en sí. Una shell vuelve en la carpeta inicial de la sesión sin
 nada en marcha; lo que corría en ella (servidores, `vim`…) se pierde. Un agente sin id reanudable

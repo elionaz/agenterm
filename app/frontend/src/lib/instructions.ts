@@ -1,5 +1,8 @@
 import type { InstructionTopic, Profile } from './api'
 
+/** setup_hooks values whose integration always hands over the instructions. */
+const HOOKED = ['claude', 'gemini', 'opencode', 'cursor']
+
 /** The agents that get the standing instructions and the ones that don't. */
 export interface Receivers {
   yes: string[]
@@ -8,16 +11,18 @@ export interface Receivers {
 
 /**
  * Splits the usable agents (installed, enabled, valid; not the plain
- * shell) by whether panal hands them the instructions: Claude Code in
- * its SessionStart hook, codex as developer_instructions, unless the
- * user's config.toml sets its own (codexOwn). Names, without duplicates.
+ * shell) by whether panal hands them the instructions: Claude Code,
+ * Gemini CLI and Cursor in their session-start hook, opencode as an
+ * instructions file, codex as developer_instructions unless the user's
+ * config.toml sets its own (codexOwn). Names, without duplicates.
  */
 export function receivers(profiles: Profile[], codexOwn: boolean): Receivers {
   const yes: string[] = []
   const no: string[] = []
   for (const p of profiles) {
     if (!p.installed || !p.enabled || p.error || p.id === 'shell') continue
-    const gets = p.setupHooks === 'claude' || (p.setupHooks === 'codex' && !codexOwn)
+    const hooks = p.setupHooks ?? ''
+    const gets = HOOKED.includes(hooks) || (hooks === 'codex' && !codexOwn)
     const list = gets ? yes : no
     const name = p.name || p.id
     if (!list.includes(name)) list.push(name)

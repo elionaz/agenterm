@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"errors"
+	"path/filepath"
 
 	"github.com/elionaz/panal/internal/apierr"
 	"github.com/elionaz/panal/internal/hooks"
@@ -11,9 +12,10 @@ import (
 )
 
 // The user's standing instructions (package instructions, one file per
-// topic): edited from the app's Settings, handed to Claude Code sessions in
-// their SessionStart hook (msg.take with Intro) and to codex sessions as
-// launch arguments (agentArgs); "on demand" topics are read by the agent
+// topic): edited from the app's Settings, handed to Claude Code, Gemini
+// CLI and Cursor sessions in their session-start hook (msg.take with
+// Intro), to codex sessions as launch arguments (agentArgs) and to
+// opencode sessions as an instructions file (agentEnv); "on demand" topics are read by the agent
 // with instructions.show.
 
 func (s *Server) instr() instructions.Store { return instructions.New(s.cfg.Paths.ConfigDir) }
@@ -107,6 +109,40 @@ func (s *Server) sessionInstructions(proj project.Project) string {
 		text += "\n\n" + browserNote
 	}
 	return text
+}
+
+// agentEnv is the environment panal adds for a session of proj after the
+// hook injection's: for opencode, the inline config again with the
+// instructions file (instructionsFile) added; nil otherwise.
+func (s *Server) agentEnv(lp launchProfile, proj project.Project) []string {
+	if lp.prof.SetupHooks != hooks.AgentOpencode {
+		return nil
+	}
+	file := s.instructionsFile(proj)
+	if file == "" {
+		return nil
+	}
+	if kv := hooks.OpencodeInstructionsEnv(lp.inj, s.cfg.Paths.HooksDir(), file); kv != "" {
+		return []string{kv}
+	}
+	return nil
+}
+
+// instructionsFile writes what a session of proj receives to a file in
+// the hooks dir (one per project, for agents that read instructions from
+// files) and returns its path; "" when there is nothing to read or it
+// could not be written.
+func (s *Server) instructionsFile(proj project.Project) string {
+	text := s.sessionInstructions(proj)
+	if text == "" {
+		return ""
+	}
+	file := filepath.Join(s.cfg.Paths.HooksDir(), "instructions", proj.ID+".md")
+	if err := hooks.WriteIfChanged(file, []byte(text+"\n")); err != nil {
+		s.log.Warn("instructions file", "err", err)
+		return ""
+	}
+	return file
 }
 
 // agentArgs are the arguments panal adds before a profile's own: the

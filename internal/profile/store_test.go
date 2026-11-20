@@ -79,7 +79,7 @@ func TestStoreRoundTripPreservesCustom(t *testing.T) {
 	}
 	// Re-enabling with catalog values leaves a bare stub (source catalog).
 	ps, err := s.Save(Entry{ID: "gemini", Name: "Gemini CLI", Cmd: "gemini", Args: ptr([]string{}), Status: "heuristic",
-		SetupHooks: "none", Enabled: ptr(true)})
+		SetupHooks: "gemini", Enabled: ptr(true)})
 	if err != nil {
 		t.Fatal(err)
 	}

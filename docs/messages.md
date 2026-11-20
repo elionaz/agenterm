@@ -33,6 +33,9 @@ or `all`. Such messages come from *the user*. `msg read` only works inside a ses
     so nothing waits until you type again. A turn that already went on that way ends normally, and
     what arrives then waits for the next prompt or tool call, so two agents can't keep each other
     going forever.
+- **Gemini CLI** gets them the same way through its hooks (`SessionStart`, `BeforeAgent` when you
+  submit a prompt, `AfterAgent` when its turn would end), except after each tool call: Gemini has no
+  hook that adds to the conversation there.
 
   A message counts as delivered only once the hook has printed it: a hook that times out leaves it
   pending.
@@ -54,9 +57,11 @@ in the sidebar (or in its conversation, or `panal project set <project> --messag
 
 - **Automatic:** a message reaches its session as soon as it can take it. A Claude session at work
   gets it at its next step through its hooks. One idle at its prompt is woken up: panal does what
-  **Deliver** does (types the fixed line and Enter) a moment later. That's Claude Code, and agents
-  that report the end of their turn (codex, through its notify), which are told to run
-  `panal msg read`. Any message wakes it, a heads-up too: agents are told so, and to skip messages
+  **Deliver** does (types the fixed line and Enter) a moment later. That's Claude Code and Gemini
+  CLI, whose hooks then hand the messages over, and agents that report the end of their turn (codex
+  through its notify, opencode through its plugin), which are told to run `panal msg read`. Gemini
+  CLI only gets it once it has reported the end of its turn, as quiet output alone doesn't mean
+  it's done. Any message wakes it, a heads-up too: agents are told so, and to skip messages
   that don't need an answer.
 - **Manual:** the sessions' messages are **held** until you deliver them. Nothing reaches the
   recipient, not even through its hooks or `panal msg read` (which says how many are waiting for

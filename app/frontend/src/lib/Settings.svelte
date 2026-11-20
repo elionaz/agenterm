@@ -815,6 +815,9 @@
           <option value="none">{t('settings.f.hooksNone')}</option>
           <option value="claude">claude</option>
           <option value="codex">codex</option>
+          <option value="gemini">gemini</option>
+          <option value="opencode">opencode</option>
+          <option value="cursor">cursor</option>
         </select>
       </label>
       <label>
