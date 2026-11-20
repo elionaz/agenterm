@@ -359,6 +359,30 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 			return nil, err
 		}
 		return res, nil
+	case protocol.MethodHistorySearch:
+		p, err := decode[protocol.HistorySearchParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.historySearch(p)
+	case protocol.MethodHistoryGet:
+		p, err := decode[protocol.HistoryRef](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.historyGet(p)
+	case protocol.MethodHistoryDelete:
+		p, err := decode[protocol.HistoryRef](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return struct{}{}, s.historyDelete(p)
+	case protocol.MethodHistoryResume:
+		p, err := decode[protocol.HistoryResumeParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.historyResume(p)
 	case protocol.MethodWorktreeRemoveMerged:
 		p, err := decode[protocol.WorktreeRemoveMergedParams](req.Params)
 		if err != nil {
@@ -698,6 +722,9 @@ func (s *Server) startSession(sp startSpec) (protocol.SessionInfo, error) {
 		<-sess.Done()
 		code, _ := sess.ExitCode()
 		s.log.Info("session exited", "id", id, "code", code)
+		if rec, ok := s.store.Get(id); ok && s.isCurrent(sess) {
+			s.archive(sess, rec, time.Now())
+		}
 		s.forgetRecord(sess)
 		if g.WorktreeID != "" {
 			s.publishWorktrees(proj.ID) // no longer live (the worktree stays)

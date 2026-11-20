@@ -15,6 +15,7 @@
 | worktree registry | `~/.panal/worktrees.json` | `/x/worktrees.json` |
 | sessions to restore and their scrollback | `~/.panal/sessions.json`, `~/.panal/scrollback/<id>.log` | `/x/…` |
 | messages between sessions | `~/.panal/messages.json` | `/x/messages.json` |
+| past sessions | `~/.panal/history/<id>.{json,txt}` | `/x/history/…` |
 
 - Directories are created with `0700` permissions and the socket with `0600`.
 - On macOS a unix socket path is limited to about 104 bytes: if you use `PANAL_HOME`, keep it
@@ -164,6 +165,8 @@ Every key is optional; missing ones take the default value.
 | `browser.enabled` | `true` | each session gets its own isolated Chrome; see [Browser for agents](#browser-for-agents) |
 | `browser.headless` | `false` | run those browsers without a window |
 | `browser.path` | `""` | a Chrome-compatible executable; empty: Google Chrome, Chromium, Microsoft Edge or Brave, whichever is installed |
+| `history.enabled` | `true` | keep ended agent sessions, searchable; see [Past sessions](#past-sessions) |
+| `history.keep` | `300` | how many ended sessions are kept (1–5000); the oldest go first |
 
 ```yaml
 version: 1
@@ -217,7 +220,7 @@ fields a client doesn't send keep their value. If the file can't be parsed, the 
 (and this is logged); saving replaces it.
 
 **Settings → Git** edits `git.editor`, `git.worktree_dir` and `git.default_mode`. **Settings →
-General** edits `ui.language`, `sessions.restore`, `messages.enabled`, `messages.auto_deliver`, `browser.enabled` and `browser.headless` (saved right away). **Settings →
+General** edits `ui.language`, `sessions.restore`, `messages.enabled`, `messages.auto_deliver`, `browser.enabled`, `browser.headless` and `history.enabled` (saved right away). **Settings →
 Appearance** edits `ui.appearance` and `terminal.*`, with a live preview; changes apply to the open
 terminals at once and are saved right away.
 
@@ -280,6 +283,28 @@ A file without front matter loads always, in every project.
   the tab lists them.
 
 Changes apply to sessions started after saving.
+
+## Past sessions
+
+When an agent session ends (it exits, you stop it, or you discard it while suspended), panal keeps
+it in `~/.panal/history/` (`<id>.json` and `<id>.txt`, readable only by you):
+
+- its name, agent, model, project, folder, branches and when it started and ended;
+- the prompts you typed, for agents with a readable transcript (Claude Code today);
+- its terminal text as plain text (colors and cursor movement removed), the last 512 KB.
+
+Before anything is written, what looks like a secret (API keys, tokens, private keys,
+`password=…`) is replaced with `[redacted]`. Shells are not kept, nor are sessions a stopping
+daemon suspends (they aren't over). `history.keep` (300) is how many are kept: the oldest go
+first. `history.enabled: false` stops keeping new ones (the existing ones stay until you delete
+them or the folder).
+
+The clock in the sidebar (⌘⇧F; Linux: Ctrl+Shift+H) opens **Past sessions**: search as you type
+(every word must appear in the session), in the current project or in all of them, read a session
+with its prompts and text, **Resume** it or **Delete** it. **Resume** opens a new session of the
+same agent in the same folder that continues its conversation (`claude --resume <id>`,
+`codex resume <id>`); it's offered when the agent reported its conversation id and the project,
+profile and folder still exist. From the CLI: [`panal history`](cli.md#panal-history---project-p--n-n-words).
 
 ## Browser for agents
 

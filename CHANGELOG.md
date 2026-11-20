@@ -9,6 +9,13 @@ releases may include breaking changes.
 
 ### Added
 
+- **Past sessions, searchable.** When an agent session ends, panal keeps its name, agent, model,
+  branches, the prompts you typed (Claude Code) and its terminal text as plain text, with secrets
+  masked, in `~/.panal/history/`. The clock in the sidebar (⌘⇧F; Linux: Ctrl+Shift+H) searches them
+  as you type, in the project or in all of them, shows one with its prompts and text, and
+  **Resume** continues its conversation in a new session in the same folder. CLI:
+  `panal history [words…]`, `history show|resume|rm <id>`. Settings: `history.enabled`,
+  `history.keep` (300). Shells are not kept.
 - **Remove merged worktrees.** Orphaned worktrees whose branch is already in its base (merged,
   squash- or rebase-merged on the host) and that have nothing uncommitted are marked
   *merged · can be removed* and listed first, and **Remove merged (N)** removes them all with

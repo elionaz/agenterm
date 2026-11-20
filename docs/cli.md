@@ -149,7 +149,22 @@ status is 1. See [architecture.md](architecture.md#persistence-and-resume).
 ### `panal discard <sessionId>|--all`
 
 Forgets `suspended` sessions: they leave the list and their record and saved scrollback are deleted
-(their worktree, if any, stays as an orphan).
+(their worktree, if any, stays as an orphan). An agent session discarded this way is kept in the
+[history](#panal-history---project-p--n-n-words) first.
+
+### `panal history [--project P] [-n N] [words…]`
+
+Searches the ended agent sessions (see [configuration.md](configuration.md#past-sessions)): every
+word must appear somewhere in the session (its name, agent, project, branches, prompts or terminal
+text), case-insensitive. Without words it lists the latest. Prints one row per session (id, end,
+project, agent, name, branch) and the matching lines under it. `-n` caps the rows (default 20).
+
+- `panal history show [--text] <id>`: the session's details and prompts; `--text` also prints its
+  terminal text.
+- `panal history resume <id>`: a new session that continues the agent's conversation in the same
+  folder (Claude Code `--resume`, `codex resume`). It needs the agent's conversation id (agents
+  with hooks report it), the project and the folder.
+- `panal history rm <id>`: deletes it from the history.
 
 ### `panal ack <sessionId>`
 

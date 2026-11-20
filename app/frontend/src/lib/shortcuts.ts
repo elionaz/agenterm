@@ -7,6 +7,7 @@ export type Toward = 'left' | 'right' | 'up' | 'down'
 
 export type Shortcut =
   | { kind: 'settings' }
+  | { kind: 'history' }
   | { kind: 'grid' }
   | { kind: 'session'; n: number }
   | { kind: 'new' }
@@ -43,6 +44,7 @@ export function shortcutOf(e: KeyboardEvent, mac = IS_MAC): Shortcut | null {
   if (e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
     return { kind: 'moveSession', delta: e.key === 'ArrowUp' ? -1 : 1 }
   }
+  if (e.shiftKey && k === 'f') return { kind: 'history' }
   if (e.shiftKey) return null
   switch (k) {
     case ',':
@@ -95,6 +97,8 @@ function linuxShortcutOf(e: KeyboardEvent): Shortcut | null {
       return { kind: 'find' }
     case 'KeyG':
       return { kind: 'findNext', backwards: false }
+    case 'KeyH':
+      return { kind: 'history' }
     case 'KeyD':
       return { kind: 'split', dir: 'row' }
     case 'KeyE':

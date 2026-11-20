@@ -17,6 +17,7 @@ import (
 
 	"github.com/elionaz/panal/internal/forge"
 	"github.com/elionaz/panal/internal/gitx"
+	"github.com/elionaz/panal/internal/history"
 	"github.com/elionaz/panal/internal/mailbox"
 	"github.com/elionaz/panal/internal/profile"
 	"github.com/elionaz/panal/internal/project"
@@ -85,6 +86,11 @@ const (
 	MethodWorktreeMerge        = "worktree.merge"
 	MethodWorktreePR           = "worktree.pr"
 	MethodWorktreeOpen         = "worktree.open"
+	// Past sessions (internal/history).
+	MethodHistorySearch = "history.search"
+	MethodHistoryGet    = "history.get"
+	MethodHistoryDelete = "history.delete"
+	MethodHistoryResume = "history.resume"
 	// MethodWorktreeCopy copies files from the main folder into a worktree
 	// (and can write them into a new .panal.yaml).
 	MethodWorktreeCopy = "worktree.copy"
@@ -375,6 +381,38 @@ type WorktreeRemoveParams struct {
 type WorktreeRemoveResult struct {
 	Removed bool            `json:"removed"`
 	Loss    *gitx.LossError `json:"loss,omitempty"`
+}
+
+// HistorySearchParams: every word of Query must appear in the session
+// (empty: the most recent ones); ProjectID (id or name) filters.
+type HistorySearchParams struct {
+	Query     string `json:"query"`
+	ProjectID string `json:"projectId,omitempty"`
+	Limit     int    `json:"limit,omitempty"`
+}
+
+type HistorySearchResult struct {
+	Hits []history.Hit `json:"hits"`
+}
+
+type HistoryRef struct {
+	ID string `json:"id"`
+}
+
+// HistoryDetail is an archived session with its terminal text; CanResume
+// tells whether history.resume can reopen its agent conversation.
+type HistoryDetail struct {
+	Entry     history.Entry `json:"entry"`
+	Text      string        `json:"text"`
+	CanResume bool          `json:"canResume"`
+}
+
+// HistoryResumeParams starts a new session that reopens archived session
+// ID's agent conversation in its folder.
+type HistoryResumeParams struct {
+	ID   string `json:"id"`
+	Cols uint16 `json:"cols,omitempty"`
+	Rows uint16 `json:"rows,omitempty"`
 }
 
 // WorktreeRemoveMergedParams: DryRun only lists what would be removed.
@@ -775,6 +813,9 @@ const (
 	// EventWorktrees: a project's worktree list changed (ProjectID):
 	// created, removed, orphaned or reopened.
 	EventWorktrees = "worktree.changed"
+	// EventHistory: an ended session was archived, or an archived one
+	// deleted (SessionID, ProjectID).
+	EventHistory = "history.changed"
 	// EventProjects: the project list changed (added, removed, reordered).
 	EventProjects = "project.changed"
 	// EventSessionsReordered: the sessions of ProjectID were reordered;

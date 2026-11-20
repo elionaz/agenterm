@@ -61,6 +61,9 @@ Usage:
   panal resume <sessionId>|--all   respawn sessions suspended by a daemon restart
                                       (agents continue their conversation when they can)
   panal discard <sessionId>|--all  forget suspended sessions (and their scrollback)
+  panal history [--project P] [-n N] [words…]   search ended agent sessions
+  panal history show [--text] <id> | rm <id> | resume <id>
+                                      read one, delete it, or reopen its conversation
   panal notify [--session ID] [--state S] [--kind K] [--message M] [--activity A]
                                       report state/attention (from agent hooks)
   panal notify --from-hook claude|codex   read a hook payload (stdin / last arg)
@@ -139,6 +142,8 @@ func run(args []string) error {
 		return cmdLs(ctx, c)
 	case "diff":
 		return cmdDiff(ctx, c, rest)
+	case "history":
+		return cmdHistory(ctx, c, rest)
 	case "worktrees":
 		if len(rest) != 1 {
 			return errors.New("usage: panal worktrees <projectId|name>")

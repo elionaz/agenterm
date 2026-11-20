@@ -34,6 +34,10 @@ export function DaemonStatus() {
   return window['go']['main']['App']['DaemonStatus']();
 }
 
+export function DeleteHistory(arg1) {
+  return window['go']['main']['App']['DeleteHistory'](arg1);
+}
+
 export function DeleteInstruction(arg1, arg2) {
   return window['go']['main']['App']['DeleteInstruction'](arg1, arg2);
 }
@@ -88,6 +92,10 @@ export function Handoff(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
 
 export function HandoffNote(arg1) {
   return window['go']['main']['App']['HandoffNote'](arg1);
+}
+
+export function HistoryDetail(arg1) {
+  return window['go']['main']['App']['HistoryDetail'](arg1);
 }
 
 export function Input(arg1, arg2) {
@@ -226,6 +234,10 @@ export function ResumeAll() {
   return window['go']['main']['App']['ResumeAll']();
 }
 
+export function ResumeHistory(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ResumeHistory'](arg1, arg2, arg3);
+}
+
 export function SaveInstruction(arg1, arg2, arg3) {
   return window['go']['main']['App']['SaveInstruction'](arg1, arg2, arg3);
 }
@@ -236,6 +248,10 @@ export function SaveProfile(arg1) {
 
 export function SaveSettings(arg1) {
   return window['go']['main']['App']['SaveSettings'](arg1);
+}
+
+export function SearchHistory(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SearchHistory'](arg1, arg2, arg3);
 }
 
 export function SendMessage(arg1, arg2, arg3) {
