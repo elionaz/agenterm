@@ -1,6 +1,6 @@
-// Sessions continued by another (session.handoff): the earlier one, once
-// closed, shows under the session that continues its work instead of as a
-// session of its own.
+// Sessions continued by another (session.handoff): the earlier ones, once
+// closed, show under the session that continues their work instead of as
+// sessions of their own.
 import type { Session } from './api'
 
 type Info = Pick<Session, 'id' | 'state' | 'continuedFrom'>
@@ -12,7 +12,7 @@ export interface Row<S> {
   child: boolean
   /** For a session continued from others: how many earlier ones it has. */
   earlier: number
-  /** The session it continues directly (shown, or folded under it). */
+  /** The first earlier session (named on its row). */
   from?: S
   /** Position among the top-level rows (⌘1–9), from 0; -1 for children. */
   n: number
@@ -21,19 +21,24 @@ export interface Row<S> {
 /**
  * The rows of a project's list, in its order: every session except those
  * folded under the one that continues them (closed, and continued by a
- * session in the list), which follow it, chained (A → B → C: under C, B
- * then A) and only when it is expanded.
+ * session in the list), which follow it (and, depth first, the ones they
+ * continued) only when it is expanded.
  */
 export function arrange<S extends Info>(list: S[], expanded: Record<string, boolean>): Row<S>[] {
   const byId = new Map(list.map((s) => [s.id, s]))
   const earlierOf = (s: S): S[] => {
     const out: S[] = []
     const seen = new Set([s.id])
-    for (let p = s.continuedFrom ? byId.get(s.continuedFrom) : undefined; p && p.state === 'exited' && !seen.has(p.id); ) {
-      out.push(p)
-      seen.add(p.id)
-      p = p.continuedFrom ? byId.get(p.continuedFrom) : undefined
+    const walk = (x: S) => {
+      for (const id of x.continuedFrom ?? []) {
+        const p = byId.get(id)
+        if (!p || p.state !== 'exited' || seen.has(p.id)) continue
+        seen.add(p.id)
+        out.push(p)
+        walk(p)
+      }
     }
+    walk(s)
     return out
   }
   const folded = new Set<string>()
@@ -51,7 +56,7 @@ export function arrange<S extends Info>(list: S[], expanded: Record<string, bool
   return rows
 }
 
-/** The sessions ⌘1–9 pick: the top-level rows. */
+/** The sessions ⌘1–9 pick (and the project's count): the top-level rows. */
 export function topLevel<S extends Info>(list: S[]): S[] {
   return arrange(list, {}).map((r) => r.s)
 }

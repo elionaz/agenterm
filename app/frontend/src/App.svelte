@@ -734,6 +734,7 @@
   function handedOff(info: Session) {
     handoffFor = null
     if (!sessions.some((s) => s.id === info.id)) sessions = [...sessions, info]
+    else sessions = sessions.map((s) => (s.id === info.id ? { ...s, continuedFrom: info.continuedFrom } : s))
     select(info.id)
   }
 
@@ -1361,6 +1362,7 @@
       {@const ps = paneSize()}
       <Handoff
         session={handoffFor.session}
+        {sessions}
         {profiles}
         preset={handoffFor.preset}
         cols={ps.cols}

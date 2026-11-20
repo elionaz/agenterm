@@ -41,8 +41,11 @@ Un proceso que ya corre no puede cambiar de carpeta, así que una sesión nunca 
 lo **continúa** una sesión nueva. **⇢** en la fila de una sesión (o **Pasar a un worktree** en la
 pestaña Cambios de una carpeta compartida) abre *Continuar con otro agente*:
 
-- **Agente:** cualquiera de los instalados, incluido el mismo.
-- **Dónde:** la misma carpeta o worktree, o **un worktree nuevo** en una rama nueva desde el commit
+- **Continuar en:** una sesión nueva, o **una sesión existente** del proyecto que se hace cargo del
+  trabajo (viene elegida cuando otro agente trabaja en la misma carpeta): recibe el resumen como
+  mensaje tuyo (ver [messages.md](messages.md)) y no se abre nada nuevo.
+- **Agente** (sesión nueva): cualquiera de los instalados, incluido el mismo.
+- **Dónde** (sesión nueva): la misma carpeta o worktree, o **un worktree nuevo** en una rama nueva desde el commit
   actual de la sesión (sus commits van incluidos; los cambios sin commit se quedan donde están). En
   una carpeta compartida el worktree nuevo viene elegido.
 - **Resumen:** armado a partir de la sesión (los mensajes que escribiste, en Claude Code; su carpeta
@@ -52,9 +55,12 @@ pestaña Cambios de una carpeta compartida) abre *Continuar con otro agente*:
 La sesión nueva recibe el resumen como primer mensaje (Claude Code, codex) o, en otros agentes, una
 línea escrita en su prompt que apunta al archivo (`~/.agenterm/handoffs/<sessionId>.md`). Conserva
 el nombre de la sesión anterior. La sesión anterior se cierra, para que dos agentes no editen los
-mismos archivos, salvo que marques *Dejar esta sesión abierta*. Desde la CLI:
-`agenterm handoff [--worktree] [--keep] [--note ARCHIVO|-] <sessionId> <perfil>`
-(`--print` muestra el resumen).
+mismos archivos, salvo que marques *Dejar esta sesión abierta*. Una vez cerrada, queda plegada bajo
+la sesión que la continúa en la barra lateral (**⇠ nombre** en esa fila la muestra), y una sesión
+que detuvo agenterm dice *detenida*, no un código de salida en rojo. Desde la CLI:
+`agenterm handoff [--worktree] [--keep] [--note ARCHIVO|-] <sessionId> <perfil>`,
+`agenterm handoff --into <sessionId> <sessionId>` (una sesión existente), `--print` muestra el
+resumen.
 
 ## Modos de una sesión
 

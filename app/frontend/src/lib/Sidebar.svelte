@@ -27,7 +27,7 @@
   import type { ProjectPatch } from './badge'
   import { dropSlot, moveTo } from './reorder'
   import { SHELL_PROFILE, folderSharers, inProjectFolder, joinNames } from './shared'
-  import { arrange } from './handoff'
+  import { arrange, topLevel } from './handoff'
   import { proposedMode } from './spawnmode'
   import { prettyModel } from './models'
   import { branchParts } from './branch'
@@ -473,7 +473,7 @@
             <span class="attn-count" title={t('sidebar.needAttention', { n: pending })}
               >{pending}</span
             >
-          {:else if list.length}<span class="count">{list.length}</span>{/if}
+          {:else if list.length}<span class="count">{topLevel(list).length}</span>{/if}
           <span class="row-actions">
             <button class="icon" title={t('sidebar.projectOverview')} aria-label={t('sidebar.projectOverview')} onclick={(e) => {
               e.stopPropagation()

@@ -694,9 +694,9 @@ type SessionInfo struct {
 	// Stopped: agenterm ended it (stop, close, continue with another
 	// agent), so a non-zero exit code is not a failure.
 	Stopped bool `json:"stopped,omitempty"`
-	// ContinuedFrom is the session whose work this one continues
-	// (session.handoff).
-	ContinuedFrom string `json:"continuedFrom,omitempty"`
+	// ContinuedFrom are the sessions whose work this one continues
+	// (session.handoff), oldest first.
+	ContinuedFrom []string `json:"continuedFrom,omitempty"`
 	// Mode is same | worktree; worktree sessions name their worktree.
 	Mode         string   `json:"mode,omitempty"`
 	WorktreeID   string   `json:"worktreeId,omitempty"`
@@ -1036,10 +1036,12 @@ const (
 	HandoffWorktree = "worktree" // a new worktree from its current commit
 )
 
-// HandoffParams starts ProfileID with Note where SessionID worked (Where)
-// and closes SessionID unless Keep.
+// HandoffParams starts ProfileID with Note where SessionID worked (Where),
+// or hands Note to the live session TargetID of the same project (ProfileID
+// and Where are then ignored), and closes SessionID unless Keep.
 type HandoffParams struct {
 	SessionID string `json:"sessionId"`
+	TargetID  string `json:"targetId,omitempty"`
 	ProfileID string `json:"profileId"`
 	Where     string `json:"where,omitempty"`
 	Note      string `json:"note"`

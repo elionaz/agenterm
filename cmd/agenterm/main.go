@@ -74,6 +74,7 @@ Usage:
   agenterm handoff [--worktree] [--keep] [--note FILE|-] <sessionId> <profile>
                                       continue a session's work with another agent (a summary as
                                       its first prompt); closes the session unless --keep
+  agenterm handoff --into <targetId> <sessionId>   hand it to a live session instead
   agenterm handoff --print <sessionId>   the summary it would hand over
   agenterm browser [open|url|close|status|mcp] [--session ID]
                                       the session's own isolated Chrome (open: start it, print

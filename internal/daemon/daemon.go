@@ -100,7 +100,7 @@ type Server struct {
 	models   map[string]string   // the agents' models (model.go), same lock
 	ports    map[string]sessPort // each session's port (ports.go), same lock
 	stopped  map[string]bool     // sessions agenterm ended (lineage.go), same lock
-	contFrom map[string]string   // new session → the one it continues, same lock
+	contFrom map[string][]string // session → the ones it continues, same lock
 
 	// Persistence: the session registry and when each scrollback was
 	// last saved (OutputTotal; guarded by persistMu).
@@ -194,7 +194,7 @@ func New(cfg Config) (*Server, error) {
 		models:   make(map[string]string),
 		ports:    make(map[string]sessPort),
 		stopped:  make(map[string]bool),
-		contFrom: make(map[string]string),
+		contFrom: make(map[string][]string),
 		store:    store,
 		mail:     mail,
 		saved:    make(map[string]int64),

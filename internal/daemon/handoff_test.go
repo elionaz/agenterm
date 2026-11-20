@@ -2,6 +2,7 @@ package daemon_test
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -59,8 +60,8 @@ func TestHandoff(t *testing.T) {
 		t.Fatalf("claude handoff = %+v", cl)
 	}
 	waitFor(t, "original closed", func() bool { return findSession(t, c, old.ID).State == "exited" })
-	if cl.ContinuedFrom != old.ID || findSession(t, c, cl.ID).ContinuedFrom != old.ID {
-		t.Fatalf("continuedFrom = %q, want %s", findSession(t, c, cl.ID).ContinuedFrom, old.ID)
+	if !slices.Equal(cl.ContinuedFrom, []string{old.ID}) || !slices.Equal(findSession(t, c, cl.ID).ContinuedFrom, []string{old.ID}) {
+		t.Fatalf("continuedFrom = %q, want [%s]", findSession(t, c, cl.ID).ContinuedFrom, old.ID)
 	}
 	if o := findSession(t, c, old.ID); !o.Stopped {
 		t.Fatalf("handed-off session not marked stopped: %+v", o)
@@ -128,5 +129,59 @@ func TestStoppedVsFailed(t *testing.T) {
 	waitFor(t, "failed exit", func() bool { return findSession(t, c, b.ID).State == "exited" })
 	if s := findSession(t, c, b.ID); s.Stopped || s.ExitCode == nil || *s.ExitCode != 3 {
 		t.Fatalf("failed session: stopped %v exit %v", s.Stopped, s.ExitCode)
+	}
+}
+
+func TestHandoffInto(t *testing.T) {
+	c, _, stop := startDaemon(t)
+	defer stop()
+	ctx := context.Background()
+	repo := tempRepo(t)
+	proj, err := c.ProjectAdd(ctx, repo, "web")
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := c.ProjectAdd(ctx, t.TempDir(), "other")
+	if err != nil {
+		t.Fatal(err)
+	}
+	spawn := func(pid string) protocol.SessionInfo {
+		t.Helper()
+		s, err := c.Spawn(ctx, protocol.SpawnParams{ProjectID: pid, ProfileID: "shell"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	a, b, target, far := spawn(proj.ID), spawn(proj.ID), spawn(proj.ID), spawn(other.ID)
+
+	for _, bad := range []string{a.ID, far.ID, "nope"} {
+		if _, err := c.Handoff(ctx, protocol.HandoffParams{SessionID: a.ID, TargetID: bad, Note: "x"}); err == nil {
+			t.Errorf("handoff into %s accepted", bad)
+		}
+	}
+
+	got, err := c.Handoff(ctx, protocol.HandoffParams{SessionID: a.ID, TargetID: target.ID, Note: "Finish the cart."})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ID != target.ID || !slices.Equal(got.ContinuedFrom, []string{a.ID}) {
+		t.Fatalf("into = %+v", got)
+	}
+	waitFor(t, "a closed", func() bool { s := findSession(t, c, a.ID); return s.State == "exited" && s.Stopped })
+	ms, err := c.MsgList(ctx, protocol.MsgListParams{SessionID: target.ID, PendingOnly: true})
+	if err != nil || len(ms) != 1 || !strings.Contains(ms[0].Body, "-from-"+a.ID+".md") {
+		t.Fatalf("pending for the target = %+v, %v", ms, err)
+	}
+
+	// A second session handed into the same one: both listed, oldest first.
+	if _, err := c.Handoff(ctx, protocol.HandoffParams{SessionID: b.ID, TargetID: target.ID, Note: "And the tests."}); err != nil {
+		t.Fatal(err)
+	}
+	if s := findSession(t, c, target.ID); !slices.Equal(s.ContinuedFrom, []string{a.ID, b.ID}) {
+		t.Fatalf("continuedFrom = %q", s.ContinuedFrom)
+	}
+	if _, err := c.Handoff(ctx, protocol.HandoffParams{SessionID: far.ID, TargetID: a.ID, Note: "x"}); err == nil {
+		t.Fatal("handoff into an exited session accepted")
 	}
 }

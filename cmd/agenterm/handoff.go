@@ -12,7 +12,9 @@ import (
 	"github.com/elionaz/agenterm/internal/protocol"
 )
 
-const handoffUsage = "usage: agenterm handoff [--worktree] [--keep] [--note FILE|-] [--print] <sessionId> <profile>"
+const handoffUsage = "usage: agenterm handoff [--worktree] [--keep] [--note FILE|-] <sessionId> <profile>\n" +
+	"       agenterm handoff --into <sessionId> [--keep] [--note FILE|-] <sessionId>\n" +
+	"       agenterm handoff --print <sessionId>"
 
 // cmdHandoff continues a session's work with another agent (or the same
 // one in a new worktree): it drafts the summary (or reads --note), starts
@@ -24,6 +26,7 @@ func cmdHandoff(ctx context.Context, c *client.Client, args []string) error {
 	keep := fs.Bool("keep", false, "leave the original session running")
 	noteFile := fs.String("note", "", "the summary to hand over (a file, or - for stdin); default: the drafted one")
 	printOnly := fs.Bool("print", false, "print the drafted summary and stop")
+	into := fs.String("into", "", "hand the work to this live session instead of starting one")
 	if err := parseInterspersed(fs, args); err != nil {
 		return err
 	}
@@ -38,8 +41,12 @@ func cmdHandoff(ctx context.Context, c *client.Client, args []string) error {
 		fmt.Print(n.Text)
 		return nil
 	}
-	if fs.NArg() != 2 {
+	if (*into == "" && fs.NArg() != 2) || (*into != "" && fs.NArg() != 1) {
 		return errors.New(handoffUsage)
+	}
+	profile := ""
+	if *into == "" {
+		profile = fs.Arg(1)
 	}
 	var note string
 	switch *noteFile {
@@ -66,7 +73,7 @@ func cmdHandoff(ctx context.Context, c *client.Client, args []string) error {
 	if *worktree {
 		where = protocol.HandoffWorktree
 	}
-	info, err := c.Handoff(ctx, protocol.HandoffParams{SessionID: fs.Arg(0), ProfileID: fs.Arg(1), Where: where, Note: note, Keep: *keep})
+	info, err := c.Handoff(ctx, protocol.HandoffParams{SessionID: fs.Arg(0), ProfileID: profile, TargetID: *into, Where: where, Note: note, Keep: *keep})
 	if err != nil {
 		return err
 	}

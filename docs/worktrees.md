@@ -40,8 +40,11 @@ A running process can't change folders, so a session is never "moved": its work 
 a new session. **⇢** on a session's row (or **Move to a worktree** in a shared folder's Changes tab)
 opens *Continue with another agent*:
 
-- **Agent:** any installed one, the same included.
-- **Where:** the same folder or worktree, or **a new worktree** on a new branch from the session's
+- **Continue in:** a new session, or **an existing session** of the project that takes the work
+  over (preselected when another agent works in the same folder): it gets the summary as a message
+  from you (see [messages.md](messages.md)), and nothing new starts.
+- **Agent** (new session): any installed one, the same included.
+- **Where** (new session): the same folder or worktree, or **a new worktree** on a new branch from the session's
   current commit (its commits come along; uncommitted changes stay where they are). In a shared
   folder the new worktree is preselected.
 - **Summary:** drafted from the session (the prompts you typed, for Claude Code; its folder and
@@ -51,9 +54,11 @@ opens *Continue with another agent*:
 The new session gets the summary as its first prompt (Claude Code, codex) or, for other agents, a
 line typed at its prompt pointing to it as a file (`~/.agenterm/handoffs/<sessionId>.md`). It keeps
 the old session's name. The old session closes, so two agents don't edit the same files, unless you
-tick *Keep this session open*. From the CLI:
-`agenterm handoff [--worktree] [--keep] [--note FILE|-] <sessionId> <profile>`
-(`--print` shows the summary).
+tick *Keep this session open*. Once closed, it folds under the session that continues it in the
+sidebar (**⇠ name** on that row shows it), and a session stopped by agenterm reads *stopped*, not a
+red exit code. From the CLI:
+`agenterm handoff [--worktree] [--keep] [--note FILE|-] <sessionId> <profile>`,
+`agenterm handoff --into <sessionId> <sessionId>` (an existing session), `--print` shows the summary.
 
 ## Session modes
 

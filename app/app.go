@@ -435,11 +435,12 @@ func (a *App) HandoffNote(sessionID string) (protocol.HandoffNote, error) {
 }
 
 // Handoff starts profileID with note where sessionID worked (where: same
-// or worktree) and closes sessionID unless keep.
-func (a *App) Handoff(sessionID, profileID, where, note string, keep bool, cols, rows int) (protocol.SessionInfo, error) {
+// or worktree), or hands note to the live session targetID, and closes
+// sessionID unless keep.
+func (a *App) Handoff(sessionID, profileID, targetID, where, note string, keep bool, cols, rows int) (protocol.SessionInfo, error) {
 	var out protocol.SessionInfo
 	err := a.call(func(ctx context.Context) (err error) {
-		out, err = a.client.Handoff(ctx, protocol.HandoffParams{SessionID: sessionID, ProfileID: profileID, Where: where,
+		out, err = a.client.Handoff(ctx, protocol.HandoffParams{SessionID: sessionID, ProfileID: profileID, TargetID: targetID, Where: where,
 			Note: note, Keep: keep, Cols: uint16(max(cols, 0)), Rows: uint16(max(rows, 0))})
 		return err
 	})

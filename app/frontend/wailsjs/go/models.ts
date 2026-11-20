@@ -1174,7 +1174,7 @@ export namespace protocol {
 	    model?: string;
 	    browserUrl?: string;
 	    stopped?: boolean;
-	    continuedFrom?: string;
+	    continuedFrom?: string[];
 	    mode?: string;
 	    worktreeId?: string;
 	    worktreePath?: string;

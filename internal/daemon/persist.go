@@ -100,9 +100,9 @@ func (s *Server) restoreSessions() {
 			s.models[rec.ID] = m
 			s.namesMu.Unlock()
 		}
-		if rec.ContinuedFrom != "" {
+		if len(rec.ContinuedFrom) > 0 {
 			s.namesMu.Lock()
-			s.contFrom[rec.ID] = rec.ContinuedFrom
+			s.contFrom[rec.ID] = slices.Clone(rec.ContinuedFrom)
 			s.namesMu.Unlock()
 		}
 		if rec.Port > 0 && rec.Port <= 65535 {

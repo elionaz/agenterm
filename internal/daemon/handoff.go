@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/elionaz/agenterm/internal/apierr"
 	"github.com/elionaz/agenterm/internal/gitx"
 	"github.com/elionaz/agenterm/internal/hooks"
 	"github.com/elionaz/agenterm/internal/profile"
@@ -175,6 +176,9 @@ func (s *Server) handoff(p protocol.HandoffParams) (protocol.SessionInfo, error)
 	if len(note) > 2*handoffNoteMax {
 		return protocol.SessionInfo{}, fmt.Errorf("the handoff note is %d bytes, the limit is %d", len(note), 2*handoffNoteMax)
 	}
+	if p.TargetID != "" {
+		return s.handoffInto(old, p.TargetID, note, p.Keep)
+	}
 	lp, err := s.resolveLaunch(p.ProfileID)
 	if err != nil {
 		return protocol.SessionInfo{}, err
@@ -228,14 +232,64 @@ func (s *Server) handoff(p protocol.HandoffParams) (protocol.SessionInfo, error)
 		}
 	}
 	s.setContinued(info.ID, old.ID)
-	info.ContinuedFrom = old.ID
-	if !p.Keep {
-		if _, exited := old.ExitCode(); !exited {
-			s.markStopped(old.ID)
-			old.Kill(s.cfg.KillGrace)
-		}
-	}
+	info.ContinuedFrom = append(info.ContinuedFrom, old.ID)
+	s.closeHandedOff(old, p.Keep)
 	return info, nil
+}
+
+func (s *Server) closeHandedOff(old *session.Session, keep bool) {
+	if keep {
+		return
+	}
+	if _, exited := old.ExitCode(); !exited {
+		s.markStopped(old.ID)
+		old.Kill(s.cfg.KillGrace)
+	}
+}
+
+// handoffInto hands old's work to the live session targetID of the same
+// project: the note goes to a file, and a message from the user tells the
+// session to read it (messages off: the line is typed at its prompt).
+func (s *Server) handoffInto(old *session.Session, targetID, note string, keep bool) (protocol.SessionInfo, error) {
+	target, err := s.lookup(targetID)
+	if err != nil {
+		return protocol.SessionInfo{}, err
+	}
+	switch {
+	case target.ID == old.ID:
+		return protocol.SessionInfo{}, fmt.Errorf("a session can't continue its own work")
+	case target.ProjectID != old.ProjectID:
+		return protocol.SessionInfo{}, fmt.Errorf("session %s is in another project", target.ID)
+	case target.Suspended():
+		return protocol.SessionInfo{}, fmt.Errorf("session %s is suspended: resume it first", target.ID)
+	}
+	if _, exited := target.ExitCode(); exited {
+		return protocol.SessionInfo{}, fmt.Errorf("session %s has exited", target.ID)
+	}
+	file := s.handoffFile(target.ID + "-from-" + old.ID)
+	if err := os.MkdirAll(filepath.Dir(file), 0o700); err != nil {
+		return protocol.SessionInfo{}, err
+	}
+	if err := os.WriteFile(file, []byte(note+"\n"), 0o600); err != nil {
+		return protocol.SessionInfo{}, err
+	}
+	who := old.ID
+	if n := s.sessionName(old.ID); n != "" {
+		who = fmt.Sprintf("%s (%q)", old.ID, n)
+	}
+	body := fmt.Sprintf("Take over the work of session %s (%s), which is now closed: read the handoff note in %s "+
+		"(what was asked, where it worked, its changes and commits, the end of its terminal), check the current state, "+
+		"and continue it alongside what you are doing.", who, s.profileName(old.ProfileID), file)
+	if _, err := s.msgSend(nil, protocol.MsgSendParams{To: target.ID, Body: body, ProjectID: target.ProjectID}); err != nil {
+		if code, _, _ := apierr.Code(err); code != apierr.MsgDisabled {
+			return protocol.SessionInfo{}, err
+		}
+		go s.typeHandoff(target, file)
+	}
+	s.setContinued(target.ID, old.ID)
+	s.log.Info("session handed off", "from", old.ID, "into", target.ID)
+	s.closeHandedOff(old, keep)
+	return s.sessionInfo(target), nil
 }
 
 // handoffFile is where the note for session id is (agents without a first
@@ -245,8 +299,13 @@ func (s *Server) handoffFile(id string) string {
 }
 
 func (s *Server) forgetHandoff(id string) {
-	if validSessionID.MatchString(id) {
-		_ = os.Remove(s.handoffFile(id))
+	if !validSessionID.MatchString(id) {
+		return
+	}
+	_ = os.Remove(s.handoffFile(id))
+	more, _ := filepath.Glob(filepath.Join(filepath.Dir(s.handoffFile(id)), id+"-from-*.md"))
+	for _, f := range more {
+		_ = os.Remove(f)
 	}
 }
 

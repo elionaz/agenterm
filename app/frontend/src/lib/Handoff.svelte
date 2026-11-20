@@ -5,12 +5,14 @@
   // its terminal); it is shown here to edit, then the new session starts
   // with it and the old one closes unless "keep" is ticked.
   import { onMount } from 'svelte'
-  import { api, errorMessage, launchable, type Profile, type Session, type SpawnMode } from './api'
+  import { api, errorMessage, launchable, sessionTitle, type Profile, type Session, type SpawnMode } from './api'
   import { t } from './i18n.svelte'
-  import { SHELL_PROFILE } from './shared'
+  import { SHELL_PROFILE, folderSharers, inProjectFolder } from './shared'
 
   interface Props {
     session: Session
+    /** Every session (the live ones of its project can take the work over). */
+    sessions: Session[]
     profiles: Profile[]
     /** Preselected agent and place (Changes' "move to a worktree"). */
     preset?: { profileId?: string; where?: SpawnMode }
@@ -19,10 +21,23 @@
     onDone: (s: Session) => void
     onClose: () => void
   }
-  let { session, profiles, preset, cols, rows, onDone, onClose }: Props = $props()
+  let { session, sessions, profiles, preset, cols, rows, onDone, onClose }: Props = $props()
 
   const choices = $derived(launchable(profiles).filter((p) => p.id !== SHELL_PROFILE))
   const inWorktree = $derived(session.mode === 'worktree' || !!session.worktreeId)
+  /** Live agents of the project that can take the work over. */
+  const targets = $derived(
+    sessions.filter(
+      (s) => s.projectId === session.projectId && s.id !== session.id && s.profileId !== SHELL_PROFILE && s.state !== 'exited' && s.state !== 'suspended',
+    ),
+  )
+  // svelte-ignore state_referenced_locally
+  let into = $state<'new' | 'existing'>('new')
+  let targetId = $state('')
+  function targetLabel(s: Session): string {
+    const place = s.mode === 'worktree' && s.branch ? s.branch : (s.git?.head ?? '')
+    return place ? `${sessionTitle(s)} · ${place}` : sessionTitle(s)
+  }
   // svelte-ignore state_referenced_locally
   let profileId = $state(preset?.profileId ?? '')
   // svelte-ignore state_referenced_locally
@@ -33,9 +48,15 @@
   let loading = $state(true)
   let busy = $state(false)
   let error = $state<string | null>(null)
+  const ready = $derived(!busy && !loading && !!note.trim() && (into === 'existing' ? !!targetId : !!profileId))
 
   onMount(async () => {
     if (!profileId) profileId = choices.find((p) => p.id !== session.profileId)?.id ?? choices[0]?.id ?? ''
+    // In a shared folder, the agent already working there is the natural
+    // one to take over (unless the caller asked for a new worktree).
+    const sharer = inProjectFolder(session) ? folderSharers(sessions, session.projectId, session.id)[0] : undefined
+    targetId = sharer?.id ?? targets[0]?.id ?? ''
+    if (sharer && !preset?.where) into = 'existing'
     try {
       const n = await api.handoffNote(session.id)
       note = n.text
@@ -52,7 +73,8 @@
     busy = true
     error = null
     try {
-      onDone(await api.handoff(session.id, profileId, where, note, keep, cols, rows))
+      const to = into === 'existing' ? { targetId } : { profileId, where }
+      onDone(await api.handoff(session.id, to, note, keep, cols, rows))
     } catch (e) {
       error = errorMessage(e)
     } finally {
@@ -63,7 +85,7 @@
   function onKey(e: KeyboardEvent) {
     e.stopPropagation()
     if (e.key === 'Escape') onClose()
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !busy && note.trim() && profileId) void go()
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && ready) void go()
   }
 </script>
 
@@ -75,18 +97,32 @@
     <p>{t('handoff.info')}</p>
 
     <div class="grid">
-      <label for="handoff-agent">{t('handoff.agent')}</label>
-      <select id="handoff-agent" bind:value={profileId}>
-        {#each choices as p (p.id)}<option value={p.id}>{p.name || p.id}{p.id === session.profileId ? ` (${t('handoff.same')})` : ''}</option>{/each}
-      </select>
-
-      <span>{t('handoff.where')}</span>
+      <span>{t('handoff.into')}</span>
       <span class="radios">
-        <label><input type="radio" bind:group={where} value="same" /> {inWorktree ? t('handoff.sameWorktree') : t('handoff.sameFolder')}</label>
-        <label><input type="radio" bind:group={where} value="worktree" /> {t('handoff.newWorktree')}</label>
+        <label><input type="radio" bind:group={into} value="new" /> {t('handoff.intoNew')}</label>
+        <label><input type="radio" bind:group={into} value="existing" disabled={!targets.length} /> {t('handoff.intoExisting')}</label>
       </span>
+      {#if into === 'existing'}
+        <label for="handoff-target">{t('handoff.target')}</label>
+        <select id="handoff-target" bind:value={targetId}>
+          {#each targets as s (s.id)}<option value={s.id}>{targetLabel(s)}</option>{/each}
+        </select>
+      {:else}
+        <label for="handoff-agent">{t('handoff.agent')}</label>
+        <select id="handoff-agent" bind:value={profileId}>
+          {#each choices as p (p.id)}<option value={p.id}>{p.name || p.id}{p.id === session.profileId ? ` (${t('handoff.same')})` : ''}</option>{/each}
+        </select>
+
+        <span>{t('handoff.where')}</span>
+        <span class="radios">
+          <label><input type="radio" bind:group={where} value="same" /> {inWorktree ? t('handoff.sameWorktree') : t('handoff.sameFolder')}</label>
+          <label><input type="radio" bind:group={where} value="worktree" /> {t('handoff.newWorktree')}</label>
+        </span>
+      {/if}
     </div>
-    {#if where === 'worktree'}
+    {#if into === 'existing'}
+      <p class="muted">{t('handoff.existingNote')}</p>
+    {:else if where === 'worktree'}
       <p class="muted">{t('handoff.worktreeNote')}</p>
     {:else if shared}
       <p class="warn">{t('handoff.sharedNote')}</p>
@@ -101,7 +137,7 @@
     <label class="keep"><input type="checkbox" bind:checked={keep} /> {t('handoff.keep')}</label>
     {#if error}<div class="error">{error}</div>{/if}
     <div class="row">
-      <button class="btn primary" disabled={busy || loading || !note.trim() || !profileId} onclick={go}>{t('handoff.go')}</button>
+      <button class="btn primary" disabled={!ready} onclick={go}>{t('handoff.go')}</button>
       <span class="grow"></span>
       <button class="btn" onclick={onClose}>{t('handoff.cancel')}</button>
     </div>

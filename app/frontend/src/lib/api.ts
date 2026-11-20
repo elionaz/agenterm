@@ -167,8 +167,17 @@ export const api = {
   /** The drafted summary for continuing a session's work with another agent. */
   handoffNote: (sessionId: string): Promise<HandoffNote> => App.HandoffNote(sessionId),
   /** Starts profileId with note where sessionId worked (or in a new worktree); closes it unless keep. */
-  handoff: (sessionId: string, profileId: string, where: SpawnMode, note: string, keep: boolean, cols: number, rows: number): Promise<Session> =>
-    App.Handoff(sessionId, profileId, where, note, keep, cols, rows),
+  handoff: (
+    sessionId: string,
+    to: { profileId: string; where: SpawnMode } | { targetId: string },
+    note: string,
+    keep: boolean,
+    cols: number,
+    rows: number,
+  ): Promise<Session> =>
+    'targetId' in to
+      ? App.Handoff(sessionId, '', to.targetId, '', note, keep, cols, rows)
+      : App.Handoff(sessionId, to.profileId, '', to.where, note, keep, cols, rows),
   /** Whether sessions get their own browser, and the Chrome and npx found. */
   browserStatus: (): Promise<BrowserStatus> => App.BrowserStatus(),
   closeBrowser: (sessionId: string): Promise<void> => App.CloseBrowser(sessionId),
