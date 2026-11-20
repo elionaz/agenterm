@@ -9,7 +9,8 @@ import { WebglAddon } from '@xterm/addon-webgl'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import '@xterm/xterm/css/xterm.css'
-import { BrowserOpenURL, ClipboardSetText, EventsOn, OnFileDrop, OnFileDropOff } from '../../wailsjs/runtime/runtime'
+import { BrowserOpenURL, ClipboardGetText, ClipboardSetText, EventsOn, OnFileDrop, OnFileDropOff } from '../../wailsjs/runtime/runtime'
+import { IS_MAC, primary } from './platform'
 import { api, b64ToBytes, errorMessage } from './api'
 import { dropText } from './drop'
 import { t } from './i18n.svelte'
@@ -265,9 +266,14 @@ export class TerminalManager {
         }
         return false
       }
-      if (ev.type !== 'keydown' || !ev.metaKey) return true
-      if (ev.key === 'c' && term.hasSelection()) {
+      if (ev.type !== 'keydown' || !primary(ev)) return true
+      if (ev.code === 'KeyC' && term.hasSelection()) {
         void ClipboardSetText(term.getSelection())
+        return false
+      }
+      // Linux: Ctrl+Shift+V pastes (⌘V is the webview's own on macOS).
+      if (!IS_MAC && ev.code === 'KeyV') {
+        void ClipboardGetText().then((txt) => txt && term.paste(txt))
         return false
       }
       // App shortcuts bubble to the window handler; xterm must ignore them.

@@ -9,6 +9,13 @@ releases may include breaking changes.
 
 ### Added
 
+- **A Linux app (experimental).** Each release has an AppImage and a .deb for amd64 and arm64
+  (WebKitGTK 4.1 from the system). Shortcuts use Ctrl+Shift where macOS uses ⌘ (Ctrl+letter stays
+  the shell's; split down is Ctrl+Shift+E, moving a session Ctrl+Shift+PgUp/PgDn; Ctrl+Shift+C/V copy
+  and paste, Ctrl-click opens links), and labels show the Linux keys. Notifications go through the
+  desktop's notification service (D-Bus), from the app (a click opens the session) and from the
+  daemon; the app checks for new versions and links to the download. CI now tests and packages on
+  Ubuntu too.
 - **Continue with another agent.** **⇢** on a session's row hands its work to a new session (any
   agent, the same one included) in the same folder or a new worktree from its current commit, with
   a summary you can edit: the prompts you typed (Claude Code), its branch, uncommitted files and

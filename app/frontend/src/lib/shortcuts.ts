@@ -1,6 +1,7 @@
 // App keyboard shortcuts (⌘ combos). The terminal ignores every key this
 // recognizes, so none of them reaches the PTY.
 import type { Dir } from './panes'
+import { IS_MAC } from './platform'
 
 export type Toward = 'left' | 'right' | 'up' | 'down'
 
@@ -20,7 +21,8 @@ export type Shortcut =
 
 const arrows: Record<string, Toward> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' }
 
-export function shortcutOf(e: KeyboardEvent): Shortcut | null {
+export function shortcutOf(e: KeyboardEvent, mac = IS_MAC): Shortcut | null {
+  if (!mac) return linuxShortcutOf(e)
   if (!e.metaKey || e.ctrlKey) return null
   if (e.altKey) {
     if (arrows[e.key] && !e.shiftKey) return { kind: 'movePane', toward: arrows[e.key] }
@@ -58,5 +60,49 @@ export function shortcutOf(e: KeyboardEvent): Shortcut | null {
   }
   if (e.code === 'BracketLeft') return { kind: 'cyclePane', delta: -1 }
   if (e.code === 'BracketRight') return { kind: 'cyclePane', delta: 1 }
+  return null
+}
+
+/**
+ * Linux: Ctrl+Shift plays ⌘'s part (plain Ctrl+letter belongs to the
+ * shell), so the shortcuts that add ⇧ on macOS take the usual Linux
+ * terminal keys instead: Ctrl+Shift+E splits into columns (Terminator),
+ * Ctrl+Shift+PgUp/PgDn moves the session (gnome-terminal moves tabs so).
+ * Keys go by code: Shift changes the characters.
+ */
+function linuxShortcutOf(e: KeyboardEvent): Shortcut | null {
+  if (!e.ctrlKey || !e.shiftKey || e.metaKey) return null
+  if (e.altKey) {
+    if (arrows[e.key]) return { kind: 'movePane', toward: arrows[e.key] }
+    if (e.code === 'Digit0') return { kind: 'font', delta: 0 }
+    return null
+  }
+  if (e.code === 'Equal' || e.code === 'NumpadAdd') return { kind: 'font', delta: 1 }
+  if (e.code === 'Minus' || e.code === 'NumpadSubtract') return { kind: 'font', delta: -1 }
+  if (/^Digit[0-9]$/.test(e.code)) {
+    const n = Number(e.code.slice(5))
+    return n === 0 ? { kind: 'grid' } : { kind: 'session', n }
+  }
+  if (e.key === 'PageUp' || e.key === 'PageDown') return { kind: 'moveSession', delta: e.key === 'PageUp' ? -1 : 1 }
+  switch (e.code) {
+    case 'Comma':
+      return { kind: 'settings' }
+    case 'KeyN':
+      return { kind: 'new' }
+    case 'KeyW':
+      return { kind: 'closePane' }
+    case 'KeyF':
+      return { kind: 'find' }
+    case 'KeyG':
+      return { kind: 'findNext', backwards: false }
+    case 'KeyD':
+      return { kind: 'split', dir: 'row' }
+    case 'KeyE':
+      return { kind: 'split', dir: 'col' }
+    case 'BracketLeft':
+      return { kind: 'cyclePane', delta: -1 }
+    case 'BracketRight':
+      return { kind: 'cyclePane', delta: 1 }
+  }
   return null
 }

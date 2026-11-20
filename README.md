@@ -89,7 +89,8 @@ More in [docs/architecture.md](docs/architecture.md).
 ## Install
 
 Early-stage project (0.x): expect rough edges. The app needs **macOS 13 (Ventura) or later**; it's a
-universal build (Apple Silicon and Intel) but is mostly tested on Apple Silicon.
+universal build (Apple Silicon and Intel) but is mostly tested on Apple Silicon. A **Linux** app
+(AppImage and .deb, amd64 and arm64) is published too, as experimental: see [Linux](#linux).
 
 ### Homebrew
 
@@ -109,13 +110,38 @@ Each [release](https://github.com/elionaz/agenterm/releases) has:
 - `agenterm-<version>-macos-universal.dmg` / `.zip`: the app (open the dmg and drag it to
   Applications, or unzip it);
 - `agenterm-<version>-darwin-universal.tar.gz`: just the CLI for macOS;
-- `agenterm-<version>-linux-{amd64,arm64}.tar.gz`: the CLI and daemon for Linux (experimental,
-  without notifications or the app);
+- `agenterm-<version>-linux-{amd64,arm64}.AppImage` / `.deb`: the Linux app (experimental, see
+  [Linux](#linux));
+- `agenterm-<version>-linux-{amd64,arm64}.tar.gz`: just the CLI and daemon for Linux;
 - `checksums.txt`: SHA-256 of every file (`shasum -a 256 -c checksums.txt`).
 
 Releases are signed with a Developer ID and notarized by Apple. If a release's notes say it's an
 **unsigned build**, macOS will refuse to open it; after moving it to `/Applications`, run
 `xattr -dr com.apple.quarantine /Applications/agenterm.app`.
+
+### Linux
+
+Experimental: built and packaged on Ubuntu 24.04, lightly tested. It needs **WebKitGTK 4.1** and
+GTK 3 from your distribution (Ubuntu 22.04+, Debian 12+, Fedora 39+…), which the packages don't
+bundle.
+
+- **.deb** (Ubuntu, Debian): `sudo apt install ./agenterm-<version>-linux-amd64.deb` installs the app
+  (*agenterm* in the applications menu, `agenterm-app`) and puts the `agenterm` CLI on your `PATH`.
+- **AppImage** (any distribution): `chmod +x agenterm-*.AppImage` and run it (install
+  `libwebkit2gtk-4.1-0` first if your system lacks it). On first launch it copies its CLI to
+  `~/.local/share/agenterm/bin/agenterm`, which the daemon runs from (it outlives the window); add
+  that folder to your `PATH` to use the CLI.
+
+What differs from macOS:
+
+- **Shortcuts use Ctrl+Shift** where macOS uses ⌘ (Ctrl+Shift+N, Ctrl+Shift+1…), so Ctrl+letter keeps
+  reaching the shell; ⌘⇧D is **Ctrl+Shift+E** (split down) and ⌘⇧↑/↓ is **Ctrl+Shift+PgUp/PgDn**.
+  Ctrl+Shift+C / Ctrl+Shift+V copy and paste in the terminal; **Ctrl-click** opens links. The app
+  shows the Linux keys in its labels.
+- **Notifications** go through the desktop's notification service (D-Bus); clicking one opens its
+  session. No Dock badge.
+- **Updates** aren't installed by the app: it checks for new versions every few hours and the
+  banner links to the download.
 
 ### Build from source
 

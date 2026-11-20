@@ -1,4 +1,4 @@
-//go:build !darwin
+//go:build !darwin && !linux
 
 package main
 
@@ -34,8 +34,3 @@ func (otherDesktop) Post(n note) error {
 	}
 	return desktopnotify.Osascript(n.Title, n.Body, n.Sound)
 }
-
-func installPreferencesMenu(string, func()) {}
-func setPreferencesTitle(string)            {}
-func installUpdatesMenu(string, string)     {}
-func setUpdatesMenu(string, string)         {}

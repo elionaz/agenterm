@@ -164,6 +164,8 @@ export const api = {
   reorderProfiles: (ids: string[]): Promise<Profile[]> => App.ReorderProfiles(ids),
   rescanProfiles: (): Promise<Profile[]> => App.RescanProfiles(),
   getSettings: (): Promise<Settings> => App.GetSettings(),
+  /** The window gained or lost the focus (Linux; macOS asks NSApp). */
+  windowFocus: (focused: boolean): Promise<void> => App.WindowFocus(focused),
   /** The drafted summary for continuing a session's work with another agent. */
   handoffNote: (sessionId: string): Promise<HandoffNote> => App.HandoffNote(sessionId),
   /** Starts profileId with note where sessionId worked (or in a new worktree); closes it unless keep. */

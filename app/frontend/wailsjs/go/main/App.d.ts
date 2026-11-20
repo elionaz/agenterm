@@ -153,4 +153,6 @@ export function UpdateProject(arg1:protocol.ProjectUpdateParams):Promise<project
 
 export function UpdaterState():Promise<main.UpdaterState>;
 
+export function WindowFocus(arg1:boolean):Promise<void>;
+
 export function WorktreeDiff(arg1:string):Promise<protocol.DiffResult>;

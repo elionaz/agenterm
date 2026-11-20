@@ -341,11 +341,12 @@ On macOS the Inkscape CLI isn't on the `PATH`; it's at
 
 ## Known limitations
 
-- **macOS only.** The app, notifications and the Dock are macOS-only, and it's only tested on macOS
-  (Apple Silicon). The transport is a unix socket; Windows isn't supported.
+- **macOS first.** The app is mostly tested on macOS (Apple Silicon); the Linux app is experimental
+  (below). The transport is a unix socket; Windows isn't supported.
 - **Upgrading doesn't restart the daemon**: after installing a new version, a daemon that was
   already running keeps the old code until `agenterm stop` (or a computer restart).
-- The **Linux CLI** builds and is published, but is untested; there's no app or notifications there.
+- The **Linux app** (AppImage, .deb) is experimental: CI builds, tests and packages it on Ubuntu
+  24.04 (`scripts/package-linux.sh`), but it's lightly tested on real desktops.
 - **A daemon restart (or a computer restart) kills the processes.** Sessions come back as
   `suspended`, with their scrollback, and are respawned on resume: Claude Code and codex continue
   their conversation by id, opencode and Cursor CLI with `--continue` and Hermes with `-c` (each project's *last*

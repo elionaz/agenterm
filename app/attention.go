@@ -178,6 +178,10 @@ func (a *App) focusSession(id string) {
 	a.emit(evFocusSession, id)
 }
 
+// WindowFocus tells the backend whether the window has the focus (Linux,
+// where the desktop can't be asked: no notification for what is in view).
+func (a *App) WindowFocus(focused bool) { setWindowFocused(focused) }
+
 // SetVisibleSessions tells the backend which sessions the window shows
 // (every pane of a split layout), so it does not notify about what the
 // user is looking at.

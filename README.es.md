@@ -94,7 +94,8 @@ Más en [docs/es/architecture.md](docs/es/architecture.md).
 
 Proyecto en etapa temprana (0.x): espera asperezas. La app necesita **macOS 13 (Ventura) o
 posterior**; es un build universal (Apple Silicon e Intel), aunque se prueba sobre todo en Apple
-Silicon.
+Silicon. También se publica una app para **Linux** (AppImage y .deb, amd64 y arm64), experimental:
+ver [Linux](#linux).
 
 ### Homebrew
 
@@ -114,13 +115,37 @@ Cada [release](https://github.com/elionaz/agenterm/releases) trae:
 - `agenterm-<versión>-macos-universal.dmg` / `.zip`: la app (abre el dmg y arrástrala a
   Aplicaciones, o descomprime el zip);
 - `agenterm-<versión>-darwin-universal.tar.gz`: solo la CLI para macOS;
-- `agenterm-<versión>-linux-{amd64,arm64}.tar.gz`: la CLI y el daemon para Linux (experimental, sin
-  notificaciones ni app);
+- `agenterm-<versión>-linux-{amd64,arm64}.AppImage` / `.deb`: la app para Linux (experimental, ver
+  [Linux](#linux));
+- `agenterm-<versión>-linux-{amd64,arm64}.tar.gz`: solo la CLI y el daemon para Linux;
 - `checksums.txt`: el SHA-256 de cada archivo (`shasum -a 256 -c checksums.txt`).
 
 Las releases van firmadas con un Developer ID y notarizadas por Apple. Si las notas de una release
 dicen que es un **build sin firmar**, macOS se negará a abrirla; después de moverla a
 `/Applications`, ejecuta `xattr -dr com.apple.quarantine /Applications/agenterm.app`.
+
+### Linux
+
+Experimental: se compila y empaqueta en Ubuntu 24.04 y está poco probado. Necesita **WebKitGTK 4.1**
+y GTK 3 de tu distribución (Ubuntu 22.04+, Debian 12+, Fedora 39+…), que los paquetes no incluyen.
+
+- **.deb** (Ubuntu, Debian): `sudo apt install ./agenterm-<versión>-linux-amd64.deb` instala la app
+  (*agenterm* en el menú de aplicaciones, `agenterm-app`) y pone la CLI `agenterm` en tu `PATH`.
+- **AppImage** (cualquier distribución): `chmod +x agenterm-*.AppImage` y ejecútalo (instala antes
+  `libwebkit2gtk-4.1-0` si tu sistema no lo tiene). La primera vez copia su CLI a
+  `~/.local/share/agenterm/bin/agenterm`, desde donde corre el daemon (sigue vivo al cerrar la
+  ventana); agrega esa carpeta a tu `PATH` para usar la CLI.
+
+Lo que cambia respecto a macOS:
+
+- **Los atajos usan Ctrl+Shift** donde macOS usa ⌘ (Ctrl+Shift+N, Ctrl+Shift+1…), así Ctrl+letra
+  sigue llegando a la terminal; ⌘⇧D es **Ctrl+Shift+E** (dividir hacia abajo) y ⌘⇧↑/↓ es
+  **Ctrl+Shift+RePág/AvPág**. Ctrl+Shift+C / Ctrl+Shift+V copian y pegan en la terminal; **Ctrl-clic**
+  abre los enlaces. La app muestra las teclas de Linux en sus etiquetas.
+- **Las notificaciones** van por el servicio de notificaciones del escritorio (D-Bus); al hacer clic
+  se abre su sesión. No hay contador en el Dock.
+- **Las actualizaciones** no las instala la app: busca versiones nuevas cada pocas horas y el aviso
+  lleva a la descarga.
 
 Los cambios de cada versión están en [CHANGELOG.md](CHANGELOG.md) (solo en inglés).
 

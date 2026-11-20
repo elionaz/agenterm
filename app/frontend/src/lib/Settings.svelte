@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { keyLabel } from './platform'
   import { onMount } from 'svelte'
   import { installCommand } from './install'
   import { BrowserOpenURL } from '../../wailsjs/runtime/runtime'
@@ -935,12 +936,12 @@
               <em>
                 {updater.lastCheck
                   ? t('settings.updates.lastCheck', { when: new Date(updater.lastCheck).toLocaleString(locale()) })
-                  : updater.enabled
+                  : updater.enabled || updater.reason === 'manual'
                     ? t('settings.updates.neverChecked')
                     : ''}
               </em>
             </span>
-            {#if updater.enabled}
+            {#if updater.enabled || updater.reason === 'manual'}
               <button class="btn" disabled={!updater.canCheck || checking} onclick={checkNow}>
                 {checking ? t('settings.updates.checking') : t('settings.updates.check')}
               </button>
@@ -960,7 +961,9 @@
                   ? t('banner.updateDownloadingButton')
                   : u.ready
                     ? t('banner.updateRestart')
-                    : t('banner.update')}
+                    : u.url
+                      ? t('banner.download')
+                      : t('banner.update')}
               </button>
             </div>
           {/if}
@@ -994,6 +997,8 @@
                 <em>{t('settings.updates.downloadHelp')}</em>
               </span>
             </label>
+          {:else if updater.reason === 'manual'}
+            <p class="hint updates">{t('settings.updates.manual')}</p>
           {:else if updater.reason !== 'starting'}
             <p class="hint updates">{@html th(updaterHintKey)}</p>
           {/if}
@@ -1181,7 +1186,7 @@
                 <div class="who">
                   <div class="name">
                     {p.name}
-                    {#if p.id === firstId}<span class="tag first">⌘N</span>{/if}
+                    {#if p.id === firstId}<span class="tag first">{keyLabel('⌘N')}</span>{/if}
                     <span class="tag">{sourceLabel(p)}</span>
                   </div>
                   <div class="cmd" title={p.path ?? ''}>

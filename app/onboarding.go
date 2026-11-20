@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	goruntime "runtime"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -114,10 +115,17 @@ func notificationState0() string {
 	return ""
 }
 
-// bundledCLI is Contents/Helpers/agenterm next to this executable.
+// bundledCLI is Contents/Helpers/agenterm next to this executable (on
+// Linux: the CLI shipped next to the app, see daemonExe).
 func bundledCLI() string {
 	exe, err := os.Executable()
 	if err != nil {
+		return ""
+	}
+	if goruntime.GOOS == "linux" {
+		if cli := daemonExe(exe); cli != exe {
+			return cli
+		}
 		return ""
 	}
 	bundle := macnotify.BundlePath(exe)

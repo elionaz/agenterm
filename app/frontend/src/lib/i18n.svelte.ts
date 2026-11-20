@@ -1,6 +1,7 @@
 // Tiny typed i18n: the current language is reactive state, so templates
 // that call t() re-render when it changes (no reload). Dictionaries live in
 // ./locales (en is the source of truth).
+import { keyLabel } from './platform'
 import { en, type Msg, type MsgKey } from './locales/en'
 import { es } from './locales/es'
 
@@ -114,7 +115,7 @@ function interpolate(s: string, params: Params | undefined, esc: (v: string) => 
 export function t(key: MsgKey, params?: Params): string {
   const l = lang()
   const m = dicts[l][key] ?? en[key]
-  return interpolate(pick(m, l, params), params, (v) => v)
+  return keyLabel(interpolate(pick(m, l, params), params, (v) => v))
 }
 
 export function escapeHtml(s: string): string {
@@ -126,7 +127,7 @@ export function escapeHtml(s: string): string {
 export function th(key: MsgKey, params?: Params): string {
   const l = lang()
   const m = dicts[l][key] ?? en[key]
-  return interpolate(pick(m, l, params), params, escapeHtml)
+  return keyLabel(interpolate(pick(m, l, params), params, escapeHtml))
 }
 
 applyDocumentLang()
