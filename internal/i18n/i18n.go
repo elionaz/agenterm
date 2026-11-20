@@ -125,7 +125,7 @@ const (
 
 	// Typed into an agent's terminal by the app's "Deliver" button
 	// (messages from other sessions are waiting).
-	MsgNudgeRead = "msg.nudge.read" // agents that read them with agenterm msg read
+	MsgNudgeRead = "msg.nudge.read" // agents that read them with panal msg read
 	MsgNudgeHook = "msg.nudge.hook" // agents whose hooks hand them over (Claude)
 )
 
@@ -147,10 +147,10 @@ var messages = map[string]map[Lang]string{
 
 	PermissionFor: {EN: "Permission for %s", ES: "Permiso para %s"},
 	TermRestored:  {EN: "session restored · %s", ES: "sesión restaurada · %s"},
-	MsgNudgeRead: {EN: "[agenterm] There are new messages for you from other sessions of this project: run `agenterm msg read` to read them.",
-		ES: "[agenterm] Hay mensajes nuevos para ti de otras sesiones de este proyecto: ejecuta `agenterm msg read` para leerlos."},
-	MsgNudgeHook: {EN: "[agenterm] There are new messages for you from other sessions of this project.",
-		ES: "[agenterm] Hay mensajes nuevos para ti de otras sesiones de este proyecto."},
+	MsgNudgeRead: {EN: "[panal] There are new messages for you from other sessions of this project: run `panal msg read` to read them.",
+		ES: "[panal] Hay mensajes nuevos para ti de otras sesiones de este proyecto: ejecuta `panal msg read` para leerlos."},
+	MsgNudgeHook: {EN: "[panal] There are new messages for you from other sessions of this project.",
+		ES: "[panal] Hay mensajes nuevos para ti de otras sesiones de este proyecto."},
 	TermSuspended: {EN: "suspended since %s (daemon restarted) · resume to continue", ES: "suspendida desde %s (el daemon se reinició) · reanúdala para continuar"},
 
 	// Activity lines: "activity.<kind>" takes the target, ".bare" is used

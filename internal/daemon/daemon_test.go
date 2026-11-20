@@ -14,11 +14,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/apierr"
-	"github.com/elionaz/agenterm/internal/client"
-	"github.com/elionaz/agenterm/internal/daemon"
-	"github.com/elionaz/agenterm/internal/paths"
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/apierr"
+	"github.com/elionaz/panal/internal/client"
+	"github.com/elionaz/panal/internal/daemon"
+	"github.com/elionaz/panal/internal/paths"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 const testProfiles = `
@@ -103,7 +103,7 @@ func startServer(t *testing.T, p paths.Paths, notifier func(daemon.Notification)
 		IdleAfter:  time.Hour, // keep the heuristic out of the way unless a profile overrides it
 		KillGrace:  time.Second,
 		Logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
-		Exe:        "/opt/agenterm test/agenterm",
+		Exe:        "/opt/panal test/panal",
 		Notifier:   notifier,
 		SearchPath: hermeticPath,
 	})
@@ -136,21 +136,21 @@ func startServer(t *testing.T, p paths.Paths, notifier func(daemon.Notification)
 			}
 		case <-time.After(5 * time.Second):
 			// The daemon runs in this process: show what it is stuck on.
-			t.Errorf("daemon did not stop; agenterm goroutines:\n%s", agentermStacks())
+			t.Errorf("daemon did not stop; panal goroutines:\n%s", panalStacks())
 		}
 	}
 	t.Cleanup(stop)
 	return srv, c, stop
 }
 
-// agentermStacks is the stacks of the goroutines that are in agenterm code
+// panalStacks is the stacks of the goroutines that are in panal code
 // (the rest are the runtime's and the test framework's).
-func agentermStacks() string {
+func panalStacks() string {
 	buf := make([]byte, 4<<20)
 	buf = buf[:runtime.Stack(buf, true)]
 	var out []string
 	for _, g := range strings.Split(string(buf), "\n\n") {
-		if strings.Contains(g, "agenterm/internal/") && !strings.Contains(g, "agentermStacks") {
+		if strings.Contains(g, "panal/internal/") && !strings.Contains(g, "panalStacks") {
 			out = append(out, g)
 		}
 	}

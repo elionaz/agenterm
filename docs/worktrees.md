@@ -16,7 +16,7 @@ uncommitted changes and the index. What one agent edits or commits, the others s
 branch, stashes or commits, it takes the others' half-done work with it. The **±N** in the sidebar
 and the Changes tab show that folder, so every session there shows the same files.
 
-For agents working in parallel, give each one its own **worktree**. That is what agenterm does by
+For agents working in parallel, give each one its own **worktree**. That is what panal does by
 default (`git.default_mode: worktree`, since 0.7.0): a new agent starts on its own branch and
 folder, and a plain **Shell** starts in the project folder. **Same folder** is still one click away
 in the **+** menu.
@@ -29,7 +29,7 @@ in the **+** menu.
 - A session that does share the folder says so: the Changes tab shows *Shared folder* with the
   other agents, and so does the **±N** tooltip. **Move to a worktree** there continues it in a
   worktree of its own (see below).
-- `agenterm spawn` without `--worktree` prints a note on stderr when the new session shares the
+- `panal spawn` without `--worktree` prints a note on stderr when the new session shares the
   folder (stdout is still just the id).
 
 Each worktree's work comes back with **Merge into the base** or **Create pull request** (below).
@@ -52,13 +52,13 @@ opens *Continue with another agent*:
   before continuing.
 
 The new session gets the summary as its first prompt (Claude Code, codex) or, for other agents, a
-line typed at its prompt pointing to it as a file (`~/.agenterm/handoffs/<sessionId>.md`). It keeps
+line typed at its prompt pointing to it as a file (`~/.panal/handoffs/<sessionId>.md`). It keeps
 the old session's name. The old session closes, so two agents don't edit the same files, unless you
 tick *Keep this session open*. Once closed, it folds under the session that continues it in the
-sidebar (**⇠ name** on that row shows it), and a session stopped by agenterm reads *stopped*, not a
+sidebar (**⇠ name** on that row shows it), and a session stopped by panal reads *stopped*, not a
 red exit code. From the CLI:
-`agenterm handoff [--worktree] [--keep] [--note FILE|-] <sessionId> <profile>`,
-`agenterm handoff --into <sessionId> <sessionId>` (an existing session), `--print` shows the summary.
+`panal handoff [--worktree] [--keep] [--note FILE|-] <sessionId> <profile>`,
+`panal handoff --into <sessionId> <sessionId>` (an existing session), `--print` shows the summary.
 
 ## Session modes
 
@@ -70,7 +70,7 @@ red exit code. From the CLI:
   - **Base**: the project's current branch by default (or `main`/`master` if `HEAD` is detached).
     It can be any branch or commit.
   - **Folder**: `<worktrees>/<project>-<projectId>/<sessionId>/`, where `<worktrees>` is
-    `~/.agenterm/worktrees` (or `git.worktree_dir`) and `<project>` is the project name, lowercased
+    `~/.panal/worktrees` (or `git.worktree_dir`) and `<project>` is the project name, lowercased
     and sanitized. Worktrees are **never** created inside the project.
   - It's allowed even if the main folder has changes: the worktree starts from the base's commit.
   - If the project is a subfolder of the repo, the session starts in that same subfolder of the
@@ -78,7 +78,7 @@ red exit code. From the CLI:
   - Clear errors if the project isn't a git repo (in the app the option is disabled, with the
     reason), if the repo has no commits yet or if the base doesn't exist.
 - **Reopening a worktree** (`--in-worktree <id>` in the CLI, *open a shell here* in the app): a new
-  session in an existing agenterm worktree.
+  session in an existing panal worktree.
 
 A worktree's id is the id of the session that created it.
 
@@ -89,7 +89,7 @@ folder the first time.
 ## Setting up new worktrees
 
 A new worktree only has what git tracks, so an agent's first run often fails: no `.env`, no
-`node_modules`. An **`.agenterm.yaml`** at the root of the repository (commit it to share it) says
+`node_modules`. A **`.panal.yaml`** at the root of the repository (commit it to share it) says
 what every new worktree gets:
 
 ```yaml
@@ -106,24 +106,24 @@ worktree:
 - **`setup`**: a shell command run in the session's terminal, in your login shell, before the
   agent starts; you see its output there. If it fails, the terminal says so and waits: **Enter**
   starts the agent anyway, **Ctrl-C** ends the session.
-- **Trust**: a repository can carry any command, so agenterm runs a `setup` only once you trusted
+- **Trust**: a repository can carry any command, so panal runs a `setup` only once you trusted
   it. The first time (and whenever the command changes) the app shows it and asks: **Trust and
-  create**, **Create without setup** or cancel. From the CLI: `agenterm spawn --worktree
+  create**, **Create without setup** or cancel. From the CLI: `panal spawn --worktree
   --trust-setup` or `--no-setup` (without either, the spawn fails with `setup_untrusted` and the
-  command). What you trusted is kept per repository in `~/.agenterm/trust.json` (only a hash of
+  command). What you trusted is kept per repository in `~/.panal/trust.json` (only a hash of
   the command).
 - **Only new worktrees**: resuming a session or reopening a worktree runs nothing again.
 - **`node_modules`**: let `setup` install it (`npm install`, `pnpm i`…) rather than copying it:
   branches can have different dependencies, and a shared folder would mix them.
-- **Without the file**: when a repository has no `.agenterm.yaml` and git ignores `.env*` files at
+- **Without the file**: when a repository has no `.panal.yaml` and git ignores `.env*` files at
   its root, the app offers to copy them into the new worktree, once or by writing a first
-  `.agenterm.yaml` with them (`agenterm spawn` prints a note instead).
+  `.panal.yaml` with them (`panal spawn` prints a note instead).
 
 ## A port per session
 
-Two agents that start a dev server both want port 3000. Every session gets **`AGENTERM_PORT`**, a
+Two agents that start a dev server both want port 3000. Every session gets **`PANAL_PORT`**, a
 port of its own: the lowest one from 3000 that no other session of the project holds and nothing
-listens on. A session keeps it when it is resumed. When the repository's `.agenterm.yaml` asks for
+listens on. A session keeps it when it is resumed. When the repository's `.panal.yaml` asks for
 ports, **`PORT`** is set to it too, and the sidebar and title bar show it (`:3001`; click it to copy
 `localhost:3001`):
 
@@ -134,15 +134,15 @@ ports:
 ```
 
 Next.js, Express, Rails, Flask and most servers read `PORT`. **Vite doesn't**: start it with
-`vite --port $AGENTERM_PORT` (in your `dev` script), or read `process.env.VITE_PORT` in
-`vite.config` and list it: `env: [PORT, VITE_PORT]`. Without `ports.base`, only `AGENTERM_PORT` is
+`vite --port $PANAL_PORT` (in your `dev` script), or read `process.env.VITE_PORT` in
+`vite.config` and list it: `env: [PORT, VITE_PORT]`. Without `ports.base`, only `PANAL_PORT` is
 set, so nothing changes for servers that expect their usual port.
 
 ## Lifecycle
 
 - **Killing a session never deletes its worktree.** The registry (`worktrees.json`) survives daemon
   restarts.
-- Worktree states (`agenterm worktrees <project>`):
+- Worktree states (`panal worktrees <project>`):
   - `live`: a live session is using it;
   - `exited`: only used by sessions that have exited but are still in the list, or that are
     `suspended` after a daemon restart (resuming one reopens it in this worktree);
@@ -178,7 +178,7 @@ set, so nothing changes for servers that expect their usual port.
 
 ## Actions
 
-- **Merge into the base** (`agenterm worktree merge <id>`): `git merge --no-ff` of the branch in the
+- **Merge into the base** (`panal worktree merge <id>`): `git merge --no-ff` of the branch in the
   repo's **main folder**. Only if:
   - the main folder is on the base branch;
   - it has no changes to tracked files (untracked files don't block it; there's no automatic
@@ -191,7 +191,7 @@ set, so nothing changes for servers that expect their usual port.
   the worktree aren't part of the merge (you're told how many were left out). In the app, a
   successful merge then offers to remove the worktree and its branch (the usual remove
   confirmation, with *delete the branch* already ticked).
-- **Create pull request** (`agenterm worktree pr [--no-open] <id>`): `git push -u <remote> <branch>`
+- **Create pull request** (`panal worktree pr [--no-open] <id>`): `git push -u <remote> <branch>`
   and then opens the host's page to create the pull request into the base. It doesn't use `gh` and
   never force-pushes or pushes the base.
   - Remote: the one git would push to: `branch.<branch>.pushRemote`, else `remote.pushDefault`,
@@ -208,7 +208,7 @@ set, so nothing changes for servers that expect their usual port.
     count as GitHub). Other hosts: the branch is pushed and you open the pull
     request there yourself.
   - Uncommitted changes in the worktree are not pushed (you're told how many).
-- **Remove worktree** (`agenterm worktree rm <id>`):
+- **Remove worktree** (`panal worktree rm <id>`):
   - refuses if a live session is using it;
   - without *force* it also refuses if uncommitted changes would be lost or, when also deleting the
     branch (`--delete-branch`), commits not merged into the base; the error lists what would be
@@ -217,7 +217,7 @@ set, so nothing changes for servers that expect their usual port.
   - after removing: `git worktree prune` and, if requested, `git branch -D` (safe: unmerged commits
     were already checked against the base, unless *force* is used).
 - **Open in editor** (`git.editor`; `code` by default if it's on the `PATH`, otherwise Finder) and
-  **Open in Finder** (`agenterm worktree open [--finder] <id>`).
+  **Open in Finder** (`panal worktree open [--finder] <id>`).
 - **Copy branch** (app only, to the clipboard).
 
 ## Pull requests on GitHub and GitLab
@@ -226,7 +226,7 @@ The **Changes** tab shows the pull request of the branch, for worktree sessions 
 the main folder (the branch it is on; nothing on the base branch). It goes through the host's own
 CLI with your login: [`gh`](https://cli.github.com) for GitHub and
 [`glab`](https://gitlab.com/gitlab-org/cli) for GitLab (gitlab.com and hosts whose name contains
-`gitlab`). agenterm stores no tokens. Without the CLI, or logged out, Changes says how to set it up
+`gitlab`). panal stores no tokens. Without the CLI, or logged out, Changes says how to set it up
 (`brew install gh`, `gh auth login`) and keeps the push-and-open-the-page flow above.
 
 **A session that works on several branches.** An agent may switch branches inside its worktree

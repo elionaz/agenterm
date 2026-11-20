@@ -15,9 +15,9 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/elionaz/agenterm/internal/apierr"
-	"github.com/elionaz/agenterm/internal/fileformat"
-	"github.com/elionaz/agenterm/internal/order"
+	"github.com/elionaz/panal/internal/apierr"
+	"github.com/elionaz/panal/internal/fileformat"
+	"github.com/elionaz/panal/internal/order"
 )
 
 // Format is the projects.json format version (see internal/fileformat).

@@ -3,11 +3,11 @@ package main
 import (
 	"testing"
 
-	"github.com/elionaz/agenterm/internal/i18n"
+	"github.com/elionaz/panal/internal/i18n"
 )
 
 func TestDecideUpdater(t *testing.T) {
-	ok := bundleInfo{Path: "/Applications/agenterm.app", Version: "0.2.0", PublicEDKey: "abc=", HasSparkle: true}
+	ok := bundleInfo{Path: "/Applications/panal.app", Version: "0.2.0", PublicEDKey: "abc=", HasSparkle: true}
 	for _, c := range []struct {
 		name  string
 		built bool

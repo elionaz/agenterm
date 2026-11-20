@@ -39,7 +39,7 @@ var codexOwnKey = regexp.MustCompile(`^\s*developer_instructions\s*=`)
 // CodexOwnInstructions reports whether the user's codex configuration
 // ($CODEX_HOME/config.toml, else ~/.codex/config.toml) sets
 // developer_instructions at its top level: `-c` would replace that text,
-// so agenterm leaves it alone. Only the lines before the first [table]
+// so panal leaves it alone. Only the lines before the first [table]
 // header are top level.
 func CodexOwnInstructions() bool {
 	dir := os.Getenv("CODEX_HOME")

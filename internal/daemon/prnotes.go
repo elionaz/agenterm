@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/elionaz/agenterm/internal/hooks"
-	"github.com/elionaz/agenterm/internal/profile"
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/redact"
-	"github.com/elionaz/agenterm/internal/sessionstore"
+	"github.com/elionaz/panal/internal/hooks"
+	"github.com/elionaz/panal/internal/profile"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/redact"
+	"github.com/elionaz/panal/internal/sessionstore"
 )
 
 // The "Agent sessions" section suggested for a new pull request: which
@@ -83,7 +83,7 @@ func renderNotes(notes []noteSession) string {
 	}
 	var b strings.Builder
 	b.WriteString(noteSectionHead + "\n\n")
-	b.WriteString("Made with [agenterm](https://github.com/elionaz/agenterm). Prompts as typed, secrets removed.\n")
+	b.WriteString("Made with [panal](https://github.com/elionaz/panal). Prompts as typed, secrets removed.\n")
 	for _, n := range notes {
 		var sum strings.Builder
 		sum.WriteString("<b>" + html.EscapeString(n.Agent) + "</b>")

@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/elionaz/agenterm/internal/shellenv"
+	"github.com/elionaz/panal/internal/shellenv"
 )
 
 // prepareDaemonEnv adjusts this process's environment before it spawns the
@@ -19,7 +19,7 @@ func prepareDaemonEnv() {
 	// Sessions are rendered by xterm.js, whatever terminal launched the app.
 	os.Setenv("TERM", "xterm-256color")
 	os.Setenv("COLORTERM", "truecolor")
-	os.Setenv("TERM_PROGRAM", "agenterm")
+	os.Setenv("TERM_PROGRAM", "panal")
 	if os.Getenv("LANG") == "" && os.Getenv("LC_ALL") == "" && os.Getenv("LC_CTYPE") == "" {
 		os.Setenv("LANG", "en_US.UTF-8")
 	}

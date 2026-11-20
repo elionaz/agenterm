@@ -1,7 +1,7 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "agenterm",
-  "outputfilename": "agenterm",
+  "name": "panal",
+  "outputfilename": "panal",
   "frontend:install": "npm ci",
   "frontend:build": "npm run build",
   "frontend:dev:watcher": "npm run dev",
@@ -11,14 +11,14 @@
   },
   "info": {
     "companyName": "elionaz",
-    "productName": "agenterm",
+    "productName": "panal",
     "productVersion": "0.1.0",
     "copyright": "© 2026 elionaz",
     "comments": "Desktop workspace for coding agents",
     "protocols": [
       {
-        "scheme": "agenterm",
-        "description": "Open an agenterm session",
+        "scheme": "panal",
+        "description": "Open a panal session",
         "role": "Viewer"
       }
     ]

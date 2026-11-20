@@ -133,7 +133,7 @@ func TestCompose(t *testing.T) {
 	}
 	web := Compose(ts, "web", "web")
 	for _, want := range []string{`of project "web"`, "## General\n\nAnswer in Spanish.", "## Web\n\nUse pnpm.",
-		"agenterm instructions show <topic>", "- git: Branches, commits, PRs"} {
+		"panal instructions show <topic>", "- git: Branches, commits, PRs"} {
 		if !strings.Contains(web, want) {
 			t.Errorf("web lacks %q:\n%s", want, web)
 		}

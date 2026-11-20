@@ -1,5 +1,5 @@
-// Package repoconfig reads a repository's own agenterm configuration,
-// .agenterm.yaml at the root of its main checkout (versioned with the
+// Package repoconfig reads a repository's own panal configuration,
+// .panal.yaml at the root of its main checkout (versioned with the
 // project, so a team shares it):
 //
 //	worktree:
@@ -26,11 +26,12 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/elionaz/agenterm/internal/fileformat"
+	"github.com/elionaz/panal/internal/fileformat"
 )
 
-// Names are the file names looked for, in order.
-var Names = []string{".agenterm.yaml", ".agenterm.yml"}
+// Names are the file names looked for, in order. The .agenterm ones are
+// from before the rename to panal; new files are always .panal.yaml.
+var Names = []string{".panal.yaml", ".panal.yml", ".agenterm.yaml", ".agenterm.yml"}
 
 // Format is the newest version of the file this build reads.
 const Format = 1
@@ -169,9 +170,9 @@ func validEnvName(s string) bool {
 }
 
 // ErrExists is returned by Create when the repository already has a file.
-var ErrExists = errors.New("the repository already has an .agenterm.yaml")
+var ErrExists = errors.New("the repository already has a .panal.yaml")
 
-// Create writes a first .agenterm.yaml at root that copies the given
+// Create writes a first .panal.yaml at root that copies the given
 // entries, with the other settings commented out as a starting point. It
 // returns the file's path.
 func Create(root string, copy []string) (string, error) {
@@ -186,15 +187,15 @@ func Create(root string, copy []string) (string, error) {
 		}
 	}
 	var b strings.Builder
-	b.WriteString("# agenterm configuration for this repository (commit it to share it).\n")
-	b.WriteString("# https://github.com/elionaz/agenterm/blob/main/docs/worktrees.md#setting-up-new-worktrees\n")
+	b.WriteString("# panal configuration for this repository (commit it to share it).\n")
+	b.WriteString("# https://github.com/elionaz/panal/blob/main/docs/worktrees.md#setting-up-new-worktrees\n")
 	b.WriteString("worktree:\n")
 	b.WriteString("  # Copied from the main folder into every new worktree (git does not track them).\n")
 	b.WriteString("  copy:\n")
 	for _, e := range copy {
 		fmt.Fprintf(&b, "    - %s\n", yamlScalar(e))
 	}
-	b.WriteString("  # Run in a new worktree before the agent starts (agenterm asks you to trust it first).\n")
+	b.WriteString("  # Run in a new worktree before the agent starts (panal asks you to trust it first).\n")
 	b.WriteString("  # setup: npm install\n")
 	b.WriteString("# Give each session its own port (PORT=3000, 3001, …):\n")
 	b.WriteString("# ports:\n")

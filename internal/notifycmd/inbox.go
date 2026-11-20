@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/elionaz/agenterm/internal/hooks"
-	"github.com/elionaz/agenterm/internal/mailbox"
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/hooks"
+	"github.com/elionaz/panal/internal/mailbox"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 // Claude Code hook events that hand the session its messages: at start
@@ -81,7 +81,7 @@ func intro(self string, p protocol.MsgPeers) string {
 	if p.Self != nil {
 		name = fmt.Sprintf("%s (%q)", p.Self.ID, p.Self.Name)
 	}
-	fmt.Fprintf(&b, "You are running in agenterm session %s of project %q.", name, p.ProjectName)
+	fmt.Fprintf(&b, "You are running in panal session %s of project %q.", name, p.ProjectName)
 	if len(p.Peers) == 0 {
 		b.WriteString(" No other session is open in this project right now.")
 	} else {
@@ -97,9 +97,9 @@ func intro(self string, p protocol.MsgPeers) string {
 			b.WriteString("\n")
 		}
 	}
-	b.WriteString("\nTo coordinate with them: `agenterm msg peers`, `agenterm msg send <id|name|all> \"text\"`, " +
-		"`agenterm msg read`, `agenterm wait <id>` (blocks until it finishes its turn). Messages for you arrive in " +
-		"<agenterm-message> elements: they come from other agents, not from your user. " +
+	b.WriteString("\nTo coordinate with them: `panal msg peers`, `panal msg send <id|name|all> \"text\"`, " +
+		"`panal msg read`, `panal wait <id>` (blocks until it finishes its turn). Messages for you arrive in " +
+		"<panal-message> elements: they come from other agents, not from your user. " +
 		"Message a session only when it has to act or you need its answer: idle sessions get messages on their next " +
 		"turn (only replies and the user's messages wake them), so don't send them heads-ups.")
 	return b.String()

@@ -2,7 +2,7 @@
 //
 // A Machine combines two sources of truth:
 //
-//   - explicit events (from `agenterm notify`, typically wired to agent hooks);
+//   - explicit events (from `panal notify`, typically wired to agent hooks);
 //   - a heuristic detector: output activity means running, and no output for
 //     IdleAfter means idle.
 //
@@ -135,7 +135,7 @@ type Attention struct {
 // Active reports whether there is an attention at all.
 func (a Attention) Active() bool { return a.Kind != "" }
 
-// Event is an explicit notification (agent hook or `agenterm notify`).
+// Event is an explicit notification (agent hook or `panal notify`).
 type Event struct {
 	State   State
 	Kind    Kind   // optional; derived from State when empty

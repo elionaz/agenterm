@@ -1,11 +1,11 @@
-// Package browser runs the isolated Chrome agenterm gives each session for
+// Package browser runs the isolated Chrome panal gives each session for
 // agents' browser work (tests, screenshots, checking a page), so they never
 // drive the user's own Chrome: its own profile (no tabs, cookies or
 // logins of the user's), its own window size and its own DevTools port.
 //
 // Chrome starts only when an agent needs it: either the browser MCP server
-// (chrome-devtools-mcp, run by `agenterm browser mcp`) launches it on its
-// first tool call, or `agenterm browser` asks the daemon to launch it and
+// (chrome-devtools-mcp, run by `panal browser mcp`) launches it on its
+// first tool call, or `panal browser` asks the daemon to launch it and
 // prints its DevTools URL. Both use the session's profile folder and port,
 // so they share one Chrome.
 package browser
@@ -31,7 +31,7 @@ const (
 	Width    = 1280
 	Height   = 800
 	BasePort = 9222
-	// MCPPackage is the browser MCP server `agenterm browser mcp` runs
+	// MCPPackage is the browser MCP server `panal browser mcp` runs
 	// (pinned: a new release must not change what agents get unasked).
 	MCPPackage = "chrome-devtools-mcp@1.13.0"
 )

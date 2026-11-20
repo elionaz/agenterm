@@ -34,8 +34,8 @@ describe('themes', () => {
   })
 
   it('maps retired names to their replacements', () => {
-    expect(themeName('agenterm-dark')).toBe('bright-lights')
-    expect(themeName(' Agenterm-Light ')).toBe('alphabetical')
+    expect(themeName('panal-dark')).toBe('bright-lights')
+    expect(themeName(' Panal-Light ')).toBe('alphabetical')
     expect(themeName('nord')).toBe('silent-alarm')
     expect(themeName('Dracula')).toBe('funeral')
     expect(themeName('gruvbox-dark')).toBe('is-this-it')
@@ -43,7 +43,7 @@ describe('themes', () => {
     expect(themeName('solarized-light')).toBe('hot-fuss')
     expect(themeName('z')).toBe('z')
     expect(themeName('nope')).toBe(DEFAULT_THEME)
-    expect(normPrefs({ theme: 'agenterm-light' }).theme).toBe('alphabetical')
+    expect(normPrefs({ theme: 'panal-light' }).theme).toBe('alphabetical')
     for (const [from, to] of Object.entries(themeAliases)) {
       expect(themes[to]).toBeDefined()
       expect(themes[from]).toBeUndefined()

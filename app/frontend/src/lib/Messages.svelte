@@ -1,6 +1,6 @@
 <script lang="ts">
   // The Messages tab: what a session sent and received from the other
-  // sessions of its project (agenterm msg), the Deliver button, and a box
+  // sessions of its project (panal msg), the Deliver button, and a box
   // to write to it.
   import { api, errorMessage, type Session } from './api'
   import { lang, t, th } from './i18n.svelte'

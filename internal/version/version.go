@@ -1,7 +1,7 @@
 // Package version holds the build's version, injected at link time:
 //
-//	go build -ldflags "-X github.com/elionaz/agenterm/internal/version.Version=0.1.0 \
-//	  -X github.com/elionaz/agenterm/internal/version.Commit=abc1234"
+//	go build -ldflags "-X github.com/elionaz/panal/internal/version.Version=0.1.0 \
+//	  -X github.com/elionaz/panal/internal/version.Commit=abc1234"
 //
 // The single source of truth is the release tag (vX.Y.Z); see
 // scripts/release-local.sh.

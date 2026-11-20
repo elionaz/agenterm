@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elionaz/agenterm/internal/apierr"
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/apierr"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 func TestInstructions(t *testing.T) {

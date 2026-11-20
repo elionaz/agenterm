@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/daemon"
-	"github.com/elionaz/agenterm/internal/macnotify"
-	"github.com/elionaz/agenterm/internal/paths"
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/daemon"
+	"github.com/elionaz/panal/internal/macnotify"
+	"github.com/elionaz/panal/internal/paths"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 type fakeDesktop struct {

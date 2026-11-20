@@ -1,38 +1,42 @@
 # .deb of the Linux app (scripts/package-linux.sh fills the @…@ fields).
-name: agenterm
+name: panal
 arch: @DEB_ARCH@
 platform: linux
 version: @VERSION@
 section: devel
 priority: optional
-maintainer: agenterm <agenterm@users.noreply.github.com>
+maintainer: panal <panal@users.noreply.github.com>
 description: |
   Desktop workspace for coding agents: groups terminals and agent CLIs
   (Claude Code, Codex, …) per project, with notifications, worktrees and
   messages between sessions. Experimental on Linux.
 vendor: elionaz
-homepage: https://github.com/elionaz/agenterm
+homepage: https://github.com/elionaz/panal
 license: MIT
 depends:
   - libgtk-3-0 | libgtk-3-0t64
   - libwebkit2gtk-4.1-0
   - git
 contents:
-  - src: @WORK@/agenterm-app
-    dst: /usr/lib/agenterm/agenterm-app
+  - src: @WORK@/panal-app
+    dst: /usr/lib/panal/panal-app
     file_info: {mode: 0755}
-  - src: @WORK@/agenterm
-    dst: /usr/lib/agenterm/agenterm
+  - src: @WORK@/panal
+    dst: /usr/lib/panal/panal
     file_info: {mode: 0755}
-  - src: /usr/lib/agenterm/agenterm
+  - src: /usr/lib/panal/panal
+    dst: /usr/bin/panal
+    type: symlink
+  # The CLI's name before the rename to panal, kept for a while.
+  - src: /usr/lib/panal/panal
     dst: /usr/bin/agenterm
     type: symlink
-  - src: /usr/lib/agenterm/agenterm-app
-    dst: /usr/bin/agenterm-app
+  - src: /usr/lib/panal/panal-app
+    dst: /usr/bin/panal-app
     type: symlink
-  - src: packaging/linux/agenterm.desktop
-    dst: /usr/share/applications/agenterm.desktop
+  - src: packaging/linux/panal.desktop
+    dst: /usr/share/applications/panal.desktop
   - src: app/build/appicon.png
-    dst: /usr/share/icons/hicolor/512x512/apps/agenterm.png
+    dst: /usr/share/icons/hicolor/512x512/apps/panal.png
   - src: LICENSE
-    dst: /usr/share/doc/agenterm/copyright
+    dst: /usr/share/doc/panal/copyright

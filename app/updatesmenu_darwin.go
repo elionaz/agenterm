@@ -15,7 +15,7 @@ import "unsafe"
 func agtCheckUpdatesClicked() { sparkleCheck() }
 
 // installUpdatesMenu adds "Check for Updates…" (title) below "About
-// agenterm". A non-empty hint means the updater is off: clicking shows it.
+// panal". A non-empty hint means the updater is off: clicking shows it.
 func installUpdatesMenu(title, hint string) {
 	t, h := C.CString(title), C.CString(hint)
 	defer C.free(unsafe.Pointer(t))

@@ -10,7 +10,7 @@ Wails v2). Las reglas para abrir un pull request están en [CONTRIBUTING.es.md](
 ```sh
 cd app
 wails dev     # hot reload (frontend en Vite); también sirve http://localhost:34115
-wails build   # -> app/build/bin/agenterm.app
+wails build   # -> app/build/bin/panal.app
 ```
 
 Solo el frontend:
@@ -32,13 +32,13 @@ go vet ./... && go test -race ./...
 
 Es lo mismo que corre el CI (más `npm run check`, `npm test` y `npm run build` del frontend).
 
-- Hay un test de integración que levanta el daemon en un `AGENTERM_HOME` temporal y ejercita spawn,
+- Hay un test de integración que levanta el daemon en un `PANAL_HOME` temporal y ejercita spawn,
   attach/detach/reattach con scrollback, notify, eventos, kill y apagado, y otro que lanza una shell
   en modo worktree sobre un repo temporal, hace cambios escribiendo en ella y comprueba
   `session.diff`, que `kill` conserva el worktree, el huérfano tras reiniciar el daemon, reabrirlo,
   el merge y `worktree.remove` (rechazo y force).
 - `internal/daemon/persist_test.go` cubre la persistencia: una sesión de shell escribe salida, el
-  daemon se detiene (`stop --force` y cancelación), un daemon nuevo sobre el mismo `AGENTERM_HOME`
+  daemon se detiene (`stop --force` y cancelación), un daemon nuevo sobre el mismo `PANAL_HOME`
   la lista como `suspended` con su scrollback reproducido, la reanuda (misma carpeta, línea «sesión
   restaurada») y descarta otra; las políticas `always`/`never`; un script falso con
   `setup_hooks: claude` que comprueba que `--resume <session_id>` va tras la inyección de
@@ -48,32 +48,32 @@ Es lo mismo que corre el CI (más `npm run check`, `npm test` y `npm run build` 
 - `go test` nunca envía notificaciones reales: los daemons de prueba reciben un notificador vacío o
   que solo registra (un `daemon.Config` sin él no envía nada), los tests de la app usan un
   escritorio falso, y los tests de `app`, `internal/daemon` e `internal/daemoncmd` ponen
-  `AGENTERM_NOTIFY=off` en `TestMain`. Mantenlo así en los tests nuevos.
+  `PANAL_NOTIFY=off` en `TestMain`. Mantenlo así en los tests nuevos.
 
 ## Probar sin tocar tu instalación
 
-Usa un `AGENTERM_HOME` propio y define `AGENTERM_NOTIFY=off`. Es la regla para **cualquier**
+Usa un `PANAL_HOME` propio y define `PANAL_NOTIFY=off`. Es la regla para **cualquier**
 instancia de prueba o demo (daemon, app o CLI que pueda arrancar un daemon):
 
-- `AGENTERM_HOME` tiene que ser una ruta **corta** (`/tmp/…`): en macOS la ruta de un socket unix
+- `PANAL_HOME` tiene que ser una ruta **corta** (`/tmp/…`): en macOS la ruta de un socket unix
   tiene un límite de unos 104 bytes y las carpetas temporales de `/var/folders/…` se pasan.
-- `AGENTERM_NOTIFY=off` desactiva todas las notificaciones de escritorio de esa app y ese daemon
+- `PANAL_NOTIFY=off` desactiva todas las notificaciones de escritorio de esa app y ese daemon
   (nativas y la alternativa con `osascript`), diga lo que diga su `settings.yaml`, para que las
   sesiones de prueba no te llenen el escritorio de avisos (ni de Editor de Scripts). El daemon lo
   hereda de quien lo arranca.
 
 ```sh
-export AGENTERM_HOME=/tmp/agt AGENTERM_NOTIFY=off
-go run ./cmd/agenterm project add .
-go run ./cmd/agenterm spawn agenterm shell
-go run ./cmd/agenterm ls
-go run ./cmd/agenterm stop --force      # apaga solo el daemon de /tmp/agt
+export PANAL_HOME=/tmp/agt PANAL_NOTIFY=off
+go run ./cmd/panal project add .
+go run ./cmd/panal spawn panal shell
+go run ./cmd/panal ls
+go run ./cmd/panal stop --force      # apaga solo el daemon de /tmp/agt
 
-cd app && AGENTERM_HOME=/tmp/agt AGENTERM_NOTIFY=off wails dev   # la app contra ese mismo daemon
+cd app && PANAL_HOME=/tmp/agt PANAL_NOTIFY=off wails dev   # la app contra ese mismo daemon
 ```
 
-Como `AGENTERM_HOME` manda sobre `AGENTERM_SOCK`, esto también es seguro dentro de una sesión de
-agenterm: no toca el daemon que aloja la sesión.
+Como `PANAL_HOME` manda sobre `PANAL_SOCK`, esto también es seguro dentro de una sesión de
+panal: no toca el daemon que aloja la sesión.
 
 ## Bindings de Wails
 
@@ -88,7 +88,7 @@ cd app && wails generate module
 ## Publicar una release
 
 La versión tiene una única fuente de verdad: el tag de git `vX.Y.Z`. Los builds de release la
-inyectan con `-ldflags -X` en `internal/version` (lo que muestran `agenterm version` y el panel
+inyectan con `-ldflags -X` en `internal/version` (lo que muestran `panal version` y el panel
 Acerca de de la app) y la escriben en el `Info.plist` del bundle (`CFBundleShortVersionString` y
 `CFBundleVersion`). El `productVersion` de `app/wails.json` solo lo usa un `wails build` normal; los
 builds sin ldflags dicen `dev`.
@@ -99,14 +99,14 @@ builds sin ldflags dicen `dev`.
 
    ```sh
    git switch main && git pull
-   git tag -a v0.1.0 -m "agenterm 0.1.0"
+   git tag -a v0.1.0 -m "panal 0.1.0"
    git push origin v0.1.0
    ```
 
 3. `.github/workflows/release.yml` corre con el tag (runner de macOS) y:
    - compila todo con `scripts/release-local.sh <versión>` (el mismo script que corres en local): la
      app universal (`wails build -platform darwin/universal`), la CLI universal (cgo, `lipo`)
-     incluida en `agenterm.app/Contents/Helpers/agenterm`, y la CLI de Linux (`CGO_ENABLED=0`);
+     incluida en `panal.app/Contents/Helpers/panal`, y la CLI de Linux (`CGO_ENABLED=0`);
    - incluye Sparkle (ver [Actualizaciones integradas](#actualizaciones-integradas-sparkle)) y lo
      firma de dentro hacia fuera antes que el resto;
    - firma la CLI y luego la app con el Developer ID, hardened runtime, sello de tiempo seguro y
@@ -115,8 +115,8 @@ builds sin ldflags dicen `dev`.
    - notariza el zip y luego el dmg con `notarytool` y les grapa el ticket (*staple*), si además
      existen los secrets de App Store Connect; si Apple rechaza el envío, el job falla e imprime el
      `notarytool log`;
-   - empaqueta `agenterm-<v>-macos-universal.{zip,dmg}`, `agenterm-<v>-darwin-universal.tar.gz`,
-     `agenterm-<v>-linux-{amd64,arm64}.tar.gz` y `checksums.txt`, y los sube al run;
+   - empaqueta `panal-<v>-macos-universal.{zip,dmg}`, `panal-<v>-darwin-universal.tar.gz`,
+     `panal-<v>-linux-{amd64,arm64}.tar.gz` y `checksums.txt`, y los sube al run;
    - si existe `SPARKLE_PRIVATE_ED_KEY`, firma con EdDSA el zip (ya grapado) y genera
      `appcast.xml`;
    - crea la release `vX.Y.Z` en GitHub con la sección del CHANGELOG como notas (o notas generadas
@@ -124,9 +124,9 @@ builds sin ldflags dicen `dev`.
      Con `SPARKLE_PUBLIC_ED_KEY` configurada, una release sin `appcast.xml` no se marca como
      *Latest* (la URL del feed apunta a la última release). Una pre-release (`X.Y.Z-sufijo`) se publica como pre-release de GitHub: nunca es
      *Latest*, nunca se ofrece desde la app y no actualiza el cask de Homebrew;
-   - si existe `HOMEBREW_TAP_TOKEN`, rellena `packaging/homebrew/agenterm.rb.tmpl` con la versión y
-     el sha256 del zip (`scripts/render-cask.sh`) y lo sube a `Casks/agenterm.rb` en
-     [elionaz/homebrew-tap](https://github.com/elionaz/homebrew-tap) como "agenterm X.Y.Z".
+   - si existe `HOMEBREW_TAP_TOKEN`, rellena `packaging/homebrew/panal.rb.tmpl` con la versión y
+     el sha256 del zip (`scripts/render-cask.sh`) y lo sube a `Casks/panal.rb` en
+     [elionaz/homebrew-tap](https://github.com/elionaz/homebrew-tap) como "panal X.Y.Z".
 
 ### Secrets
 
@@ -197,9 +197,9 @@ En local (macOS, con los requisitos del README):
 
 ```sh
 scripts/release-local.sh 0.1.0        # -> dist/ (ignorado por git), firma ad-hoc
-codesign --verify --deep --strict --verbose=2 dist/work/agenterm.app
-lipo -info dist/work/agenterm.app/Contents/MacOS/agenterm
-scripts/render-cask.sh 0.1.0 "$(shasum -a 256 dist/agenterm-0.1.0-macos-universal.zip | cut -d' ' -f1)"
+codesign --verify --deep --strict --verbose=2 dist/work/panal.app
+lipo -info dist/work/panal.app/Contents/MacOS/panal
+scripts/render-cask.sh 0.1.0 "$(shasum -a 256 dist/panal-0.1.0-macos-universal.zip | cut -d' ' -f1)"
 ```
 
 Para probar la firma, pasa una identidad de tu llavero: `SIGN_IDENTITY="Developer ID Application: …"
@@ -231,12 +231,12 @@ guarda en `.cache/sparkle/` (ignorado por git). Después `release-local.sh`:
 - compila la app con `-tags sparkle` (`app/updater_sparkle_darwin.{go,m}`; cualquier otro build,
   `wails dev` y los tests incluidos, usa `app/updater_stub.go`), enlazando `Sparkle.framework` de
   forma débil (*weak*) vía `@rpath` = `Contents/Frameworks`;
-- copia el framework a `agenterm.app/Contents/Frameworks/` y firma, en este orden y sin `--deep`,
+- copia el framework a `panal.app/Contents/Frameworks/` y firma, en este orden y sin `--deep`,
   como documenta Sparkle para apps con Developer ID: `XPCServices/Installer.xpc`,
   `XPCServices/Downloader.xpc` (`--preserve-metadata=entitlements`), `Autoupdate`, `Updater.app`, el
   framework; luego la CLI y la app como antes;
 - pone `SUPublicEDKey` en el `Info.plist` (la plantilla trae `SUFeedURL` =
-  `https://github.com/elionaz/agenterm/releases/latest/download/appcast.xml`, comprobaciones
+  `https://github.com/elionaz/panal/releases/latest/download/appcast.xml`, comprobaciones
   automáticas diarias y actualizaciones automáticas permitidas), o la quita si
   `SPARKLE_PUBLIC_ED_KEY` está vacía: entonces la app deja el actualizador desactivado;
 - tras notarizar y grapar el zip, lo firma con `bin/sign_update --ed-key-file` (la clave pasa por un
@@ -256,7 +256,7 @@ Las instalaciones con Homebrew se actualizan con Sparkle como cualquier otra, y 
 nombrar el cask sí la actualizan. Llegó una release después de activar Sparkle en Homebrew porque
 brew lo lee del cask del tap, no de la app instalada: las instalaciones de la 0.4.1 y anteriores
 (con Sparkle desactivado) necesitaban una release a la que pasar con un simple `brew upgrade`. El
-registro de brew (`Caskroom/agenterm/<versión>`) se queda en la versión que instaló brew después de
+registro de brew (`Caskroom/panal/<versión>`) se queda en la versión que instaló brew después de
 que Sparkle actualice la app; es lo normal en los casks con `auto_updates`, y el enlace de la CLI
 apunta a una ruta fija.
 
@@ -285,10 +285,10 @@ el `localStorage` del webview. El aviso cede el sitio a los de reconexión y de 
 
 ```sh
 SPARKLE_DIR=$(scripts/fetch-sparkle.sh)
-"$SPARKLE_DIR/bin/generate_keys" --account agenterm          # la crea en tu llavero de sesión e imprime la pública
-"$SPARKLE_DIR/bin/generate_keys" --account agenterm -x sparkle-private.txt
+"$SPARKLE_DIR/bin/generate_keys" --account panal          # la crea en tu llavero de sesión e imprime la pública
+"$SPARKLE_DIR/bin/generate_keys" --account panal -x sparkle-private.txt
 gh secret set SPARKLE_PRIVATE_ED_KEY < sparkle-private.txt
-gh variable set SPARKLE_PUBLIC_ED_KEY --body "$("$SPARKLE_DIR/bin/generate_keys" --account agenterm -p)"
+gh variable set SPARKLE_PUBLIC_ED_KEY --body "$("$SPARKLE_DIR/bin/generate_keys" --account panal -p)"
 rm sparkle-private.txt
 ```
 
@@ -327,16 +327,16 @@ Los builds de desarrollo (`dev`) nunca muestran el aviso, ni tampoco un daemon m
 
 Las fuentes están en `assets/icon/`:
 
-- `agenterm-icon.svg`: el icono cuadrado, a sangre completa;
-- `agenterm-icon-rounded.svg`: con esquinas redondeadas (el del README);
-- `agenterm-icon-macos.svg`: con el margen de la plantilla de iconos de macOS, que es el que usa la
+- `panal-icon.svg`: el icono cuadrado, a sangre completa;
+- `panal-icon-rounded.svg`: con esquinas redondeadas (el del README);
+- `panal-icon-macos.svg`: con el margen de la plantilla de iconos de macOS, que es el que usa la
   app.
 
 Wails genera el icono del `.app` a partir de `app/build/appicon.png` (1024×1024). Para regenerarlo
 con Inkscape 1.x:
 
 ```sh
-inkscape assets/icon/agenterm-icon-macos.svg \
+inkscape assets/icon/panal-icon-macos.svg \
   --export-type=png --export-filename=app/build/appicon.png -w 1024 -h 1024
 ```
 
@@ -349,9 +349,12 @@ En macOS la CLI de Inkscape no queda en el `PATH`; está en
 - **Primero macOS.** La app se prueba sobre todo en macOS (Apple Silicon); la app de Linux es
   experimental (abajo). El transporte es un socket unix; no hay soporte para Windows.
 - **Actualizar no reinicia el daemon**: tras instalar una versión nueva, un daemon que ya estaba
-  corriendo sigue con el código viejo hasta `agenterm stop` (o un reinicio de la computadora).
+  corriendo sigue con el código viejo hasta `panal stop` (o un reinicio de la computadora).
 - La **app de Linux** (AppImage, .deb) es experimental: el CI la compila, prueba y empaqueta en
-  Ubuntu 24.04 (`scripts/package-linux.sh`), pero está poco probada en escritorios reales.
+  Ubuntu 24.04 (`scripts/package-linux.sh`), pero está poco probada en escritorios reales. Cada
+  cambio corre los tests del daemon y la CLI en Ubuntu (`linux` de ci.yml, sin GTK); los tests y
+  el empaquetado de la app (`linux-app.yml`, con GTK/WebKitGTK) corren en main y en los pull
+  requests que tocan `app/`, `packaging/`, los workflows o las dependencias.
 - **Un reinicio del daemon (o de la computadora) mata los procesos.** Las sesiones vuelven como
   `suspended`, con su scrollback, y se relanzan al reanudarlas: Claude Code y codex continúan su
   conversación por id, opencode y Cursor CLI con `--continue` y Hermes con `-c` (la *última* sesión de cada
@@ -363,7 +366,7 @@ En macOS la CLI de Inkscape no queda en el `PATH`; está en
 - **Notificaciones con la app cerrada**: si el daemon no está dentro del `.app` (lo arrancó una CLI
   instalada fuera del bundle) o el bundle no tiene permiso, las notificaciones no se muestran
   (`daemon.log` dice por qué). Con `notify.fallback: osascript` se envían con `osascript`: aparecen
-  como *Editor de Scripts* y al pulsarlas se abre Editor de Scripts, no agenterm.
+  como *Editor de Scripts* y al pulsarlas se abre Editor de Scripts, no panal.
 - **codex** no avisa cuando empieza a trabajar: "trabajando" lo decide la heurística y no hay
   aviso de «¿trabado?».
 - **«¿Trabado?»** solo existe en sesiones con hooks (Claude Code), y como el spinner de Claude
@@ -376,7 +379,7 @@ En macOS la CLI de Inkscape no queda en el `PATH`; está en
   instalado y el perfil sigue activado. La línea de aprobación `[o]nce | [s]ession` marca la
   sesión como esperando. `args: ["--tui"]` o `args: []` sustituye ese default; `resume_args: []`
   omite el reenganche con `-c`; `enabled: false` lo oculta. Cerrar la terminal desconecta del
-  gateway de Hermes (el turno sigue hasta `/exit` o Ctrl+D). agenterm no escribe en `~/.hermes`.
+  gateway de Hermes (el turno sigue hasta `/exit` o Ctrl+D). panal no escribe en `~/.hermes`.
 - **`profiles.yaml` pierde los comentarios** cuando la app lo guarda (se reescribe en formato
   canónico). `settings.yaml` sí los conserva.
 - El merge de un worktree **no hace stash**: la carpeta principal tiene que estar limpia y en la

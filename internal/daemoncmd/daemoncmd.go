@@ -1,5 +1,5 @@
 // Package daemoncmd is the `daemon` subcommand shared by every binary that can
-// host the agenterm daemon (the CLI and the desktop app), so the .app does not
+// host the panal daemon (the CLI and the desktop app), so the .app does not
 // depend on a separately installed CLI.
 package daemoncmd
 
@@ -15,13 +15,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/client"
-	"github.com/elionaz/agenterm/internal/daemon"
-	"github.com/elionaz/agenterm/internal/macnotify"
-	"github.com/elionaz/agenterm/internal/paths"
-	"github.com/elionaz/agenterm/internal/peercred"
-	"github.com/elionaz/agenterm/internal/sigsender"
-	"github.com/elionaz/agenterm/internal/transport"
+	"github.com/elionaz/panal/internal/client"
+	"github.com/elionaz/panal/internal/daemon"
+	"github.com/elionaz/panal/internal/macnotify"
+	"github.com/elionaz/panal/internal/paths"
+	"github.com/elionaz/panal/internal/peercred"
+	"github.com/elionaz/panal/internal/sigsender"
+	"github.com/elionaz/panal/internal/transport"
 )
 
 // Name is the subcommand that selects daemon mode (os.Args[1]).
@@ -31,7 +31,7 @@ const Name = "daemon"
 // until SIGTERM/SIGINT or a shutdown request; with --detach it starts the
 // current executable in daemon mode and returns once the socket is up.
 //
-// The CLI bundled in agenterm.app (Contents/Helpers/agenterm) runs the
+// The CLI bundled in panal.app (Contents/Helpers/panal) runs the
 // daemon as the app's executable instead (client.DaemonExecutable): with
 // --detach it starts that one, in the foreground it execs it in place
 // (same pid, args and environment), so the daemon belongs to the bundle and
@@ -67,7 +67,7 @@ func Run(args []string) error {
 			// Only returns on failure: then run here, without native
 			// notifications.
 			err := syscall.Exec(app, append([]string{app, Name}, args...), os.Environ())
-			fmt.Fprintf(os.Stderr, "agenterm daemon: exec %s: %v; running the CLI's daemon\n", app, err)
+			fmt.Fprintf(os.Stderr, "panal daemon: exec %s: %v; running the CLI's daemon\n", app, err)
 		}
 	}
 
@@ -78,6 +78,20 @@ func Run(args []string) error {
 	signal.Ignore(syscall.SIGHUP, syscall.SIGPIPE)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	watchTermination(logger, cancel)
+	// Move ~/.agenterm and ~/.config/agenterm (from before the rename) to
+	// their panal names, unless an old daemon still uses them.
+	moved, err := paths.MigrateLegacy(func(sock string) bool { return transport.Alive(transport.Default(), sock) })
+	for _, m := range moved {
+		logger.Info("moved pre-rename directory", "move", m)
+	}
+	if err != nil {
+		logger.Warn("move pre-rename directories", "err", err)
+	}
+	if len(moved) > 0 {
+		if p, err = paths.Default(); err != nil {
+			return err
+		}
+	}
 	exe, _ := os.Executable()
 	if real, err := filepath.EvalSymlinks(exe); err == nil {
 		exe = real

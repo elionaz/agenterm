@@ -1,4 +1,4 @@
-// Command agenterm is the daemon and CLI client for agenterm.
+// Command panal is the daemon and CLI client for panal.
 package main
 
 import (
@@ -16,81 +16,83 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/client"
-	"github.com/elionaz/agenterm/internal/daemoncmd"
-	"github.com/elionaz/agenterm/internal/notifycmd"
-	"github.com/elionaz/agenterm/internal/paths"
-	"github.com/elionaz/agenterm/internal/profile"
-	"github.com/elionaz/agenterm/internal/project"
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/version"
+	"github.com/elionaz/panal/internal/client"
+	"github.com/elionaz/panal/internal/daemoncmd"
+	"github.com/elionaz/panal/internal/notifycmd"
+	"github.com/elionaz/panal/internal/paths"
+	"github.com/elionaz/panal/internal/profile"
+	"github.com/elionaz/panal/internal/project"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/version"
 )
 
-const usage = `agenterm - workspace daemon for coding agents
+const usage = `panal - workspace daemon for coding agents
 
 Usage:
-  agenterm daemon [--detach]          run the daemon (foreground unless --detach)
-  agenterm stop [--force]             stop the daemon; refuses while sessions are alive
+  panal daemon [--detach]          run the daemon (foreground unless --detach)
+  panal stop [--force]             stop the daemon; refuses while sessions are alive
                                       unless --force (which kills them)
-  agenterm project add <dir> [--name N]
-  agenterm project list
-  agenterm project rm <id>
-  agenterm project set <id|name> [--name N] [--color C|auto] [--icon E|none]
-  agenterm profiles                   list agent profiles (catalog + profiles.yaml)
-  agenterm profiles scan              re-detect installed agents and list them
-  agenterm spawn [--cols C --rows R] [--worktree [--branch B] [--base X] [--trust-setup|--no-setup]
+  panal project add <dir> [--name N]
+  panal project list
+  panal project rm <id>
+  panal project set <id|name> [--name N] [--color C|auto] [--icon E|none]
+  panal profiles                   list agent profiles (catalog + profiles.yaml)
+  panal profiles scan              re-detect installed agents and list them
+  panal spawn [--cols C --rows R] [--worktree [--branch B] [--base X] [--trust-setup|--no-setup]
                 | --in-worktree ID] <projectId|name> <profileId>
                                       --worktree: new git worktree + branch for the session
-                                      (set up from the repository's .agenterm.yaml)
-  agenterm diff [--stat] <sessionId|worktreeId>   changes (worktree: vs its base)
-  agenterm worktrees <projectId|name> list agenterm worktrees (live / exited / orphan)
-  agenterm worktree rm [--force] [--delete-branch] [--dry-run] <id>
-  agenterm worktree merge <id>        merge its branch into the base (main folder must be
+                                      (set up from the repository's .panal.yaml)
+  panal diff [--stat] <sessionId|worktreeId>   changes (worktree: vs its base)
+  panal worktrees <projectId|name> list panal worktrees (live / exited / orphan)
+  panal worktree rm [--force] [--delete-branch] [--dry-run] <id>
+  panal worktree merge <id>        merge its branch into the base (main folder must be
                                       clean and on the base branch)
-  agenterm worktree pr [--no-open] <id>   push its branch and open the pull request page
+  panal worktree pr [--no-open] <id>   push its branch and open the pull request page
                                       (GitHub / GitLab; prints the URL)
-  agenterm worktree open [--finder] <id>
-  agenterm ls                         list sessions (with activity line and timers)
-  agenterm tail [-n N] <sessionId>    last N lines of output as plain text (default 8)
-  agenterm attach <sessionId>         attach (detach with Ctrl-\)
-  agenterm kill <sessionId>           kill a session (again to forget an exited one)
-  agenterm rename <sessionId> <name>  name a session (--reset: back to the profile's name)
-  agenterm resume <sessionId>|--all   respawn sessions suspended by a daemon restart
+  panal worktree open [--finder] <id>
+  panal ls                         list sessions (with activity line and timers)
+  panal tail [-n N] <sessionId>    last N lines of output as plain text (default 8)
+  panal attach <sessionId>         attach (detach with Ctrl-\)
+  panal kill <sessionId>           kill a session (again to forget an exited one)
+  panal rename <sessionId> <name>  name a session (--reset: back to the profile's name)
+  panal resume <sessionId>|--all   respawn sessions suspended by a daemon restart
                                       (agents continue their conversation when they can)
-  agenterm discard <sessionId>|--all  forget suspended sessions (and their scrollback)
-  agenterm notify [--session ID] [--state S] [--kind K] [--message M] [--activity A]
+  panal discard <sessionId>|--all  forget suspended sessions (and their scrollback)
+  panal notify [--session ID] [--state S] [--kind K] [--message M] [--activity A]
                                       report state/attention (from agent hooks)
-  agenterm notify --from-hook claude|codex   read a hook payload (stdin / last arg)
-  agenterm ack <sessionId>            mark a session's attention as seen
-  agenterm msg peers                  the other sessions of this project (inside a session)
-  agenterm msg send <to> <text…>      message a session of this project (id, name or all)
-  agenterm msg read                   your new messages from other sessions
-  agenterm msg list [--pending]       message history
-  agenterm wait <sessionId> [--timeout 30m]   until it is idle, waiting for input or exited
-  agenterm instructions [<project>]   the standing instructions its sessions receive at start
+  panal notify --from-hook claude|codex   read a hook payload (stdin / last arg)
+  panal ack <sessionId>            mark a session's attention as seen
+  panal msg peers                  the other sessions of this project (inside a session)
+  panal msg send <to> <text…>      message a session of this project (id, name or all)
+  panal msg read                   your new messages from other sessions
+  panal msg list [--pending]       message history
+  panal wait <sessionId> [--timeout 30m]   until it is idle, waiting for input or exited
+  panal instructions [<project>]   the standing instructions its sessions receive at start
                                       (inside a session: its project; none: the all-project ones)
-  agenterm instructions list [<project>]   the instruction topics
-  agenterm instructions show <topic>  one topic's text (for topics that load on demand)
-  agenterm handoff [--worktree] [--keep] [--note FILE|-] <sessionId> <profile>
+  panal instructions list [<project>]   the instruction topics
+  panal instructions show <topic>  one topic's text (for topics that load on demand)
+  panal handoff [--worktree] [--keep] [--note FILE|-] <sessionId> <profile>
                                       continue a session's work with another agent (a summary as
                                       its first prompt); closes the session unless --keep
-  agenterm handoff --into <targetId> <sessionId>   hand it to a live session instead
-  agenterm handoff --print <sessionId>   the summary it would hand over
-  agenterm browser [open|url|close|status|mcp] [--session ID]
+  panal handoff --into <targetId> <sessionId>   hand it to a live session instead
+  panal handoff --print <sessionId>   the summary it would hand over
+  panal browser [open|url|close|status|mcp] [--session ID]
                                       the session's own isolated Chrome (open: start it, print
                                       its DevTools URL; mcp: the browser MCP server bound to it)
-  agenterm version                    print the version and commit (also --version)
+  panal version                    print the version and commit (also --version)
 
 Environment:
-  AGENTERM_HOME     single dir overriding ~/.agenterm and ~/.config/agenterm
-  AGENTERM_NOTIFY   off: no desktop notifications from the daemon (for test instances)
-  AGENTERM_SESSION  default session for notify (set inside sessions)
-  AGENTERM_SOCK     daemon socket (set inside sessions); ignored when AGENTERM_HOME is set
+  PANAL_HOME     single dir overriding ~/.panal and ~/.config/panal
+  PANAL_NOTIFY   off: no desktop notifications from the daemon (for test instances)
+  PANAL_SESSION  default session for notify (set inside sessions)
+  PANAL_SOCK     daemon socket (set inside sessions); ignored when PANAL_HOME is set
 `
 
 func main() {
+	paths.ApplyLegacyEnv()
+	warnLegacyName(os.Args[0], os.Args[1:])
 	if err := run(os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, "agenterm:", err)
+		fmt.Fprintln(os.Stderr, "panal:", err)
 		os.Exit(1)
 	}
 }
@@ -110,7 +112,7 @@ func run(args []string) error {
 		fmt.Print(usage)
 		return nil
 	case "version", "--version":
-		fmt.Println("agenterm", version.String())
+		fmt.Println("panal", version.String())
 		return nil
 	}
 
@@ -136,7 +138,7 @@ func run(args []string) error {
 		return cmdDiff(ctx, c, rest)
 	case "worktrees":
 		if len(rest) != 1 {
-			return errors.New("usage: agenterm worktrees <projectId|name>")
+			return errors.New("usage: panal worktrees <projectId|name>")
 		}
 		return cmdWorktrees(ctx, c, rest[0])
 	case "worktree":
@@ -148,7 +150,7 @@ func run(args []string) error {
 			return err
 		}
 		if fs.NArg() != 1 {
-			return errors.New("usage: agenterm tail [-n N] <sessionId>")
+			return errors.New("usage: panal tail [-n N] <sessionId>")
 		}
 		lines, err := c.Tail(ctx, fs.Arg(0), *n)
 		if err != nil {
@@ -160,12 +162,12 @@ func run(args []string) error {
 		return nil
 	case "attach":
 		if len(rest) != 1 {
-			return errors.New("usage: agenterm attach <sessionId>")
+			return errors.New("usage: panal attach <sessionId>")
 		}
 		return attach(ctx, c, rest[0])
 	case "ack":
 		if len(rest) != 1 {
-			return errors.New("usage: agenterm ack <sessionId>")
+			return errors.New("usage: panal ack <sessionId>")
 		}
 		info, err := c.Ack(ctx, rest[0])
 		if err != nil {
@@ -198,7 +200,7 @@ func run(args []string) error {
 		return cmdHandoff(ctx, c, rest)
 	case "kill":
 		if len(rest) != 1 {
-			return errors.New("usage: agenterm kill <sessionId>")
+			return errors.New("usage: panal kill <sessionId>")
 		}
 		info, err := c.Kill(ctx, rest[0])
 		if err != nil {
@@ -218,7 +220,7 @@ func newClient(autoStart bool) (*client.Client, error) {
 		return nil, err
 	}
 	c := client.New(sock)
-	// Inside a session (only $AGENTERM_SOCK) the daemon is the session's own:
+	// Inside a session (only $PANAL_SOCK) the daemon is the session's own:
 	// never start another one.
 	if autoStart && !fromSession {
 		c.AutoStart = func(ctx context.Context) error {
@@ -230,7 +232,7 @@ func newClient(autoStart bool) (*client.Client, error) {
 			if err != nil {
 				return err
 			}
-			// The CLI inside agenterm.app starts the daemon as the app, so
+			// The CLI inside panal.app starts the daemon as the app, so
 			// it gets native notifications and their clicks.
 			return client.StartDaemon(ctx, client.DaemonExecutable(exe), p)
 		}
@@ -245,7 +247,7 @@ func cmdStop(ctx context.Context, args []string) error {
 		return err
 	}
 	if fs.NArg() != 0 {
-		return errors.New("usage: agenterm stop [--force]")
+		return errors.New("usage: panal stop [--force]")
 	}
 	c, err := newClient(false)
 	if err != nil {
@@ -269,7 +271,7 @@ func cmdStop(ctx context.Context, args []string) error {
 
 func cmdProject(ctx context.Context, c *client.Client, args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: agenterm project add|list|rm|set")
+		return errors.New("usage: panal project add|list|rm|set")
 	}
 	switch args[0] {
 	case "add":
@@ -279,7 +281,7 @@ func cmdProject(ctx context.Context, c *client.Client, args []string) error {
 			return err
 		}
 		if fs.NArg() != 1 {
-			return errors.New("usage: agenterm project add <dir> [--name N]")
+			return errors.New("usage: panal project add <dir> [--name N]")
 		}
 		// Resolve relative paths here: the daemon's cwd is not the caller's.
 		dir, err := filepath.Abs(fs.Arg(0))
@@ -305,7 +307,7 @@ func cmdProject(ctx context.Context, c *client.Client, args []string) error {
 		return w.Flush()
 	case "rm", "remove":
 		if len(args) != 2 {
-			return errors.New("usage: agenterm project rm <id>")
+			return errors.New("usage: panal project rm <id>")
 		}
 		return c.ProjectRemove(ctx, args[1])
 	case "set":
@@ -314,7 +316,7 @@ func cmdProject(ctx context.Context, c *client.Client, args []string) error {
 	return fmt.Errorf("unknown project subcommand %q", args[0])
 }
 
-const projectSetUsage = "usage: agenterm project set <id|name> [--name N] [--color C|auto] [--icon E|none]"
+const projectSetUsage = "usage: panal project set <id|name> [--name N] [--color C|auto] [--icon E|none]"
 
 // cmdProjectSet renames a project or changes its sidebar badge.
 func cmdProjectSet(ctx context.Context, c *client.Client, args []string) error {
@@ -405,14 +407,14 @@ func cmdSpawn(ctx context.Context, c *client.Client, args []string) error {
 	wt := fs.Bool("worktree", false, "run in a new git worktree (own branch)")
 	branch := fs.String("branch", "", "branch for --worktree (default agent/<profile>-<id>)")
 	base := fs.String("base", "", "base branch for --worktree (default: the project's current branch)")
-	inWT := fs.String("in-worktree", "", "run in an existing agenterm worktree (id)")
-	trustSetup := fs.Bool("trust-setup", false, "trust and run the repository's worktree setup (.agenterm.yaml)")
+	inWT := fs.String("in-worktree", "", "run in an existing panal worktree (id)")
+	trustSetup := fs.Bool("trust-setup", false, "trust and run the repository's worktree setup (.panal.yaml)")
 	noSetup := fs.Bool("no-setup", false, "create the worktree without running its setup")
 	if err := parseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() != 2 {
-		return errors.New("usage: agenterm spawn [--worktree [--branch B] [--base X]] <projectId> <profileId>")
+		return errors.New("usage: panal spawn [--worktree [--branch B] [--base X]] <projectId> <profileId>")
 	}
 	if !*wt && (*branch != "" || *base != "" || *trustSetup || *noSetup) {
 		return errors.New("--branch, --base, --trust-setup and --no-setup need --worktree")
@@ -438,7 +440,7 @@ func cmdSpawn(ctx context.Context, c *client.Client, args []string) error {
 	if info.WorktreeID != "" {
 		fmt.Printf("%s\t%s\t%s\n", info.ID, info.Branch, info.WorktreePath)
 		if len(info.SuggestCopy) > 0 {
-			fmt.Fprintf(os.Stderr, "note: git ignores %s, so the worktree doesn't have them; list them under worktree.copy in .agenterm.yaml to copy them into new worktrees\n",
+			fmt.Fprintf(os.Stderr, "note: git ignores %s, so the worktree doesn't have them; list them under worktree.copy in .panal.yaml to copy them into new worktrees\n",
 				strings.Join(info.SuggestCopy, ", "))
 		}
 		return nil
@@ -461,7 +463,7 @@ func cmdSpawn(ctx context.Context, c *client.Client, args []string) error {
 // receives at start; list: the topics; show: one topic's text (what an
 // agent runs for an "on demand" topic).
 func cmdInstructions(ctx context.Context, c *client.Client, args []string) error {
-	const usage = "usage: agenterm instructions [<project>] | list [<project>] | show <topic>"
+	const usage = "usage: panal instructions [<project>] | list [<project>] | show <topic>"
 	sub := ""
 	if len(args) > 0 && (args[0] == "list" || args[0] == "show") {
 		sub, args = args[0], args[1:]
@@ -483,7 +485,7 @@ func cmdInstructions(ctx context.Context, c *client.Client, args []string) error
 	project := ""
 	if len(args) == 1 {
 		project = args[0]
-	} else if id := os.Getenv("AGENTERM_SESSION"); id != "" {
+	} else if id := os.Getenv("PANAL_SESSION"); id != "" {
 		if ss, err := c.Sessions(ctx); err == nil {
 			for _, s := range ss {
 				if s.ID == id {
@@ -497,7 +499,7 @@ func cmdInstructions(ctx context.Context, c *client.Client, args []string) error
 		return err
 	}
 	for _, e := range r.Errors {
-		fmt.Fprintln(os.Stderr, "agenterm: skipped:", e)
+		fmt.Fprintln(os.Stderr, "panal: skipped:", e)
 	}
 	if sub == "list" {
 		w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
@@ -517,7 +519,7 @@ func cmdInstructions(ctx context.Context, c *client.Client, args []string) error
 		return w.Flush()
 	}
 	if r.Composed == "" {
-		fmt.Fprintln(os.Stderr, "no instructions (set them in agenterm: Settings → Instructions)")
+		fmt.Fprintln(os.Stderr, "no instructions (set them in panal: Settings → Instructions)")
 		return nil
 	}
 	fmt.Println(r.Composed)
@@ -541,7 +543,7 @@ func cmdLs(ctx context.Context, c *client.Client) error {
 // parseRename reads `rename <sessionId> [name...]`: the remaining words
 // are joined with spaces; no name (or --reset) clears it.
 func parseRename(args []string) (id, name string, err error) {
-	const use = "usage: agenterm rename <sessionId> <name>  (or --reset)"
+	const use = "usage: panal rename <sessionId> <name>  (or --reset)"
 	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
 		return "", "", errors.New(use)
 	}
@@ -575,7 +577,7 @@ func cmdSuspended(ctx context.Context, c *client.Client, cmd string, args []stri
 		return err
 	}
 	if *all == (fs.NArg() == 1) || fs.NArg() > 1 {
-		return fmt.Errorf("usage: agenterm %s <sessionId>|--all", cmd)
+		return fmt.Errorf("usage: panal %s <sessionId>|--all", cmd)
 	}
 	call := c.Resume
 	if cmd == "discard" {

@@ -3,7 +3,7 @@ import { PROJECT_COLORS, badgeContent, initials, projectColor } from './badge'
 
 describe('initials', () => {
   it('takes two letters', () => {
-    expect(initials('agenterm')).toBe('AG')
+    expect(initials('panal')).toBe('PA')
     expect(initials('web-shop')).toBe('WS')
     expect(initials('my api')).toBe('MA')
     expect(initials('@scope/pkg_name')).toBe('SP')

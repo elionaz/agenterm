@@ -1,5 +1,5 @@
 // Package notifycmd is the `notify` subcommand shared by the CLI and the
-// desktop app binary, so agent hooks can call back whichever agenterm
+// desktop app binary, so agent hooks can call back whichever panal
 // executable runs the daemon.
 package notifycmd
 
@@ -13,18 +13,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/client"
-	"github.com/elionaz/agenterm/internal/hooks"
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/status"
+	"github.com/elionaz/panal/internal/client"
+	"github.com/elionaz/panal/internal/hooks"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/status"
 )
 
 // Name is the subcommand (os.Args[1]).
 const Name = "notify"
 
 // Usage is the one-line synopsis.
-const Usage = `agenterm notify [--session ID] [--sock PATH] [--state S] [--kind K] [--message M] [--activity A]
-  agenterm notify [--sock PATH] --from-hook claude|codex [JSON]   (hook payload on stdin or as last arg)`
+const Usage = `panal notify [--session ID] [--sock PATH] [--state S] [--kind K] [--message M] [--activity A]
+  panal notify [--sock PATH] --from-hook claude|codex [JSON]   (hook payload on stdin or as last arg)`
 
 const (
 	timeout     = 3 * time.Second
@@ -38,13 +38,13 @@ const (
 func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet(Name, flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	id := fs.String("session", os.Getenv(protocol.EnvSession), "session id (default $AGENTERM_SESSION)")
+	id := fs.String("session", os.Getenv(protocol.EnvSession), "session id (default $PANAL_SESSION)")
 	state := fs.String("state", "", "running | waiting_input | idle (aliases: waiting, done)")
 	kind := fs.String("kind", "", "permission | question | done | error (implies --state when omitted)")
 	msg := fs.String("message", "", "message shown in the notification")
 	activity := fs.String("activity", "", "what the agent is doing (activity line); alone it only updates that")
 	fromHook := fs.String("from-hook", "", "read an agent hook payload: claude (stdin) | codex (last argument)")
-	sock := fs.String("sock", "", "daemon socket (default: $AGENTERM_HOME's, else $AGENTERM_SOCK)")
+	sock := fs.String("sock", "", "daemon socket (default: $PANAL_HOME's, else $PANAL_SOCK)")
 	if err := fs.Parse(args); err != nil {
 		if *fromHook != "" || hasHookFlag(args) {
 			return nil
@@ -53,7 +53,7 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	}
 	if *fromHook != "" {
 		if err := runHook(*fromHook, *id, *sock, fs.Args(), stdin, stdout); err != nil {
-			fmt.Fprintln(stderr, "agenterm notify:", err)
+			fmt.Fprintln(stderr, "panal notify:", err)
 		}
 		return nil
 	}
@@ -99,7 +99,7 @@ func stateForKind(k status.Kind) string {
 
 func runHook(agent, id, sock string, rest []string, stdin io.Reader, stdout io.Writer) error {
 	if id == "" {
-		return nil // not an agenterm session: nothing to report
+		return nil // not a panal session: nothing to report
 	}
 	deadline := time.Now().Add(hookTimeout)
 	var payload []byte

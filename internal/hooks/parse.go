@@ -1,4 +1,4 @@
-// Package hooks integrates agent CLIs with agenterm's attention tracking:
+// Package hooks integrates agent CLIs with panal's attention tracking:
 // it generates per-session hook configuration (never touching the user's
 // own agent config or the project) and translates hook payloads into
 // status events.
@@ -11,8 +11,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/elionaz/agenterm/internal/i18n"
-	"github.com/elionaz/agenterm/internal/status"
+	"github.com/elionaz/panal/internal/i18n"
+	"github.com/elionaz/panal/internal/status"
 )
 
 // maxMessage bounds messages taken from payloads (they end up in

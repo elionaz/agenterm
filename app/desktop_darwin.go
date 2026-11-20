@@ -46,8 +46,8 @@ import (
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"github.com/elionaz/agenterm/internal/desktopnotify"
-	"github.com/elionaz/agenterm/internal/macnotify"
+	"github.com/elionaz/panal/internal/desktopnotify"
+	"github.com/elionaz/panal/internal/macnotify"
 )
 
 // macDesktop implements desktop with UNUserNotificationCenter (posting via
@@ -55,9 +55,9 @@ import (
 // Wails installs) plus Dock badge/bounce. When the app has no bundle or
 // notifications are not authorized, notifications are dropped (logged once
 // per reason) or, with notify.fallback: osascript, sent through osascript.
-// AGENTERM_NOTIFY=off disables them entirely (the Dock badge stays).
+// PANAL_NOTIFY=off disables them entirely (the Dock badge stays).
 type macDesktop struct {
-	off    bool         // AGENTERM_NOTIFY=off
+	off    bool         // PANAL_NOTIFY=off
 	native atomic.Bool  // UNUserNotificationCenter usable and authorized
 	inited atomic.Bool  // UNUserNotificationCenter initialized (Refresh may enable native)
 	reason atomic.Value // string: why native is not usable
@@ -71,7 +71,7 @@ type macDesktop struct {
 func newDesktop(ctx context.Context, onClick func(sessionID string)) desktop {
 	d := &macDesktop{off: desktopnotify.Disabled()}
 	if d.off {
-		log.Printf("agenterm: notifications disabled (%s=off)", desktopnotify.EnvNotify)
+		log.Printf("panal: notifications disabled (%s=off)", desktopnotify.EnvNotify)
 		return d
 	}
 	d.reason.Store("not authorized yet")
@@ -179,7 +179,7 @@ func (d *macDesktop) Notify(n note) error {
 	}
 	if !n.Osascript {
 		if _, seen := d.logged.LoadOrStore(reason, true); !seen {
-			log.Printf("agenterm: notifications not shown (%s); set notify.fallback: osascript to use AppleScript (shows as Script Editor)", reason)
+			log.Printf("panal: notifications not shown (%s); set notify.fallback: osascript to use AppleScript (shows as Script Editor)", reason)
 		}
 		return nil
 	}

@@ -9,22 +9,22 @@ import (
 	"sync"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/daemon"
-	"github.com/elionaz/agenterm/internal/desktopnotify"
-	"github.com/elionaz/agenterm/internal/linuxnotify"
-	"github.com/elionaz/agenterm/internal/macnotify"
-	"github.com/elionaz/agenterm/internal/paths"
+	"github.com/elionaz/panal/internal/daemon"
+	"github.com/elionaz/panal/internal/desktopnotify"
+	"github.com/elionaz/panal/internal/linuxnotify"
+	"github.com/elionaz/panal/internal/macnotify"
+	"github.com/elionaz/panal/internal/paths"
 )
 
 // notifier is the daemon's fallback notifier (used while no UI client is
 // subscribed). Inside the .app bundle it posts native notifications, which
-// macOS attributes to agenterm (name and icon) and whose clicks open the app
+// macOS attributes to panal (name and icon) and whose clicks open the app
 // on that session. When that is not possible (no bundle, not authorized) it
 // drops them, or uses osascript if notify.fallback says so.
-// AGENTERM_NOTIFY=off turns it off entirely.
+// PANAL_NOTIFY=off turns it off entirely.
 type notifier struct {
 	log       *slog.Logger
-	off       bool                  // AGENTERM_NOTIFY=off
+	off       bool                  // PANAL_NOTIFY=off
 	bundle    string                // the .app containing the daemon executable; "" if none
 	native    bool                  // bundle with a bundle identifier
 	clicks    bool                  // our delegate is installed (clicks reach onClick)
@@ -47,7 +47,7 @@ func newNotifier(log *slog.Logger, exe string) *notifier {
 	}
 	if runtime.GOOS == "linux" {
 		var err error
-		if n.linux, err = linuxnotify.New("agenterm", nil); err != nil {
+		if n.linux, err = linuxnotify.New("panal", nil); err != nil {
 			log.Info("no desktop notification service", "err", err)
 		}
 	}
@@ -66,7 +66,7 @@ func (n *notifier) Notify(note daemon.Notification) {
 	if n.off {
 		return
 	}
-	reason := "no app bundle (daemon not running as agenterm.app)"
+	reason := "no app bundle (daemon not running as panal.app)"
 	if n.linux != nil {
 		err := n.linux.Post(linuxnotify.Note{Key: note.SessionID, Title: note.Title, Body: note.Body, Sound: note.Sound})
 		if err == nil {
@@ -132,9 +132,9 @@ func (n *notifier) dropped(reason string) {
 }
 
 // onClick opens the app on the clicked session. The daemon gets the click
-// because it posted the notification; agenterm://session/<id> reaches the
+// because it posted the notification; panal://session/<id> reaches the
 // app whether it is running (URL event) or not (launched with it). The
-// daemon's AGENTERM_HOME, if any, goes along for a cold launch so the app
+// daemon's PANAL_HOME, if any, goes along for a cold launch so the app
 // talks to this daemon.
 func (n *notifier) onClick(sessionID string) {
 	n.log.Info("notification clicked", "session", sessionID)

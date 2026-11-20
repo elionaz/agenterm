@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Prints the Homebrew cask for a release (packaging/homebrew/agenterm.rb.tmpl).
+# Prints the Homebrew cask for a release (packaging/homebrew/panal.rb.tmpl).
 #
 #   scripts/render-cask.sh <version> <sha256 of the macos-universal zip> [signed=true|false]
 #
@@ -17,14 +17,14 @@ CAVEATS=""
 if [[ $SIGNED != true ]]; then
 	CAVEATS='
   caveats <<~EOS
-    This build of agenterm is not signed with a Developer ID nor notarized,
+    This build of panal is not signed with a Developer ID nor notarized,
     so Gatekeeper will refuse to open it. After installing, run:
-      xattr -dr com.apple.quarantine #{appdir}/agenterm.app
+      xattr -dr com.apple.quarantine #{appdir}/panal.app
   EOS
 '
 fi
 
-TMPL=$(cd "$(dirname "$0")/.." && pwd)/packaging/homebrew/agenterm.rb.tmpl
+TMPL=$(cd "$(dirname "$0")/.." && pwd)/packaging/homebrew/panal.rb.tmpl
 while IFS= read -r line || [[ -n $line ]]; do
 	line=${line//@VERSION@/$VERSION}
 	line=${line//@SHA256@/$SHA}

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elionaz/agenterm/internal/status"
+	"github.com/elionaz/panal/internal/status"
 )
 
 // fakePath creates a directory with fake executables (and one
@@ -306,8 +306,8 @@ func TestAttentionPatterns(t *testing.T) {
 		t.Fatalf("hermes patterns %v %v", res, err)
 	}
 	// Cursor CLI's approval menu (from a real session).
-	menu := " $  agenterm msg read in .\n\n Run this command?\n Not in allowlist: agenterm\n  → Run (once) (y)\n" +
-		"    Add Shell(agenterm) to allowlist? (tab)\n    Run Everything (shift+tab)\n    Skip & tell the agent what to do instead (esc or n)\n"
+	menu := " $  panal msg read in .\n\n Run this command?\n Not in allowlist: panal\n  → Run (once) (y)\n" +
+		"    Add Shell(panal) to allowlist? (tab)\n    Run Everything (shift+tab)\n    Skip & tell the agent what to do instead (esc or n)\n"
 	c := mustFind(t, Resolve(nil, nil), "cursor-agent")
 	res, err = c.Patterns()
 	if err != nil || len(res) == 0 {
@@ -317,7 +317,7 @@ func TestAttentionPatterns(t *testing.T) {
 		if !re.MatchString(menu) {
 			t.Errorf("cursor pattern %q misses its approval menu", re)
 		}
-		if re.MatchString("Ran agenterm msg read: no new messages\n> ") {
+		if re.MatchString("Ran panal msg read: no new messages\n> ") {
 			t.Errorf("cursor pattern %q matches plain output", re)
 		}
 	}

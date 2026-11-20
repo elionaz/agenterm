@@ -19,8 +19,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/atomicfile"
-	"github.com/elionaz/agenterm/internal/fileformat"
+	"github.com/elionaz/panal/internal/atomicfile"
+	"github.com/elionaz/panal/internal/fileformat"
 )
 
 // Resume is what an agent needs to continue the same conversation.
@@ -50,7 +50,7 @@ type Record struct {
 	// ContinuedFrom: the sessions whose work this one continues.
 	ContinuedFrom []string `json:"continuedFrom,omitempty"`
 	// Port is the session's port and PortEnv the variables set to it
-	// besides AGENTERM_PORT (kept when it is resumed).
+	// besides PANAL_PORT (kept when it is resumed).
 	Port    int      `json:"port,omitempty"`
 	PortEnv []string `json:"portEnv,omitempty"`
 	// Mode is same | worktree; WorktreeID names the worktree record.
@@ -84,7 +84,7 @@ type Store struct {
 // Open loads path. A missing file yields an empty store. A file that does
 // not parse is moved aside (path.corrupt-<time>) and the store starts
 // empty: backup names the moved file ("" if nothing was moved). A file
-// written by a newer agenterm, or with a version it can't read, is left
+// written by a newer panal, or with a version it can't read, is left
 // alone and Open fails (fileformat.Protected): starting empty would drop
 // its sessions.
 func Open(path string) (s *Store, backup string, err error) {

@@ -10,7 +10,7 @@ the Wails v2 CLI). The rules for opening a pull request are in [CONTRIBUTING.md]
 ```sh
 cd app
 wails dev     # hot reload (frontend on Vite); also serves http://localhost:34115
-wails build   # -> app/build/bin/agenterm.app
+wails build   # -> app/build/bin/panal.app
 ```
 
 Frontend only:
@@ -32,13 +32,13 @@ go vet ./... && go test -race ./...
 
 This is what CI runs (plus the frontend's `npm run check`, `npm test` and `npm run build`).
 
-- One integration test brings up the daemon in a temporary `AGENTERM_HOME` and exercises spawn,
+- One integration test brings up the daemon in a temporary `PANAL_HOME` and exercises spawn,
   attach/detach/reattach with scrollback, notify, events, kill and shutdown; another launches a
   shell in worktree mode on a temporary repo, makes changes by typing into it and checks
   `session.diff`, that `kill` keeps the worktree, the orphan after restarting the daemon, reopening
   it, the merge and `worktree.remove` (refusal and force).
 - `internal/daemon/persist_test.go` covers persistence: a shell session writes output, the daemon
-  stops (`stop --force` and cancellation), a new daemon on the same `AGENTERM_HOME` lists it as
+  stops (`stop --force` and cancellation), a new daemon on the same `PANAL_HOME` lists it as
   `suspended` with its scrollback replayed, resumes it (same folder, "session restored" line) and
   discards another; the `always`/`never` policies; a fake `setup_hooks: claude` script that
   checks `--resume <session_id>` comes after the `--settings` injection; failed resumes and a
@@ -47,31 +47,31 @@ This is what CI runs (plus the frontend's `npm run check`, `npm test` and `npm r
   (`GIT_CONFIG_NOSYSTEM=1`, empty `GIT_CONFIG_GLOBAL`, temporary `HOME`).
 - `go test` never posts real notifications: test daemons get a no-op or recording notifier (a
   `daemon.Config` without one posts nothing), the app tests use a fake desktop, and the `app`,
-  `internal/daemon` and `internal/daemoncmd` tests set `AGENTERM_NOTIFY=off` in `TestMain`. Keep it
+  `internal/daemon` and `internal/daemoncmd` tests set `PANAL_NOTIFY=off` in `TestMain`. Keep it
   that way in new tests.
 
 ## Testing without touching your installation
 
-Use your own `AGENTERM_HOME`, and set `AGENTERM_NOTIFY=off`. That's the rule for **any** test or
+Use your own `PANAL_HOME`, and set `PANAL_NOTIFY=off`. That's the rule for **any** test or
 demo instance (daemon, app or CLI that may auto-start a daemon):
 
-- `AGENTERM_HOME` must be a **short** path (`/tmp/…`): on macOS a unix socket path is limited to
+- `PANAL_HOME` must be a **short** path (`/tmp/…`): on macOS a unix socket path is limited to
   about 104 bytes and the temporary folders under `/var/folders/…` go over it.
-- `AGENTERM_NOTIFY=off` disables every desktop notification of that app and daemon (native and the
+- `PANAL_NOTIFY=off` disables every desktop notification of that app and daemon (native and the
   `osascript` fallback), whatever its `settings.yaml` says, so test sessions don't pop up
   notifications (or Script Editor) on your desktop. The daemon inherits it from whoever starts it.
 
 ```sh
-export AGENTERM_HOME=/tmp/agt AGENTERM_NOTIFY=off
-go run ./cmd/agenterm project add .
-go run ./cmd/agenterm spawn agenterm shell
-go run ./cmd/agenterm ls
-go run ./cmd/agenterm stop --force      # stops only the /tmp/agt daemon
+export PANAL_HOME=/tmp/agt PANAL_NOTIFY=off
+go run ./cmd/panal project add .
+go run ./cmd/panal spawn panal shell
+go run ./cmd/panal ls
+go run ./cmd/panal stop --force      # stops only the /tmp/agt daemon
 
-cd app && AGENTERM_HOME=/tmp/agt AGENTERM_NOTIFY=off wails dev   # the app against that same daemon
+cd app && PANAL_HOME=/tmp/agt PANAL_NOTIFY=off wails dev   # the app against that same daemon
 ```
 
-Since `AGENTERM_HOME` takes precedence over `AGENTERM_SOCK`, this is also safe inside an agenterm
+Since `PANAL_HOME` takes precedence over `PANAL_SOCK`, this is also safe inside a panal
 session: it doesn't touch the daemon hosting the session.
 
 ## Wails bindings
@@ -87,7 +87,7 @@ cd app && wails generate module
 ## Releasing
 
 The version has a single source of truth: the git tag `vX.Y.Z`. Release builds inject it with
-`-ldflags -X` into `internal/version` (what `agenterm version` and the app's About panel show) and
+`-ldflags -X` into `internal/version` (what `panal version` and the app's About panel show) and
 write it into the bundle's `Info.plist` (`CFBundleShortVersionString` and `CFBundleVersion`).
 `productVersion` in `app/wails.json` is only what plain `wails build` uses; builds without ldflags
 report `dev`.
@@ -98,14 +98,14 @@ report `dev`.
 
    ```sh
    git switch main && git pull
-   git tag -a v0.1.0 -m "agenterm 0.1.0"
+   git tag -a v0.1.0 -m "panal 0.1.0"
    git push origin v0.1.0
    ```
 
 3. `.github/workflows/release.yml` runs on the tag (macOS runner) and:
    - builds everything with `scripts/release-local.sh <version>` (the same script you run locally):
      the universal app (`wails build -platform darwin/universal`), the universal CLI (cgo, `lipo`)
-     bundled at `agenterm.app/Contents/Helpers/agenterm`, and the Linux CLI (`CGO_ENABLED=0`);
+     bundled at `panal.app/Contents/Helpers/panal`, and the Linux CLI (`CGO_ENABLED=0`);
    - embeds Sparkle (see [In-app updates](#in-app-updates-sparkle)) and signs it inside-out
      before the rest;
    - signs the CLI and then the app with the Developer ID, hardened runtime, a secure timestamp and
@@ -113,17 +113,17 @@ report `dev`.
      ad-hoc signature, warns, and the release notes say it's an unsigned build;
    - notarizes the zip and then the dmg with `notarytool` and staples both, if the App Store Connect
      secrets exist too; a rejected submission fails the job and prints the `notarytool log`;
-   - packages `agenterm-<v>-macos-universal.{zip,dmg}`, `agenterm-<v>-darwin-universal.tar.gz`,
-     `agenterm-<v>-linux-{amd64,arm64}.tar.gz` and `checksums.txt`, and uploads them to the run;
+   - packages `panal-<v>-macos-universal.{zip,dmg}`, `panal-<v>-darwin-universal.tar.gz`,
+     `panal-<v>-linux-{amd64,arm64}.tar.gz` and `checksums.txt`, and uploads them to the run;
    - if `SPARKLE_PRIVATE_ED_KEY` exists, EdDSA-signs the (stapled) zip and writes `appcast.xml`;
    - creates the GitHub release `vX.Y.Z` with the CHANGELOG section as notes (or generated notes if
      there's none) and every artifact attached, `appcast.xml` included when the build is notarized.
      Once `SPARKLE_PUBLIC_ED_KEY` is set, a release without `appcast.xml` isn't marked *Latest* (the
      feed URL points at the latest release). A pre-release (`X.Y.Z-suffix`) is published as a GitHub pre-release: never *Latest*,
      never offered in-app, and the Homebrew cask isn't updated;
-   - if `HOMEBREW_TAP_TOKEN` exists, renders `packaging/homebrew/agenterm.rb.tmpl` with the version
-     and the zip's sha256 (`scripts/render-cask.sh`) and pushes it to `Casks/agenterm.rb` in
-     [elionaz/homebrew-tap](https://github.com/elionaz/homebrew-tap) as "agenterm X.Y.Z".
+   - if `HOMEBREW_TAP_TOKEN` exists, renders `packaging/homebrew/panal.rb.tmpl` with the version
+     and the zip's sha256 (`scripts/render-cask.sh`) and pushes it to `Casks/panal.rb` in
+     [elionaz/homebrew-tap](https://github.com/elionaz/homebrew-tap) as "panal X.Y.Z".
 
 ### Secrets
 
@@ -194,9 +194,9 @@ Locally (macOS, with the requirements in the README):
 
 ```sh
 scripts/release-local.sh 0.1.0        # -> dist/ (gitignored), ad-hoc signed
-codesign --verify --deep --strict --verbose=2 dist/work/agenterm.app
-lipo -info dist/work/agenterm.app/Contents/MacOS/agenterm
-scripts/render-cask.sh 0.1.0 "$(shasum -a 256 dist/agenterm-0.1.0-macos-universal.zip | cut -d' ' -f1)"
+codesign --verify --deep --strict --verbose=2 dist/work/panal.app
+lipo -info dist/work/panal.app/Contents/MacOS/panal
+scripts/render-cask.sh 0.1.0 "$(shasum -a 256 dist/panal-0.1.0-macos-universal.zip | cut -d' ' -f1)"
 ```
 
 To try the signing path, pass an identity from your keychain: `SIGN_IDENTITY="Developer ID
@@ -228,12 +228,12 @@ caches it in `.cache/sparkle/` (gitignored). `release-local.sh` then:
 - builds the app with `-tags sparkle` (`app/updater_sparkle_darwin.{go,m}`; every other build,
   `wails dev` and tests included, gets `app/updater_stub.go`), weak-linking `Sparkle.framework`
   through `@rpath` = `Contents/Frameworks`;
-- copies the framework to `agenterm.app/Contents/Frameworks/` and signs, in this order and without
+- copies the framework to `panal.app/Contents/Frameworks/` and signs, in this order and without
   `--deep`, as Sparkle documents for Developer ID apps: `XPCServices/Installer.xpc`,
   `XPCServices/Downloader.xpc` (`--preserve-metadata=entitlements`), `Autoupdate`, `Updater.app`,
   the framework; then the CLI and the app as before;
 - sets `SUPublicEDKey` in `Info.plist` (the template has `SUFeedURL` =
-  `https://github.com/elionaz/agenterm/releases/latest/download/appcast.xml`, daily automatic checks
+  `https://github.com/elionaz/panal/releases/latest/download/appcast.xml`, daily automatic checks
   and automatic updates allowed), or removes it when `SPARKLE_PUBLIC_ED_KEY` is empty: the app then
   keeps the updater off;
 - after notarizing and stapling the zip, signs it with `bin/sign_update --ed-key-file` (the key goes
@@ -252,7 +252,7 @@ update through Sparkle like any other, and the cask declares `auto_updates true`
 plain `brew upgrade` skips it; `--greedy` or naming the cask still upgrades it. It came one release
 after Sparkle was turned on for Homebrew because brew reads it from the tap's cask, not from the
 installed app: installs from 0.4.1 and earlier (Sparkle off) needed a release to move to with plain
-`brew upgrade`. brew's record (`Caskroom/agenterm/<version>`) stays at the version brew installed
+`brew upgrade`. brew's record (`Caskroom/panal/<version>`) stays at the version brew installed
 after Sparkle updates the app; that is expected for `auto_updates` casks, and the CLI symlink
 points at a fixed path.
 
@@ -279,10 +279,10 @@ the webview's `localStorage`. The banner yields to the reconnecting and daemon-r
 
 ```sh
 SPARKLE_DIR=$(scripts/fetch-sparkle.sh)
-"$SPARKLE_DIR/bin/generate_keys" --account agenterm          # creates it in your login keychain, prints the public key
-"$SPARKLE_DIR/bin/generate_keys" --account agenterm -x sparkle-private.txt
+"$SPARKLE_DIR/bin/generate_keys" --account panal          # creates it in your login keychain, prints the public key
+"$SPARKLE_DIR/bin/generate_keys" --account panal -x sparkle-private.txt
 gh secret set SPARKLE_PRIVATE_ED_KEY < sparkle-private.txt
-gh variable set SPARKLE_PUBLIC_ED_KEY --body "$("$SPARKLE_DIR/bin/generate_keys" --account agenterm -p)"
+gh variable set SPARKLE_PUBLIC_ED_KEY --body "$("$SPARKLE_DIR/bin/generate_keys" --account panal -p)"
 rm sparkle-private.txt
 ```
 
@@ -323,15 +323,15 @@ Development builds (`dev`) never show the banner, nor does a daemon newer than t
 
 The sources are in `assets/icon/`:
 
-- `agenterm-icon.svg`: the square, full-bleed icon;
-- `agenterm-icon-rounded.svg`: with rounded corners (the one in the README);
-- `agenterm-icon-macos.svg`: with the macOS icon template's margin, which is the one the app uses.
+- `panal-icon.svg`: the square, full-bleed icon;
+- `panal-icon-rounded.svg`: with rounded corners (the one in the README);
+- `panal-icon-macos.svg`: with the macOS icon template's margin, which is the one the app uses.
 
 Wails generates the `.app` icon from `app/build/appicon.png` (1024×1024). To regenerate it with
 Inkscape 1.x:
 
 ```sh
-inkscape assets/icon/agenterm-icon-macos.svg \
+inkscape assets/icon/panal-icon-macos.svg \
   --export-type=png --export-filename=app/build/appicon.png -w 1024 -h 1024
 ```
 
@@ -344,9 +344,12 @@ On macOS the Inkscape CLI isn't on the `PATH`; it's at
 - **macOS first.** The app is mostly tested on macOS (Apple Silicon); the Linux app is experimental
   (below). The transport is a unix socket; Windows isn't supported.
 - **Upgrading doesn't restart the daemon**: after installing a new version, a daemon that was
-  already running keeps the old code until `agenterm stop` (or a computer restart).
+  already running keeps the old code until `panal stop` (or a computer restart).
 - The **Linux app** (AppImage, .deb) is experimental: CI builds, tests and packages it on Ubuntu
-  24.04 (`scripts/package-linux.sh`), but it's lightly tested on real desktops.
+  24.04 (`scripts/package-linux.sh`), but it's lightly tested on real desktops. Every change runs
+  the daemon and CLI tests on Ubuntu (ci.yml `linux`, no GTK); the app's tests and packaging
+  (`linux-app.yml`, with GTK/WebKitGTK) run on main and on pull requests that touch `app/`,
+  `packaging/`, the workflows or the dependencies.
 - **A daemon restart (or a computer restart) kills the processes.** Sessions come back as
   `suspended`, with their scrollback, and are respawned on resume: Claude Code and codex continue
   their conversation by id, opencode and Cursor CLI with `--continue` and Hermes with `-c` (each project's *last*
@@ -358,7 +361,7 @@ On macOS the Inkscape CLI isn't on the `PATH`; it's at
 - **Notifications with the app closed**: if the daemon isn't inside the `.app` (a CLI installed
   outside the bundle started it) or the bundle has no permission, notifications are not shown
   (`daemon.log` says why). With `notify.fallback: osascript` they are sent through `osascript`
-  instead: they show up as *Script Editor*, and clicking one opens Script Editor, not agenterm.
+  instead: they show up as *Script Editor*, and clicking one opens Script Editor, not panal.
 - **codex** doesn't report when it starts working: "working" is decided by the heuristic and there's
   no "stalled?" warning.
 - **"Stalled?"** only exists in sessions with hooks (Claude Code), and since Claude's spinner
@@ -371,7 +374,7 @@ On macOS the Inkscape CLI isn't on the `PATH`; it's at
   installed and the profile is enabled. The approval line `[o]nce | [s]ession` marks the session
   as waiting. `args: ["--tui"]` or `args: []` replaces that default; `resume_args: []` skips the
   `-c` reattach; `enabled: false` hides it. Closing the terminal detaches from Hermes's gateway
-  (the turn keeps running until `/exit` or Ctrl+D). agenterm does not write `~/.hermes`.
+  (the turn keeps running until `/exit` or Ctrl+D). panal does not write `~/.hermes`.
 - **`profiles.yaml` loses its comments** when the app saves it (it's rewritten in canonical form).
   `settings.yaml` keeps them.
 - Merging a worktree **doesn't stash**: the main folder must be clean and on the base branch.

@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/elionaz/agenterm/internal/apierr"
+	"github.com/elionaz/panal/internal/apierr"
 )
 
 // Worktree is an entry of `git worktree list --porcelain`.
@@ -320,7 +320,7 @@ func Merge(ctx context.Context, repo, branch, base, worktree string) (MergeResul
 	}
 	if n := st.Staged + st.Unstaged + st.Conflicts; n > 0 {
 		return res, apierr.New(apierr.MergeMainDirty, map[string]any{"dir": main, "count": n},
-			"cannot merge: the main folder (%s) has %d uncommitted %s; commit or stash first (agenterm does not stash automatically)", main, n, plural(n, "change", "changes"))
+			"cannot merge: the main folder (%s) has %d uncommitted %s; commit or stash first (panal does not stash automatically)", main, n, plural(n, "change", "changes"))
 	}
 	if !BranchExists(ctx, main, branch) {
 		return res, apierr.New(apierr.BranchMissing, map[string]any{"branch": branch}, "branch %q no longer exists", branch)
@@ -348,7 +348,7 @@ func Merge(ctx context.Context, repo, branch, base, worktree string) (MergeResul
 		return res, apierr.New(apierr.MergeNothing, map[string]any{"branch": branch, "base": base},
 			"nothing to merge: %s has no commits that are not already in %s", branch, base)
 	}
-	out, err := gitWrite(ctx, main, "merge", "--no-ff", "--no-edit", "-m", fmt.Sprintf("Merge branch '%s' (agenterm)", branch), "--", branch)
+	out, err := gitWrite(ctx, main, "merge", "--no-ff", "--no-edit", "-m", fmt.Sprintf("Merge branch '%s' (panal)", branch), "--", branch)
 	if err != nil {
 		conflicts, _ := git(ctx, main, "diff", "--name-only", "--diff-filter=U")
 		_, _ = gitWrite(ctx, main, "merge", "--abort")

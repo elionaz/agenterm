@@ -3,7 +3,7 @@ package daemon
 import (
 	"sync"
 
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 // bus fans daemon events out to events.subscribe streams. A subscriber that

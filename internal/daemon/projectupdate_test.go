@@ -3,8 +3,8 @@ package daemon_test
 import (
 	"testing"
 
-	"github.com/elionaz/agenterm/internal/apierr"
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/apierr"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 func TestProjectUpdate(t *testing.T) {

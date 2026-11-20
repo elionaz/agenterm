@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/apierr"
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/apierr"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 // waitFile waits for path to exist.
@@ -31,9 +31,9 @@ func TestWorktreeSetup(t *testing.T) {
 	ctx := ctxT(t)
 	repo := tempRepo(t)
 	os.WriteFile(filepath.Join(repo, ".gitignore"), []byte(".env\nsetup-ran\n"), 0o644)
-	os.WriteFile(filepath.Join(repo, ".agenterm.yaml"), []byte("worktree:\n  copy: [.env]\n  setup: touch setup-ran\n"), 0o644)
+	os.WriteFile(filepath.Join(repo, ".panal.yaml"), []byte("worktree:\n  copy: [.env]\n  setup: touch setup-ran\n"), 0o644)
 	gitT(t, repo, "add", "-A")
-	gitT(t, repo, "commit", "-qm", "agenterm config")
+	gitT(t, repo, "commit", "-qm", "panal config")
 	os.WriteFile(filepath.Join(repo, ".env"), []byte("SECRET=1\n"), 0o600)
 	proj, err := c.ProjectAdd(ctx, repo, "setup")
 	if err != nil {
@@ -68,7 +68,7 @@ func TestWorktreeSetup(t *testing.T) {
 	if !waitFile(t, filepath.Join(a.WorktreePath, "setup-ran"), 10*time.Second) {
 		t.Fatal("the setup did not run")
 	}
-	if slices.Contains(a.Args, "agenterm-setup") || slices.Contains(a.Args, "-c") {
+	if slices.Contains(a.Args, "panal-setup") || slices.Contains(a.Args, "-c") {
 		t.Fatalf("session shows the wrapper: %s %v", a.Cmd, a.Args)
 	}
 	runIn(t, c, a.ID, "true") // the shell runs after the setup
@@ -101,7 +101,7 @@ func TestWorktreeSetup(t *testing.T) {
 	}
 
 	// A changed command asks again; skipSetup creates it without running it.
-	os.WriteFile(filepath.Join(repo, ".agenterm.yaml"), []byte("worktree:\n  copy: [.env]\n  setup: touch setup-ran && true\n"), 0o644)
+	os.WriteFile(filepath.Join(repo, ".panal.yaml"), []byte("worktree:\n  copy: [.env]\n  setup: touch setup-ran && true\n"), 0o644)
 	if _, err := spawn(protocol.SpawnParams{}); !hasCode(err, apierr.SetupUntrusted) {
 		t.Fatalf("changed setup: %v", err)
 	}
@@ -146,7 +146,7 @@ func TestWorktreeCopyOffer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(res.Copied, []string{".env", ".env.local"}) || res.Created != filepath.Join(repo, ".agenterm.yaml") {
+	if !slices.Equal(res.Copied, []string{".env", ".env.local"}) || res.Created != filepath.Join(repo, ".panal.yaml") {
 		t.Fatalf("copy = %+v", res)
 	}
 	// The next worktree gets them by itself, and no offer.
@@ -168,7 +168,7 @@ func TestWorktreeSetupFails(t *testing.T) {
 	defer stop()
 	ctx := ctxT(t)
 	repo := tempRepo(t)
-	os.WriteFile(filepath.Join(repo, ".agenterm.yaml"), []byte("worktree:\n  setup: exit 3\n"), 0o644)
+	os.WriteFile(filepath.Join(repo, ".panal.yaml"), []byte("worktree:\n  setup: exit 3\n"), 0o644)
 	proj, err := c.ProjectAdd(ctx, repo, "fails")
 	if err != nil {
 		t.Fatal(err)

@@ -11,13 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/browser"
-	"github.com/elionaz/agenterm/internal/daemon"
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/browser"
+	"github.com/elionaz/panal/internal/daemon"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 // fakeChrome serves /json/version on --remote-debugging-port (TestMain
-// runs it when AGENTERM_FAKE_CHROME is set).
+// runs it when PANAL_FAKE_CHROME is set).
 func fakeChrome() {
 	port := ""
 	for _, a := range os.Args[1:] {
@@ -45,7 +45,7 @@ func TestBrowser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("AGENTERM_FAKE_CHROME", "1") // what Launch starts serves DevTools
+	t.Setenv("PANAL_FAKE_CHROME", "1") // what Launch starts serves DevTools
 	defer daemon.SetBrowser(exe)()
 	// npx on the search PATH: sessions with an integration get the MCP server.
 	bin := t.TempDir()
@@ -78,16 +78,16 @@ func TestBrowser(t *testing.T) {
 		t.Fatalf("claude args = %q", cl.Args)
 	}
 	cfg, err := os.ReadFile(cl.Args[1])
-	if err != nil || !strings.Contains(string(cfg), `"agenterm-browser"`) || !strings.Contains(string(cfg), `"browser","mcp","--sock"`) {
+	if err != nil || !strings.Contains(string(cfg), `"panal-browser"`) || !strings.Contains(string(cfg), `"browser","mcp","--sock"`) {
 		t.Fatalf("mcp config %s: %v", cfg, err)
 	}
 	cx, err := c.Spawn(ctx, protocol.SpawnParams{ProjectID: proj.ID, ProfileID: "hookedcodex"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.ContainsFunc(cx.Args, func(a string) bool { return strings.HasPrefix(a, "mcp_servers.agenterm-browser.command=") }) ||
+	if !slices.ContainsFunc(cx.Args, func(a string) bool { return strings.HasPrefix(a, "mcp_servers.panal-browser.command=") }) ||
 		!slices.ContainsFunc(cx.Args, func(a string) bool {
-			return strings.HasPrefix(a, "developer_instructions=") && strings.Contains(a, "agenterm browser")
+			return strings.HasPrefix(a, "developer_instructions=") && strings.Contains(a, "panal browser")
 		}) {
 		t.Fatalf("codex args = %q", cx.Args)
 	}

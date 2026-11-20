@@ -11,7 +11,7 @@ export type LangSetting = 'auto' | Lang
 export type Params = Record<string, string | number>
 
 const dicts: Record<Lang, Record<MsgKey, Msg>> = { en, es }
-const STORAGE_KEY = 'agenterm.language'
+const STORAGE_KEY = 'panal.language'
 
 /** First supported language in a preference list ("es-ES", "en"…). */
 export function matchLang(tags: readonly string[]): Lang | null {

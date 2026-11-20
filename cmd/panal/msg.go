@@ -10,18 +10,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/client"
-	"github.com/elionaz/agenterm/internal/mailbox"
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/status"
+	"github.com/elionaz/panal/internal/client"
+	"github.com/elionaz/panal/internal/mailbox"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/status"
 )
 
 const msgUsage = `usage:
-  agenterm msg peers [--session ID]       the other sessions of this project
-  agenterm msg send <to> <text…>          to: a session id, a name (msg peers) or all;
+  panal msg peers [--session ID]       the other sessions of this project
+  panal msg send <to> <text…>          to: a session id, a name (msg peers) or all;
                                           text "-" reads it from stdin
-  agenterm msg read                       your new messages (marks them delivered)
-  agenterm msg list [--pending] [--session ID | --project ID]   history`
+  panal msg read                       your new messages (marks them delivered)
+  panal msg list [--pending] [--session ID | --project ID]   history`
 
 func cmdMsg(ctx context.Context, c *client.Client, args []string) error {
 	if len(args) == 0 {
@@ -75,7 +75,7 @@ func cmdMsg(ctx context.Context, c *client.Client, args []string) error {
 		}
 		switch {
 		case !r.Enabled:
-			fmt.Println("messages between sessions are off (agenterm Settings › Messages)")
+			fmt.Println("messages between sessions are off (panal Settings › Messages)")
 		case len(r.Messages) == 0:
 			fmt.Println("no new messages")
 		default:
@@ -117,7 +117,7 @@ func formatPeers(r protocol.MsgPeers) string {
 		fmt.Fprintf(&b, "  %s\n", peerLine(p))
 	}
 	if !r.Enabled {
-		b.WriteString("messages between sessions are off (agenterm Settings › Messages)\n")
+		b.WriteString("messages between sessions are off (panal Settings › Messages)\n")
 	}
 	return b.String()
 }
@@ -149,7 +149,7 @@ func formatListLine(m mailbox.Message) string {
 		strings.ReplaceAll(m.Body, "\n", " ⏎ "))
 }
 
-// waitDone reports whether state ends `agenterm wait`: the session
+// waitDone reports whether state ends `panal wait`: the session
 // finished its turn (idle), waits for its user, or exited.
 func waitDone(state string) bool {
 	switch status.State(state) {
@@ -167,7 +167,7 @@ func cmdWait(ctx context.Context, c *client.Client, args []string) error {
 		return err
 	}
 	if fs.NArg() != 1 {
-		return errors.New("usage: agenterm wait <sessionId> [--timeout 30m]")
+		return errors.New("usage: panal wait <sessionId> [--timeout 30m]")
 	}
 	id := fs.Arg(0)
 	ctx, cancel := context.WithTimeout(ctx, *timeout)
@@ -203,7 +203,7 @@ func cmdWait(ctx context.Context, c *client.Client, args []string) error {
 		e, err := ev.Next()
 		if err != nil {
 			if ctx.Err() != nil {
-				fmt.Fprintf(os.Stderr, "agenterm: %s is still busy after %s\n", id, *timeout)
+				fmt.Fprintf(os.Stderr, "panal: %s is still busy after %s\n", id, *timeout)
 				os.Exit(2)
 			}
 			return err

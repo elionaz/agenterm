@@ -42,7 +42,7 @@ function graphemes(s: string): string[] {
   return [...segmenter.segment(s)].map((x) => x.segment)
 }
 
-/** Two letters for a name: "web-shop" → "WS", "agenterm" → "AG", "my api" → "MA". */
+/** Two letters for a name: "web-shop" → "WS", "panal" → "AG", "my api" → "MA". */
 export function initials(name: string): string {
   const words = name.split(/[^\p{L}\p{N}]+/u).filter(Boolean)
   if (!words.length) return graphemes(name.trim())[0] ?? '?'

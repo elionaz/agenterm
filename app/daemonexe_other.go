@@ -2,6 +2,6 @@
 
 package main
 
-// daemonExe: on macOS the app runs the daemon itself (as agenterm.app, for
+// daemonExe: on macOS the app runs the daemon itself (as panal.app, for
 // native notifications and their clicks).
 func daemonExe(app string) string { return app }

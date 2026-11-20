@@ -3,34 +3,34 @@
 [English](../cli.md) · **Español**
 
 ```sh
-go build -o agenterm ./cmd/agenterm
-agenterm help            # también -h / --help
-agenterm version         # también --version: "agenterm 0.1.0 (abc1234)"; "dev" en builds locales
+go build -o panal ./cmd/panal
+panal help            # también -h / --help
+panal version         # también --version: "panal 0.1.0 (abc1234)"; "dev" en builds locales
 ```
 
-Un solo binario hace de CLI, de daemon (`agenterm daemon`) y de callback para los hooks de los
-agentes (`agenterm notify`). El ejecutable de la app (`agenterm.app/Contents/MacOS/agenterm`)
+Un solo binario hace de CLI, de daemon (`panal daemon`) y de callback para los hooks de los
+agentes (`panal notify`). El ejecutable de la app (`panal.app/Contents/MacOS/panal`)
 también implementa `daemon`, `notify` y `version`, así que la app no depende de la CLI. Las releases
-incluyen además la CLI dentro de la app, en `agenterm.app/Contents/Helpers/agenterm` (Homebrew la
+incluyen además la CLI dentro de la app, en `panal.app/Contents/Helpers/panal` (Homebrew la
 enlaza en el `PATH`).
 
 Reglas generales:
 
 - Cualquier comando que hable con el daemon lo **arranca si no está corriendo** (desacoplado, con la
   salida en `daemon.log`), salvo `stop`, `notify` y los comandos lanzados dentro de una sesión que
-  solo tienen `$AGENTERM_SOCK` (ver [Qué daemon usa un comando](#qué-daemon-usa-un-comando)).
-- Los flags pueden ir antes o después de los argumentos (`agenterm diff abc123 --stat`) y se
+  solo tienen `$PANAL_SOCK` (ver [Qué daemon usa un comando](#qué-daemon-usa-un-comando)).
+- Los flags pueden ir antes o después de los argumentos (`panal diff abc123 --stat`) y se
   aceptan con uno o dos guiones (`-force` / `--force`).
 - Donde se pide un proyecto puedes usar su id o su nombre.
 - Los ids de proyectos y sesiones son 8 caracteres hexadecimales. El id de un worktree es el de la
   sesión que lo creó.
-- Si algo falla, el comando imprime `agenterm: <error>` y sale con 1.
+- Si algo falla, el comando imprime `panal: <error>` y sale con 1.
 - La salida de la CLI y los mensajes de error del daemon están en inglés, sea cual sea
   `ui.language` (ver [configuration.md](configuration.md#idioma)).
 
 ## Daemon
 
-### `agenterm daemon [--detach] [--idle D]`
+### `panal daemon [--detach] [--idle D]`
 
 Ejecuta el daemon en primer plano (log a stderr) hasta recibir SIGTERM/SIGINT o una petición de
 apagado.
@@ -40,7 +40,7 @@ apagado.
 | `--detach` | lo arranca en segundo plano (log en `daemon.log`) y vuelve cuando el socket responde; si ya corre, lo dice y sale con 0 |
 | `--idle D` | timeout de inactividad de la heurística (duración de Go: `3s`, `1500ms`…); por defecto 3 s. Un perfil puede sobrescribirlo con `idle_seconds` |
 
-### `agenterm stop [--force]`
+### `panal stop [--force]`
 
 Pide al daemon que se apague y espera (hasta 10 s) a que el socket desaparezca; imprime
 `daemon stopped`. Nunca arranca un daemon.
@@ -48,7 +48,7 @@ Pide al daemon que se apague y espera (hasta 10 s) a que el socket desaparezca; 
 - Sin `--force` **se niega** (sale con 1) si hay sesiones que no han terminado: el error lista
   esas sesiones (`<id> (<perfil>)`) y sugiere `--force`. Las sesiones `exited` no cuentan.
 - `--force` mata las sesiones vivas y apaga el daemon. No se pierden: el daemon siguiente las
-  restaura como `suspended` (ver [`resume`](#agenterm-resume-sessionid--all)). Las sesiones
+  restaura como `suspended` (ver [`resume`](#panal-resume-sessionid--all)). Las sesiones
   `suspended` tampoco cuentan como vivas.
 
 La comprobación la hace el propio daemon, así que también protege de scripts o clientes antiguos.
@@ -59,17 +59,17 @@ Cada petición (aceptada o rechazada) queda en `daemon.log` con el proceso que l
 
 | comando | |
 |---|---|
-| `agenterm project add <dir> [--name N]` | registra una carpeta (rutas relativas se resuelven desde tu directorio actual). Imprime `<id>  <nombre>  <ruta>`. El nombre por defecto es el de la carpeta. Si la carpeta ya estaba registrada devuelve el proyecto existente |
-| `agenterm project list` (o `ls`) | tabla `ID NAME PATH ADDED` |
-| `agenterm project rm <id>` (o `remove`) | quita el proyecto de la lista (no borra archivos) |
-| `agenterm project set <id\|nombre> [--name N] [--color C\|auto] [--icon E\|none]` | renombra el proyecto o cambia su insignia en la barra lateral. Colores: `blue`, `teal`, `green`, `amber`, `orange`, `red`, `pink`, `purple`; `auto` elige uno a partir del id del proyecto. `--icon` pone un emoji en lugar de las iniciales; `none` vuelve a las iniciales. Las ventanas abiertas se actualizan al instante. Imprime `<id>  <nombre>  <color>  <icono>` |
+| `panal project add <dir> [--name N]` | registra una carpeta (rutas relativas se resuelven desde tu directorio actual). Imprime `<id>  <nombre>  <ruta>`. El nombre por defecto es el de la carpeta. Si la carpeta ya estaba registrada devuelve el proyecto existente |
+| `panal project list` (o `ls`) | tabla `ID NAME PATH ADDED` |
+| `panal project rm <id>` (o `remove`) | quita el proyecto de la lista (no borra archivos) |
+| `panal project set <id\|nombre> [--name N] [--color C\|auto] [--icon E\|none]` | renombra el proyecto o cambia su insignia en la barra lateral. Colores: `blue`, `teal`, `green`, `amber`, `orange`, `red`, `pink`, `purple`; `auto` elige uno a partir del id del proyecto. `--icon` pone un emoji en lugar de las iniciales; `none` vuelve a las iniciales. Las ventanas abiertas se actualizan al instante. Imprime `<id>  <nombre>  <color>  <icono>` |
 
 ## Perfiles (agentes)
 
 | comando | |
 |---|---|
-| `agenterm profiles` (o `profiles list` / `ls`) | perfiles efectivos (catálogo + `profiles.yaml`), en el orden del menú |
-| `agenterm profiles scan` | vuelve a leer el `PATH` del shell de login, detecta de nuevo los agentes instalados y los lista |
+| `panal profiles` (o `profiles list` / `ls`) | perfiles efectivos (catálogo + `profiles.yaml`), en el orden del menú |
+| `panal profiles scan` | vuelve a leer el `PATH` del shell de login, detecta de nuevo los agentes instalados y los lista |
 
 Columnas: `ID NAME ENABLED INSTALLED SOURCE STATUS CMD`. `INSTALLED` es la ruta del ejecutable,
 `-` si no se encontró, o `error: …` si la entrada de `profiles.yaml` es inválida. `SOURCE` es
@@ -78,7 +78,7 @@ Columnas: `ID NAME ENABLED INSTALLED SOURCE STATUS CMD`. `INSTALLED` es la ruta 
 
 ## Sesiones
 
-### `agenterm spawn [flags] <proyecto> <perfil>`
+### `panal spawn [flags] <proyecto> <perfil>`
 
 Lanza una sesión e imprime su id. En modo worktree imprime `<id>  <rama>  <carpeta>`.
 
@@ -88,8 +88,8 @@ Lanza una sesión e imprime su id. En modo worktree imprime `<id>  <rama>  <carp
 | `--worktree` | crea un worktree de git nuevo con su propia rama |
 | `--branch B` | rama para `--worktree` (por defecto `agent/<perfil>-<4 primeros del id>`) |
 | `--base X` | rama o commit base para `--worktree` (por defecto la rama actual del proyecto) |
-| `--in-worktree ID` | lanza la sesión en un worktree de agenterm que ya existe (p. ej. un huérfano) |
-| `--trust-setup` | confía en el setup de worktrees del repositorio (`.agenterm.yaml`) y lo corre |
+| `--in-worktree ID` | lanza la sesión en un worktree de panal que ya existe (p. ej. un huérfano) |
+| `--trust-setup` | confía en el setup de worktrees del repositorio (`.panal.yaml`) y lo corre |
 | `--no-setup` | crea el worktree sin correr su setup (los archivos se copian igual) |
 
 `--branch`, `--base`, `--trust-setup` y `--no-setup` requieren `--worktree`. Un setup en el que aún
@@ -98,7 +98,7 @@ no confías hace fallar `--worktree` con `setup_untrusted` (ver
 comando no está instalado (el mensaje incluye la pista de instalación del catálogo). Ver
 [worktrees.md](worktrees.md).
 
-### `agenterm ls`
+### `panal ls`
 
 Tabla con `ID NAME PROJECT PROFILE STATE ATTENTION PID SIZE AGE TURN GIT ACTIVITY CWD`:
 
@@ -112,33 +112,33 @@ Tabla con `ID NAME PROJECT PROFILE STATE ATTENTION PID SIZE AGE TURN GIT ACTIVIT
 - `ACTIVITY`: `[hook|output] <línea de actividad>`, con `(estado N%)` si hay progreso y el prefijo
   `STALLED` si el turno parece trabado.
 
-### `agenterm tail [-n N] <sessionId>`
+### `panal tail [-n N] <sessionId>`
 
 Últimas `N` líneas (por defecto 8, máximo 200) de la salida en texto plano, sin secuencias ANSI.
 
-### `agenterm attach <sessionId>`
+### `panal attach <sessionId>`
 
 Conecta tu terminal a la sesión: primero repinta el scrollback y después sigue en vivo. Reenvía los
 cambios de tamaño de la ventana. **Ctrl-\\** se desacopla; la sesión sigue viva. Sobre una sesión
 `suspended` muestra el scrollback guardado y espera; si mientras tanto se reanuda, termina con
 `[daemon: session resumed; reattach]` (vuelve a ejecutar `attach`).
 
-### `agenterm kill <sessionId>`
+### `panal kill <sessionId>`
 
 Termina la sesión (SIGHUP + SIGTERM al grupo de procesos, SIGKILL a los 2 s) e imprime
 `<id> <estado>`. Sobre una sesión que ya terminó, la **quita de la lista**; sobre una `suspended`,
 la descarta. Nunca borra su worktree. Una sesión matada no se restaura tras reiniciar el daemon.
 
-### `agenterm rename <sessionId> <nombre>`
+### `panal rename <sessionId> <nombre>`
 
 Pone un nombre a la sesión (se ve en la barra lateral de la app, las cabeceras de los paneles, la
 vista general y las notificaciones, que dicen `<proyecto> · <nombre>`) e imprime `<id> <nombre>`.
-Las palabras restantes se unen con espacios (`agenterm rename ab12 servidor api`); usa `--` antes
+Las palabras restantes se unen con espacios (`panal rename ab12 servidor api`); usa `--` antes
 de un nombre que empiece por `-`. `--reset` (o dejar el nombre vacío en la app) vuelve al nombre del
 perfil. Los nombres se recortan, tienen como mucho 80 caracteres y sobreviven a los reinicios del
 daemon y a las reanudaciones (RPC `session.rename`).
 
-### `agenterm resume <sessionId>|--all`
+### `panal resume <sessionId>|--all`
 
 Relanza sesiones `suspended` (restauradas tras un reinicio del daemon) en la misma carpeta o
 worktree, con su scrollback guardado seguido de una línea `── sesión restaurada · <hora> ──`.
@@ -148,12 +148,12 @@ vuelve sin nada en marcha. Imprime `<id> <estado> pid <pid>`; con `--all`, los f
 (`<id>: <error>`) y el código de salida es 1. Ver
 [architecture.md](architecture.md#persistencia-y-reanudación).
 
-### `agenterm discard <sessionId>|--all`
+### `panal discard <sessionId>|--all`
 
 Olvida sesiones `suspended`: salen de la lista y se borran su registro y su scrollback guardado
 (su worktree, si lo hay, queda como huérfano).
 
-### `agenterm ack <sessionId>`
+### `panal ack <sessionId>`
 
 Marca la atención de la sesión como vista (lo mismo que seleccionarla en la app).
 
@@ -163,44 +163,44 @@ Mensajes entre las sesiones de un proyecto; ver [messages.md](messages.md).
 
 | comando | |
 |---|---|
-| `agenterm msg peers [--session ID]` | las otras sesiones de este proyecto (fuera de una sesión: las de `--session`) |
-| `agenterm msg send [--project ID] <a> <texto…>` | a un id de sesión, un nombre o `all`; con el texto `-` lee stdin |
-| `agenterm msg read` | tus mensajes nuevos (solo dentro de una sesión); los marca como entregados |
-| `agenterm msg list [--pending] [--session ID \| --project ID]` | historial de mensajes (una sesión solo ve los suyos) |
-| `agenterm wait <sessionId> [--timeout 30m]` | hasta que la sesión quede inactiva, esperando input o terminada; código de salida 2 si se agota el tiempo |
-| `agenterm instructions [<proyecto>]` | las instrucciones que recibe al empezar una sesión del proyecto (dentro de una sesión: su proyecto; sin proyecto: los temas de todos los proyectos); ver [configuration.md](configuration.md#instrucciones-para-los-agentes) |
-| `agenterm instructions list [<proyecto>]` | los temas de instrucciones: nombre, título, carga, proyectos, activo, tamaño |
-| `agenterm instructions show <tema>` | el texto de un tema (lo que corre un agente para un tema bajo demanda) |
-| `agenterm handoff [--worktree] [--keep] [--note ARCHIVO\|-] <sessionId> <perfil>` | continúa el trabajo de una sesión con otro agente (o con el mismo en un worktree nuevo): un resumen armado (o `--note`) como su primer mensaje; la sesión se cierra salvo con `--keep`. `--into <sessionId>` se lo pasa a una sesión viva en su lugar; `--print <sessionId>` muestra el resumen. Ver [worktrees.md](worktrees.md#continuar-con-otro-agente) |
-| `agenterm browser [open\|url\|close\|status\|mcp] [--session ID]` | el Chrome propio de la sesión (dentro de una sesión: el suyo). `open` (por defecto) lo abre e imprime su dirección de DevTools; `url` solo la imprime; `close` lo cierra; `status` muestra los ajustes y el Chrome y `npx` encontrados; `mcp` corre el servidor MCP de navegador conectado a él (lo que reciben Claude Code y codex). Ver [configuration.md](configuration.md#navegador-para-los-agentes) |
+| `panal msg peers [--session ID]` | las otras sesiones de este proyecto (fuera de una sesión: las de `--session`) |
+| `panal msg send [--project ID] <a> <texto…>` | a un id de sesión, un nombre o `all`; con el texto `-` lee stdin |
+| `panal msg read` | tus mensajes nuevos (solo dentro de una sesión); los marca como entregados |
+| `panal msg list [--pending] [--session ID \| --project ID]` | historial de mensajes (una sesión solo ve los suyos) |
+| `panal wait <sessionId> [--timeout 30m]` | hasta que la sesión quede inactiva, esperando input o terminada; código de salida 2 si se agota el tiempo |
+| `panal instructions [<proyecto>]` | las instrucciones que recibe al empezar una sesión del proyecto (dentro de una sesión: su proyecto; sin proyecto: los temas de todos los proyectos); ver [configuration.md](configuration.md#instrucciones-para-los-agentes) |
+| `panal instructions list [<proyecto>]` | los temas de instrucciones: nombre, título, carga, proyectos, activo, tamaño |
+| `panal instructions show <tema>` | el texto de un tema (lo que corre un agente para un tema bajo demanda) |
+| `panal handoff [--worktree] [--keep] [--note ARCHIVO\|-] <sessionId> <perfil>` | continúa el trabajo de una sesión con otro agente (o con el mismo en un worktree nuevo): un resumen armado (o `--note`) como su primer mensaje; la sesión se cierra salvo con `--keep`. `--into <sessionId>` se lo pasa a una sesión viva en su lugar; `--print <sessionId>` muestra el resumen. Ver [worktrees.md](worktrees.md#continuar-con-otro-agente) |
+| `panal browser [open\|url\|close\|status\|mcp] [--session ID]` | el Chrome propio de la sesión (dentro de una sesión: el suyo). `open` (por defecto) lo abre e imprime su dirección de DevTools; `url` solo la imprime; `close` lo cierra; `status` muestra los ajustes y el Chrome y `npx` encontrados; `mcp` corre el servidor MCP de navegador conectado a él (lo que reciben Claude Code y codex). Ver [configuration.md](configuration.md#navegador-para-los-agentes) |
 
 ## Git
 
 | comando | |
 |---|---|
-| `agenterm diff [--stat] <sessionId\|worktreeId>` | diff unificado de la sesión (worktree: contra su base; misma carpeta: contra `HEAD`). Con `--stat`, resumen por archivo, commits por delante y totales |
-| `agenterm worktrees <proyecto>` | worktrees de agenterm del proyecto: `ID BRANCH BASE STATE GIT SESSIONS PATH`, con `STATE` = `live`, `exited` u `orphan` |
-| `agenterm worktree rm [--force] [--delete-branch] [--dry-run] <id>` (o `remove`) | elimina un worktree. `--dry-run` solo dice qué se perdería |
-| `agenterm worktree merge <id>` | `git merge --no-ff` de su rama en la carpeta principal |
-| `agenterm worktree pr [--no-open] <id>` | sube su rama (`git push -u`, nunca forzado) e imprime la página para crear el pull request hacia la base (GitHub / GitLab), y la abre salvo con `--no-open`. Otros servidores: solo el push |
-| `agenterm worktree open [--finder] <id>` | abre el worktree en el editor (`git.editor`) o, con `--finder`, en Finder |
+| `panal diff [--stat] <sessionId\|worktreeId>` | diff unificado de la sesión (worktree: contra su base; misma carpeta: contra `HEAD`). Con `--stat`, resumen por archivo, commits por delante y totales |
+| `panal worktrees <proyecto>` | worktrees de panal del proyecto: `ID BRANCH BASE STATE GIT SESSIONS PATH`, con `STATE` = `live`, `exited` u `orphan` |
+| `panal worktree rm [--force] [--delete-branch] [--dry-run] <id>` (o `remove`) | elimina un worktree. `--dry-run` solo dice qué se perdería |
+| `panal worktree merge <id>` | `git merge --no-ff` de su rama en la carpeta principal |
+| `panal worktree pr [--no-open] <id>` | sube su rama (`git push -u`, nunca forzado) e imprime la página para crear el pull request hacia la base (GitHub / GitLab), y la abre salvo con `--no-open`. Otros servidores: solo el push |
+| `panal worktree open [--finder] <id>` | abre el worktree en el editor (`git.editor`) o, con `--finder`, en Finder |
 
 Las reglas de seguridad de `rm`, `merge` y `pr` están en [worktrees.md](worktrees.md#acciones).
 
-## `agenterm notify`
+## `panal notify`
 
 Lo usan los hooks de los agentes, pero también puedes llamarlo tú (o un script) **dentro de una
 sesión**. Nunca arranca el daemon y tiene timeout de 3 s.
 
 ```sh
-agenterm notify --kind permission --message "¿Borro node_modules?"
-agenterm notify --activity "Ejecutando migraciones"
-agenterm notify --state idle
+panal notify --kind permission --message "¿Borro node_modules?"
+panal notify --activity "Ejecutando migraciones"
+panal notify --state idle
 ```
 
 | flag | |
 |---|---|
-| `--session ID` | sesión (por defecto `$AGENTERM_SESSION`, que el daemon inyecta en cada sesión) |
+| `--session ID` | sesión (por defecto `$PANAL_SESSION`, que el daemon inyecta en cada sesión) |
 | `--state S` | `running`, `waiting_input` o `idle` (alias: `waiting`, `done`) |
 | `--kind K` | `permission`, `question`, `done` o `error`; si no das `--state`, lo implica (`permission`/`question` → `waiting_input`, `done`/`error` → `idle`) |
 | `--message M` | texto de la notificación |
@@ -209,23 +209,23 @@ agenterm notify --state idle
 | `--from-hook claude\|codex` | lee el payload de un hook: Claude Code por stdin, codex como último argumento |
 
 Con `--from-hook` no imprime nada y **siempre** sale con 0 (timeout de 2 s, payload de hasta
-1 MiB): nunca bloquea ni rompe al agente. Fuera de una sesión de agenterm (sin `--session` ni
-`$AGENTERM_SESSION`) no hace nada.
+1 MiB): nunca bloquea ni rompe al agente. Fuera de una sesión de panal (sin `--session` ni
+`$PANAL_SESSION`) no hace nada.
 
 ## Variables de entorno
 
 | variable | |
 |---|---|
-| `AGENTERM_HOME` | un solo directorio que sustituye a `~/.agenterm` y `~/.config/agenterm` (útil para pruebas) |
-| `AGENTERM_NOTIFY` | `off` desactiva todas las notificaciones de escritorio de la app y del daemon (nativas y alternativa), diga lo que diga `settings.yaml`. Defínela, junto con `AGENTERM_HOME`, en cualquier instancia de prueba o demo |
-| `AGENTERM_SESSION` | id de la sesión; el daemon lo inyecta en cada sesión y `notify` lo usa por defecto |
-| `AGENTERM_SOCK` | socket del daemon; inyectado en cada sesión. Se ignora si `AGENTERM_HOME` está definido |
+| `PANAL_HOME` | un solo directorio que sustituye a `~/.panal` y `~/.config/panal` (útil para pruebas) |
+| `PANAL_NOTIFY` | `off` desactiva todas las notificaciones de escritorio de la app y del daemon (nativas y alternativa), diga lo que diga `settings.yaml`. Defínela, junto con `PANAL_HOME`, en cualquier instancia de prueba o demo |
+| `PANAL_SESSION` | id de la sesión; el daemon lo inyecta en cada sesión y `notify` lo usa por defecto |
+| `PANAL_SOCK` | socket del daemon; inyectado en cada sesión. Se ignora si `PANAL_HOME` está definido |
 
 ### Qué daemon usa un comando
 
-1. Si `AGENTERM_HOME` está definido, **manda siempre**: se usa `$AGENTERM_HOME/d.sock`.
-2. Si no, `$AGENTERM_SOCK` (dentro de una sesión). En ese caso la CLI nunca arranca otro daemon.
-3. Si no hay ninguno, `~/.agenterm/d.sock`.
+1. Si `PANAL_HOME` está definido, **manda siempre**: se usa `$PANAL_HOME/d.sock`.
+2. Si no, `$PANAL_SOCK` (dentro de una sesión). En ese caso la CLI nunca arranca otro daemon.
+3. Si no hay ninguno, `~/.panal/d.sock`.
 
-Así `AGENTERM_HOME=/tmp/x agenterm stop` lanzado desde dentro de una sesión va a `/tmp/x` y no al
+Así `PANAL_HOME=/tmp/x panal stop` lanzado desde dentro de una sesión va a `/tmp/x` y no al
 daemon que aloja la sesión. Ver [architecture.md](architecture.md#entorno-de-las-sesiones).

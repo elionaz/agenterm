@@ -6,14 +6,14 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/elionaz/agenterm/internal/gitx"
-	"github.com/elionaz/agenterm/internal/project"
-	"github.com/elionaz/agenterm/internal/repoconfig"
+	"github.com/elionaz/panal/internal/gitx"
+	"github.com/elionaz/panal/internal/project"
+	"github.com/elionaz/panal/internal/repoconfig"
 )
 
 // A port per session, so two agents starting dev servers don't both want
-// 3000. Every session gets AGENTERM_PORT; when the repository's
-// .agenterm.yaml asks for ports (ports.base), PORT (or the variables in
+// 3000. Every session gets PANAL_PORT; when the repository's
+// .panal.yaml asks for ports (ports.base), PORT (or the variables in
 // ports.env) is set to it as well and the UIs show it. The port is the
 // lowest one from the base (3000 by default) that no other live session of
 // the project holds and nothing listens on; a session keeps it when it is
@@ -25,7 +25,7 @@ const (
 )
 
 // sessPort is a session's port and the variables set to it besides
-// AGENTERM_PORT (none: the project did not ask for ports).
+// PANAL_PORT (none: the project did not ask for ports).
 type sessPort struct {
 	Port int
 	Env  []string
@@ -55,7 +55,7 @@ func portEnv(p sessPort) []string {
 		return nil
 	}
 	v := strconv.Itoa(p.Port)
-	env := []string{"AGENTERM_PORT=" + v}
+	env := []string{"PANAL_PORT=" + v}
 	for _, name := range p.Env {
 		env = append(env, name+"="+v)
 	}
@@ -100,7 +100,7 @@ func (s *Server) assignPort(projectID, id string, cfg repoconfig.Ports) sessPort
 	return sessPort{}
 }
 
-// repoConfig reads the .agenterm.yaml of proj's repository (zero when it
+// repoConfig reads the .panal.yaml of proj's repository (zero when it
 // is not a repository, has none, or the file is invalid: logged).
 func (s *Server) repoConfig(proj project.Project) repoconfig.Config {
 	ctx, cancel := context.WithTimeout(s.bg, gitQueryTO)

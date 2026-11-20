@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/daemon"
-	"github.com/elionaz/agenterm/internal/paths"
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/version"
+	"github.com/elionaz/panal/internal/daemon"
+	"github.com/elionaz/panal/internal/paths"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/version"
 )
 
 func TestDaemonMismatch(t *testing.T) {
@@ -47,7 +47,7 @@ func TestDaemonMismatch(t *testing.T) {
 }
 
 // TestIsDaemonProc: a reused pid (another program) does not count as the
-// old daemon, and a stuck non-agenterm process is never killed.
+// old daemon, and a stuck non-panal process is never killed.
 func TestIsDaemonProc(t *testing.T) {
 	if runtime.GOOS != "darwin" {
 		t.Skip("procName is darwin-only")
@@ -70,7 +70,7 @@ func TestIsDaemonProc(t *testing.T) {
 		t.Fatal("sleep taken for a daemon")
 	}
 	if killStuckDaemon(cmd.Process.Pid) || !processAlive(cmd.Process.Pid) {
-		t.Fatal("killStuckDaemon killed a non-agenterm process")
+		t.Fatal("killStuckDaemon killed a non-panal process")
 	}
 }
 

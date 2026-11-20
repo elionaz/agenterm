@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 func TestSessionModel(t *testing.T) {

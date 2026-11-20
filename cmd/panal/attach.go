@@ -12,8 +12,8 @@ import (
 
 	"golang.org/x/term"
 
-	"github.com/elionaz/agenterm/internal/client"
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/client"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 // detachKey is Ctrl-\ (FS, 0x1c).

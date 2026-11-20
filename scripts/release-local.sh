@@ -23,10 +23,10 @@
 # .cache/sparkle/) is embedded at Contents/Frameworks/Sparkle.framework.
 #
 # Output (dist/):
-#   agenterm-<v>-macos-universal.zip   agenterm.app (CLI at Contents/Helpers/agenterm)
+#   panal-<v>-macos-universal.zip   panal.app (CLI at Contents/Helpers/panal)
 #   appcast.xml                        Sparkle feed for that zip (with SPARKLE_PRIVATE_ED_KEY)
-#   agenterm-<v>-macos-universal.dmg   the same app + /Applications link
-#   agenterm-<v>-darwin-universal.tar.gz, agenterm-<v>-linux-{amd64,arm64}.tar.gz   CLI
+#   panal-<v>-macos-universal.dmg   the same app + /Applications link
+#   panal-<v>-darwin-universal.tar.gz, panal-<v>-linux-{amd64,arm64}.tar.gz   CLI
 #   checksums.txt                      sha256 of all of the above
 set -euo pipefail
 
@@ -46,10 +46,10 @@ cd "$ROOT"
 COMMIT=$(git rev-parse --short=7 HEAD)
 DIST=$ROOT/dist
 WORK=$DIST/work
-APP=$WORK/agenterm.app
+APP=$WORK/panal.app
 ENTITLEMENTS=$ROOT/app/build/darwin/entitlements.plist
 MIN_MACOS=13.0
-BASE=agenterm-$VERSION
+BASE=panal-$VERSION
 
 SIGN_IDENTITY=${SIGN_IDENTITY:-}
 NOTARIZE=false
@@ -57,7 +57,7 @@ if [[ -n $SIGN_IDENTITY && -n ${NOTARY_KEY_PATH:-} && -n ${NOTARY_KEY_ID:-} && -
 	NOTARIZE=true
 fi
 
-PKG=github.com/elionaz/agenterm/internal/version
+PKG=github.com/elionaz/panal/internal/version
 LDFLAGS="-s -w -X $PKG.Version=$VERSION -X $PKG.Commit=$COMMIT"
 # One deployment target for Go, cgo and Info.plist (wails appends 10.13 only
 # when -mmacosx-version-min is absent).
@@ -94,23 +94,23 @@ step "app: wails build darwin/universal ($VERSION, $COMMIT)"
 (cd app && CGO_CFLAGS="$CGO_CFLAGS -F$SPARKLE_DIR" \
 	CGO_LDFLAGS="$CGO_LDFLAGS -F$SPARKLE_DIR -Wl,-weak_framework,Sparkle -Wl,-rpath,@executable_path/../Frameworks" \
 	wails build -platform darwin/universal -clean -trimpath -m -skipbindings -tags sparkle -ldflags "$LDFLAGS")
-ditto app/build/bin/agenterm.app "$APP"
+ditto app/build/bin/panal.app "$APP"
 mkdir -p "$APP/Contents/Frameworks"
 ditto "$SPARKLE_DIR/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
 
 step "cli: darwin arm64 + amd64 (cgo) -> universal"
 for arch in arm64 amd64; do
 	CGO_ENABLED=1 GOOS=darwin GOARCH=$arch \
-		go build -trimpath -ldflags "$LDFLAGS" -o "$WORK/agenterm-darwin-$arch" ./cmd/agenterm
+		go build -trimpath -ldflags "$LDFLAGS" -o "$WORK/panal-darwin-$arch" ./cmd/panal
 done
-lipo -create -output "$WORK/agenterm" "$WORK/agenterm-darwin-arm64" "$WORK/agenterm-darwin-amd64"
-rm "$WORK/agenterm-darwin-arm64" "$WORK/agenterm-darwin-amd64"
+lipo -create -output "$WORK/panal" "$WORK/panal-darwin-arm64" "$WORK/panal-darwin-amd64"
+rm "$WORK/panal-darwin-arm64" "$WORK/panal-darwin-amd64"
 
 step "cli: linux amd64 + arm64 (CGO_ENABLED=0)"
 for arch in amd64 arm64; do
 	mkdir -p "$WORK/linux-$arch"
 	CGO_ENABLED=0 GOOS=linux GOARCH=$arch \
-		go build -trimpath -ldflags "$LDFLAGS" -o "$WORK/linux-$arch/agenterm" ./cmd/agenterm
+		go build -trimpath -ldflags "$LDFLAGS" -o "$WORK/linux-$arch/panal" ./cmd/panal
 done
 
 step "app: Info.plist version $VERSION, bundle the CLI"
@@ -165,11 +165,14 @@ signsparkle "$FW/Versions/B/Updater.app"
 signsparkle "$FW"
 # Then the CLI (also what goes in the darwin tarball), then the bundle,
 # which signs the main executable (app + daemon) and seals the rest.
-sign "$WORK/agenterm"
-cp "$WORK/agenterm" "$APP/Contents/Helpers/agenterm"
+sign "$WORK/panal"
+cp "$WORK/panal" "$APP/Contents/Helpers/panal"
+# The CLI's name before the rename to panal: links made to it
+# (/usr/local/bin/agenterm -> …/Helpers/agenterm) keep working for a while.
+ln -s panal "$APP/Contents/Helpers/agenterm"
 sign "$APP"
 codesign --verify --deep --strict --verbose=2 "$APP"
-codesign --verify --strict "$WORK/agenterm"
+codesign --verify --strict "$WORK/panal"
 
 # notarize <file>: submit and wait; on rejection print the log and fail.
 notarize() {
@@ -209,7 +212,7 @@ fi
 APPCAST=$DIST/appcast.xml
 if [[ -n $SPARKLE_PRIVATE_ED_KEY ]]; then
 	step "appcast: EdDSA-sign the zip"
-	KEYFILE=$(mktemp "${TMPDIR:-/tmp}/agenterm-ed.XXXXXX")
+	KEYFILE=$(mktemp "${TMPDIR:-/tmp}/panal-ed.XXXXXX")
 	KDIR=
 	trap 'rm -f "$KEYFILE"; [[ -z $KDIR ]] || rm -rf "$KDIR"' EXIT
 	chmod 600 "$KEYFILE"
@@ -260,9 +263,9 @@ fi
 step "package: dmg"
 STAGE=$WORK/dmg
 mkdir -p "$STAGE"
-ditto "$APP" "$STAGE/agenterm.app"
+ditto "$APP" "$STAGE/panal.app"
 ln -s /Applications "$STAGE/Applications"
-hdiutil create -quiet -volname "agenterm $VERSION" -srcfolder "$STAGE" -fs HFS+ \
+hdiutil create -quiet -volname "panal $VERSION" -srcfolder "$STAGE" -fs HFS+ \
 	-format UDZO -ov "$DMG"
 if [[ -n $SIGN_IDENTITY ]]; then
 	codesign --force --timestamp ${SIGN_KEYCHAIN:+--keychain "$SIGN_KEYCHAIN"} \
@@ -276,10 +279,11 @@ if $NOTARIZE; then
 fi
 
 step "package: cli tarballs"
-tarball() { # <name> <dir containing agenterm>
+tarball() { # <name> <dir containing panal>
 	local d=$WORK/tar/$1
 	mkdir -p "$d"
-	cp "$2/agenterm" LICENSE README.md "$d/"
+	cp "$2/panal" LICENSE README.md "$d/"
+	ln -s panal "$d/agenterm" # pre-rename name, kept for a while
 	COPYFILE_DISABLE=1 tar --no-mac-metadata -C "$WORK/tar" -czf "$DIST/$1.tar.gz" "$1"
 }
 tarball "$BASE-darwin-universal" "$WORK"
@@ -303,8 +307,8 @@ if [[ -n ${GITHUB_OUTPUT:-} ]]; then
 	} >>"$GITHUB_OUTPUT"
 fi
 
-lipo -info "$APP/Contents/MacOS/agenterm" "$APP/Contents/Helpers/agenterm"
-LINKS=$(otool -L "$APP/Contents/MacOS/agenterm") # not piped into grep -q: SIGPIPE under pipefail
+lipo -info "$APP/Contents/MacOS/panal" "$APP/Contents/Helpers/panal"
+LINKS=$(otool -L "$APP/Contents/MacOS/panal") # not piped into grep -q: SIGPIPE under pipefail
 [[ $LINKS == *'@rpath/Sparkle.framework'* ]] || die "app binary does not link Sparkle"
-"$APP/Contents/Helpers/agenterm" --version
+"$APP/Contents/Helpers/panal" --version
 echo "release: $VERSION done (signed=$SIGNED notarized=$NOTARIZE) -> $DIST"

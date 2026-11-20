@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/session"
-	"github.com/elionaz/agenterm/internal/settings"
-	"github.com/elionaz/agenterm/internal/status"
+	"github.com/elionaz/panal/internal/session"
+	"github.com/elionaz/panal/internal/settings"
+	"github.com/elionaz/panal/internal/status"
 )
 
 // Automatic delivery (settings messages.auto_deliver): when a Claude session
@@ -162,7 +162,7 @@ const holdNotReply = "not a reply"
 
 // holdNudged: the line was typed into the session (automatically or by
 // Deliver): the messages stay pending until the agent takes them (Claude's
-// hook on that prompt, agenterm msg read), so the UIs say it was told
+// hook on that prompt, panal msg read), so the UIs say it was told
 // rather than offering to deliver again.
 const holdNudged = "nudged"
 
@@ -307,7 +307,7 @@ func (s *Server) autoDeliverBlock(sess *session.Session, lastNudge time.Time) st
 	if sess.State() != status.Idle {
 		return "not idle"
 	}
-	// Agents without message hooks are told to run agenterm msg read; only
+	// Agents without message hooks are told to run panal msg read; only
 	// when they reported the end of their turn (codex's notify): one that
 	// merely went quiet may still be thinking, and the line would land in
 	// the middle of its work.

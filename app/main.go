@@ -1,6 +1,6 @@
-// Command agenterm (desktop) is the Wails app. The same executable doubles as
-// the daemon (`agenterm daemon`, what client.StartDaemon runs) and as the
-// hook callback (`agenterm notify`); neither opens a window, so the .app is
+// Command panal (desktop) is the Wails app. The same executable doubles as
+// the daemon (`panal daemon`, what client.StartDaemon runs) and as the
+// hook callback (`panal notify`); neither opens a window, so the .app is
 // self-contained.
 package main
 
@@ -16,11 +16,11 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/mac"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"github.com/elionaz/agenterm/internal/daemoncmd"
-	"github.com/elionaz/agenterm/internal/i18n"
-	"github.com/elionaz/agenterm/internal/notifycmd"
-	"github.com/elionaz/agenterm/internal/paths"
-	"github.com/elionaz/agenterm/internal/version"
+	"github.com/elionaz/panal/internal/daemoncmd"
+	"github.com/elionaz/panal/internal/i18n"
+	"github.com/elionaz/panal/internal/notifycmd"
+	"github.com/elionaz/panal/internal/paths"
+	"github.com/elionaz/panal/internal/version"
 )
 
 // dist/.gitkeep keeps this embed valid (and `go build ./...` green) before
@@ -31,12 +31,13 @@ var assets embed.FS
 
 // aboutCredits ends the About panel (plain text: the panel has no links;
 // Settings → General → About has clickable ones).
-const aboutCredits = "@elionaz · github.com/elionaz/agenterm"
+const aboutCredits = "@elionaz · github.com/elionaz/panal"
 
 func main() {
+	paths.ApplyLegacyEnv()
 	if len(os.Args) > 1 && os.Args[1] == daemoncmd.Name {
 		if err := daemoncmd.Run(os.Args[2:]); err != nil {
-			fmt.Fprintln(os.Stderr, "agenterm daemon:", err)
+			fmt.Fprintln(os.Stderr, "panal daemon:", err)
 			os.Exit(1)
 		}
 		return
@@ -44,13 +45,13 @@ func main() {
 	// Agent hooks call back the daemon's executable, which may be this one.
 	if len(os.Args) > 1 && os.Args[1] == notifycmd.Name {
 		if err := notifycmd.Run(os.Args[2:], os.Stdin, os.Stdout, os.Stderr); err != nil {
-			fmt.Fprintln(os.Stderr, "agenterm notify:", err)
+			fmt.Fprintln(os.Stderr, "panal notify:", err)
 			os.Exit(1)
 		}
 		return
 	}
 	if len(os.Args) > 1 && (os.Args[1] == "version" || os.Args[1] == "--version") {
-		fmt.Println("agenterm", version.String())
+		fmt.Println("panal", version.String())
 		return
 	}
 
@@ -67,7 +68,7 @@ func main() {
 	appMenu.Append(menu.WindowMenu())
 
 	err := wails.Run(&options.App{
-		Title:            "agenterm",
+		Title:            "panal",
 		Width:            1280,
 		Height:           800,
 		MinWidth:         640,
@@ -90,19 +91,19 @@ func main() {
 		Bind:           []any{app},
 		ErrorFormatter: formatError,
 		Mac: &mac.Options{
-			// agenterm://session/<id> (CFBundleURLTypes from wails.json
+			// panal://session/<id> (CFBundleURLTypes from wails.json
 			// "protocols"): daemon notification clicks.
 			OnUrlOpen:  app.openURL,
 			TitleBar:   mac.TitleBarHiddenInset(),
 			Appearance: mac.NSAppearanceNameDarkAqua,
 			About: &mac.AboutInfo{
-				Title:   "agenterm",
+				Title:   "panal",
 				Message: i18n.T(lang, i18n.AboutMessage) + "\n" + version.String() + "\n\n" + aboutCredits,
 			},
 		},
 	})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "agenterm:", err)
+		fmt.Fprintln(os.Stderr, "panal:", err)
 		os.Exit(1)
 	}
 }

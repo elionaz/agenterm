@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/daemon"
-	"github.com/elionaz/agenterm/internal/paths"
-	"github.com/elionaz/agenterm/internal/settings"
+	"github.com/elionaz/panal/internal/daemon"
+	"github.com/elionaz/panal/internal/paths"
+	"github.com/elionaz/panal/internal/settings"
 )
 
 // TestMain: whatever a test wires up (a real desktop, a daemon's default

@@ -4,29 +4,29 @@
 
 ## Paths
 
-| | default | with `AGENTERM_HOME=/x` |
+| | default | with `PANAL_HOME=/x` |
 |---|---|---|
-| daemon socket, pid and log | `~/.agenterm/{d.sock,d.pid,daemon.log}` | `/x/…` |
-| profiles, projects and settings | `~/.config/agenterm/{profiles.yaml,projects.json,settings.yaml}` | `/x/…` |
-| standing instructions for the agents (one file per topic) | `~/.config/agenterm/instructions/<topic>.md` | `/x/instructions/…` |
-| each session's own browser profile | `~/.agenterm/browsers/<sessionId>/` | `/x/browsers/…` |
-| generated hook files | `~/.agenterm/hooks/` | `/x/hooks/` |
-| session worktrees | `~/.agenterm/worktrees/<project>-<projectId>/<sessionId>/` (or `git.worktree_dir`) | `/x/worktrees/…` |
-| worktree registry | `~/.agenterm/worktrees.json` | `/x/worktrees.json` |
-| sessions to restore and their scrollback | `~/.agenterm/sessions.json`, `~/.agenterm/scrollback/<id>.log` | `/x/…` |
-| messages between sessions | `~/.agenterm/messages.json` | `/x/messages.json` |
+| daemon socket, pid and log | `~/.panal/{d.sock,d.pid,daemon.log}` | `/x/…` |
+| profiles, projects and settings | `~/.config/panal/{profiles.yaml,projects.json,settings.yaml}` | `/x/…` |
+| standing instructions for the agents (one file per topic) | `~/.config/panal/instructions/<topic>.md` | `/x/instructions/…` |
+| each session's own browser profile | `~/.panal/browsers/<sessionId>/` | `/x/browsers/…` |
+| generated hook files | `~/.panal/hooks/` | `/x/hooks/` |
+| session worktrees | `~/.panal/worktrees/<project>-<projectId>/<sessionId>/` (or `git.worktree_dir`) | `/x/worktrees/…` |
+| worktree registry | `~/.panal/worktrees.json` | `/x/worktrees.json` |
+| sessions to restore and their scrollback | `~/.panal/sessions.json`, `~/.panal/scrollback/<id>.log` | `/x/…` |
+| messages between sessions | `~/.panal/messages.json` | `/x/messages.json` |
 
 - Directories are created with `0700` permissions and the socket with `0600`.
-- On macOS a unix socket path is limited to about 104 bytes: if you use `AGENTERM_HOME`, keep it
+- On macOS a unix socket path is limited to about 104 bytes: if you use `PANAL_HOME`, keep it
   short (`/tmp/agt`, not a long temporary folder under `/var/folders/…`).
 - `profiles.yaml` and `settings.yaml` are optional. When the app (or an RPC) saves them, the write
   is atomic and leaves the previous version in `<file>.bak`.
 
 ## Agents: catalog and detection
 
-agenterm ships a catalog of known agent CLIs. An agent counts as **installed** if its binary is
+panal ships a catalog of known agent CLIs. An agent counts as **installed** if its binary is
 found in the daemon's `PATH` or in your login shell's (`$SHELL -l -i -c`); that lookup is cached for
-5 minutes. `agenterm profiles scan` or the rescan button in **Settings → Agents** refreshes it.
+5 minutes. `panal profiles scan` or the rescan button in **Settings → Agents** refreshes it.
 
 **Installing from the app**: a catalog agent that isn't installed has an **Install** button in
 **Settings → Agents**. It shows the exact command first (several are `curl … | bash`), then runs it in
@@ -55,7 +55,7 @@ text), never a value from `profiles.yaml`.
 - **status** (`status`): `hooks` = state is decided by explicit events (hooks / `notify`) and the
   heuristic is only used until the first event; `heuristic` = output → working, a few seconds
   without output → idle. See [attention-and-activity.md](attention-and-activity.md).
-- **hooks** (`setup_hooks`): the integration agenterm sets up when launching the agent.
+- **hooks** (`setup_hooks`): the integration panal sets up when launching the agent.
 - Agents that aren't installed (or are disabled) don't appear in the **+** menu or on ⌘N; they do
   appear in **Settings**, with the install command and a link.
 
@@ -94,7 +94,7 @@ from before 0.4.0 are just the list, and are still read). Each entry has a requi
   doesn't mention, in catalog order. The first enabled, installed one is what ⌘N launches. An entry
   with just `- id: x` pins a catalog agent's position.
 - **Errors**: an error in one entry (invalid regex, unknown or cyclic `extends`, missing `cmd`,
-  unknown `setup_hooks`…) only disables that entry; it shows up in `agenterm profiles` and in
+  unknown `setup_hooks`…) only disables that entry; it shows up in `panal profiles` and in
   **Settings**. Structural errors (invalid YAML, empty or duplicate id) invalidate the whole file:
   commands that read it fail until you fix it.
 
@@ -122,7 +122,7 @@ profiles:
 
 ### Editing from the app
 
-**Settings → Agents** (⌘,, the ⚙ in the sidebar or the **agenterm** app menu) lets you enable and
+**Settings → Agents** (⌘,, the ⚙ in the sidebar or the **panal** app menu) lets you enable and
 disable agents, reorder them (drag or ▲▼), edit them (name, command, arguments, `KEY=value`
 environment, status mode, hook integration, idle seconds and attention patterns), duplicate one as a
 variant, add a custom agent, delete custom profiles, reset modified catalog agents and rescan.
@@ -145,7 +145,7 @@ Every key is optional; missing ones take the default value.
 | `terminal.font_size` | `13` | points, clamped to 8–32. ⌘= / ⌘- / ⌘⌥0 change it (and save it) from anywhere in the app |
 | `terminal.line_height` | `1.15` | a multiple of the font size, 1.0–2.0 |
 | `terminal.cursor_style` | `block` | `block`, `bar` or `underline` |
-| `terminal.theme` | `bright-lights` | built-in palette, each named after an album. Dark: `bright-lights` (*Turn On the Bright Lights*), `room-on-fire` (*Room on Fire*), `is-this-it` (*Is This It*), `funeral` (*Funeral*), `silent-alarm` (*Silent Alarm*), `z` (*Z*). Light: `it-still-moves` (*It Still Moves*), `alphabetical` (*Alphabetical*), `hot-fuss` (*Hot Fuss*). Retired names still work and pick the closest palette: `agenterm-dark` → `bright-lights`, `agenterm-light` → `alphabetical`, `solarized-dark` → `z`, `solarized-light` → `hot-fuss`, `dracula` → `funeral`, `gruvbox-dark` → `is-this-it`, `nord` → `silent-alarm`. Unknown names fall back to `bright-lights` |
+| `terminal.theme` | `bright-lights` | built-in palette, each named after an album. Dark: `bright-lights` (*Turn On the Bright Lights*), `room-on-fire` (*Room on Fire*), `is-this-it` (*Is This It*), `funeral` (*Funeral*), `silent-alarm` (*Silent Alarm*), `z` (*Z*). Light: `it-still-moves` (*It Still Moves*), `alphabetical` (*Alphabetical*), `hot-fuss` (*Hot Fuss*). Retired names still work and pick the closest palette: `panal-dark` → `bright-lights`, `panal-light` → `alphabetical`, `solarized-dark` → `z`, `solarized-light` → `hot-fuss`, `dracula` → `funeral`, `gruvbox-dark` → `is-this-it`, `nord` → `silent-alarm`. Unknown names fall back to `bright-lights` |
 | `notify.enabled` | `true` | notifications (from the app and the daemon) |
 | `notify.sound` | `true` | sound, only for approvals and questions |
 | `notify.notify_on_approval` | `true` | notify when an agent asks for an approval |
@@ -153,13 +153,13 @@ Every key is optional; missing ones take the default value.
 | `notify.notify_on_done` | `true` | notify when an agent finishes its turn |
 | `notify.notify_on_error` | `true` | notify when a turn fails |
 | `notify.notify_on_stall` | `true` | low-key notice when a turn looks stalled |
-| `notify.fallback` | `none` | when native notifications can't be used (no `.app` bundle, no permission): `none` doesn't show them (`daemon.log` says why, once) and `osascript` sends them through AppleScript, which macOS shows as *Script Editor* (clicking opens Script Editor, not agenterm). `AGENTERM_NOTIFY=off` in the environment disables all notifications regardless. See [attention-and-activity.md](attention-and-activity.md#while-the-app-is-closed) |
+| `notify.fallback` | `none` | when native notifications can't be used (no `.app` bundle, no permission): `none` doesn't show them (`daemon.log` says why, once) and `osascript` sends them through AppleScript, which macOS shows as *Script Editor* (clicking opens Script Editor, not panal). `PANAL_NOTIFY=off` in the environment disables all notifications regardless. See [attention-and-activity.md](attention-and-activity.md#while-the-app-is-closed) |
 | `activity.stall_seconds` | `180` | seconds without output or events before marking "stalled?"; `0` disables it |
 | `git.editor` | `""` | for "Open in editor": a command on the `PATH` (`code`, `cursor -n`, `zed`), an absolute path or the name of a macOS app (`Visual Studio Code`, `Cursor.app`). Empty: `code` if it's on the `PATH`, otherwise Finder |
-| `git.worktree_dir` | `""` | where to create worktrees (absolute path or `~/…`). Empty: `~/.agenterm/worktrees` (or `$AGENTERM_HOME/worktrees`) |
+| `git.worktree_dir` | `""` | where to create worktrees (absolute path or `~/…`). Empty: `~/.panal/worktrees` (or `$PANAL_HOME/worktrees`) |
 | `git.default_mode` | `worktree` | `worktree` or `same`: where the **+** menu (and ⌘N) starts a new agent in a project where you haven't chosen yet. Shells always start in the project folder. Before 0.7.0 the default was `same`; a file that says `same` keeps it |
 | `sessions.restore` | `ask` | what a starting daemon does with the sessions that were live when the previous one stopped: `ask` (keep them `suspended` until you resume or discard them), `always` (resume them right away) or `never` (discard them). See [architecture.md](architecture.md#persistence-and-resume) |
-| `messages.enabled` | `true` | messages between the sessions of a project (`agenterm msg`): when off, sending is refused and agent hooks hand nothing over. See [messages.md](messages.md) |
+| `messages.enabled` | `true` | messages between the sessions of a project (`panal msg`): when off, sending is refused and agent hooks hand nothing over. See [messages.md](messages.md) |
 | `messages.auto_deliver` | `true` | a session idle at its prompt (Claude, or an agent that reports the end of its turn, like codex) is told about new messages without the **Deliver** click (only yours and replies: heads-ups wait for its next turn); never over text typed without sending, at most 5 times per session until you act on it again (and 20 per project every 10 minutes). See [messages.md](messages.md#automatic-delivery) |
 | `browser.enabled` | `true` | each session gets its own isolated Chrome; see [Browser for agents](#browser-for-agents) |
 | `browser.headless` | `false` | run those browsers without a window |
@@ -236,13 +236,13 @@ codes so the app can show them in its language. Any other value is treated as `a
 
 ## Standing instructions for the agents
 
-**Settings → Instructions** holds instructions that agenterm hands the agents it launches when each
+**Settings → Instructions** holds instructions that panal hands the agents it launches when each
 session starts, organized in topics: security, architecture, data management, git, or any other.
-Use them for your own rules ("never force-push", "use pnpm", "for browser tests use the agenterm
+Use them for your own rules ("never force-push", "use pnpm", "for browser tests use the panal
 browser, not my Chrome"); instructions your team shares belong in the repository's `AGENTS.md` /
 `CLAUDE.md`.
 
-Each topic is a Markdown file in `~/.config/agenterm/instructions/<topic>.md`, private (`0600`) and
+Each topic is a Markdown file in `~/.config/panal/instructions/<topic>.md`, private (`0600`) and
 outside the repository, with a front matter you can also edit by hand:
 
 ```markdown
@@ -262,7 +262,7 @@ order: 40
 A file without front matter loads always, in every project.
 
 - **Load.** An `always` topic goes in full into the session at start. An `on_demand` topic only
-  shows its name and description there; the agent runs `agenterm instructions show <topic>` to read
+  shows its name and description there; the agent runs `panal instructions show <topic>` to read
   it when the work touches it (like a skill), so long topics don't take context in every session.
 - **Projects.** A topic applies to every project or only to the ones it lists (in the app: *only
   some*); projects removed since are ignored.
@@ -270,13 +270,13 @@ A file without front matter loads always, in every project.
   remaining topics are listed to read on demand). The tab shows the size of what a session gets
   and warns past 8 KiB.
 - **Preview.** The tab shows the exact text a session of a project receives;
-  `agenterm instructions [<project>]` prints it too, `agenterm instructions list` lists the topics.
+  `panal instructions [<project>]` prints it too, `panal instructions list` lists the topics.
 - **Claude Code** (`setup_hooks: claude`) gets them in its `SessionStart` hook, so again after
   `/clear`, a resume or a compaction; also with `messages.enabled: false`.
 - **codex** (`setup_hooks: codex`) gets them as `-c developer_instructions=…` for that invocation.
   If your `~/.codex/config.toml` (or `$CODEX_HOME/config.toml`) sets `developer_instructions`
-  itself, agenterm leaves it alone and codex sessions don't get these (the tab says so).
-- Other agents have no way to receive them without editing their files, which agenterm never does;
+  itself, panal leaves it alone and codex sessions don't get these (the tab says so).
+- Other agents have no way to receive them without editing their files, which panal never does;
   the tab lists them.
 
 Changes apply to sessions started after saving.
@@ -284,10 +284,10 @@ Changes apply to sessions started after saving.
 ## Browser for agents
 
 Agents test web apps, open pages and take screenshots. Left alone they drive your own Chrome: they
-move and resize its window, open tabs among yours and see your logins. agenterm gives each session
+move and resize its window, open tabs among yours and see your logins. panal gives each session
 **its own Chrome** instead:
 
-- its own profile in `~/.agenterm/browsers/<sessionId>/` (none of your tabs, cookies, extensions or
+- its own profile in `~/.panal/browsers/<sessionId>/` (none of your tabs, cookies, extensions or
   logins), a fixed window size (1280×800) and its own DevTools port on `127.0.0.1`, from 9222;
 - it **opens only when the agent needs it** and closes when the session exits; the profile is
   deleted when the session is removed (logins made there last as long as the session);
@@ -296,7 +296,7 @@ move and resize its window, open tabs among yours and see your logins. agenterm 
   with `npx`, pinned to one version, usage statistics and CrUX lookups off), added for that
   invocation only (`--mcp-config` / `-c mcp_servers…`): their own configuration is left alone. It
   launches the session's Chrome on its first tool call;
-- every session gets `AGENTERM_BROWSER_URL` (`http://127.0.0.1:<port>`), and `agenterm browser`
+- every session gets `PANAL_BROWSER_URL` (`http://127.0.0.1:<port>`), and `panal browser`
   starts that Chrome and prints the URL, for any agent or tool (Playwright's `connectOverCDP`,
   Puppeteer's `connect({browserURL})`);
 - the instructions handed to Claude Code and codex (see
@@ -309,4 +309,4 @@ It needs a Chrome-compatible browser (Google Chrome, Chromium, Microsoft Edge, B
 found. Turn it off with `browser.enabled: false`; `browser.headless: true` runs it without a window.
 
 An agent that uses a browser extension (such as Claude in Chrome) still reaches your Chrome through
-it: agenterm cannot stop that, it only gives the agent a better browser and tells it to use it.
+it: panal cannot stop that, it only gives the agent a better browser and tells it to use it.

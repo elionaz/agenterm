@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/client"
-	"github.com/elionaz/agenterm/internal/daemon"
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/client"
+	"github.com/elionaz/panal/internal/daemon"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 // fakeAgent is an agent that prints back what it is sent: cat, with the
@@ -60,11 +60,11 @@ func (o *output) waitReady(t *testing.T) {
 	}
 }
 
-// nudges counts the "[agenterm] There are new messages…" lines typed.
+// nudges counts the "[panal] There are new messages…" lines typed.
 func (o *output) nudges() int {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	return bytes.Count(o.buf.Bytes(), []byte("[agenterm]"))
+	return bytes.Count(o.buf.Bytes(), []byte("[panal]"))
 }
 
 // waitNudges waits for n nudges; with stay, also checks no more come.
@@ -96,7 +96,7 @@ func TestAutoDeliver(t *testing.T) {
 		}
 	}
 	setAuto(false)
-	// A stand-in for Claude: takes the --settings agenterm passes, echoes
+	// A stand-in for Claude: takes the --settings panal passes, echoes
 	// nothing itself, prints what it is typed (one line per nudge).
 	fake := t.TempDir() + "/fakeclaude"
 	if err := os.WriteFile(fake, []byte(fakeAgent), 0o755); err != nil {
@@ -209,7 +209,7 @@ func TestAutoDeliver(t *testing.T) {
 // user still does.
 func TestAutoDeliverOnlyReplies(t *testing.T) {
 	defer daemon.SetAutoTiming(100*time.Millisecond, 300*time.Millisecond, 200*time.Millisecond)()
-	cli := agentermCLI(t)
+	cli := panalCLI(t)
 	c, p, stop := startDaemon(t)
 	defer stop()
 	ctx := ctxT(t)
@@ -359,10 +359,10 @@ func TestAutoDeliverDefaultsAndOtherAgents(t *testing.T) {
 	send(cx.ID, "two")
 	cxOut.waitNudges(t, 1, "other agent, turn end reported")
 	cxOut.mu.Lock()
-	told := bytes.Contains(cxOut.buf.Bytes(), []byte("agenterm msg read"))
+	told := bytes.Contains(cxOut.buf.Bytes(), []byte("panal msg read"))
 	cxOut.mu.Unlock()
 	if !told {
-		t.Fatal("the other agent was not told to run agenterm msg read")
+		t.Fatal("the other agent was not told to run panal msg read")
 	}
 
 	// Explicitly off in the file: nothing by itself, and it says so.

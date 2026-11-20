@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elionaz/agenterm/internal/apierr"
+	"github.com/elionaz/panal/internal/apierr"
 )
 
 func ptr(s string) *string { return &s }

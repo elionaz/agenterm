@@ -1,4 +1,4 @@
-// Package daemon implements agentermd: the long-lived process that owns the
+// Package daemon implements panald: the long-lived process that owns the
 // PTYs and serves control/attach requests over a local socket.
 package daemon
 
@@ -20,20 +20,20 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/apierr"
-	"github.com/elionaz/agenterm/internal/mailbox"
-	"github.com/elionaz/agenterm/internal/paths"
-	"github.com/elionaz/agenterm/internal/profile"
-	"github.com/elionaz/agenterm/internal/project"
-	"github.com/elionaz/agenterm/internal/protocol"
-	"github.com/elionaz/agenterm/internal/repoconfig"
-	"github.com/elionaz/agenterm/internal/session"
-	"github.com/elionaz/agenterm/internal/sessionstore"
-	"github.com/elionaz/agenterm/internal/shellenv"
-	"github.com/elionaz/agenterm/internal/status"
-	"github.com/elionaz/agenterm/internal/termsig"
-	"github.com/elionaz/agenterm/internal/transport"
-	"github.com/elionaz/agenterm/internal/worktree"
+	"github.com/elionaz/panal/internal/apierr"
+	"github.com/elionaz/panal/internal/mailbox"
+	"github.com/elionaz/panal/internal/paths"
+	"github.com/elionaz/panal/internal/profile"
+	"github.com/elionaz/panal/internal/project"
+	"github.com/elionaz/panal/internal/protocol"
+	"github.com/elionaz/panal/internal/repoconfig"
+	"github.com/elionaz/panal/internal/session"
+	"github.com/elionaz/panal/internal/sessionstore"
+	"github.com/elionaz/panal/internal/shellenv"
+	"github.com/elionaz/panal/internal/status"
+	"github.com/elionaz/panal/internal/termsig"
+	"github.com/elionaz/panal/internal/transport"
+	"github.com/elionaz/panal/internal/worktree"
 )
 
 // ErrAlreadyRunning is returned by Run when another daemon owns the socket.
@@ -99,7 +99,7 @@ type Server struct {
 	names    map[string]string
 	models   map[string]string   // the agents' models (model.go), same lock
 	ports    map[string]sessPort // each session's port (ports.go), same lock
-	stopped  map[string]bool     // sessions agenterm ended (lineage.go), same lock
+	stopped  map[string]bool     // sessions panal ended (lineage.go), same lock
 	contFrom map[string][]string // session → the ones it continues, same lock
 
 	// Persistence: the session registry and when each scrollback was
@@ -203,9 +203,9 @@ func New(cfg Config) (*Server, error) {
 	}, nil
 }
 
-// homeEnv is the AGENTERM_HOME sessions get: the daemon's own single-dir
-// home (AGENTERM_HOME layout), or none for the default layout. Clients
-// prefer AGENTERM_HOME over AGENTERM_SOCK, so both must name this daemon.
+// homeEnv is the PANAL_HOME sessions get: the daemon's own single-dir
+// home (PANAL_HOME layout), or none for the default layout. Clients
+// prefer PANAL_HOME over PANAL_SOCK, so both must name this daemon.
 func (s *Server) homeEnv() string {
 	if p := s.cfg.Paths; p.RuntimeDir == p.ConfigDir {
 		return p.RuntimeDir

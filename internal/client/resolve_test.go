@@ -4,17 +4,17 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/elionaz/agenterm/internal/paths"
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/paths"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 func TestResolveSocketPrecedence(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	def := filepath.Join(home, ".agenterm", "d.sock")
+	def := filepath.Join(home, ".panal", "d.sock")
 	cases := []struct {
 		name            string
-		agentermHome    string
+		panalHome       string
 		sock            string
 		want            string
 		wantFromSession bool
@@ -22,13 +22,13 @@ func TestResolveSocketPrecedence(t *testing.T) {
 		{"default", "", "", def, false},
 		{"inside a session", "", "/s/d.sock", "/s/d.sock", true},
 		{"explicit home", "/tmp/x", "", "/tmp/x/d.sock", false},
-		// The bug this guards: AGENTERM_HOME=/tmp/x agenterm stop run inside
+		// The bug this guards: PANAL_HOME=/tmp/x panal stop run inside
 		// a session must not reach the session's (real) daemon.
 		{"explicit home wins over session socket", "/tmp/x", "/real/d.sock", "/tmp/x/d.sock", false},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			t.Setenv(paths.EnvHome, c.agentermHome)
+			t.Setenv(paths.EnvHome, c.panalHome)
 			t.Setenv(protocol.EnvSock, c.sock)
 			got, fromSession, err := ResolveSocket()
 			if err != nil {

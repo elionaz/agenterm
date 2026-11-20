@@ -4,10 +4,10 @@
 
 ```
           ┌──────────────┐   ┌──────────────┐   ┌───────────────────────────┐
-          │ agenterm.app │   │ agenterm CLI │   │ agent hooks               │
-          │ (Wails)      │   │              │   │ (`agenterm notify …`)     │
+          │ panal.app │   │ panal CLI │   │ agent hooks               │
+          │ (Wails)      │   │              │   │ (`panal notify …`)     │
           └──────┬───────┘   └──────┬───────┘   └─────────────┬─────────────┘
-                 │   unix socket (~/.agenterm/d.sock)          │
+                 │   unix socket (~/.panal/d.sock)          │
                  └──────────────────┬──────────────────────────┘
                              ┌──────┴──────┐
                              │   daemon    │  PTYs, state, git, events
@@ -23,9 +23,9 @@
   doesn't respond (`client.StartDaemon`: a detached process in its own session, output to
   `daemon.log`). Closing the app or detaching from `attach` doesn't affect sessions.
 - The `.app` is self-contained: its executable also implements `daemon` and `notify`
-  (`agenterm.app/Contents/MacOS/agenterm daemon`), so the CLI isn't needed.
+  (`panal.app/Contents/MacOS/panal daemon`), so the CLI isn't needed.
 - Before launching the daemon, the app takes the `PATH` from your login shell (`$SHELL -l -i -c`,
-  with a 3 s timeout) and sets `TERM=xterm-256color`, `COLORTERM=truecolor`, `TERM_PROGRAM=agenterm`
+  with a 3 s timeout) and sets `TERM=xterm-256color`, `COLORTERM=truecolor`, `TERM_PROGRAM=panal`
   and `LANG` if missing: apps opened from Finder inherit launchd's minimal environment and wouldn't
   find `claude` or `codex`. The daemon, in turn, looks for agents in its own `PATH` plus the login
   shell's.
@@ -33,7 +33,7 @@
 ## Packages
 
 ```
-cmd/agenterm            CLI + `daemon` and `notify` subcommands (a single binary)
+cmd/panal            CLI + `daemon` and `notify` subcommands (a single binary)
 app/                    Wails app: bindings (app.go), output batching, attention, daemon environment
 app/frontend            Svelte 5 + TypeScript + xterm.js (WebGL, fit, unicode11) + diff2html
 internal/daemoncmd      `daemon` subcommand shared by the CLI and the app (+ fallback notifier)
@@ -51,14 +51,14 @@ internal/settings       settings.yaml (reading with defaults and in-place editin
 internal/gitx           git via the CLI: repo, branches, status, worktrees, diff, merge, open in editor
 internal/forge          pull requests on GitHub / GitLab through gh / glab (the user's login)
 internal/mailbox        messages between the sessions of a project (messages.json)
-internal/worktree       agenterm worktree registry (worktrees.json)
+internal/worktree       panal worktree registry (worktrees.json)
 internal/project        project registry (projects.json)
 internal/desktopnotify  notification texts + osascript fallback
 internal/macnotify      UNUserNotificationCenter (cgo, darwin): sending, permission, clicks, run loop
 internal/peercred       PID of the process on the other end of the socket (LOCAL_PEERPID / SO_PEERCRED) + `ps`
 internal/shellenv       login shell PATH
 internal/atomicfile     atomic writes with .bak
-internal/paths          directory resolution (AGENTERM_HOME)
+internal/paths          directory resolution (PANAL_HOME)
 ```
 
 ## Protocol
@@ -182,7 +182,7 @@ the new process); when it is discarded, with `session discarded`.
 | `daemon:resync` | (re)subscribed: reload lists |
 | `daemon:down` | no connection to the daemon (it retries and relaunches it) |
 | `app:focus-session` | a notification was clicked: select that session |
-| `app:open-settings` | the settings item in the **agenterm** app menu |
+| `app:open-settings` | the settings item in the **panal** app menu |
 
 ## Sessions
 
@@ -196,15 +196,15 @@ the new process); when it is discarded, with `session discarded`.
 
 The daemon injects into every session:
 
-- `AGENTERM_SESSION=<id>`;
-- `AGENTERM_SOCK=<its socket>`;
-- `AGENTERM_HOME=<its directory>` if the daemon uses `AGENTERM_HOME`; if it uses the default paths,
-  it **removes** any inherited `AGENTERM_HOME`.
+- `PANAL_SESSION=<id>`;
+- `PANAL_SOCK=<its socket>`;
+- `PANAL_HOME=<its directory>` if the daemon uses `PANAL_HOME`; if it uses the default paths,
+  it **removes** any inherited `PANAL_HOME`.
 
-Clients give `AGENTERM_HOME` priority over `AGENTERM_SOCK` (see
+Clients give `PANAL_HOME` priority over `PANAL_SOCK` (see
 [cli.md](cli.md#which-daemon-a-command-uses)), so both must point to the same daemon. Generated hooks
 also pass `--sock <the daemon's socket>`, so they reach their daemon even if you change
-`AGENTERM_HOME` inside the session.
+`PANAL_HOME` inside the session.
 
 ## Persistence and resume
 
@@ -216,7 +216,7 @@ also pass `--sock <the daemon's socket>`, so they reach their daemon even if you
 | projects (`projects.json`), profiles, settings | yes | yes |
 | worktrees and their registry (`worktrees.json`) | yes | yes |
 
-Processes live in the daemon: if it stops (`agenterm stop --force`, SIGTERM, a crash, restarting the
+Processes live in the daemon: if it stops (`panal stop --force`, SIGTERM, a crash, restarting the
 computer) they die. What the next daemon needs to bring them back is kept on disk, in the runtime
 dir:
 
@@ -236,7 +236,7 @@ that were live when the previous daemon stopped come back as **`suspended`**: li
 scrollback, but without a process. Then `sessions.restore` ([configuration.md](configuration.md#settingsyaml))
 decides: `ask` (default) leaves them suspended until you choose **Resume** or **Discard** (sidebar
 row, or the "N sessions from the previous run · Resume all / Discard all" banner; CLI
-`agenterm resume|discard <id>|--all`), `always` resumes them right away and `never` discards them.
+`panal resume|discard <id>|--all`), `always` resumes them right away and `never` discards them.
 
 **Resuming** respawns the profile in the same folder — the same worktree for worktree sessions —
 with the same id, size and creation time. The new terminal starts with the saved scrollback, the
@@ -252,7 +252,7 @@ modes a full-screen program left on reset (alternate screen, mouse, hidden curso
 | with `resume_args` (opencode: `--continue`) | `<cmd> <hooks> <args> <resume_args>` | `args` |
 | anything else (shell, agents without a session id yet) | `<cmd> <hooks> <args>`: a fresh process | `fresh` |
 
-Claude's `session_id` comes with every hook payload (agenterm also listens to `SessionStart`, so it
+Claude's `session_id` comes with every hook payload (panal also listens to `SessionStart`, so it
 is known from the start and follows `/clear`); codex reports its `thread-id` in the `notify`
 payload, i.e. after its first turn. Both flags were checked with `claude --help` (`--resume <id>`)
 and `codex resume --help` (`codex resume [OPTIONS] [SESSION_ID]`).
@@ -269,7 +269,7 @@ own process group and still runs the same command, so a recycled pid doesn't blo
 
 - The socket is `0600` and the directories `0700`: only your user can talk to the daemon.
 - `daemon.shutdown` **refuses** without `force` while there are live sessions, so an
-  `agenterm stop` aimed at the wrong daemon by mistake (for example, a test's cleanup) doesn't take
+  `panal stop` aimed at the wrong daemon by mistake (for example, a test's cleanup) doesn't take
   down work in progress. SIGTERM/SIGINT to the daemon still always shut it down (the system is
   asking).
 - Every shutdown request, accepted or refused, is logged in `daemon.log` with who made it:
@@ -281,7 +281,7 @@ own process group and still runs the same command, so a recycled pid doesn't blo
   `sender_uid`, `sender_cmd`, `sender_ppid` and `sender_parent_cmd` (looked up right away; a sender
   that already exited shows only its PID; some kernels or sandboxes report no sender at all, logged
   as `sender_pid=0`). Without cgo the daemon falls back to `os/signal`.
-- `AGENTERM_HOME` takes precedence over `AGENTERM_SOCK`: `AGENTERM_HOME=/tmp/x agenterm stop` run
+- `PANAL_HOME` takes precedence over `PANAL_SOCK`: `PANAL_HOME=/tmp/x panal stop` run
   from inside a session goes to `/tmp/x`, not to the real daemon.
 - On shutdown, the daemon kills every session and removes the socket and the pid file. A stale
   socket (nobody listening, after a crash) is detected and replaced on startup.

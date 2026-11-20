@@ -10,9 +10,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/elionaz/agenterm/internal/client"
-	"github.com/elionaz/agenterm/internal/gitx"
-	"github.com/elionaz/agenterm/internal/protocol"
+	"github.com/elionaz/panal/internal/client"
+	"github.com/elionaz/panal/internal/gitx"
+	"github.com/elionaz/panal/internal/protocol"
 )
 
 // gitCol renders "agent/x ±3 ↑1" (branch, changed files, commits ahead).
@@ -42,7 +42,7 @@ func cmdDiff(ctx context.Context, c *client.Client, args []string) error {
 		return err
 	}
 	if fs.NArg() != 1 {
-		return errors.New("usage: agenterm diff [--stat] <sessionId|worktreeId>")
+		return errors.New("usage: panal diff [--stat] <sessionId|worktreeId>")
 	}
 	id := fs.Arg(0)
 	d, err := c.SessionDiff(ctx, id, *stat)
@@ -56,11 +56,11 @@ func cmdDiff(ctx context.Context, c *client.Client, args []string) error {
 		fmt.Print(d.Patch())
 		for _, f := range d.Files {
 			if f.Truncated {
-				fmt.Fprintf(os.Stderr, "agenterm: %s: no content (size limit)\n", f.Path)
+				fmt.Fprintf(os.Stderr, "panal: %s: no content (size limit)\n", f.Path)
 			}
 		}
 		if d.Truncated {
-			fmt.Fprintln(os.Stderr, "agenterm: diff truncated (2 MB limit); use git in", d.Dir)
+			fmt.Fprintln(os.Stderr, "panal: diff truncated (2 MB limit); use git in", d.Dir)
 		}
 		return nil
 	}
@@ -136,7 +136,7 @@ func cmdWorktrees(ctx context.Context, c *client.Client, project string) error {
 
 func cmdWorktree(ctx context.Context, c *client.Client, args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: agenterm worktree rm|merge|pr|open <id>")
+		return errors.New("usage: panal worktree rm|merge|pr|open <id>")
 	}
 	switch args[0] {
 	case "rm", "remove":
@@ -148,7 +148,7 @@ func cmdWorktree(ctx context.Context, c *client.Client, args []string) error {
 			return err
 		}
 		if fs.NArg() != 1 {
-			return errors.New("usage: agenterm worktree rm [--force] [--delete-branch] [--dry-run] <id>")
+			return errors.New("usage: panal worktree rm [--force] [--delete-branch] [--dry-run] <id>")
 		}
 		res, err := c.WorktreeRemove(ctx, protocol.WorktreeRemoveParams{ID: fs.Arg(0), Force: *force, DeleteBranch: *delBranch, DryRun: *dry})
 		if err != nil {
@@ -166,7 +166,7 @@ func cmdWorktree(ctx context.Context, c *client.Client, args []string) error {
 		return nil
 	case "merge":
 		if len(args) != 2 {
-			return errors.New("usage: agenterm worktree merge <id>")
+			return errors.New("usage: panal worktree merge <id>")
 		}
 		res, err := c.WorktreeMerge(ctx, args[1])
 		if err != nil {
@@ -184,7 +184,7 @@ func cmdWorktree(ctx context.Context, c *client.Client, args []string) error {
 			return err
 		}
 		if fs.NArg() != 1 {
-			return errors.New("usage: agenterm worktree pr [--no-open] <id>")
+			return errors.New("usage: panal worktree pr [--no-open] <id>")
 		}
 		res, err := c.WorktreePR(ctx, fs.Arg(0), false)
 		if err != nil {
@@ -201,7 +201,7 @@ func cmdWorktree(ctx context.Context, c *client.Client, args []string) error {
 		fmt.Println(res.URL)
 		if !*noOpen {
 			if err := exec.Command("open", res.URL).Run(); err != nil {
-				fmt.Fprintln(os.Stderr, "agenterm: could not open the browser:", err)
+				fmt.Fprintln(os.Stderr, "panal: could not open the browser:", err)
 			}
 		}
 		return nil
@@ -212,7 +212,7 @@ func cmdWorktree(ctx context.Context, c *client.Client, args []string) error {
 			return err
 		}
 		if fs.NArg() != 1 {
-			return errors.New("usage: agenterm worktree open [--finder] <id>")
+			return errors.New("usage: panal worktree open [--finder] <id>")
 		}
 		target := gitx.OpenEditor
 		if *finder {

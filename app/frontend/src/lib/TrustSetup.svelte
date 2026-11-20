@@ -1,12 +1,12 @@
 <script lang="ts">
   // Asked before a new worktree runs a setup command the user has not
-  // trusted yet (.agenterm.yaml's worktree.setup, error setup_untrusted):
+  // trusted yet (.panal.yaml's worktree.setup, error setup_untrusted):
   // a cloned repository could carry any command, so it is shown as is.
   import { t } from './i18n.svelte'
 
   interface Props {
     command: string
-    /** The .agenterm.yaml that asks for it. */
+    /** The .panal.yaml that asks for it. */
     file: string
     onChoose: (choice: 'trust' | 'skip' | null) => void
   }

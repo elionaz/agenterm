@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elionaz/agenterm/internal/termsig"
+	"github.com/elionaz/panal/internal/termsig"
 )
 
 // lastLine feeds raw terminal chunks through termsig (as the session does)
@@ -59,17 +59,17 @@ func TestOutputActivityLine(t *testing.T) {
 func TestShellPromptIsNotActivity(t *testing.T) {
 	prompts := []string{
 		"elionaz@mac ~ % ",
-		"elionaz@mac agenterm %",
-		"elionaz@mac:~/Dev/agenterm$ ",
-		"[elionaz@mac agenterm]$ ",
+		"elionaz@mac panal %",
+		"elionaz@mac:~/Dev/panal$ ",
+		"[elionaz@mac panal]$ ",
 		"(.venv) elionaz@mac:~/x$ ",
 		"root@box:/# ",
 		"bash-5.2$ ",
-		"~/Dev/agenterm ❯ ",
+		"~/Dev/panal ❯ ",
 		"❯ ",
-		"agenterm ➜ ",
-		"➜  agenterm git:(main) ✗ ",
-		"~/Dev/agenterm $ ",
+		"panal ➜ ",
+		"➜  panal git:(main) ✗ ",
+		"~/Dev/panal $ ",
 		"$ ",
 		"% ",
 		"PS C:\\> ",
@@ -92,7 +92,7 @@ func TestShellPromptIsNotActivity(t *testing.T) {
 		"cost: $",
 		"see issue #",
 		"elionaz@mac ~ % ls -la", // a typed command is input, not idle
-		"Compiling agenterm v0.2.0 -> target/debug/agenterm and running a very long build step that ends in >", // too long
+		"Compiling panal v0.2.0 -> target/debug/panal and running a very long build step that ends in >", // too long
 		"Deploying to prod --> staging",
 		"Thinking",
 		"elionaz@MacBook-Pro-de-Jonathan:/private/tmp/agqa/h/worktrees/repo1-e207cf44/ffab8554$ make test", // typed

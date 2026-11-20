@@ -84,7 +84,7 @@ func (a *App) grabDrops(paths []string) {
 		if staged, err := linkOrCopyInto(dir, p); err == nil {
 			e.path = staged
 		} else {
-			log.Printf("agenterm: keep dropped screenshot: %v", err)
+			log.Printf("panal: keep dropped screenshot: %v", err)
 		}
 		close(e.done)
 	}

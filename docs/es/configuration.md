@@ -4,29 +4,29 @@
 
 ## Rutas
 
-| | por defecto | con `AGENTERM_HOME=/x` |
+| | por defecto | con `PANAL_HOME=/x` |
 |---|---|---|
-| socket, pid y log del daemon | `~/.agenterm/{d.sock,d.pid,daemon.log}` | `/x/…` |
-| perfiles, proyectos y ajustes | `~/.config/agenterm/{profiles.yaml,projects.json,settings.yaml}` | `/x/…` |
-| instrucciones para los agentes (un archivo por tema) | `~/.config/agenterm/instructions/<tema>.md` | `/x/instructions/…` |
-| perfil del navegador propio de cada sesión | `~/.agenterm/browsers/<sessionId>/` | `/x/browsers/…` |
-| archivos de hooks generados | `~/.agenterm/hooks/` | `/x/hooks/` |
-| worktrees de las sesiones | `~/.agenterm/worktrees/<proyecto>-<projectId>/<sessionId>/` (o `git.worktree_dir`) | `/x/worktrees/…` |
-| registro de worktrees | `~/.agenterm/worktrees.json` | `/x/worktrees.json` |
-| sesiones a restaurar y su scrollback | `~/.agenterm/sessions.json`, `~/.agenterm/scrollback/<id>.log` | `/x/…` |
-| mensajes entre sesiones | `~/.agenterm/messages.json` | `/x/messages.json` |
+| socket, pid y log del daemon | `~/.panal/{d.sock,d.pid,daemon.log}` | `/x/…` |
+| perfiles, proyectos y ajustes | `~/.config/panal/{profiles.yaml,projects.json,settings.yaml}` | `/x/…` |
+| instrucciones para los agentes (un archivo por tema) | `~/.config/panal/instructions/<tema>.md` | `/x/instructions/…` |
+| perfil del navegador propio de cada sesión | `~/.panal/browsers/<sessionId>/` | `/x/browsers/…` |
+| archivos de hooks generados | `~/.panal/hooks/` | `/x/hooks/` |
+| worktrees de las sesiones | `~/.panal/worktrees/<proyecto>-<projectId>/<sessionId>/` (o `git.worktree_dir`) | `/x/worktrees/…` |
+| registro de worktrees | `~/.panal/worktrees.json` | `/x/worktrees.json` |
+| sesiones a restaurar y su scrollback | `~/.panal/sessions.json`, `~/.panal/scrollback/<id>.log` | `/x/…` |
+| mensajes entre sesiones | `~/.panal/messages.json` | `/x/messages.json` |
 
 - Los directorios se crean con permisos `0700` y el socket con `0600`.
-- En macOS la ruta de un socket unix tiene un límite de unos 104 bytes: si usas `AGENTERM_HOME`,
+- En macOS la ruta de un socket unix tiene un límite de unos 104 bytes: si usas `PANAL_HOME`,
   que sea una ruta corta (`/tmp/agt`, no una carpeta temporal larga de `/var/folders/…`).
 - `profiles.yaml` y `settings.yaml` son opcionales. Cuando la app (o una RPC) los guarda, la
   escritura es atómica y deja la versión anterior en `<archivo>.bak`.
 
 ## Agentes: catálogo y detección
 
-agenterm trae un catálogo de CLIs de agentes conocidos. Un agente cuenta como **instalado** si su
+panal trae un catálogo de CLIs de agentes conocidos. Un agente cuenta como **instalado** si su
 binario se encuentra en el `PATH` del daemon o en el de tu shell de login (`$SHELL -l -i -c`); esa
-búsqueda se guarda en caché 5 minutos. `agenterm profiles scan` o **Re-escanear** en *Ajustes →
+búsqueda se guarda en caché 5 minutos. `panal profiles scan` o **Re-escanear** en *Ajustes →
 Agentes* la refrescan.
 
 **Instalar desde la app**: un agente del catálogo que no está instalado tiene un botón **Instalar**
@@ -56,7 +56,7 @@ cada sugerencia; las alternativas se muestran como texto), nunca un valor de `pr
 - **estado** (`status`): `hooks` = el estado lo deciden eventos explícitos (hooks / `notify`) y la
   heurística solo se usa hasta el primer evento; `heuristic` = salida → trabajando, unos segundos sin
   salida → inactivo. Ver [attention-and-activity.md](attention-and-activity.md).
-- **hooks** (`setup_hooks`): integración que agenterm configura al lanzar el agente.
+- **hooks** (`setup_hooks`): integración que panal configura al lanzar el agente.
 - Los agentes no instalados (o desactivados) no salen en el menú **+** ni en ⌘N; en *Ajustes* sí,
   con el comando de instalación y un enlace.
 
@@ -97,7 +97,7 @@ tiene un `id` obligatorio y único, y se **superpone** al catálogo:
   el de ⌘N. Una entrada que solo tiene `- id: x` sirve para fijar la posición de un agente del
   catálogo.
 - **Errores**: un error en una entrada (regex inválida, `extends` desconocido o cíclico, falta
-  `cmd`, `setup_hooks` desconocido…) solo inutiliza esa entrada; se ve en `agenterm profiles` y en
+  `cmd`, `setup_hooks` desconocido…) solo inutiliza esa entrada; se ve en `panal profiles` y en
   *Ajustes*. Los errores de estructura (YAML inválido, id vacío o duplicado) invalidan el archivo entero: los
   comandos que lo leen fallan hasta que lo corrijas.
 
@@ -125,7 +125,7 @@ profiles:
 
 ### Edición desde la app
 
-*Ajustes → Agentes* (⌘,, el ⚙ de la sidebar o *agenterm → Preferencias…*) permite activar y
+*Ajustes → Agentes* (⌘,, el ⚙ de la sidebar o *panal → Preferencias…*) permite activar y
 desactivar, reordenar (arrastrar o ▲▼), *Editar* (nombre, comando, argumentos, entorno
 `CLAVE=valor`, modo de estado, integración de hooks, segundos de inactividad y patrones de
 atención), *Duplicar como variante*, *+ Agente personalizado*, *Borrar* (perfiles propios) o
@@ -149,7 +149,7 @@ Todas las claves son opcionales; las que faltan toman el valor por defecto.
 | `terminal.font_size` | `13` | puntos, entre 8 y 32. ⌘= / ⌘- / ⌘⌥0 lo cambian (y lo guardan) desde cualquier parte de la app |
 | `terminal.line_height` | `1.15` | múltiplo del tamaño de fuente, entre 1.0 y 2.0 |
 | `terminal.cursor_style` | `block` | `block`, `bar` o `underline` |
-| `terminal.theme` | `bright-lights` | paleta integrada, cada una con nombre de un disco. Oscuras: `bright-lights` (*Turn On the Bright Lights*), `room-on-fire` (*Room on Fire*), `is-this-it` (*Is This It*), `funeral` (*Funeral*), `silent-alarm` (*Silent Alarm*), `z` (*Z*). Claras: `it-still-moves` (*It Still Moves*), `alphabetical` (*Alphabetical*), `hot-fuss` (*Hot Fuss*). Los nombres retirados siguen funcionando y eligen la paleta más parecida: `agenterm-dark` → `bright-lights`, `agenterm-light` → `alphabetical`, `solarized-dark` → `z`, `solarized-light` → `hot-fuss`, `dracula` → `funeral`, `gruvbox-dark` → `is-this-it`, `nord` → `silent-alarm`. Un nombre desconocido vuelve a `bright-lights` |
+| `terminal.theme` | `bright-lights` | paleta integrada, cada una con nombre de un disco. Oscuras: `bright-lights` (*Turn On the Bright Lights*), `room-on-fire` (*Room on Fire*), `is-this-it` (*Is This It*), `funeral` (*Funeral*), `silent-alarm` (*Silent Alarm*), `z` (*Z*). Claras: `it-still-moves` (*It Still Moves*), `alphabetical` (*Alphabetical*), `hot-fuss` (*Hot Fuss*). Los nombres retirados siguen funcionando y eligen la paleta más parecida: `panal-dark` → `bright-lights`, `panal-light` → `alphabetical`, `solarized-dark` → `z`, `solarized-light` → `hot-fuss`, `dracula` → `funeral`, `gruvbox-dark` → `is-this-it`, `nord` → `silent-alarm`. Un nombre desconocido vuelve a `bright-lights` |
 | `notify.enabled` | `true` | notificaciones (de la app y del daemon) |
 | `notify.sound` | `true` | sonido, solo en aprobaciones y preguntas |
 | `notify.notify_on_approval` | `true` | avisar cuando un agente pide una aprobación |
@@ -157,13 +157,13 @@ Todas las claves son opcionales; las que faltan toman el valor por defecto.
 | `notify.notify_on_done` | `true` | avisar cuando un agente termina su turno |
 | `notify.notify_on_error` | `true` | avisar cuando un turno falla |
 | `notify.notify_on_stall` | `true` | aviso discreto cuando un turno parece trabado |
-| `notify.fallback` | `none` | cuando no se pueden usar las notificaciones nativas (sin bundle `.app`, sin permiso): `none` no las muestra (`daemon.log` dice por qué, una vez) y `osascript` las envía con AppleScript, que macOS muestra como *Editor de Scripts* (al pulsarlas se abre Editor de Scripts, no agenterm). `AGENTERM_NOTIFY=off` en el entorno las desactiva todas igualmente. Ver [attention-and-activity.md](attention-and-activity.md#con-la-app-cerrada) |
+| `notify.fallback` | `none` | cuando no se pueden usar las notificaciones nativas (sin bundle `.app`, sin permiso): `none` no las muestra (`daemon.log` dice por qué, una vez) y `osascript` las envía con AppleScript, que macOS muestra como *Editor de Scripts* (al pulsarlas se abre Editor de Scripts, no panal). `PANAL_NOTIFY=off` en el entorno las desactiva todas igualmente. Ver [attention-and-activity.md](attention-and-activity.md#con-la-app-cerrada) |
 | `activity.stall_seconds` | `180` | segundos sin salida ni eventos para marcar «¿trabado?»; `0` lo desactiva |
 | `git.editor` | `""` | para «Abrir en editor»: un comando en el `PATH` (`code`, `cursor -n`, `zed`), una ruta absoluta o el nombre de una app de macOS (`Visual Studio Code`, `Cursor.app`). Vacío: `code` si está en el `PATH`, si no Finder |
-| `git.worktree_dir` | `""` | dónde crear los worktrees (ruta absoluta o `~/…`). Vacío: `~/.agenterm/worktrees` (o `$AGENTERM_HOME/worktrees`) |
+| `git.worktree_dir` | `""` | dónde crear los worktrees (ruta absoluta o `~/…`). Vacío: `~/.panal/worktrees` (o `$PANAL_HOME/worktrees`) |
 | `git.default_mode` | `worktree` | `worktree` o `same`: dónde el menú **+** (y ⌘N) empieza un agente nuevo en un proyecto donde aún no elegiste. Las shells siempre empiezan en la carpeta del proyecto. Antes de 0.7.0 el default era `same`; un archivo que diga `same` lo conserva |
 | `sessions.restore` | `ask` | qué hace un daemon al arrancar con las sesiones que estaban vivas cuando se detuvo el anterior: `ask` (dejarlas `suspended` hasta que las reanudes o descartes), `always` (reanudarlas enseguida) o `never` (descartarlas). Ver [architecture.md](architecture.md#persistencia-y-reanudación) |
-| `messages.enabled` | `true` | mensajes entre las sesiones de un proyecto (`agenterm msg`): si se apaga, los envíos se rechazan y los hooks de los agentes no entregan nada. Ver [messages.md](messages.md) |
+| `messages.enabled` | `true` | mensajes entre las sesiones de un proyecto (`panal msg`): si se apaga, los envíos se rechazan y los hooks de los agentes no entregan nada. Ver [messages.md](messages.md) |
 | `messages.auto_deliver` | `true` | a una sesión inactiva en su prompt (Claude, o un agente que avisa el fin de su turno, como codex) se le avisa de los mensajes nuevos sin el clic en **Entregar** (solo los tuyos y las respuestas: los avisos esperan a su siguiente turno); nunca sobre texto escrito sin enviar, y como mucho 5 veces por sesión hasta que vuelvas a intervenir en ella (y 20 por proyecto cada 10 minutos). Ver [messages.md](messages.md#entrega-automática) |
 | `browser.enabled` | `true` | cada sesión tiene su propio Chrome aislado; ver [Navegador para los agentes](#navegador-para-los-agentes) |
 | `browser.headless` | `false` | corre esos navegadores sin ventana |
@@ -242,13 +242,13 @@ idioma. Cualquier otro valor se trata como `auto`.
 
 ## Instrucciones para los agentes
 
-*Ajustes → Instrucciones* guarda instrucciones que agenterm les da a los agentes que lanza al empezar
+*Ajustes → Instrucciones* guarda instrucciones que panal les da a los agentes que lanza al empezar
 cada sesión, organizadas por temas: seguridad, arquitectura, manejo de datos, git o cualquier otro.
 Sirven para tus propias reglas ("nunca hagas force-push", "usa pnpm", "para pruebas en navegador usa
-el de agenterm, no mi Chrome"); las instrucciones que comparte tu equipo van en el `AGENTS.md` /
+el de panal, no mi Chrome"); las instrucciones que comparte tu equipo van en el `AGENTS.md` /
 `CLAUDE.md` del repositorio.
 
-Cada tema es un archivo Markdown en `~/.config/agenterm/instructions/<tema>.md`, privado (`0600`) y
+Cada tema es un archivo Markdown en `~/.config/panal/instructions/<tema>.md`, privado (`0600`) y
 fuera del repositorio, con un encabezado (front matter) que también puedes editar a mano:
 
 ```markdown
@@ -269,7 +269,7 @@ Un archivo sin encabezado se carga siempre, en todos los proyectos.
 
 - **Carga.** Un tema `always` ("siempre") entra completo en la sesión al empezar. Un tema
   `on_demand` ("cuando haga falta") solo muestra ahí su nombre y su descripción; el agente corre
-  `agenterm instructions show <tema>` para leerlo cuando el trabajo lo toca (como una skill), así los
+  `panal instructions show <tema>` para leerlo cuando el trabajo lo toca (como una skill), así los
   temas largos no ocupan contexto en cada sesión.
 - **Proyectos.** Un tema aplica a todos los proyectos o solo a los que lista (en la app: *solo
   algunos*); los proyectos que ya no existen se ignoran.
@@ -277,14 +277,14 @@ Un archivo sin encabezado se carga siempre, en todos los proyectos.
   temas que faltan se listan para leerlos cuando haga falta). La pestaña muestra el tamaño de lo que
   recibe una sesión y avisa pasados 8 KiB.
 - **Vista previa.** La pestaña muestra el texto exacto que recibe una sesión de un proyecto;
-  `agenterm instructions [<proyecto>]` también lo imprime y `agenterm instructions list` lista los
+  `panal instructions [<proyecto>]` también lo imprime y `panal instructions list` lista los
   temas.
 - **Claude Code** (`setup_hooks: claude`) las recibe en su hook `SessionStart`, así que también
   después de `/clear`, al reanudar o al compactar, incluso con `messages.enabled: false`.
 - **codex** (`setup_hooks: codex`) las recibe como `-c developer_instructions=…` en esa invocación.
   Si tu `~/.codex/config.toml` (o `$CODEX_HOME/config.toml`) ya define `developer_instructions`,
-  agenterm no lo toca y las sesiones de codex no reciben estas (la pestaña lo avisa).
-- Los demás agentes no tienen forma de recibirlas sin editar sus archivos, cosa que agenterm nunca
+  panal no lo toca y las sesiones de codex no reciben estas (la pestaña lo avisa).
+- Los demás agentes no tienen forma de recibirlas sin editar sus archivos, cosa que panal nunca
   hace; la pestaña los lista.
 
 Los cambios aplican a las sesiones que empiecen después de guardar.
@@ -293,9 +293,9 @@ Los cambios aplican a las sesiones que empiecen después de guardar.
 
 Los agentes prueban aplicaciones web, abren páginas y toman capturas. Si no se hace nada, usan tu
 propio Chrome: mueven y cambian el tamaño de su ventana, abren pestañas entre las tuyas y ven tus
-sesiones iniciadas. agenterm le da a cada sesión **su propio Chrome**:
+sesiones iniciadas. panal le da a cada sesión **su propio Chrome**:
 
-- con su propio perfil en `~/.agenterm/browsers/<sessionId>/` (ninguna de tus pestañas, cookies,
+- con su propio perfil en `~/.panal/browsers/<sessionId>/` (ninguna de tus pestañas, cookies,
   extensiones ni sesiones iniciadas), un tamaño de ventana fijo (1280×800) y su propio puerto de
   DevTools en `127.0.0.1`, desde el 9222;
 - **solo se abre cuando el agente lo necesita** y se cierra cuando termina la sesión; el perfil se
@@ -305,8 +305,8 @@ sesiones iniciadas. agenterm le da a cada sesión **su propio Chrome**:
   fijado a una versión, sin estadísticas de uso ni consultas a CrUX), agregado solo para esa
   invocación (`--mcp-config` / `-c mcp_servers…`): su configuración no se toca. Abre el Chrome de la
   sesión con la primera herramienta que use;
-- todas las sesiones reciben `AGENTERM_BROWSER_URL` (`http://127.0.0.1:<puerto>`), y
-  `agenterm browser` abre ese Chrome e imprime la dirección, para cualquier agente o herramienta
+- todas las sesiones reciben `PANAL_BROWSER_URL` (`http://127.0.0.1:<puerto>`), y
+  `panal browser` abre ese Chrome e imprime la dirección, para cualquier agente o herramienta
   (`connectOverCDP` de Playwright, `connect({browserURL})` de Puppeteer);
 - las instrucciones que reciben Claude Code y codex (ver
   [Instrucciones](#instrucciones-para-los-agentes)) les dicen que lo usen y nunca tu Chrome;
@@ -319,4 +319,4 @@ lo que encontró. Se apaga con `browser.enabled: false`; `browser.headless: true
 ventana.
 
 Un agente que usa una extensión de navegador (como Claude in Chrome) igual llega a tu Chrome a
-través de ella: agenterm no puede impedirlo, solo le da un navegador mejor y le dice que lo use.
+través de ella: panal no puede impedirlo, solo le da un navegador mejor y le dice que lo use.

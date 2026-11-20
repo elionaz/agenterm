@@ -1,7 +1,7 @@
 //go:build darwin
 
 // Objective-C half of updatesmenu_darwin.go: "Check for Updates…" in the
-// app menu, right below "About agenterm" (as Sparkle apps do).
+// app menu, right below "About panal" (as Sparkle apps do).
 #import <Cocoa/Cocoa.h>
 #include "_cgo_export.h"
 

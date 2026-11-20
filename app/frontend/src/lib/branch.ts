@@ -3,7 +3,7 @@
 /** tailRunes: how much of a branch's end always stays visible. */
 export const tailRunes = 12
 
-/** A branch as the sidebar shows it: without the agent/ prefix agenterm
+/** A branch as the sidebar shows it: without the agent/ prefix panal
  * gives worktree branches. */
 export function shortBranch(branch: string): string {
   return branch.replace(/^agent\//, '')

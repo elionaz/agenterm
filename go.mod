@@ -1,4 +1,4 @@
-module github.com/elionaz/agenterm
+module github.com/elionaz/panal
 
 go 1.27.4
 

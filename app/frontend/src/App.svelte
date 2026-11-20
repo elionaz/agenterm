@@ -96,7 +96,7 @@
   let gridProjectId = $state<string | null>(null)
   /** Ticks every second for the elapsed timers. */
   let now = $state(Date.now())
-  /** agenterm worktrees per project (for the orphan lists). */
+  /** panal worktrees per project (for the orphan lists). */
   let worktrees = $state<Record<string, WorktreeInfo[]>>({})
   /** Which tab each session shows: terminal (default) or its changes. */
   let views = $state<Record<string, 'terminal' | 'changes' | 'messages'>>({})
@@ -187,7 +187,7 @@
   }
 
   $effect(() => {
-    WindowSetTitle(attentionCount ? `agenterm (${attentionCount})` : 'agenterm')
+    WindowSetTitle(attentionCount ? `panal (${attentionCount})` : 'panal')
   })
 
   /** Acks a session if the user can actually see it (in a pane); a pending
@@ -210,7 +210,7 @@
     errorTimer = window.setTimeout(() => (error = null), 6000)
   }
 
-  // A new worktree whose .agenterm.yaml has a setup command not trusted
+  // A new worktree whose .panal.yaml has a setup command not trusted
   // yet: ask (TrustSetup), then spawn again with the answer.
   let setupAsk = $state<{ command: string; file: string; resolve: (c: 'trust' | 'skip' | null) => void } | null>(null)
   function askSetup(command: string, file: string): Promise<'trust' | 'skip' | null> {
@@ -226,7 +226,7 @@
     })
   }
 
-  // A new worktree of a repository without .agenterm.yaml lacks the .env
+  // A new worktree of a repository without .panal.yaml lacks the .env
   // files git ignores: offer to copy them (once, or into a new file).
   let copyOffer = $state<{ sessionId: string; worktreeId: string; files: string[]; busy?: boolean; done?: string } | null>(null)
   async function acceptCopy(save: boolean) {
@@ -255,7 +255,7 @@
         return undefined
       }
       const d = (ce.data ?? {}) as Record<string, string>
-      const choice = await askSetup(d.command ?? '', d.file ?? '.agenterm.yaml')
+      const choice = await askSetup(d.command ?? '', d.file ?? '.panal.yaml')
       if (!choice) return undefined
       info = await guard(api.spawn(projectId, profileId, cols, rows, { ...opts, trustSetup: choice === 'trust', skipSetup: choice === 'skip' }))
     }

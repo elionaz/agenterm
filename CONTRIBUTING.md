@@ -1,4 +1,4 @@
-# Contributing to agenterm
+# Contributing to panal
 
 **English** · [Español](CONTRIBUTING.es.md)
 

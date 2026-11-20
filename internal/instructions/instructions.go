@@ -1,15 +1,15 @@
 // Package instructions keeps the user's standing instructions for the
-// agents agenterm launches, as topics (security, architecture, git…): one
+// agents panal launches, as topics (security, architecture, git…): one
 // Markdown file per topic in <config>/instructions/<slug>.md, with a YAML
 // front matter that says how it loads and which projects it applies to.
 // They stay out of the repository (a team's shared instructions belong in
 // its AGENTS.md / CLAUDE.md) and out of the agents' own configuration:
-// agenterm hands them over when a session starts (Claude Code's
+// panal hands them over when a session starts (Claude Code's
 // SessionStart hook, codex's developer_instructions).
 //
 // A topic loads "always" (its whole text at start) or "on_demand" (the
 // session only gets its title and description, and reads the text with
-// `agenterm instructions show <slug>` when it applies, like a skill).
+// `panal instructions show <slug>` when it applies, like a skill).
 package instructions
 
 import (
@@ -27,7 +27,7 @@ import (
 	"golang.org/x/text/unicode/norm"
 	"gopkg.in/yaml.v3"
 
-	"github.com/elionaz/agenterm/internal/atomicfile"
+	"github.com/elionaz/panal/internal/atomicfile"
 )
 
 // Limits: each topic's text, and what loads "always" in a session (it
@@ -400,7 +400,7 @@ func Compose(ts []Topic, id, projectName string) string {
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString("Standing instructions from your user (set in agenterm; follow them in this session")
+	b.WriteString("Standing instructions from your user (set in panal; follow them in this session")
 	if projectName != "" {
 		fmt.Fprintf(&b, " of project %q", projectName)
 	}
@@ -418,7 +418,7 @@ func Compose(ts []Topic, id, projectName string) string {
 	}
 	if len(demand) > 0 || len(cut) > 0 {
 		b.WriteString("\n\n## More instructions, read them when they apply\n\n" +
-			"Before work that touches one of these topics, run `agenterm instructions show <topic>` and follow it:\n")
+			"Before work that touches one of these topics, run `panal instructions show <topic>` and follow it:\n")
 		for _, t := range demand {
 			fmt.Fprintf(&b, "\n- %s", t.Slug)
 			if d := cmpOr(t.Description, t.Title); d != t.Slug {
