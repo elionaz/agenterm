@@ -294,6 +294,7 @@ export const en = {
   'setup.copied': 'Copied {n} file(s) into the worktree.',
   'setup.copiedSaved': 'Copied {n} file(s); new worktrees will get them too ({file}: commit it to share it).',
   'err.instructions_not_found': 'Instructions topic not found: {slug}',
+  'err.msg_unsent_input': "The session's prompt has text you haven't sent: send or clear it, then deliver.",
   'err.setup_untrusted': '{file} asks to run “{command}” in new worktrees; trust it or create the worktree without it.',
   'perm.bypass': 'auto-approve',
   'perm.bypass.help': 'Launched to run commands and edit files without asking you.',

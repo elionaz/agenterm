@@ -40,6 +40,9 @@ const (
 	// InstructionsNotFound: no instructions topic with that slug.
 	// Data: {slug}.
 	InstructionsNotFound = "instructions_not_found"
+	// MsgUnsentInput: the session's prompt has text typed but not sent:
+	// the "new messages" line would be appended to it and sent with it.
+	MsgUnsentInput = "msg_unsent_input"
 	// MergeNothing: the branch has no commits the base lacks.
 	// Data: {branch, base}.
 	MergeNothing = "merge_nothing"

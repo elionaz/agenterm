@@ -41,6 +41,9 @@ releases may include breaking changes.
 
 ### Fixed
 
+- **Deliver no longer types over your unsent text.** The Messages tab's *Deliver* / *Remind again*
+  refused nothing when the session's prompt had text typed and not sent: the "new messages" line
+  joined it and its Enter sent both. It now says so and waits (automatic delivery already did).
 - **Cursor CLI sessions keep their chat across a daemon restart** (an update, for example): they
   come back with `cursor-agent --continue` instead of a fresh chat.
 - **The daemon log says who closed a session** (`session kill requested`, with the requesting

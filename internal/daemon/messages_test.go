@@ -123,6 +123,19 @@ func TestMessagesBetweenSessions(t *testing.T) {
 		t.Fatal(err)
 	}
 	readUntil(t, st, func(_ []byte, f protocol.Frame) bool { return f.Type == protocol.FrameReplayDone })
+	// Text typed and not sent: the line would join it and its Enter send
+	// both. Refused until it is sent.
+	if err := st.Input([]byte("half typed")); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "draft seen", func() bool {
+		_, err := c.MsgDeliver(ctx, b.ID)
+		return hasCode(err, apierr.MsgUnsentInput)
+	})
+	if err := st.Input([]byte("\r")); err != nil {
+		t.Fatal(err)
+	}
+	readUntil(t, st, func(o []byte, _ protocol.Frame) bool { return bytes.Contains(o, []byte("half typed")) })
 	if n, err := c.MsgDeliver(ctx, b.ID); err != nil || n != 1 {
 		t.Fatalf("deliver = %d, %v", n, err)
 	}

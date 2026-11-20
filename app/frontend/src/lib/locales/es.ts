@@ -271,6 +271,7 @@ export const es: Dict = {
   'setup.copied': 'Copié {n} archivo(s) al worktree.',
   'setup.copiedSaved': 'Copié {n} archivo(s); los worktrees nuevos también los tendrán ({file}: haz commit para compartirlo).',
   'err.instructions_not_found': 'Tema de instrucciones no encontrado: {slug}',
+  'err.msg_unsent_input': 'El prompt de la sesión tiene texto que no enviaste: envíalo o bórralo y luego entrega.',
   'err.setup_untrusted': '{file} pide correr «{command}» en los worktrees nuevos; confía en él o crea el worktree sin él.',
   'perm.bypass': 'auto-aprueba',
   'perm.bypass.help': 'Se lanzó para correr comandos y editar archivos sin preguntarte.',

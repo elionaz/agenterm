@@ -423,6 +423,13 @@ func (s *Server) msgDeliver(caller *session.Session, id string) (map[string]any,
 	if sess.State() != status.Idle {
 		return nil, errNotIdle
 	}
+	// Text typed at its prompt and not sent: the line would join it and
+	// its Enter send both (the automatic delivery holds back for the same
+	// reason). Sending or clearing it lets the message through.
+	if draft, _ := sess.Draft(); draft {
+		return nil, apierr.New(apierr.MsgUnsentInput, nil,
+			"the session's prompt has text you haven't sent: send or clear it, then deliver")
+	}
 	s.userActed(sess.ID)
 	l := s.nudgeLockFor(sess.ID)
 	l.Lock()
