@@ -213,7 +213,7 @@ func preview(list []string, n int) string {
 
 // Losses reports what removing the worktree at path would lose: its
 // uncommitted changes and, if the branch is deleted too, the commits not
-// merged into base. It returns nil when nothing would be lost.
+// merged into base (by ancestry or, after a squash merge, by content). It returns nil when nothing would be lost.
 func Losses(ctx context.Context, repo, path, branch string, o RemoveOptions) (*LossError, error) {
 	le := &LossError{Path: path, Branch: branch, Base: o.Base}
 	if _, err := os.Stat(path); err == nil {
@@ -225,9 +225,17 @@ func Losses(ctx context.Context, repo, path, branch string, o RemoveOptions) (*L
 	}
 	if o.DeleteBranch && branch != "" && o.Base != "" {
 		if BranchExists(ctx, repo, branch) {
-			cs, err := CommitsAhead(ctx, repo, o.Base, "refs/heads/"+branch)
+			head := "refs/heads/" + branch
+			cs, err := CommitsAhead(ctx, repo, o.Base, head)
 			if err != nil {
 				return nil, err
+			}
+			// Commits whose changes base already has (a squash or
+			// rebase merge on the host) are not lost with the branch.
+			if len(cs) > 0 {
+				if mb, err := MergeBase(ctx, repo, o.Base, head); err == nil && AlreadyIn(ctx, repo, o.Base, mb, head) {
+					cs = nil
+				}
 			}
 			le.Unmerged = cs
 		}

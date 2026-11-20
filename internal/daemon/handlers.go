@@ -359,6 +359,12 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 			return nil, err
 		}
 		return res, nil
+	case protocol.MethodWorktreeRemoveMerged:
+		p, err := decode[protocol.WorktreeRemoveMergedParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.worktreeRemoveMerged(p)
 	case protocol.MethodWorktreeCopy:
 		p, err := decode[protocol.WorktreeCopyParams](req.Params)
 		if err != nil {

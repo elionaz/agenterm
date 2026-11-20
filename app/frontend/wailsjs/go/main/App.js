@@ -170,6 +170,10 @@ export function PullRequestWorktree(arg1, arg2) {
   return window['go']['main']['App']['PullRequestWorktree'](arg1, arg2);
 }
 
+export function RemoveMergedWorktrees(arg1, arg2) {
+  return window['go']['main']['App']['RemoveMergedWorktrees'](arg1, arg2);
+}
+
 export function RemoveProject(arg1) {
   return window['go']['main']['App']['RemoveProject'](arg1);
 }

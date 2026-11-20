@@ -9,6 +9,7 @@
     needsAttention,
     rememberMode,
     displayArgs,
+    errorMessage,
     rememberedMode,
     sessionTitle,
     type Profile,
@@ -32,6 +33,7 @@
   import { proposedMode } from './spawnmode'
   import { prettyModel } from './models'
   import { branchParts } from './branch'
+  import { orphanList, removable } from './orphans'
   import { clampSidebar, loadSidebarWidth, saveSidebarWidth, SIDEBAR_DEFAULT } from './sidebarwidth'
 
   interface Props {
@@ -364,7 +366,35 @@
   }
 
   function orphansOf(projectId: string): WorktreeInfo[] {
-    return (worktrees[projectId] ?? []).filter((w) => w.orphan)
+    return orphanList(worktrees[projectId] ?? [])
+  }
+
+  // "Remove merged (N)": the project being confirmed, then the outcome.
+  let mergedAsk = $state<string | null>(null)
+  let mergedBusy = $state(false)
+  let mergedNote = $state<{ projectId: string; text: string; error?: boolean } | null>(null)
+  let mergedNoteTimer = 0
+
+  async function removeMerged(projectId: string) {
+    mergedBusy = true
+    try {
+      const r = await api.removeMergedWorktrees(projectId)
+      const text = r.skipped.length
+        ? t('sidebar.removedMergedSkipped', {
+            n: r.removed.length,
+            m: r.skipped.length,
+            why: r.skipped.map((s) => `${s.worktree.branch}: ${s.reason}`).join('; '),
+          })
+        : t('sidebar.removedMerged', { n: r.removed.length })
+      mergedNote = { projectId, text }
+    } catch (e) {
+      mergedNote = { projectId, text: errorMessage(e), error: true }
+    } finally {
+      mergedBusy = false
+      mergedAsk = null
+    }
+    clearTimeout(mergedNoteTimer)
+    mergedNoteTimer = window.setTimeout(() => (mergedNote = null), 8000)
   }
 
   function reopen(projectId: string, w: WorktreeInfo) {
@@ -751,16 +781,39 @@
             {/each}
           </ul>
           {@const orphans = orphansOf(p.id)}
+          {@const done = orphans.filter(removable)}
           {#if orphans.length}
             <div class="orphans">
-              <div class="orphans-title" title={t('sidebar.orphansTitle')}>
-                {t('sidebar.orphans')}
+              <div class="orphans-head">
+                <span class="orphans-title" title={t('sidebar.orphansTitle')}>{t('sidebar.orphans')}</span>
+                {#if done.length && mergedAsk !== p.id}
+                  <button class="remove-merged" title={t('sidebar.removeMergedTitle')} onclick={() => (mergedAsk = p.id)}
+                    >{t('sidebar.removeMerged', { n: done.length })}</button
+                  >
+                {/if}
               </div>
+              {#if mergedAsk === p.id && done.length}
+                <div class="merged-ask">
+                  <p>{t('sidebar.removeMergedAsk', { n: done.length })}</p>
+                  <ul>
+                    {#each done as w (w.id)}<li>{@render branchText(w.branch)}</li>{/each}
+                  </ul>
+                  <div class="merged-ask-actions">
+                    <button class="danger" disabled={mergedBusy} onclick={() => removeMerged(p.id)}>{t('sidebar.remove')}</button>
+                    <button disabled={mergedBusy} onclick={() => (mergedAsk = null)}>{t('sidebar.cancel')}</button>
+                  </div>
+                </div>
+              {/if}
+              {#if mergedNote?.projectId === p.id}
+                <div class="merged-note" class:error={mergedNote.error}>{mergedNote.text}</div>
+              {/if}
               {#each orphans as w (w.id)}
                 <div class="orphan" title={t('sidebar.orphanTitle', { path: w.path, branch: w.branch, base: w.base })}>
                   <div class="line">
                     <span class="chip" title={w.branch}>{@render branchText(w.branch)}</span>
-                    {#if w.git}<span class="changes">{changesLabel(w.git)}{w.git.ahead ? ` ↑${w.git.ahead}` : ''}</span>{/if}
+                    {#if removable(w)}
+                      <span class="merged" title={t('sidebar.mergedTitle', { base: w.base })}>{t('sidebar.merged')}</span>
+                    {:else if w.git}<span class="changes">{changesLabel(w.git)}{w.git.ahead ? ` ↑${w.git.ahead}` : ''}</span>{/if}
                   </div>
                   <div class="orphan-actions">
                     <button onclick={() => onOpenWorktree(w.id)}>{t('sidebar.viewChanges')}</button>
@@ -1456,6 +1509,60 @@
     margin: 2px 0 4px 10px;
     padding: 4px 0 2px;
     border-top: 1px dashed var(--border-strong);
+  }
+  .orphans-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 6px;
+    padding-right: 6px;
+  }
+  .remove-merged {
+    font-size: 10.5px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .remove-merged:hover {
+    color: var(--red);
+    text-decoration: underline;
+  }
+  .merged-ask,
+  .merged-note {
+    margin: 2px 6px 4px 8px;
+    padding: 6px 8px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    font-size: 11px;
+  }
+  .merged-ask p {
+    margin: 0 0 4px;
+  }
+  .merged-ask ul {
+    margin: 0 0 6px;
+    padding-left: 14px;
+    font: 10.5px var(--mono);
+    color: var(--muted);
+  }
+  .merged-ask-actions {
+    display: flex;
+    gap: 10px;
+  }
+  .merged-ask-actions button:hover {
+    text-decoration: underline;
+  }
+  .merged-ask-actions .danger {
+    color: var(--red);
+  }
+  .merged-note {
+    color: var(--muted);
+  }
+  .merged-note.error {
+    color: var(--red);
+  }
+  .merged {
+    flex: none;
+    font-size: 10px;
+    color: var(--green);
   }
   .orphans-title {
     padding: 0 8px 2px;

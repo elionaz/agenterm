@@ -832,6 +832,17 @@ func (a *App) RemoveWorktree(id string, force, deleteBranch, dryRun bool) (proto
 	return out, err
 }
 
+// RemoveMergedWorktrees removes a project's orphaned worktrees whose branch
+// is already merged; dryRun only lists them.
+func (a *App) RemoveMergedWorktrees(projectID string, dryRun bool) (protocol.WorktreeRemoveMergedResult, error) {
+	var out protocol.WorktreeRemoveMergedResult
+	err := a.callTimeout(gitTO, func(ctx context.Context) (err error) {
+		out, err = a.client.WorktreeRemoveMerged(ctx, protocol.WorktreeRemoveMergedParams{ProjectID: projectID, DryRun: dryRun})
+		return err
+	})
+	return out, err
+}
+
 // CopyIntoWorktree copies files from the main folder into a worktree;
 // save also writes them into a new .panal.yaml.
 func (a *App) CopyIntoWorktree(id string, files []string, save bool) (protocol.WorktreeCopyResult, error) {

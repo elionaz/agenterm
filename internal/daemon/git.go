@@ -215,6 +215,7 @@ func gitInfoFor(ctx context.Context, g sessGit) (*protocol.GitInfo, error) {
 				return nil, err
 			}
 		}
+		info.Merged = merged || (info.Ahead == 0 && branchMoved(ctx, g))
 	}
 	n, err := gitx.ChangedFiles(ctx, g.Dir, from)
 	if err != nil {
@@ -742,27 +743,90 @@ func (s *Server) worktreeRemove(p protocol.WorktreeRemoveParams) (protocol.Workt
 		loss, err := gitx.Losses(ctx, rec.Repo, rec.Path, rec.Branch, opts)
 		return protocol.WorktreeRemoveResult{Loss: loss}, err
 	}
-	if sid := s.liveSessionIn(rec.ID); sid != "" {
-		return protocol.WorktreeRemoveResult{}, apierr.New(apierr.WorktreeLive, map[string]any{"sessionId": sid},
-			"session %s is still running in this worktree: stop it before removing the worktree", sid)
-	}
-	if err := gitx.RemoveWorktree(ctx, rec.Repo, rec.Path, rec.Branch, opts); err != nil {
+	if err := s.removeOne(ctx, rec, opts); err != nil {
 		var le *gitx.LossError
 		if errors.As(err, &le) {
 			return protocol.WorktreeRemoveResult{Loss: le}, err
 		}
 		return protocol.WorktreeRemoveResult{}, err
 	}
+	s.publishWorktrees(rec.ProjectID)
+	return protocol.WorktreeRemoveResult{Removed: true}, nil
+}
+
+// removeOne removes a worktree no running session uses (with its branch
+// when opts say so) and forgets it. The caller publishes the new list.
+func (s *Server) removeOne(ctx context.Context, rec worktree.Record, opts gitx.RemoveOptions) error {
+	if sid := s.liveSessionIn(rec.ID); sid != "" {
+		return apierr.New(apierr.WorktreeLive, map[string]any{"sessionId": sid},
+			"session %s is still running in this worktree: stop it before removing the worktree", sid)
+	}
+	if err := gitx.RemoveWorktree(ctx, rec.Repo, rec.Path, rec.Branch, opts); err != nil {
+		return err
+	}
 	_ = os.Remove(filepath.Dir(rec.Path)) // the project's folder, if now empty
 	if err := s.wts.Delete(rec.ID); err != nil {
-		return protocol.WorktreeRemoveResult{}, err
+		return err
 	}
-	s.log.Info("worktree removed", "id", rec.ID, "path", rec.Path, "force", p.Force, "deleteBranch", p.DeleteBranch)
+	s.log.Info("worktree removed", "id", rec.ID, "path", rec.Path, "force", opts.Force, "deleteBranch", opts.DeleteBranch)
 	for _, id := range s.sessionsIn(recGit(rec)) {
 		s.storeGit(id, nil)
 	}
-	s.publishWorktrees(rec.ProjectID)
-	return protocol.WorktreeRemoveResult{Removed: true}, nil
+	return nil
+}
+
+// worktreeRemoveMerged removes a project's orphaned worktrees whose branch
+// is already merged and that have nothing uncommitted, with their
+// branches. It never forces: one that would lose something (a commit or
+// an edit made since the list was read) is skipped and reported.
+func (s *Server) worktreeRemoveMerged(p protocol.WorktreeRemoveMergedParams) (protocol.WorktreeRemoveMergedResult, error) {
+	out := protocol.WorktreeRemoveMergedResult{Removed: []protocol.WorktreeInfo{}, Skipped: []protocol.WorktreeSkipped{}}
+	list, err := s.worktreeList(protocol.WorktreeListParams{ProjectID: p.ProjectID})
+	if err != nil {
+		return out, err
+	}
+	ctx, cancel := context.WithTimeout(s.bg, gitActionTO)
+	defer cancel()
+	removed := false
+	for _, wi := range list.Worktrees {
+		if !wi.Orphan || wi.Git == nil || !wi.Git.Merged {
+			continue
+		}
+		if wi.Git.Uncommitted > 0 {
+			out.Skipped = append(out.Skipped, protocol.WorktreeSkipped{Worktree: wi, Reason: fmt.Sprintf("%d uncommitted %s", wi.Git.Uncommitted, plural(wi.Git.Uncommitted, "change", "changes"))})
+			continue
+		}
+		rec, err := s.wts.Get(wi.ID)
+		if err != nil {
+			continue
+		}
+		opts := gitx.RemoveOptions{DeleteBranch: true, Base: baseRef(ctx, rec.Repo, rec.Base, rec.BaseCommit, "refs/heads/"+rec.Branch)}
+		if p.DryRun {
+			if loss, err := gitx.Losses(ctx, rec.Repo, rec.Path, rec.Branch, opts); err != nil || loss != nil {
+				out.Skipped = append(out.Skipped, protocol.WorktreeSkipped{Worktree: wi, Reason: skipReason(err, loss)})
+				continue
+			}
+			out.Removed = append(out.Removed, wi)
+			continue
+		}
+		if err := s.removeOne(ctx, rec, opts); err != nil {
+			out.Skipped = append(out.Skipped, protocol.WorktreeSkipped{Worktree: wi, Reason: skipReason(err, nil)})
+			continue
+		}
+		out.Removed = append(out.Removed, wi)
+		removed = true
+	}
+	if removed {
+		s.publishWorktrees(p.ProjectID)
+	}
+	return out, nil
+}
+
+func skipReason(err error, loss *gitx.LossError) string {
+	if loss != nil {
+		return loss.Error()
+	}
+	return err.Error()
 }
 
 func (s *Server) worktreeMerge(p protocol.WorktreeRef) (gitx.MergeResult, error) {
@@ -932,4 +996,15 @@ func worktreeBranches(ctx context.Context, rec worktree.Record) []string {
 		}
 	}
 	return out
+}
+
+// branchMoved reports whether a worktree's HEAD has commits beyond the one
+// it was created from: with nothing ahead of the base, that means they were
+// merged (a fresh worktree has none and is not "merged").
+func branchMoved(ctx context.Context, g sessGit) bool {
+	if g.BaseCommit == "" {
+		return false
+	}
+	head, err := gitx.ResolveCommit(ctx, g.Dir, "HEAD")
+	return err == nil && head != g.BaseCommit && gitx.IsAncestor(ctx, g.Dir, g.BaseCommit, head)
 }

@@ -549,6 +549,14 @@ func (c *Client) WorktreeRemove(ctx context.Context, p protocol.WorktreeRemovePa
 	return r, err
 }
 
+// WorktreeRemoveMerged removes a project's orphaned, already merged
+// worktrees (see protocol.WorktreeRemoveMergedParams).
+func (c *Client) WorktreeRemoveMerged(ctx context.Context, p protocol.WorktreeRemoveMergedParams) (protocol.WorktreeRemoveMergedResult, error) {
+	var r protocol.WorktreeRemoveMergedResult
+	err := c.Call(ctx, protocol.MethodWorktreeRemoveMerged, p, &r)
+	return r, err
+}
+
 // WorktreeCopy copies files from the main folder into a worktree (and,
 // with Save, writes them into a new .panal.yaml).
 func (c *Client) WorktreeCopy(ctx context.Context, p protocol.WorktreeCopyParams) (protocol.WorktreeCopyResult, error) {

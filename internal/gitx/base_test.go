@@ -164,3 +164,41 @@ func TestVisitedBranches(t *testing.T) {
 		t.Fatalf("VisitedBranches = %q", got)
 	}
 }
+
+func TestLossesSquashMergedBranch(t *testing.T) {
+	c := ctx(t)
+	repo := newRepo(t)
+	host := hostRepo(t, repo)
+	wt := filepath.Join(canon(t.TempDir()), "w")
+	if err := AddWorktree(c, repo, wt, "agent/sq", "main"); err != nil {
+		t.Fatal(err)
+	}
+	write(t, wt, "new.txt", "new\n")
+	sh(t, wt, "add", "-A")
+	sh(t, wt, "commit", "-q", "-m", "work")
+	opts := RemoveOptions{Base: "refs/remotes/origin/main", DeleteBranch: true}
+	if le, err := Losses(c, repo, wt, "agent/sq", opts); err != nil || le == nil || len(le.Unmerged) != 1 {
+		t.Fatalf("before the merge: %+v, %v", le, err)
+	}
+	// Squash-merged on the host: deleting the branch loses nothing.
+	hostCommit(t, host, "new.txt", "new\n", "squashed")
+	if err := Fetch(c, repo, "origin", "main"); err != nil {
+		t.Fatal(err)
+	}
+	if le, err := Losses(c, repo, wt, "agent/sq", opts); err != nil || le != nil {
+		t.Fatalf("after a squash merge: %+v, %v", le, err)
+	}
+	// A commit after the merge is lost again.
+	write(t, wt, "late.txt", "late\n")
+	sh(t, wt, "add", "-A")
+	sh(t, wt, "commit", "-q", "-m", "late")
+	if le, err := Losses(c, repo, wt, "agent/sq", opts); err != nil || le == nil || len(le.Unmerged) != 2 {
+		t.Fatalf("with a later commit: %+v, %v", le, err)
+	}
+	// Uncommitted changes still count.
+	sh(t, wt, "reset", "-q", "--hard", "HEAD~1")
+	write(t, wt, "dirty.txt", "x\n")
+	if le, err := Losses(c, repo, wt, "agent/sq", opts); err != nil || le == nil || len(le.Uncommitted) != 1 || len(le.Unmerged) != 0 {
+		t.Fatalf("dirty after merge: %+v, %v", le, err)
+	}
+}

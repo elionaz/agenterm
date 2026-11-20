@@ -218,7 +218,13 @@ con `vite --port $PANAL_PORT` (en tu script `dev`), o lee `process.env.VITE_PORT
     rama* (`--delete-branch`), commits sin mergear en la base; el error lista qué se perdería;
   - `--dry-run` solo hace la comprobación;
   - tras borrar: `git worktree prune` y, si se pidió, `git branch -D` (seguro: los commits sin
-    mergear ya se comprobaron contra la base, salvo con *force*).
+    mergear ya se comprobaron contra la base, salvo con *force*);
+  - los commits cuyos cambios ya tiene la base (un pull request mergeado en el host con squash o
+    rebase) no cuentan como sin mergear: borrar una rama mergeada no pide *force*.
+- **Eliminar mergeados** (`panal worktree rm --merged [--dry-run] <proyecto>`): elimina, con sus
+  ramas, todos los worktrees huérfanos cuya rama ya está mergeada en su base (con merge, squash o
+  rebase) y que no tienen nada sin commitear. Nunca fuerza: uno con cambios sin commitear, o con
+  un commit hecho después, se queda y aparece con el motivo.
 - **Abrir en editor** (`git.editor`; por defecto `code` si está en el `PATH`, si no Finder) y
   **Abrir en Finder** (`panal worktree open [--finder] <id>`).
 - **Copiar rama** (solo en la app, al portapapeles).
@@ -289,4 +295,6 @@ requests se buscan (y se abren) ahí. Los comentarios se leen en páginas de 100
   muestra remoto, rama y base), *Eliminar worktree* con una confirmación que
   muestra qué se perdería, la casilla *Borrar también la rama* y otra para forzar).
 - Bajo cada proyecto, **Worktrees huérfanos** (si hay): *Ver cambios*, *Abrir shell aquí* (una
-  sesión `shell` nueva en ese worktree) y *Eliminar*.
+  sesión `shell` nueva en ese worktree) y *Eliminar*. Los ya mergeados y limpios van primero, con
+  **mergeado · se puede eliminar**, y el título ofrece **Eliminar mergeados (N)**, que pregunta una vez
+  y los elimina con sus ramas.

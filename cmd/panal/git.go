@@ -143,12 +143,19 @@ func cmdWorktree(ctx context.Context, c *client.Client, args []string) error {
 		fs := flag.NewFlagSet("worktree rm", flag.ContinueOnError)
 		force := fs.Bool("force", false, "remove even if uncommitted changes (or unmerged commits) would be lost")
 		delBranch := fs.Bool("delete-branch", false, "also delete the branch")
-		dry := fs.Bool("dry-run", false, "only report what would be lost")
+		dry := fs.Bool("dry-run", false, "only report what would be lost (with --merged: what would be removed)")
+		merged := fs.Bool("merged", false, "remove a project's orphaned worktrees already merged, with their branches")
 		if err := parseInterspersed(fs, args[1:]); err != nil {
 			return err
 		}
+		if *merged {
+			if fs.NArg() != 1 || *force || *delBranch {
+				return errors.New("usage: panal worktree rm --merged [--dry-run] <projectId|name>")
+			}
+			return removeMerged(ctx, c, fs.Arg(0), *dry)
+		}
 		if fs.NArg() != 1 {
-			return errors.New("usage: panal worktree rm [--force] [--delete-branch] [--dry-run] <id>")
+			return errors.New("usage: panal worktree rm [--force] [--delete-branch] [--dry-run] <id>\n       panal worktree rm --merged [--dry-run] <projectId|name>")
 		}
 		res, err := c.WorktreeRemove(ctx, protocol.WorktreeRemoveParams{ID: fs.Arg(0), Force: *force, DeleteBranch: *delBranch, DryRun: *dry})
 		if err != nil {
@@ -236,4 +243,27 @@ func printLoss(l *gitx.LossError) {
 			fmt.Printf("  %s %s\n", cm.Short, cm.Subject)
 		}
 	}
+}
+
+// removeMerged removes (or, dry, lists) a project's orphaned worktrees
+// whose branch is already merged.
+func removeMerged(ctx context.Context, c *client.Client, project string, dry bool) error {
+	res, err := c.WorktreeRemoveMerged(ctx, protocol.WorktreeRemoveMergedParams{ProjectID: project, DryRun: dry})
+	if err != nil {
+		return err
+	}
+	verb := "removed"
+	if dry {
+		verb = "would remove"
+	}
+	for _, w := range res.Removed {
+		fmt.Printf("%s %s (%s)\n", verb, w.ID, w.Branch)
+	}
+	for _, sk := range res.Skipped {
+		fmt.Printf("kept %s (%s): %s\n", sk.Worktree.ID, sk.Worktree.Branch, sk.Reason)
+	}
+	if len(res.Removed) == 0 && len(res.Skipped) == 0 {
+		fmt.Println("no merged orphaned worktrees")
+	}
+	return nil
 }
