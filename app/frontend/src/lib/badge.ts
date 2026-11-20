@@ -12,11 +12,13 @@ export interface ProjectPatch {
   name?: string
   color?: string
   icon?: string
+  /** Messages between its sessions: auto, manual or default ('' too). */
+  messages?: string
 }
 
 /** FNV-1a with a final mix (its low bits alone spread poorly): a small,
  * stable hash, so an id gets the same color everywhere. */
-function hash(s: string): number {
+export function hash(s: string): number {
   let h = 0x811c9dc5
   for (let i = 0; i < s.length; i++) {
     h ^= s.charCodeAt(i)

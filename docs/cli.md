@@ -61,7 +61,7 @@ request (accepted or refused) is logged in `daemon.log` along with the process t
 | `panal project add <dir> [--name N]` | registers a folder (relative paths are resolved from your current directory). Prints `<id>  <name>  <path>`. The name defaults to the folder name. If the folder is already registered, returns the existing project |
 | `panal project list` (or `ls`) | `ID NAME PATH ADDED` table |
 | `panal project rm <id>` (or `remove`) | removes the project from the list (doesn't delete any files) |
-| `panal project set <id\|name> [--name N] [--color C\|auto] [--icon E\|none]` | renames the project or changes its sidebar badge. Colors: `blue`, `teal`, `green`, `amber`, `orange`, `red`, `pink`, `purple`; `auto` picks one from the project id. `--icon` puts an emoji in place of the initials; `none` brings the initials back. Open windows update at once. Prints `<id>  <name>  <color>  <icon>` |
+| `panal project set <id\|name> [--name N] [--color C\|auto] [--icon E\|none] [--messages auto\|manual\|default]` | renames the project or changes its sidebar badge. Colors: `blue`, `teal`, `green`, `amber`, `orange`, `red`, `pink`, `purple`; `auto` picks one from the project id. `--icon` puts an emoji in place of the initials; `none` brings the initials back. `--messages auto\|manual\|default` sets how messages between its sessions travel (see [messages.md](messages.md#automatic-or-manual-per-project)). Open windows update at once. Prints `<id>  <name>  <color>  <icon>  messages <mode>` |
 
 ## Profiles (agents)
 

@@ -346,7 +346,7 @@ func (s *Server) serveConn(conn net.Conn) {
 				return
 			}
 			continue
-		case protocol.MethodMsgPeers, protocol.MethodMsgSend, protocol.MethodMsgList, protocol.MethodMsgTake, protocol.MethodMsgDeliver, protocol.MethodMsgAck:
+		case protocol.MethodMsgPeers, protocol.MethodMsgSend, protocol.MethodMsgList, protocol.MethodMsgTake, protocol.MethodMsgDeliver, protocol.MethodMsgAck, protocol.MethodMsgRelease:
 			// Need the connection (the caller is who sends or reads).
 			result, err := s.handleMsg(conn, req)
 			if werr := writeResponse(conn, req.ID, result, err); werr != nil {

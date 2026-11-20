@@ -102,7 +102,7 @@
         <span class="help">{t('msg.shellHelp')}</span>
       {:else}
         <span class="help">{t(holdKey(session.msgHold, session.state))}</span>
-        {#if canDeliver(session, pending)}
+        {#if canDeliver(session, pending, session.msgHold === 'held')}
           <button class="btn" disabled={delivering} onclick={deliver} title={t('msg.deliverHelp')}
             >{session.msgHold === 'nudged' ? t('msg.remind') : t('msg.deliverNow')}</button
           >

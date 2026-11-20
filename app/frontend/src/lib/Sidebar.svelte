@@ -34,6 +34,7 @@
   import { prettyModel } from './models'
   import { branchParts } from './branch'
   import { orphanList, removable } from './orphans'
+  import { currentActivity, messagesAuto, sessionColor, USER, type MsgActivity } from './msgactivity'
   import { clampSidebar, loadSidebarWidth, saveSidebarWidth, SIDEBAR_DEFAULT } from './sidebarwidth'
 
   interface Props {
@@ -72,6 +73,14 @@
     onOpenSettings: () => void
     /** Opens the past-sessions view. */
     onOpenHistory: () => void
+    /** Recent messages per session (who wrote to whom, for a few seconds). */
+    msgActivity?: Record<string, MsgActivity>
+    /** messages.auto_deliver: the mode of projects that did not choose. */
+    defaultAutoMessages?: boolean
+    /** Messages waiting (held or pending) per project, for the 💬 count. */
+    msgWaiting?: Record<string, number>
+    /** Opens a project's conversation. */
+    onOpenConversation?: (projectId: string) => void
     /** Opens the grid overview (focused on a project when given). */
     onOpenGrid: (projectId?: string) => void
     /** The overview of every project is open (its row is highlighted). */
@@ -105,6 +114,10 @@
     onReorderSessions,
     onOpenSettings,
     onOpenHistory,
+    msgActivity = {},
+    defaultAutoMessages = true,
+    msgWaiting = {},
+    onOpenConversation,
     onOpenGrid,
     now,
     worktrees,
@@ -503,6 +516,31 @@
             onclick={(e) => openCustomize(p.id, e)}><ProjectBadge project={p} /></button
           >
           <span class="project-name">{p.name}</span>
+          {#if list.length >= 2 || p.messages}
+            {@const auto = messagesAuto(p, defaultAutoMessages)}
+            <button
+              class="msg-mode"
+              class:manual={!auto}
+              title={auto ? t('sidebar.msgAutoTitle') : t('sidebar.msgManualTitle')}
+              onclick={(e) => {
+                e.stopPropagation()
+                void onUpdateProject(p.id, { messages: auto ? 'manual' : 'auto' })
+              }}>{auto ? '⇄' : '⏸'}</button
+            >
+          {/if}
+          {#if onOpenConversation && (list.length >= 2 || msgWaiting[p.id])}
+            <button
+              class="convo"
+              class:waiting={!!msgWaiting[p.id]}
+              title={t('sidebar.conversation')}
+              aria-label={t('sidebar.conversation')}
+              onclick={(e) => {
+                e.stopPropagation()
+                onOpenConversation(p.id)
+              }}
+              >💬{#if msgWaiting[p.id]}<span>{msgWaiting[p.id]}</span>{/if}</button
+            >
+          {/if}
           {#if pending}
             <span class="attn-count" title={t('sidebar.needAttention', { n: pending })}
               >{pending}</span
@@ -639,6 +677,8 @@
                   class:selected={s.id === selectedId}
                   class:shown={s.id !== selectedId && visibleIds.includes(s.id)}
                   class:needs={needsAttention(s)}
+                  class:talking={!!currentActivity(msgActivity, s.id, now)}
+                  style:--talk={`var(--${sessionColor(s.id) || 'blue'})`}
                   title={tooltip(s)}
                   onclick={() => renaming !== s.id && onSelect(s.id)}
                   oncontextmenu={(e) => {
@@ -774,6 +814,17 @@
                         >
                       {/if}
                       {#if timer.text}<span class="timer" class:stalled={timer.stalled}>{timer.text}</span>{/if}
+                    </div>
+                  {/if}
+                  {#if currentActivity(msgActivity, s.id, now)}
+                    {@const act = currentActivity(msgActivity, s.id, now)!}
+                    {@const c = sessionColor(act.peer)}
+                    <div class="msg-act" class:held={act.held} title={act.text}>
+                      <span class="msg-dir">{act.dir === 'out' ? '→' : '←'}</span>
+                      <span class="msg-peer" style:--c={c ? `var(--${c})` : 'var(--fg-dim)'}
+                        >{act.peer === USER ? t('msg.you') : act.peerName || act.peer}</span
+                      >{#if act.held}<span class="msg-held" title={t('sidebar.msgHeld')}>⏸</span>{/if}
+                      <span class="msg-text">{act.text}</span>
                     </div>
                   {/if}
                   {#if prog}<div class="row-progress"><ProgressBar progress={prog} /></div>{/if}
@@ -1527,6 +1578,75 @@
     margin: 2px 0 4px 10px;
     padding: 4px 0 2px;
     border-top: 1px dashed var(--border-strong);
+  }
+  .msg-mode {
+    flex: none;
+    font-size: 10px;
+    padding: 0 4px;
+    border-radius: 8px;
+    color: var(--green);
+    border: 1px solid color-mix(in srgb, var(--green) 45%, transparent);
+    line-height: 14px;
+  }
+  .msg-mode.manual {
+    color: var(--amber);
+    border-color: color-mix(in srgb, var(--amber) 45%, transparent);
+  }
+  .msg-mode:hover {
+    background: var(--hover-strong);
+  }
+  .convo {
+    flex: none;
+    font-size: 11px;
+    line-height: 14px;
+    padding: 0 3px;
+    border-radius: 5px;
+    opacity: 0.6;
+  }
+  .convo:hover,
+  .convo.waiting {
+    opacity: 1;
+  }
+  .convo span {
+    margin-left: 2px;
+    font-size: 9.5px;
+    color: var(--amber);
+  }
+  .msg-act {
+    display: flex;
+    gap: 4px;
+    align-items: baseline;
+    margin-top: 1px;
+    font-size: 10.5px;
+    color: var(--fg-dim);
+    overflow: hidden;
+    white-space: nowrap;
+    animation: msg-in 0.25s ease-out;
+  }
+  .msg-dir {
+    color: var(--muted);
+  }
+  .msg-peer {
+    flex: none;
+    font-weight: 600;
+    color: var(--c);
+  }
+  .msg-held {
+    flex: none;
+    color: var(--amber);
+  }
+  .msg-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .session.talking {
+    box-shadow: inset 2px 0 0 var(--talk);
+  }
+  @keyframes msg-in {
+    from {
+      opacity: 0;
+      transform: translateY(-2px);
+    }
   }
   .orphans-head {
     display: flex;

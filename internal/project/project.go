@@ -33,7 +33,18 @@ type Project struct {
 	Color string `json:"color,omitempty"`
 	// Icon replaces the badge initials: an emoji (or a short text).
 	Icon string `json:"icon,omitempty"`
+	// Messages is how messages between its sessions travel: MessagesAuto
+	// (each one reaches its recipient as soon as it can take it, waking it
+	// when idle), MessagesManual (they wait for the user to deliver them)
+	// or "" (the messages.auto_deliver setting decides).
+	Messages string `json:"messages,omitempty"`
 }
+
+// Project.Messages values.
+const (
+	MessagesAuto   = "auto"
+	MessagesManual = "manual"
+)
 
 // Colors are the badge colors a project can pick (the app maps each to a
 // theme token).
@@ -53,6 +64,8 @@ type Patch struct {
 	Name  *string
 	Color *string
 	Icon  *string
+	// Messages: MessagesAuto, MessagesManual or "" (the default).
+	Messages *string
 }
 
 // ErrNotFound is returned for unknown project ids.
@@ -228,6 +241,16 @@ func (r *Registry) Update(id string, patch Patch) (Project, error) {
 			return Project{}, err
 		}
 		p.Icon = icon
+	}
+	if patch.Messages != nil {
+		m := strings.TrimSpace(*patch.Messages)
+		if m == "default" {
+			m = ""
+		}
+		if m != "" && m != MessagesAuto && m != MessagesManual {
+			return Project{}, fmt.Errorf("unknown messages mode %q (auto, manual or default)", m)
+		}
+		p.Messages = m
 	}
 	prev := r.projects
 	r.projects = slices.Clone(prev)

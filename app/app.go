@@ -1019,6 +1019,17 @@ func (a *App) SendMessage(to, projectID, body string) ([]mailbox.Message, error)
 	return out, err
 }
 
+// ReleaseMessages delivers every message held in a project (its messages
+// are manual); returns for how many sessions there were.
+func (a *App) ReleaseMessages(projectID string) (int, error) {
+	var n int
+	err := a.call(func(ctx context.Context) (err error) {
+		n, err = a.client.MsgRelease(ctx, projectID)
+		return err
+	})
+	return n, err
+}
+
 // DeliverMessages types a fixed line into sessionID's terminal telling the
 // agent it has messages (never the messages themselves); returns how many
 // were pending.

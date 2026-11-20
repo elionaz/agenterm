@@ -83,6 +83,10 @@ func cmdMsg(ctx context.Context, c *client.Client, args []string) error {
 			fmt.Println()
 			fmt.Print(mailbox.ForAgent(r.Messages))
 		}
+		if r.Enabled && r.Held > 0 {
+			fmt.Printf("%d more %s waiting for your user to deliver %s (this project's messages are manual)\n",
+				r.Held, plural(r.Held, "message is", "messages are"), plural(r.Held, "it", "them"))
+		}
 		return nil
 	case "list":
 		fs := flag.NewFlagSet("msg list", flag.ContinueOnError)

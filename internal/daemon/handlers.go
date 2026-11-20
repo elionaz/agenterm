@@ -63,11 +63,14 @@ func (s *Server) dispatch(req protocol.Request) (any, error) {
 		if err != nil {
 			return nil, err
 		}
-		proj, err := s.projects.Update(cur.ID, project.Patch{Name: p.Name, Color: p.Color, Icon: p.Icon})
+		proj, err := s.projects.Update(cur.ID, project.Patch{Name: p.Name, Color: p.Color, Icon: p.Icon, Messages: p.Messages})
 		if err != nil {
 			return nil, err
 		}
 		s.projectsChanged()
+		if p.Messages != nil && cur.Messages != proj.Messages {
+			s.messagesModeChanged(proj)
+		}
 		return proj, nil
 	case protocol.MethodProjectList:
 		return protocol.ProjectList{Projects: s.projects.List()}, nil

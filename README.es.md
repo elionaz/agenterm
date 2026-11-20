@@ -58,9 +58,10 @@ vivos aunque cierres la app y te avisa cuando alguno te necesita.
   propia sesión de `gh` / `glab`; panal no guarda tokens.
 - **Mensajes entre sesiones**: los agentes de un proyecto pueden escribirse
   (`panal msg send`, `panal wait`); Claude Code recibe sus mensajes solo, los demás agentes
-  los leen con `panal msg read`. A las sesiones en espera se les avisa solo (Claude, y los agentes
-  que avisan el fin de su turno), y la pestaña **Mensajes** dice por qué espera un mensaje. Los mensajes
-  nunca salen de su proyecto y el daemon decide quién envió cada uno.
+  los leen con `panal msg read`. Cada proyecto es **automático** (los mensajes llegan solos y
+  despiertan a su sesión) o **manual** (esperan a que los entregues tú). Ves quién le escribe a quién
+  en el momento, en la barra lateral y en la conversación del proyecto (💬), cada sesión con su
+  color. Los mensajes nunca salen de su proyecto y el daemon decide quién envió cada uno.
 - **Continuar con otro agente**: pasa el trabajo de una sesión a una nueva (cualquier agente, en la
   misma carpeta o en un worktree nuevo) o a una que ya está corriendo, con un resumen editable de lo
   pedido, los cambios y el final de su terminal; la sesión anterior queda plegada bajo la nueva.

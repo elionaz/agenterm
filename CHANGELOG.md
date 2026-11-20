@@ -9,6 +9,18 @@ releases may include breaking changes.
 
 ### Added
 
+- **Messages between agents, open and visible.** Each project picks how its sessions' messages
+  travel, with the **⇄** (automatic) / **⏸** (manual) button by its name (or
+  `panal project set --messages auto|manual|default`):
+  - *automatic*: any message reaches its session as soon as it can take it and wakes it when idle.
+    Heads-ups count too; before, only your messages and replies did;
+  - *manual*: messages are held until you deliver them, per session or all at once.
+
+  **💬** opens the project's conversation: every message in order, each session in its own color,
+  marked *waiting for you*, *on its way* or *delivered*, where you can deliver, filter and write.
+  When a session writes to another, both rows in the sidebar show it for a few seconds
+  (`→ fake-b: …`, `← fake-a: …`). Projects that don't choose follow `messages.auto_deliver`.
+
 - **Past sessions, searchable.** When an agent session ends, panal keeps its name, agent, model,
   branches, the prompts you typed (Claude Code) and its terminal text as plain text, with secrets
   masked, in `~/.panal/history/`. The clock in the sidebar (⌘⇧F; Linux: Ctrl+Shift+H) searches them

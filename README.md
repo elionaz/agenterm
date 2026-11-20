@@ -55,9 +55,10 @@ tells you when one of them needs you.
   uses your own `gh` / `glab` login; panal stores no tokens.
 - **Messages between sessions**: the agents of a project can write to each other
   (`panal msg send`, `panal wait`); Claude Code gets its messages by itself, other agents
-  read them with `panal msg read`. Idle sessions are told about them by themselves (Claude, and
-  agents that report the end of their turn), and the **Messages** tab says why any message waits. Messages never leave
-  their project and the daemon decides who sent each one.
+  read them with `panal msg read`. Each project is **automatic** (messages reach and wake their
+  session by themselves) or **manual** (they wait for you to deliver them). You see who writes to
+  whom as it happens, in the sidebar and in the project's conversation (💬), each session in its
+  own color. Messages never leave their project and the daemon decides who sent each one.
 - **Continue with another agent**: hand a session's work to a new session (any agent, in the same
   folder or a new worktree) or to one that is already running, with an editable summary of what was
   asked, the changes and the end of its terminal; the old session folds under the new one.

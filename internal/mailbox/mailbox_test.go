@@ -163,51 +163,50 @@ func TestMemoryStoreWritesNothing(t *testing.T) {
 	}
 }
 
-func TestWakes(t *testing.T) {
-	s := Memory()
-	add := func(from, to string) {
+func TestHeldAndRelease(t *testing.T) {
+	s, path := open(t)
+	add := func(from, to string, held bool) Message {
 		t.Helper()
-		if _, err := s.Add(Message{ProjectID: "p", From: from, To: to, Body: "x"}); err != nil {
+		m, err := s.Add(Message{ProjectID: "p", From: from, To: to, Body: "x", Held: held})
+		if err != nil {
 			t.Fatal(err)
 		}
+		return m
 	}
-	take := func(to string) {
-		t.Helper()
-		if _, err := s.Take(to); err != nil {
-			t.Fatal(err)
-		}
+	h1 := add("a", "r", true)
+	add("a", "r", false)
+	if u := add(User, "r", true); u.Held {
+		t.Fatal("the user's message is held")
 	}
-	if s.Wakes("r") {
-		t.Fatal("nothing pending wakes")
+	add("a", "o", true)
+	if s.Pending("r") != 3 || s.Held("r") != 1 {
+		t.Fatalf("pending %d held %d", s.Pending("r"), s.Held("r"))
 	}
-	// A heads-up nobody asked for waits.
-	add("s", "r")
-	if s.Wakes("r") {
-		t.Fatal("an unasked message wakes")
+	if p := s.Peek("r"); len(p) != 2 {
+		t.Fatalf("peek shows held: %+v", p)
 	}
-	take("r")
-	// r asks s: s's answer wakes it.
-	add("r", "s")
-	add("s", "r")
-	if !s.Wakes("r") {
-		t.Fatal("a reply does not wake")
+	if n, _ := s.Ack("r", []int{h1.ID}); n != 0 {
+		t.Fatal("acked a held message")
 	}
-	take("r")
-	// Once answered, s's next message is a heads-up again.
-	add("s", "r")
-	if s.Wakes("r") {
-		t.Fatal("a second message after the answer wakes")
+	if got, _ := s.Take("r"); len(got) != 2 || s.Pending("r") != 1 {
+		t.Fatalf("take = %+v, pending %d", got, s.Pending("r"))
 	}
-	// Another session's reply wakes, the old heads-up still pending.
-	add("r", "o")
-	add("o", "r")
-	if !s.Wakes("r") {
-		t.Fatal("a reply from another session does not wake")
+	to, err := s.Release(Filter{To: "r"})
+	if err != nil || len(to) != 1 || to[0] != "r" || s.Held("o") != 1 {
+		t.Fatalf("release r = %v, %v (o held %d)", to, err, s.Held("o"))
 	}
-	take("r")
-	// The user always wakes.
-	add(User, "r")
-	if !s.Wakes("r") {
-		t.Fatal("a message from the user does not wake")
+	if got, _ := s.Take("r"); len(got) != 1 || got[0].ID != h1.ID {
+		t.Fatalf("after release: %+v", got)
+	}
+	// Release by project, kept on reload.
+	if to, _ := s.Release(Filter{ProjectID: "p"}); len(to) != 1 || to[0] != "o" {
+		t.Fatalf("release project = %v", to)
+	}
+	re, err := Open(path)
+	if err != nil || re.Held("o") != 0 || re.Pending("o") != 1 {
+		t.Fatalf("reload: held %d, %v", re.Held("o"), err)
+	}
+	if to, _ := s.Release(Filter{ProjectID: "p"}); to != nil {
+		t.Fatalf("nothing left to release: %v", to)
 	}
 }

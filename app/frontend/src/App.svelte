@@ -11,6 +11,8 @@
   import ProgressBar from './lib/ProgressBar.svelte'
   import Settings from './lib/Settings.svelte'
   import History from './lib/History.svelte'
+  import Conversation from './lib/Conversation.svelte'
+  import { pruneActivity, recordSent, type MsgActivity } from './lib/msgactivity'
   import Sidebar from './lib/Sidebar.svelte'
   import ProjectBadge from './lib/ProjectBadge.svelte'
   import type { ProjectPatch } from './lib/badge'
@@ -95,6 +97,17 @@
   /** The past-sessions view; historyStamp bumps on history.changed. */
   let historyOpen = $state(false)
   let historyStamp = $state(0)
+  /** Who wrote to whom lately (sidebar), the open project conversation and
+   * its reload stamp, and messages.auto_deliver (projects that did not choose). */
+  let msgActivity = $state<Record<string, MsgActivity>>({})
+  let convoProject = $state<string | null>(null)
+  let convoStamp = $state(0)
+  let defaultAutoMessages = $state(true)
+  const msgWaiting = $derived.by(() => {
+    const out: Record<string, number> = {}
+    for (const s of sessions) if (s.msgPending) out[s.projectId] = (out[s.projectId] ?? 0) + s.msgPending
+    return out
+  })
   let gridOpen = $state(false)
   /** Project the grid shows (null: the current one). */
   let gridProjectId = $state<string | null>(null)
@@ -579,6 +592,7 @@
       .getSettings()
       .then((st) => {
         defaultMode = st.git?.defaultMode === 'same' ? 'same' : 'worktree'
+        defaultAutoMessages = st.messages?.autoDeliver ?? true
         setLangSetting(st.ui?.language)
         setAppearance(st.ui?.appearance)
         setTermPrefs(st.terminal)
@@ -912,7 +926,14 @@
       case 'message.changed':
         sessions = sessions.map((s) => (s.id === ev.sessionId ? { ...s, msgPending: ev.msgPending ?? 0, msgHold: ev.msgHold ?? '' } : s))
         msgStamps[ev.sessionId] = (msgStamps[ev.sessionId] ?? 0) + 1
+        if (ev.projectId && ev.projectId === convoProject) convoStamp++
         break
+      case 'message.sent': {
+        const t0 = Date.now()
+        msgActivity = recordSent(pruneActivity(msgActivity, t0), ev, t0)
+        if (ev.projectId && ev.projectId === convoProject) convoStamp++
+        break
+      }
       case 'session.renamed':
         sessions = sessions.map((s) => (s.id === ev.sessionId ? { ...s, name: ev.sessionName } : s))
         break
@@ -964,7 +985,7 @@
       bumpFont(sc.delta)
       return
     }
-    if (settingsOpen || historyOpen) return
+    if (settingsOpen || historyOpen || convoProject) return
     const covered = gridOpen || !!orphanView
     switch (sc.kind) {
       case 'grid':
@@ -1117,6 +1138,14 @@
     onReorderSessions={reorderSessions}
     onOpenSettings={openSettings}
     onOpenHistory={openHistory}
+    {msgActivity}
+    {defaultAutoMessages}
+    {msgWaiting}
+    onOpenConversation={leavingSettings((id: string) => {
+      historyOpen = false
+      convoProject = id
+      convoStamp++
+    })}
     onOpenGrid={leavingSettings(openGrid)}
     overviewOpen={gridOpen && !gridProjectId}
     {now}
@@ -1348,6 +1377,27 @@
       </div>
     {/if}
 
+    {#if convoProject && !settingsOpen && !historyOpen}
+      {@const cp = projects.find((p) => p.id === convoProject)}
+      {#if cp}
+        <Conversation
+          project={cp}
+          {sessions}
+          defaultAuto={defaultAutoMessages}
+          stamp={convoStamp}
+          onUpdateProject={(patch) => updateProject(cp.id, patch)}
+          onSelect={(id) => {
+            convoProject = null
+            if (sessions.some((s) => s.id === id)) select(id)
+          }}
+          onClose={() => {
+            convoProject = null
+            terms.focus()
+          }}
+        />
+      {/if}
+    {/if}
+
     {#if historyOpen && !settingsOpen}
       <History
         {projects}
@@ -1364,7 +1414,10 @@
         {projects}
         projectId={currentProjectId}
         onProfiles={(ps) => (profiles = ps)}
-        onSettings={(st) => (defaultMode = st.git?.defaultMode === 'same' ? 'same' : 'worktree')}
+        onSettings={(st) => {
+          defaultMode = st.git?.defaultMode === 'same' ? 'same' : 'worktree'
+          defaultAutoMessages = st.messages?.autoDeliver ?? true
+        }}
         onInstall={(id) => void installAgent(id)}
         onClose={closeSettings}
       />

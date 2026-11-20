@@ -48,7 +48,14 @@ type Message struct {
 	// DeliveredAt: when the recipient got it (an agent hook added it to
 	// its context, or it ran panal msg read). Nil while pending.
 	DeliveredAt *time.Time `json:"deliveredAt,omitempty"`
+	// Held: sent in a project whose messages wait for the user (manual
+	// mode); the recipient can't take it until the user delivers it
+	// (Release). Messages stored before held ones existed are not held.
+	Held bool `json:"held,omitempty"`
 }
+
+// takeable: pending and not held.
+func (m Message) takeable() bool { return m.Pending() && !m.Held }
 
 // Pending reports whether the recipient has not got m yet.
 func (m Message) Pending() bool { return m.DeliveredAt == nil }
@@ -109,6 +116,9 @@ func (s *Store) Add(m Message) (Message, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	m.ID, m.At, m.DeliveredAt = s.next, time.Now().UTC(), nil
+	if m.From == User {
+		m.Held = false // the user's own messages never wait for the user
+	}
 	prev, prevNext := s.msgs, s.next
 	next := append(slices.Clone(prev), m)
 	s.msgs, s.next = trim(next, m.ProjectID), s.next+1
@@ -176,7 +186,7 @@ func (s *Store) List(f Filter) []Message {
 }
 
 // Take returns the messages pending for session to (oldest first) and
-// marks them delivered.
+// marks them delivered. Held messages stay.
 func (s *Store) Take(to string) ([]Message, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -184,7 +194,7 @@ func (s *Store) Take(to string) ([]Message, error) {
 	var out []Message
 	next := slices.Clone(s.msgs)
 	for i := range next {
-		if next[i].To == to && next[i].Pending() {
+		if next[i].To == to && next[i].takeable() {
 			next[i].DeliveredAt = &now
 			out = append(out, next[i])
 		}
@@ -202,9 +212,10 @@ func (s *Store) Take(to string) ([]Message, error) {
 }
 
 // Peek returns the messages pending for session to (oldest first)
-// without marking them: Ack does, once they were handed over.
+// without marking them: Ack does, once they were handed over. Held
+// messages are left out.
 func (s *Store) Peek(to string) []Message {
-	return s.List(Filter{To: to, PendingOnly: true})
+	return slices.DeleteFunc(s.List(Filter{To: to, PendingOnly: true}), func(m Message) bool { return m.Held })
 }
 
 // Ack marks delivered the messages ids that are pending for session to
@@ -216,7 +227,7 @@ func (s *Store) Ack(to string, ids []int) (int, error) {
 	next := slices.Clone(s.msgs)
 	n := 0
 	for i := range next {
-		if next[i].To == to && next[i].Pending() && slices.Contains(ids, next[i].ID) {
+		if next[i].To == to && next[i].takeable() && slices.Contains(ids, next[i].ID) {
 			next[i].DeliveredAt = &now
 			n++
 		}
@@ -246,26 +257,45 @@ func (s *Store) Pending(to string) int {
 	return n
 }
 
-// Wakes reports whether a message pending for session to is worth waking
-// it up for (automatic delivery): one from the user, or a reply — from a
-// session that to wrote to and that had not answered it since. Anything
-// else (a heads-up nobody asked for) waits for to's next turn.
-func (s *Store) Wakes(to string) bool {
+// Held counts the messages waiting for session to that the user has not
+// delivered yet (manual mode).
+func (s *Store) Held(to string) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	asked := map[string]bool{} // sessions to wrote to and that haven't answered since
+	n := 0
 	for _, m := range s.msgs {
-		switch {
-		case m.From == to:
-			asked[m.To] = true
-		case m.To == to:
-			if m.Pending() && (m.From == User || asked[m.From]) {
-				return true
-			}
-			delete(asked, m.From) // answered: a later message is not a reply
+		if m.To == to && m.Pending() && m.Held {
+			n++
 		}
 	}
-	return false
+	return n
+}
+
+// Release lets the recipients take the held messages f selects (the user
+// delivered them) and returns the sessions they are for.
+func (s *Store) Release(f Filter) ([]string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	next := slices.Clone(s.msgs)
+	var to []string
+	for i := range next {
+		if next[i].Held && next[i].Pending() && f.match(next[i]) {
+			next[i].Held = false
+			if !slices.Contains(to, next[i].To) {
+				to = append(to, next[i].To)
+			}
+		}
+	}
+	if len(to) == 0 {
+		return nil, nil
+	}
+	prev := s.msgs
+	s.msgs = next
+	if err := s.saveLocked(); err != nil {
+		s.msgs = prev
+		return nil, err
+	}
+	return to, nil
 }
 
 // DropTo forgets the pending messages for session to (it is gone for
