@@ -47,6 +47,8 @@ type Record struct {
 	Name string `json:"name,omitempty"`
 	// Model is the agent's model as last reported (empty: unknown).
 	Model string `json:"model,omitempty"`
+	// ContinuedFrom: the sessions whose work this one continues.
+	ContinuedFrom []string `json:"continuedFrom,omitempty"`
 	// Port is the session's port and PortEnv the variables set to it
 	// besides AGENTERM_PORT (kept when it is resumed).
 	Port    int      `json:"port,omitempty"`

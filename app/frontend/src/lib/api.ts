@@ -16,6 +16,7 @@ export type Settings = Omit<settings.Settings, 'convertValues'>
 export type Instructions = Omit<protocol.Instructions, 'convertValues'>
 export type InstructionTopic = protocol.InstructionTopic
 export type BrowserStatus = protocol.BrowserStatus
+export type HandoffNote = protocol.HandoffNote
 export type Session = Omit<protocol.SessionInfo, 'convertValues'>
 /** suspended: restored from a previous daemon run, no process (resume or discard it). */
 export type SessionState = 'running' | 'waiting_input' | 'idle' | 'exited' | 'suspended'
@@ -116,6 +117,8 @@ export interface DaemonEvent extends Live {
   msgHold?: string
   /** session.model: the agent's model id. */
   model?: string
+  /** session.state to exited: agenterm ended it (no failure). */
+  stopped?: boolean
   /** session.browser: the session's own Chrome opened (its DevTools URL) or closed (absent). */
   browserUrl?: string
 }
@@ -163,6 +166,20 @@ export const api = {
   getSettings: (): Promise<Settings> => App.GetSettings(),
   /** The window gained or lost the focus (Linux; macOS asks NSApp). */
   windowFocus: (focused: boolean): Promise<void> => App.WindowFocus(focused),
+  /** The drafted summary for continuing a session's work with another agent. */
+  handoffNote: (sessionId: string): Promise<HandoffNote> => App.HandoffNote(sessionId),
+  /** Starts profileId with note where sessionId worked (or in a new worktree); closes it unless keep. */
+  handoff: (
+    sessionId: string,
+    to: { profileId: string; where: SpawnMode } | { targetId: string },
+    note: string,
+    keep: boolean,
+    cols: number,
+    rows: number,
+  ): Promise<Session> =>
+    'targetId' in to
+      ? App.Handoff(sessionId, '', to.targetId, '', note, keep, cols, rows)
+      : App.Handoff(sessionId, to.profileId, '', to.where, note, keep, cols, rows),
   /** Whether sessions get their own browser, and the Chrome and npx found. */
   browserStatus: (): Promise<BrowserStatus> => App.BrowserStatus(),
   closeBrowser: (sessionId: string): Promise<void> => App.CloseBrowser(sessionId),

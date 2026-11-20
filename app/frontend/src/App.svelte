@@ -17,6 +17,8 @@
   import { activityText, mergeLive, progressOf, timerInfo } from './lib/activity'
   import { shortBranch } from './lib/branch'
   import TrustSetup from './lib/TrustSetup.svelte'
+  import Handoff from './lib/Handoff.svelte'
+  import { topLevel } from './lib/handoff'
   import { setLangSetting, setSystemLang, t, th } from './lib/i18n.svelte'
   import { TerminalManager } from './lib/terminals'
   import {
@@ -724,6 +726,19 @@
     select(info.id)
   }
 
+  /** "Continue with…": the session whose work is handed over, and the preset. */
+  let handoffFor = $state<{ session: Session; preset?: { profileId?: string; where?: SpawnMode } } | null>(null)
+  function openHandoff(id: string, preset?: { profileId?: string; where?: SpawnMode }) {
+    const s = sessions.find((x) => x.id === id)
+    if (s) handoffFor = { session: s, preset }
+  }
+  function handedOff(info: Session) {
+    handoffFor = null
+    if (!sessions.some((s) => s.id === info.id)) sessions = [...sessions, info]
+    else sessions = sessions.map((s) => (s.id === info.id ? { ...s, continuedFrom: info.continuedFrom } : s))
+    select(info.id)
+  }
+
   async function kill(id: string) {
     const info = await guard(api.kill(id))
     if (!info) return
@@ -835,6 +850,7 @@
                   ...s,
                   state: ev.state ?? s.state,
                   exitCode: ev.exitCode ?? s.exitCode,
+                  stopped: ev.stopped ?? s.stopped,
                   attentionKind: ev.attentionKind,
                   attentionMessage: ev.attentionMessage,
                   attentionAt: ev.attentionAt,
@@ -915,7 +931,7 @@
         else openGrid()
         return
       case 'session': {
-        const list = sessions.filter((s) => s.projectId === currentProjectId)
+        const list = topLevel(sessions.filter((s) => s.projectId === currentProjectId))
         if (list[sc.n - 1]) select(list[sc.n - 1].id)
         return
       }
@@ -1047,6 +1063,7 @@
     onSelectProject={leavingSettings(selectProject)}
     onSpawn={leavingSettings(spawn)}
     onKill={kill}
+    onHandoff={(id) => openHandoff(id)}
     onRename={rename}
     onResume={resume}
     onDiscard={discard}
@@ -1159,6 +1176,9 @@
                     sessionId={selected.id}
                     live={selected.state !== 'exited'}
                     sharedWith={inProjectFolder(selected) ? folderSharers(sessions, selected.projectId, selected.id).map(sessionTitle) : []}
+                    onMoveToWorktree={selected.state !== 'exited' && selected.profileId !== SHELL_PROFILE
+                      ? () => selected && openHandoff(selected.id, { profileId: selected.profileId, where: 'worktree' })
+                      : undefined}
                     gitStamp={selected.git ? `${selected.git.head ?? ''}|${selected.git.files}|${selected.git.uncommitted}|${selected.git.ahead}` : ''}
                     prStamp={selected.git ? `${selected.git.head ?? ''}|${selected.git.ahead}` : ''}
                     onError={showError}
@@ -1347,6 +1367,19 @@
           <button onclick={() => (copyOffer = null)}>{t('setup.dismiss')}</button>
         {/if}
       </div>
+    {/if}
+    {#if handoffFor}
+      {@const ps = paneSize()}
+      <Handoff
+        session={handoffFor.session}
+        {sessions}
+        {profiles}
+        preset={handoffFor.preset}
+        cols={ps.cols}
+        rows={ps.rows}
+        onDone={handedOff}
+        onClose={() => (handoffFor = null)}
+      />
     {/if}
     {#if setupAsk}
       <TrustSetup command={setupAsk.command} file={setupAsk.file} onChoose={setupAsk.resolve} />

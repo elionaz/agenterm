@@ -28,6 +28,7 @@
   import type { ProjectPatch } from './badge'
   import { dropSlot, moveTo } from './reorder'
   import { SHELL_PROFILE, folderSharers, inProjectFolder, joinNames } from './shared'
+  import { arrange, topLevel } from './handoff'
   import { proposedMode } from './spawnmode'
   import { prettyModel } from './models'
   import { branchParts } from './branch'
@@ -51,6 +52,8 @@
     /** Opens an orphaned worktree's changes (optionally with removal asked). */
     onOpenWorktree: (worktreeId: string, remove?: boolean) => void
     onKill: (id: string) => void
+    /** "Continue with…" another agent. */
+    onHandoff?: (id: string) => void
     /** Suspended sessions (restored after a daemon restart). */
     onResume: (id: string) => void
     onDiscard: (id: string) => void
@@ -85,6 +88,7 @@
     onSelectProject,
     onSpawn,
     onKill,
+    onHandoff,
     onResume,
     onDiscard,
     onResumeAll,
@@ -197,7 +201,8 @@
       const next = moveTo(projects.map((p) => p.id), id, slot)
       if (next) onReorderProjects(next)
     } else {
-      const next = moveTo((byProject.get(projectId) ?? []).map((s) => s.id), id, slot)
+      // The rows as shown (slots count them): folded earlier sessions keep their place.
+      const next = moveTo(arrange(byProject.get(projectId) ?? [], expanded).map((r) => r.s.id), id, slot)
       if (next) onReorderSessions(projectId, next)
     }
   }
@@ -223,8 +228,12 @@
     return m
   })
 
+  /** Sessions whose earlier ones (continued with another agent) are shown. */
+  let expanded = $state<Record<string, boolean>>({})
+
   function badgeClass(s: Session): string {
-    if (s.state === 'exited') return s.exitCode ? 'exited fail' : 'exited'
+    // Ended by agenterm (stop, continue…): a signal's exit code, no failure.
+    if (s.state === 'exited') return s.exitCode && !s.stopped ? 'exited fail' : 'exited'
     if (needsAttention(s)) return `${s.state} attention ${s.attentionKind}`
     return s.state
   }
@@ -465,7 +474,7 @@
             <span class="attn-count" title={t('sidebar.needAttention', { n: pending })}
               >{pending}</span
             >
-          {:else if list.length}<span class="count">{list.length}</span>{/if}
+          {:else if list.length}<span class="count">{topLevel(list).length}</span>{/if}
           <span class="row-actions">
             <button class="icon" title={t('sidebar.projectOverview')} aria-label={t('sidebar.projectOverview')} onclick={(e) => {
               e.stopPropagation()
@@ -574,19 +583,21 @@
         </div>
 
         {#if !collapsed[p.id]}
+          {@const rows = arrange(list, expanded)}
           <ul class="sessions">
-            {#each list as s, i (s.id)}
+            {#each rows as row, i (row.s.id)}
+              {@const s = row.s}
               {@const timer = shortTimer(s, now)}
               {@const prog = s.state !== 'exited' ? progressOf(s) : undefined}
               {@const head = s.mode === 'worktree' && s.branch ? s.git?.head || s.branch : s.git?.head}
-              <li>
+              <li class:child={row.child}>
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div
                   class="session"
                   class:dragging={drag?.kind === 'session' && drag.id === s.id}
                   class:drop-before={dropBefore('session', p.id, i)}
-                  class:drop-after={dropAfter('session', p.id, i, list.length)}
+                  class:drop-after={dropAfter('session', p.id, i, rows.length)}
                   draggable={renaming !== s.id}
                   ondragstart={(e) => onDragStart(e, 'session', s.id, p.id)}
                   ondragover={(e) => onDragOver(e, 'session', p.id, i)}
@@ -629,6 +640,18 @@
                         }}>{sessionTitle(s)}</span
                       >
                     {/if}
+                    {#if row.child}<span class="earlier-tag">{t('sidebar.earlierTag')}</span>{/if}
+                    {#if row.earlier}
+                      <button
+                        class="earlier"
+                        class:open={expanded[s.id]}
+                        title={t(expanded[s.id] ? 'sidebar.earlierHide' : 'sidebar.earlierShow', { name: row.from ? sessionTitle(row.from) : '' })}
+                        onclick={(e) => {
+                          e.stopPropagation()
+                          expanded = { ...expanded, [s.id]: !expanded[s.id] }
+                        }}>⇠ {row.from ? sessionTitle(row.from) : ''}{row.earlier > 1 ? ` +${row.earlier - 1}` : ''}</button
+                      >
+                    {/if}
                     {#if s.permission === 'bypass'}<span class="perm" title={permHelp(s.permission)}>⚠</span>{/if}
                     {#if s.git && s.git.files > 0}
                       <span class="changes" title={changesTitle(s)}>{changesLabel(s.git)}</span>
@@ -666,7 +689,17 @@
                         }}>×</button
                       >
                     {:else}
-                      {#if i < 9 && p.id === currentProjectId && s.id === selectedId}<span class="kbd">{keyLabel(`⌘${i + 1}`)}</span>{/if}
+                      {#if row.n >= 0 && row.n < 9 && p.id === currentProjectId && s.id === selectedId}<span class="kbd">{keyLabel(`⌘${row.n + 1}`)}</span>{/if}
+                      {#if onHandoff && s.state !== 'exited' && s.profileId !== SHELL_PROFILE}
+                        <button
+                          class="icon handoff"
+                          title={t('sidebar.handoff')}
+                          onclick={(e) => {
+                            e.stopPropagation()
+                            onHandoff(s.id)
+                          }}>⇢</button
+                        >
+                      {/if}
                       <button
                         class="icon kill"
                         title={s.state === 'exited' ? t('sidebar.removeFromList') : t('sidebar.stopSession')}
@@ -1123,10 +1156,12 @@
     color: var(--muted);
     opacity: 0.7;
   }
-  .session .kill {
+  .session .kill,
+  .session .handoff {
     display: none;
   }
-  .session:hover .kill {
+  .session:hover .kill,
+  .session:hover .handoff {
     display: inline-block;
   }
   .session:hover .kbd {
@@ -1377,6 +1412,35 @@
   }
   .browser:hover {
     background: color-mix(in srgb, var(--blue) 18%, transparent);
+  }
+  li.child .session {
+    margin-left: 14px;
+    opacity: 0.75;
+  }
+  li.child .session-name {
+    color: var(--muted);
+  }
+  .earlier-tag {
+    flex: none;
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .earlier {
+    flex: none;
+    max-width: 10em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0 4px;
+    border-radius: 6px;
+    font-size: 10px;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .earlier:hover,
+  .earlier.open {
+    color: var(--fg-dim);
+    background: var(--hover);
   }
   .perm {
     flex: none;

@@ -100,6 +100,11 @@ func (s *Server) restoreSessions() {
 			s.models[rec.ID] = m
 			s.namesMu.Unlock()
 		}
+		if len(rec.ContinuedFrom) > 0 {
+			s.namesMu.Lock()
+			s.contFrom[rec.ID] = slices.Clone(rec.ContinuedFrom)
+			s.namesMu.Unlock()
+		}
 		if rec.Port > 0 && rec.Port <= 65535 {
 			s.setPort(rec.ID, sessPort{Port: rec.Port, Env: rec.PortEnv})
 		}
@@ -500,6 +505,8 @@ func (s *Server) discard(id string) (protocol.SessionInfo, error) {
 	s.forgetModel(id)
 	s.forgetPort(id)
 	go s.browserForget(id)
+	s.forgetHandoff(id)
+	s.forgetLineage(id)
 	s.forgetMessages(sess)
 	sess.Release()
 	s.dropPersisted(id)

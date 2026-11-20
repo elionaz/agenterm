@@ -23,6 +23,8 @@
     live?: boolean
     /** The other live sessions working in the same project folder. */
     sharedWith?: string[]
+    /** Continue this session in a worktree of its own (shared folder). */
+    onMoveToWorktree?: () => void
     /** Changes whenever the daemon reports new git info: reload. */
     gitStamp?: string
     /** Changes when the branch moves (checkout, commits ahead): reloads the
@@ -38,7 +40,7 @@
     onClose?: () => void
   }
 
-  let { sessionId, worktreeId, live = false, sharedWith = [], gitStamp, prStamp, startRemove = false, onError, onRemoved, onClose }: Props = $props()
+  let { sessionId, worktreeId, live = false, sharedWith = [], onMoveToWorktree, gitStamp, prStamp, startRemove = false, onError, onRemoved, onClose }: Props = $props()
 
   const STYLE_KEY = 'agenterm.diffStyle'
   /** Below this width (px) the automatic style is unified: two columns
@@ -426,7 +428,10 @@
   </header>
 
   {#if sharedWith.length && !isWorktree}
-    <div class="notice">{t('changes.shared', { n: sharedWith.length, names: joinNames(sharedWith) })}</div>
+    <div class="notice">
+      {t('changes.shared', { n: sharedWith.length, names: joinNames(sharedWith) })}
+      {#if onMoveToWorktree}<button class="notice-action" onclick={onMoveToWorktree}>{t('changes.moveToWorktree')}</button>{/if}
+    </div>
   {/if}
   {#if diff?.branch && showPRList(prList)}
     <div class="prlist">
@@ -808,6 +813,17 @@
     color: var(--amber);
     background: color-mix(in srgb, var(--amber) 8%, transparent);
     border-bottom: 1px solid var(--border);
+  }
+  .notice-action {
+    margin-left: 8px;
+    padding: 1px 8px;
+    border-radius: 5px;
+    border: 1px solid color-mix(in srgb, var(--amber) 50%, transparent);
+    color: var(--amber);
+    font-size: 11.5px;
+  }
+  .notice-action:hover {
+    background: color-mix(in srgb, var(--amber) 16%, transparent);
   }
   .notice.ok {
     color: var(--green);

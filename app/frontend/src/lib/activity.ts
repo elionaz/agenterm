@@ -61,6 +61,7 @@ export function stateLabel(s: Session): string {
     case 'idle':
       return t(`state.${s.state}`)
     case 'exited':
+      if (s.stopped) return t('state.stopped')
       return s.exitCode != null ? t('state.exitCode', { code: s.exitCode }) : t('state.exited')
     case 'suspended':
       return t('state.suspended')
