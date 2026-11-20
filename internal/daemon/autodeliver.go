@@ -3,6 +3,7 @@ package daemon
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/elionaz/panal/internal/session"
@@ -34,18 +35,33 @@ import (
 // What it holds back stays pending, with the Deliver button, as without it.
 // A hold that can lift by itself (a draft, recent typing) is checked again
 // every autoRetry while messages wait.
+//
+// The delays are atomic: tests shorten them, and a daemon's timers may still
+// read them while a finished test restores them.
 var (
 	// autoDelay lets a burst of messages (msg send all) and the sender's
 	// own turn settle before typing.
-	autoDelay = 1500 * time.Millisecond
+	autoDelay = newDur(1500 * time.Millisecond)
 	// autoQuiet: no automatic delivery this soon after input; also the
 	// window in which a second nudge (manual or automatic) is skipped.
-	autoQuiet = 3 * time.Second
+	autoQuiet = newDur(3 * time.Second)
 	// autoRetry re-checks a hold that can lift by itself, doubling up to
 	// autoRetryMax while it lasts.
-	autoRetry    = 3 * time.Second
+	autoRetry    = newDur(3 * time.Second)
 	autoRetryMax = time.Minute
 )
+
+// dur is a time.Duration read and set atomically.
+type dur struct{ v atomic.Int64 }
+
+func newDur(d time.Duration) *dur {
+	x := &dur{}
+	x.v.Store(int64(d))
+	return x
+}
+
+func (d *dur) get() time.Duration  { return time.Duration(d.v.Load()) }
+func (d *dur) set(v time.Duration) { d.v.Store(int64(v)) }
 
 const (
 	// autoChainMax bounds the automatic deliveries to one session without
@@ -115,7 +131,7 @@ func (s *Server) userActed(id string) {
 
 // scheduleAutoDeliver checks session id for an automatic delivery after
 // delay (one check per session at a time; a new trigger postpones it).
-func (s *Server) scheduleAutoDeliver(id string) { s.scheduleAutoDeliverIn(id, autoDelay) }
+func (s *Server) scheduleAutoDeliver(id string) { s.scheduleAutoDeliverIn(id, autoDelay.get()) }
 
 func (s *Server) scheduleAutoDeliverIn(id string, delay time.Duration) {
 	if !s.autoDeliverOn() {
@@ -241,7 +257,7 @@ func (s *Server) noteHold(sess *session.Session, why string) {
 			s.auto.retry = map[string]time.Duration{}
 		}
 		d := s.auto.retry[sess.ID]
-		d = min(max(autoRetry, 2*d), autoRetryMax)
+		d = min(max(autoRetry.get(), 2*d), autoRetryMax)
 		s.auto.retry[sess.ID] = d
 		s.auto.mu.Unlock()
 		s.scheduleAutoDeliverIn(sess.ID, d)
@@ -314,14 +330,16 @@ func (s *Server) autoDeliverBlock(sess *session.Session, lastNudge time.Time) st
 	if !s.hookDelivers(sess.ProfileID) && sess.IdleSource() != status.SourceEvent {
 		return holdNoTurnEnd
 	}
-	if time.Since(lastNudge) < autoQuiet {
-		return "nudged just now"
+	if time.Since(lastNudge) < autoQuiet.get() {
+		// Told moments ago: for the UIs that is "nudged" (a check that
+		// ran meanwhile must not turn it into something to deliver again).
+		return holdNudged
 	}
 	draft, at := sess.Draft()
 	if draft {
 		return holdDraft
 	}
-	if !at.IsZero() && time.Since(at) < autoQuiet {
+	if !at.IsZero() && time.Since(at) < autoQuiet.get() {
 		return holdTyping
 	}
 	return ""

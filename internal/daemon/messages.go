@@ -436,7 +436,7 @@ func (s *Server) msgDeliver(caller *session.Session, id string) (map[string]any,
 	defer l.Unlock()
 	// An automatic nudge just went in: a second line would garble the
 	// first (it is still idle until the agent reports its turn).
-	if time.Since(l.last) < autoQuiet {
+	if time.Since(l.last) < autoQuiet.get() {
 		return map[string]any{"pending": n}, nil
 	}
 	if err := s.nudge(sess); err != nil {
