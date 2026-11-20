@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { keyLabel } from './platform'
+  import { IS_MAC, keyLabel } from './platform'
   import { ClipboardSetText } from '../../wailsjs/runtime/runtime'
   import { permHelp } from './permission'
   import {
@@ -70,6 +70,8 @@
     /** Drag & drop (or ⌘⇧↑/↓): the new order of a project's sessions. */
     onReorderSessions: (projectId: string, ids: string[]) => void
     onOpenSettings: () => void
+    /** Opens the past-sessions view. */
+    onOpenHistory: () => void
     /** Opens the grid overview (focused on a project when given). */
     onOpenGrid: (projectId?: string) => void
     /** The overview of every project is open (its row is highlighted). */
@@ -102,6 +104,7 @@
     onUpdateProject,
     onReorderSessions,
     onOpenSettings,
+    onOpenHistory,
     onOpenGrid,
     now,
     worktrees,
@@ -831,6 +834,21 @@
 
   <div class="footer">
     <button class="add-project" onclick={onAddProject}>{t('sidebar.addProject')}</button>
+    <button
+      class="gear"
+      title={t('sidebar.history', { key: IS_MAC ? '⌘⇧F' : 'Ctrl+Shift+H' })}
+      aria-label={t('sidebar.historyLabel')}
+      onclick={onOpenHistory}
+      ><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"
+        ><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4" /><path
+          d="M8 4.6V8l2.4 1.5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.4"
+          stroke-linecap="round"
+        /></svg
+      ></button
+    >
     <button class="gear" title={t('sidebar.settings')} aria-label={t('sidebar.settingsLabel')} onclick={onOpenSettings}>⚙</button>
   </div>
   <!-- svelte-ignore a11y_no_static_element_interactions -->

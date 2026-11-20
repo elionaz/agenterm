@@ -1,7 +1,7 @@
 // Thin typed layer over the generated Wails bindings.
 import * as App from '../../wailsjs/go/main/App'
 import type { ProjectPatch } from './badge'
-import type { forge, gitx, main, profile, project, protocol, settings } from '../../wailsjs/go/models'
+import type { forge, gitx, history, main, profile, project, protocol, settings } from '../../wailsjs/go/models'
 import { hasKey, t, type Params } from './i18n.svelte'
 import type { Message } from './messages'
 
@@ -32,6 +32,10 @@ export type DiffResult = Omit<protocol.DiffResult, 'convertValues'>
 export type WorktreeInfo = Omit<protocol.WorktreeInfo, 'convertValues'>
 export type ProjectGit = protocol.ProjectGit
 export type LossInfo = Omit<gitx.LossError, 'convertValues'>
+export type HistoryEntry = Omit<history.Entry, 'convertValues'>
+export type HistorySnippet = history.Snippet
+export type HistoryHit = Omit<history.Hit, 'convertValues'>
+export type HistoryDetail = Omit<protocol.HistoryDetail, 'convertValues'>
 export type RemoveMergedResult = Omit<protocol.WorktreeRemoveMergedResult, 'convertValues'>
 export type MergeResult = gitx.MergeResult
 /** url '' = a host we cannot build a pull request page for (pushed only). */
@@ -92,6 +96,7 @@ export interface DaemonEvent extends Live {
     | 'profile.changed'
     | 'session.model'
     | 'session.browser'
+    | 'history.changed'
   sessionId: string
   /** The session's display name (session.renamed: the new one; absent: reset). */
   sessionName?: string
@@ -218,6 +223,12 @@ export const api = {
   /** dryRun: only report what would be lost (result.loss). */
   removeWorktree: (id: string, o: { force?: boolean; deleteBranch?: boolean; dryRun?: boolean }) =>
     App.RemoveWorktree(id, !!o.force, !!o.deleteBranch, !!o.dryRun),
+  /** Ended agent sessions matching every word of query ('' = the latest); projectId '' = all. */
+  searchHistory: (query: string, projectId = '', limit = 50): Promise<HistoryHit[]> => App.SearchHistory(query, projectId, limit),
+  historyDetail: (id: string): Promise<HistoryDetail> => App.HistoryDetail(id),
+  deleteHistory: (id: string): Promise<void> => App.DeleteHistory(id),
+  /** A new session reopening an archived session's agent conversation. */
+  resumeHistory: (id: string, cols: number, rows: number): Promise<Session> => App.ResumeHistory(id, cols, rows) as Promise<Session>,
   /** Removes the project's orphaned worktrees already merged and clean, with their branches. */
   removeMergedWorktrees: (projectId: string, dryRun = false): Promise<RemoveMergedResult> =>
     App.RemoveMergedWorktrees(projectId, dryRun),

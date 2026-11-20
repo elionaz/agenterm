@@ -151,7 +151,23 @@ vuelve sin nada en marcha. Imprime `<id> <estado> pid <pid>`; con `--all`, los f
 ### `panal discard <sessionId>|--all`
 
 Olvida sesiones `suspended`: salen de la lista y se borran su registro y su scrollback guardado
-(su worktree, si lo hay, queda como huérfano).
+(su worktree, si lo hay, queda como huérfano). Una sesión de agente descartada así pasa antes al
+[historial](#panal-history---project-p--n-n-palabras).
+
+### `panal history [--project P] [-n N] [palabras…]`
+
+Busca en las sesiones de agente que ya terminaron (ver
+[configuration.md](configuration.md#sesiones-pasadas)): cada palabra debe aparecer en alguna parte de
+la sesión (su nombre, agente, proyecto, ramas, prompts o texto de terminal), sin distinguir
+mayúsculas. Sin palabras lista las últimas. Imprime una fila por sesión (id, fin, proyecto, agente,
+nombre, rama) y debajo las líneas que coinciden. `-n` limita las filas (20 por defecto).
+
+- `panal history show [--text] <id>`: los datos y los prompts de la sesión; `--text` imprime además
+  el texto de su terminal.
+- `panal history resume <id>`: una sesión nueva que continúa la conversación del agente en la
+  misma carpeta (`--resume` de Claude Code, `codex resume`). Hace falta el id de la conversación
+  (lo informan los agentes con hooks), el proyecto y la carpeta.
+- `panal history rm <id>`: la borra del historial.
 
 ### `panal ack <sessionId>`
 

@@ -274,6 +274,142 @@ export namespace gitx {
 
 }
 
+export namespace history {
+	
+	export class Resume {
+	    agent: string;
+	    sessionId: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Resume(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.agent = source["agent"];
+	        this.sessionId = source["sessionId"];
+	    }
+	}
+	export class Entry {
+	    id: string;
+	    projectId: string;
+	    projectName: string;
+	    profileId: string;
+	    agent: string;
+	    name?: string;
+	    model?: string;
+	    cwd: string;
+	    mode?: string;
+	    worktreeId?: string;
+	    branches?: string[];
+	    base?: string;
+	    // Go type: time
+	    createdAt: any;
+	    // Go type: time
+	    endedAt: any;
+	    exitCode: number;
+	    resume?: Resume;
+	    prompts?: string[];
+	    textBytes: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Entry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.projectId = source["projectId"];
+	        this.projectName = source["projectName"];
+	        this.profileId = source["profileId"];
+	        this.agent = source["agent"];
+	        this.name = source["name"];
+	        this.model = source["model"];
+	        this.cwd = source["cwd"];
+	        this.mode = source["mode"];
+	        this.worktreeId = source["worktreeId"];
+	        this.branches = source["branches"];
+	        this.base = source["base"];
+	        this.createdAt = this.convertValues(source["createdAt"], null);
+	        this.endedAt = this.convertValues(source["endedAt"], null);
+	        this.exitCode = source["exitCode"];
+	        this.resume = this.convertValues(source["resume"], Resume);
+	        this.prompts = source["prompts"];
+	        this.textBytes = source["textBytes"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class Snippet {
+	    source: string;
+	    line: string;
+	    matches: number[][];
+	
+	    static createFrom(source: any = {}) {
+	        return new Snippet(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.source = source["source"];
+	        this.line = source["line"];
+	        this.matches = source["matches"];
+	    }
+	}
+	export class Hit {
+	    entry: Entry;
+	    snippets: Snippet[];
+	    count: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Hit(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.entry = this.convertValues(source["entry"], Entry);
+	        this.snippets = this.convertValues(source["snippets"], Snippet);
+	        this.count = source["count"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+
+}
+
 export namespace mailbox {
 	
 	export class Message {
@@ -388,6 +524,7 @@ export namespace main {
 	    terminal?: settings.Terminal;
 	    messages?: settings.Messages;
 	    browser?: settings.Browser;
+	    history?: settings.History;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsPatch(source);
@@ -403,6 +540,7 @@ export namespace main {
 	        this.terminal = this.convertValues(source["terminal"], settings.Terminal);
 	        this.messages = this.convertValues(source["messages"], settings.Messages);
 	        this.browser = this.convertValues(source["browser"], settings.Browser);
+	        this.history = this.convertValues(source["history"], settings.History);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -959,6 +1097,40 @@ export namespace protocol {
 	        this.text = source["text"];
 	        this.shared = source["shared"];
 	    }
+	}
+	export class HistoryDetail {
+	    entry: history.Entry;
+	    text: string;
+	    canResume: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new HistoryDetail(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.entry = this.convertValues(source["entry"], history.Entry);
+	        this.text = source["text"];
+	        this.canResume = source["canResume"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class InstructionTopic {
 	    slug: string;
@@ -1535,6 +1707,20 @@ export namespace settings {
 	        this.defaultMode = source["defaultMode"];
 	    }
 	}
+	export class History {
+	    enabled: boolean;
+	    keep: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new History(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.keep = source["keep"];
+	    }
+	}
 	export class Messages {
 	    enabled: boolean;
 	    autoDeliver: boolean;
@@ -1630,6 +1816,7 @@ export namespace settings {
 	    terminal: Terminal;
 	    messages: Messages;
 	    browser: Browser;
+	    history: History;
 	
 	    static createFrom(source: any = {}) {
 	        return new Settings(source);
@@ -1645,6 +1832,7 @@ export namespace settings {
 	        this.terminal = this.convertValues(source["terminal"], Terminal);
 	        this.messages = this.convertValues(source["messages"], Messages);
 	        this.browser = this.convertValues(source["browser"], Browser);
+	        this.history = this.convertValues(source["history"], History);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

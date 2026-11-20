@@ -228,3 +228,17 @@ func TestRingTail(t *testing.T) {
 		t.Fatalf("tail all %q", got)
 	}
 }
+
+func TestPlainLines(t *testing.T) {
+	data := []byte("\x1b[1mfirst\x1b[0m line\r\nsecond\n\n\n\x1b[31mthird\x1b[0m\n")
+	if got := strings.Join(PlainLines(data, 100, false), "|"); got != "first line|second||third" {
+		t.Fatalf("whole = %q", got)
+	}
+	// Cut: the partial first line goes.
+	if got := strings.Join(PlainLines(data[3:], 100, true), "|"); got != "second||third" {
+		t.Fatalf("cut = %q", got)
+	}
+	if got := PlainLines([]byte(strings.Repeat("x", 50)), 10, false); len(got) != 1 || got[0] != "xxxxxxxxx…" {
+		t.Fatalf("long line = %q", got)
+	}
+}

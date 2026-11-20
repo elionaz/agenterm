@@ -316,12 +316,37 @@ func TailLines(data []byte, n int) []string {
 	}
 	n = min(n, MaxTailLines)
 	if len(data) > tailBytes {
-		data = data[len(data)-tailBytes:]
-		// Start at a line boundary so a cut escape sequence doesn't leak.
-		if i := strings.IndexByte(string(data[:min(len(data), 4096)]), '\n'); i >= 0 {
-			data = data[i+1:]
-		}
+		data = cutToLine(data[len(data)-tailBytes:])
 	}
+	lines := renderLines(data, maxTailRunes)
+	if len(lines) > n {
+		lines = lines[len(lines)-n:]
+	}
+	return lines
+}
+
+// PlainLines renders a raw terminal stream as plain text, like TailLines
+// but with no limit on the number of lines (each is cut at maxRunes
+// runes). With cut, data is the end of a longer stream and may start in
+// the middle of a line (or an escape sequence): that partial line is
+// dropped.
+func PlainLines(data []byte, maxRunes int, cut bool) []string {
+	if cut {
+		data = cutToLine(data)
+	}
+	return renderLines(data, maxRunes)
+}
+
+// cutToLine starts data at a line boundary so a cut escape sequence
+// doesn't leak (when one is found in its first 4 KiB).
+func cutToLine(data []byte) []byte {
+	if i := strings.IndexByte(string(data[:min(len(data), 4096)]), '\n'); i >= 0 {
+		return data[i+1:]
+	}
+	return data
+}
+
+func renderLines(data []byte, maxRunes int) []string {
 	var text []byte
 	var p termsig.Parser
 	p.Feed(data, nil, func(b []byte) { text = append(text, b...) })
@@ -331,8 +356,8 @@ func TailLines(data []byte, n int) []string {
 	col := 0
 	push := func() {
 		line := strings.TrimRightFunc(string(cur), unicode.IsSpace)
-		if r := []rune(line); len(r) > maxTailRunes {
-			line = string(r[:maxTailRunes-1]) + "…"
+		if r := []rune(line); len(r) > maxRunes {
+			line = string(r[:maxRunes-1]) + "…"
 		}
 		if line == "" && (len(lines) == 0 || lines[len(lines)-1] == "") {
 			// collapse blank runs (and drop leading blanks)
@@ -360,9 +385,6 @@ func TailLines(data []byte, n int) []string {
 	push()
 	for len(lines) > 0 && lines[len(lines)-1] == "" {
 		lines = lines[:len(lines)-1]
-	}
-	if len(lines) > n {
-		lines = lines[len(lines)-n:]
 	}
 	if lines == nil {
 		lines = []string{}

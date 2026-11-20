@@ -67,6 +67,9 @@ tells you when one of them needs you.
 - **A browser of its own per session**: agents test pages and take screenshots in an isolated
   Chrome (own profile, window and port) that opens only when needed, never in yours. Claude Code
   and codex get it as browser tools.
+- **Past sessions, searchable**: when an agent session ends, its prompts and terminal text are
+  kept (secrets masked). Search them all (⌘⇧F or the clock in the sidebar), read one and **Resume** its conversation in
+  a new session, in the same folder.
 - **In-app settings**: enable, reorder and edit agents, install the ones you don't have yet, and
   configure the language, appearance, notifications, git and the agents' browser.
 - **In-app updates** (Sparkle): a daily background check, **Check for Updates…** in the app menu
@@ -355,6 +358,7 @@ diffs: [docs/worktrees.md](docs/worktrees.md).
 | ⌘⇧↑ / ⌘⇧↓ | move the selected session up / down in its project (or drag it in the sidebar) |
 | ⌘0 | open/close the overview |
 | ⌘, | open Settings |
+| ⌘⇧F | search past sessions (Linux: Ctrl+Shift+H) |
 | ⌘D / ⌘⇧D | split the focused pane right / down with a new session of the same agent and mode |
 | ⌘W | close the focused pane (the session keeps running; stop it with × in the sidebar) |
 | ⌘[ / ⌘] | focus the previous / next pane |
@@ -364,7 +368,7 @@ diffs: [docs/worktrees.md](docs/worktrees.md).
 | ⌘C / ⌘V | copy the selection / paste into the terminal |
 | ⌘-click | open the URL under the pointer in the browser (plain-text URLs and OSC 8 links; http and https only) |
 | ⇧Enter | new line in the prompt instead of sending it (Claude Code, Codex…); sends a line feed (Ctrl-J) |
-| Esc | close the search bar, the overview, Settings or an orphaned worktree's view |
+| Esc | close the search bar, the overview, Settings, past sessions or an orphaned worktree's view |
 | `Ctrl-\` | detach from `panal attach` (CLI) |
 
 ## Documentation

@@ -8,6 +8,7 @@ import {forge} from '../models';
 import {settings} from '../models';
 import {mailbox} from '../models';
 import {gitx} from '../models';
+import {history} from '../models';
 
 export function Ack(arg1:string):Promise<void>;
 
@@ -24,6 +25,8 @@ export function CloseBrowser(arg1:string):Promise<void>;
 export function CopyIntoWorktree(arg1:string,arg2:Array<string>,arg3:boolean):Promise<protocol.WorktreeCopyResult>;
 
 export function DaemonStatus():Promise<main.DaemonStatus>;
+
+export function DeleteHistory(arg1:string):Promise<void>;
 
 export function DeleteInstruction(arg1:string,arg2:string):Promise<protocol.Instructions>;
 
@@ -52,6 +55,8 @@ export function GetSettings():Promise<settings.Settings>;
 export function Handoff(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:boolean,arg7:number,arg8:number):Promise<protocol.SessionInfo>;
 
 export function HandoffNote(arg1:string):Promise<protocol.HandoffNote>;
+
+export function HistoryDetail(arg1:string):Promise<protocol.HistoryDetail>;
 
 export function Input(arg1:string,arg2:string):Promise<void>;
 
@@ -121,11 +126,15 @@ export function Resume(arg1:string):Promise<protocol.SessionInfo>;
 
 export function ResumeAll():Promise<protocol.SessionBatch>;
 
+export function ResumeHistory(arg1:string,arg2:number,arg3:number):Promise<protocol.SessionInfo>;
+
 export function SaveInstruction(arg1:protocol.InstructionTopic,arg2:string,arg3:string):Promise<protocol.Instructions>;
 
 export function SaveProfile(arg1:profile.Entry):Promise<Array<profile.Profile>>;
 
 export function SaveSettings(arg1:main.SettingsPatch):Promise<settings.Settings>;
+
+export function SearchHistory(arg1:string,arg2:string,arg3:number):Promise<Array<history.Hit>>;
 
 export function SendMessage(arg1:string,arg2:string,arg3:string):Promise<Array<mailbox.Message>>;
 
