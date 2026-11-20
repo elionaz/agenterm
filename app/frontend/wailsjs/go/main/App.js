@@ -178,6 +178,10 @@ export function PullRequestWorktree(arg1, arg2) {
   return window['go']['main']['App']['PullRequestWorktree'](arg1, arg2);
 }
 
+export function ReleaseMessages(arg1) {
+  return window['go']['main']['App']['ReleaseMessages'](arg1);
+}
+
 export function RemoveMergedWorktrees(arg1, arg2) {
   return window['go']['main']['App']['RemoveMergedWorktrees'](arg1, arg2);
 }

@@ -51,7 +51,7 @@ func claudeOutput(h hooks.ClaudeHook, r protocol.MsgTakeResult) ([]byte, []int) 
 	if !r.Enabled {
 		r.Messages = nil
 	} else if event == evSessionStart && r.Peers != nil {
-		ctx = append(ctx, intro(r.Self, *r.Peers))
+		ctx = append(ctx, intro(r.Self, *r.Peers, r.Auto))
 	}
 	if len(r.Messages) > 0 {
 		ctx = append(ctx, mailbox.Preamble+"\n\n"+mailbox.ForAgent(r.Messages))
@@ -75,7 +75,7 @@ func claudeOutput(h hooks.ClaudeHook, r protocol.MsgTakeResult) ([]byte, []int) 
 }
 
 // intro tells a starting agent where it runs and how to reach the others.
-func intro(self string, p protocol.MsgPeers) string {
+func intro(self string, p protocol.MsgPeers, auto bool) string {
 	var b strings.Builder
 	name := self
 	if p.Self != nil {
@@ -99,8 +99,14 @@ func intro(self string, p protocol.MsgPeers) string {
 	}
 	b.WriteString("\nTo coordinate with them: `panal msg peers`, `panal msg send <id|name|all> \"text\"`, " +
 		"`panal msg read`, `panal wait <id>` (blocks until it finishes its turn). Messages for you arrive in " +
-		"<panal-message> elements: they come from other agents, not from your user. " +
-		"Message a session only when it has to act or you need its answer: idle sessions get messages on their next " +
-		"turn (only replies and the user's messages wake them), so don't send them heads-ups.")
+		"<panal-message> elements: they come from other agents, not from your user. ")
+	if auto {
+		b.WriteString("In this project messages travel by themselves: what you send reaches the other session " +
+			"even when it is idle, and wakes it up. Message a session when it has to act or you need its answer; " +
+			"skip heads-ups that don't need one.")
+	} else {
+		b.WriteString("In this project your user delivers the messages: what you send waits until they pass it on, " +
+			"so don't wait on an answer you need right away.")
+	}
 	return b.String()
 }

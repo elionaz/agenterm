@@ -63,8 +63,54 @@ export function pendingFor(ms: Message[], self: string): number {
  * and it is at its prompt. Not mid-turn (hooks hand messages over by themselves
  * then) and never while it waits for an answer: a permission dialog or a
  * question would take the typed line and its Enter as the answer. */
-export function canDeliver(s: Pick<Session, 'profileId' | 'cmd' | 'state'>, pending: number): boolean {
+export function canDeliver(s: Pick<Session, 'profileId' | 'cmd' | 'state'>, pending: number, held = false): boolean {
+  // Held messages (manual mode) can always be let through: an agent at
+  // work then takes them from its hooks, with nothing typed in.
+  if (pending > 0 && held) return true
   return pending > 0 && !isShellSession(s) && s.state === 'idle'
+}
+
+/** A message as the project conversation shows it. */
+export interface ConversationRow {
+  id: number
+  from: string
+  fromName: string
+  to: string
+  toName: string
+  body: string
+  at: string
+  /** held: waits for the user (manual); pending: on its way; delivered. */
+  status: 'held' | 'pending' | 'delivered'
+}
+
+/** The project's messages, oldest first, with current names; only (a
+ * session id) keeps those it sent or got. */
+export function conversationRows(ms: Message[], sessions: Pick<Session, 'id' | 'name' | 'profileId'>[], only = ''): ConversationRow[] {
+  const byId = new Map(sessions.map((s) => [s.id, s]))
+  const name = (id: string, saved: string) => {
+    if (id === USER) return ''
+    const live = byId.get(id)
+    return live ? live.name || live.profileId : saved || id
+  }
+  return ms
+    .filter((m) => !only || m.from === only || m.to === only)
+    .map((m) => ({
+      id: m.id,
+      from: m.from,
+      fromName: name(m.from, m.fromName ?? ''),
+      to: m.to,
+      toName: name(m.to, m.toName ?? ''),
+      body: m.body,
+      at: String(m.at ?? ''),
+      status: m.deliveredAt ? 'delivered' : m.held ? 'held' : 'pending',
+    }))
+}
+
+/** Sessions with held messages, in the order they first appear. */
+export function heldRecipients(rows: ConversationRow[]): string[] {
+  const out: string[] = []
+  for (const r of rows) if (r.status === 'held' && !out.includes(r.to)) out.push(r.to)
+  return out
 }
 
 /** The Messages tab is offered when the project has another open session or
@@ -86,7 +132,7 @@ export function holdKey(
   | 'msg.hold.nudged'
   | 'msg.hold.draft'
   | 'msg.hold.typing'
-  | 'msg.hold.notReply'
+  | 'msg.hold.held'
   | 'msg.hold.noTurnEnd'
   | 'msg.hold.off'
   | 'msg.hold.limit' {
@@ -97,8 +143,8 @@ export function holdKey(
       return 'msg.hold.draft'
     case 'typed just now':
       return 'msg.hold.typing'
-    case 'not a reply':
-      return 'msg.hold.notReply'
+    case 'held':
+      return 'msg.hold.held'
     case 'no turn end':
       return 'msg.hold.noTurnEnd'
     case 'off':

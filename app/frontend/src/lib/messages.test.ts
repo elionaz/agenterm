@@ -40,6 +40,9 @@ describe('deliver', () => {
     expect(canDeliver({ ...agent, state: 'running' }, 1)).toBe(false)
     expect(canDeliver(agent, 0)).toBe(false)
     expect(canDeliver({ profileId: 'myshell', cmd: '/bin/zsh', state: 'idle' }, 1)).toBe(false)
+    // Held messages can always be let through.
+    expect(canDeliver({ ...agent, state: 'running' }, 1, true)).toBe(true)
+    expect(canDeliver({ profileId: 'myshell', cmd: '/bin/zsh', state: 'idle' }, 1, true)).toBe(true)
     expect(isShellSession({ profileId: 'shell', cmd: '' })).toBe(true)
   })
 })
@@ -62,7 +65,7 @@ describe('holdKey', () => {
   it('names each reason', () => {
     expect(holdKey('unsent input', 'idle')).toBe('msg.hold.draft')
     expect(holdKey('nudged', 'idle')).toBe('msg.hold.nudged')
-    expect(holdKey('not a reply', 'idle')).toBe('msg.hold.notReply')
+    expect(holdKey('held', 'running')).toBe('msg.hold.held')
     expect(holdKey('no turn end', 'idle')).toBe('msg.hold.noTurnEnd')
     expect(holdKey('off', 'idle')).toBe('msg.hold.off')
     expect(holdKey('chain limit', 'idle')).toBe('msg.hold.limit')
@@ -71,5 +74,25 @@ describe('holdKey', () => {
     expect(holdKey('', 'running')).toBe('msg.autoHelp')
     expect(holdKey(undefined, 'idle')).toBe('msg.hold.soon')
     expect(holdKey('not idle', 'waiting_input')).toBe('msg.manualHelp')
+  })
+})
+
+import { conversationRows, heldRecipients } from './messages'
+describe('conversation', () => {
+  const ms = [
+    { id: 1, projectId: 'p', from: 'a', fromName: 'old-a', to: 'b', toName: 'fake-b', body: 'hi', at: '1', deliveredAt: '2' },
+    { id: 2, projectId: 'p', from: 'b', to: 'a', body: 'merged?', at: '3', held: true },
+    { id: 3, projectId: 'p', from: 'user', to: 'c', body: 'go', at: '4' },
+  ] as unknown as Message[]
+  const sessions = [{ id: 'a', name: 'fake-a', profileId: 'claude' }, { id: 'b', name: '', profileId: 'codex' }]
+  it('names, status and filter', () => {
+    const rows = conversationRows(ms, sessions)
+    expect(rows.map((r) => r.status)).toEqual(['delivered', 'held', 'pending'])
+    expect(rows[0].fromName).toBe('fake-a')
+    expect(rows[1].fromName).toBe('codex')
+    expect(rows[2].fromName).toBe('')
+    expect(rows[2].toName).toBe('c')
+    expect(conversationRows(ms, sessions, 'c').map((r) => r.id)).toEqual([3])
+    expect(heldRecipients(rows)).toEqual(['a'])
   })
 })

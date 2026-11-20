@@ -97,6 +97,7 @@ export interface DaemonEvent extends Live {
     | 'session.model'
     | 'session.browser'
     | 'history.changed'
+    | 'message.sent'
   sessionId: string
   /** The session's display name (session.renamed: the new one; absent: reset). */
   sessionName?: string
@@ -121,6 +122,15 @@ export interface DaemonEvent extends Live {
   msgPending?: number
   /** message.changed: why they wait (SessionInfo.msgHold). */
   msgHold?: string
+  /** message.sent: who wrote to whom (session ids or "user"), their names,
+   * the start of the text, and whether it waits for the user (manual). */
+  msgId?: number
+  msgFrom?: string
+  msgFromName?: string
+  msgTo?: string
+  msgToName?: string
+  msgExcerpt?: string
+  msgHeld?: boolean
   /** session.model: the agent's model id. */
   model?: string
   /** session.state to exited: panal ended it (no failure). */
@@ -255,6 +265,12 @@ export const api = {
   sendMessage: (to: string, body: string): Promise<Message[]> => App.SendMessage(to, '', body),
   /** Types a fixed line telling the agent to read its messages; returns how many were pending. */
   deliverMessages: (sessionId: string): Promise<number> => App.DeliverMessages(sessionId),
+  /** Every message of a project, oldest first. */
+  listProjectMessages: (projectId: string): Promise<Message[]> => App.ListMessages('', projectId),
+  /** From the user to every session of a project. */
+  sendMessageAll: (projectId: string, body: string): Promise<Message[]> => App.SendMessage('all', projectId, body),
+  /** Delivers every held message of a project (manual mode); returns for how many sessions. */
+  releaseMessages: (projectId: string): Promise<number> => App.ReleaseMessages(projectId),
   /** Opens a worktree (id) or a session's folder in the editor or Finder. */
   openFolder: (target: 'editor' | 'finder', ref: { worktreeId?: string; sessionId?: string }) =>
     App.OpenWorktree(ref.worktreeId ?? '', ref.sessionId ?? '', target),

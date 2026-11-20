@@ -98,6 +98,8 @@ export function ProjectGit(arg1:string):Promise<protocol.ProjectGit>;
 
 export function PullRequestWorktree(arg1:string,arg2:boolean):Promise<gitx.PRResult>;
 
+export function ReleaseMessages(arg1:string):Promise<number>;
+
 export function RemoveMergedWorktrees(arg1:string,arg2:boolean):Promise<protocol.WorktreeRemoveMergedResult>;
 
 export function RemoveProject(arg1:string):Promise<void>;

@@ -47,45 +47,61 @@ or `all`. Such messages come from *the user*. `msg read` only works inside a ses
   answer. Shells don't get it, because they would run the line as a command: their messages stay in
   the app.
 
-## Automatic delivery
+## Automatic or manual, per project
 
-**Settings → General → Deliver messages to idle sessions by themselves** (`messages.auto_deliver`,
-**on by default**) does what **Deliver** does without the click: when a message waits for a session
-that is idle at its prompt (a reply that came after its turn ended, or one sent while it was idle),
-panal types the same fixed line, a moment later. That is Claude Code, whose hooks then hand the
-messages over, and agents that report the end of their turn (codex, through its notify), which are
-told to run `panal msg read`. A Claude session that is working needs nothing: its hooks hand
-messages over at its next step. It holds back, leaving the message pending with **Deliver now**,
-when:
+Each project chooses how its messages travel, with the **⇄** (automatic) / **⏸** (manual) button next to its name
+in the sidebar (or in its conversation, or `panal project set <project> --messages auto|manual|default`):
+
+- **Automatic:** a message reaches its session as soon as it can take it. A Claude session at work
+  gets it at its next step through its hooks. One idle at its prompt is woken up: panal does what
+  **Deliver** does (types the fixed line and Enter) a moment later. That's Claude Code, and agents
+  that report the end of their turn (codex, through its notify), which are told to run
+  `panal msg read`. Any message wakes it, a heads-up too: agents are told so, and to skip messages
+  that don't need an answer.
+- **Manual:** the sessions' messages are **held** until you deliver them. Nothing reaches the
+  recipient, not even through its hooks or `panal msg read` (which says how many are waiting for
+  you), until you click **Deliver** for that session (its Messages tab or the conversation) or
+  **Deliver to N sessions** in the conversation. Delivering lets it take them: an agent at work gets
+  them from its hooks, and one idle at its prompt is told, as with **Deliver**. Your own messages are
+  never held.
+
+A project that hasn't chosen follows **Settings → General → Deliver messages to idle sessions by
+themselves** (`messages.auto_deliver`, **on by default**, so automatic). Switching a project to
+automatic lets what was held go out by itself.
+
+Even in automatic mode, panal holds back when typing a line could go wrong, leaving the message
+pending with **Deliver now**:
 
 - the agent has no message hooks and only went quiet (panal guessed it is idle from the
   silence): it may still be thinking, and a line typed now would land in its work;
-
-- the message is not worth waking it for: only **your** messages and **replies** wake a session (a
-  message from a session it wrote to and that hadn't answered it since). A heads-up nobody asked
-  for waits for the session's next turn, where its hooks hand it over, so agents don't spend turns
-  on each other's FYIs;
-- the session is not Claude (other agents and shells keep the button), or is working, or waits for
-  an approval or an answer;
+- the session is a shell (the line would run as a command), is working, or waits for an approval
+  or an answer;
 - what was last typed into it was not a lone Enter (or Ctrl-C): its input line may hold text you
   haven't sent, which the line and its Enter would send. A new line in a draft (Shift+Enter,
   Option+Enter, `\` Enter) still counts as a draft. Sending it (or clearing it with Ctrl-C) lifts
   this within a few seconds;
 - you typed into it in the last few seconds;
 - it was already delivered to automatically 5 times since you last acted on that session
-  (submitted a prompt in it, sent it a message from the app or clicked **Deliver**), which starts
-  the count again; and, whatever happens, at most 20 automatic deliveries in a project every 10
-  minutes. That keeps agents from waking each other up forever.
+  (submitted a prompt in it, sent it a message or clicked **Deliver**), which starts the count
+  again; and, whatever happens, at most 20 automatic deliveries in a project every 10 minutes. That
+  keeps agents from waking each other up forever: the session says it's paused, and **Deliver**
+  resumes it.
 
 The **Messages** tab says which of these applies (or that they are on their way), so a waiting
-message never looks stuck without a reason. Turning the setting off leaves every message for
-**Deliver**.
+message never looks stuck without a reason.
 
 ## In the app
 
 - The **Messages** tab, next to Terminal and Changes, lists what the session sent and received,
   with who sent it, when, and whether it was delivered. You can write to the session from there
   (⌘↩ sends); your messages are marked as coming from you.
+- **The project's conversation** (💬 next to the project's name): every message between its
+  sessions and yours, in order, each session in its own color, with whether it is *waiting for you*
+  (manual), *on its way* or *delivered*. Filter by session, deliver what is held, switch the mode
+  and write to one session or all of them (⌘↩ sends).
+- **Who is talking to whom, as it happens:** when a message is sent, the sender's row in the
+  sidebar shows `→ fake-b: the start of the message` and the recipient's `← fake-a: …` for a few
+  seconds, the other session's name in its color (⏸ when it is held).
 - A session with messages waiting shows an envelope with their count in the sidebar.
 - **Settings → General → Messages between sessions** (`messages.enabled`, on by default) turns it
   all off: `msg send` is refused and the hooks hand nothing over.

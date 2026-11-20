@@ -47,46 +47,63 @@ nombre o `all`. Esos mensajes vienen *del usuario*. `msg read` solo funciona den
   contestarían. Las shells no la reciben, porque ejecutarían la línea como un comando: sus mensajes
   se quedan en la app.
 
-## Entrega automática
+## Automático o manual, por proyecto
 
-**Ajustes → General → Entregar solos los mensajes a las sesiones en espera**
-(`messages.auto_deliver`, **prendido por defecto**) hace lo que **Entregar** sin el clic: cuando un
-mensaje espera a una sesión inactiva en su prompt (una respuesta que llegó después de que terminó su
-turno, o una que se envió mientras estaba inactiva), panal escribe la misma línea fija un momento
-después. Eso vale para Claude Code, cuyos hooks entregan entonces los mensajes, y para los agentes
-que avisan el fin de su turno (codex, con su notify), a los que se les pide correr
-`panal msg read`. Una sesión de Claude que está trabajando no necesita nada: sus hooks entregan
-los mensajes en su siguiente paso. Se contiene, y el mensaje queda pendiente con **Entregar ahora**,
-cuando:
+Cada proyecto elige cómo viajan sus mensajes, con el botón **⇄** (automático) / **⏸** (manual) junto a su
+nombre en la barra lateral (o en su conversación, o con
+`panal project set <proyecto> --messages auto|manual|default`):
+
+- **Automático:** el mensaje le llega a su sesión en cuanto puede recibirlo. Una sesión de Claude
+  que está trabajando lo recibe en su siguiente paso, por sus hooks. A una inactiva en su prompt se
+  la despierta: panal hace lo que **Entregar** (escribe la línea fija y Enter) un momento después.
+  Eso vale para Claude Code y para los agentes que avisan el fin de su turno (codex, por su notify),
+  a los que se les pide correr `panal msg read`. Cualquier mensaje la despierta, también un aviso:
+  los agentes lo saben, y se les pide no mandar mensajes que no necesitan respuesta.
+- **Manual:** los mensajes de las sesiones quedan **retenidos** hasta que los entregas tú. No le
+  llega nada al destino, ni por sus hooks ni con `panal msg read` (que dice cuántos esperan por ti),
+  hasta que pulsas **Entregar** para esa sesión (en su pestaña Mensajes o en la conversación) o
+  **Entregar a N sesiones** en la conversación. Al entregar, la sesión puede tomarlos: un agente que
+  está trabajando los recibe por sus hooks, y a uno inactivo en su prompt se le avisa, como con
+  **Entregar**. Tus propios mensajes nunca se retienen.
+
+Un proyecto que no eligió sigue **Ajustes → General → Entregar solos los mensajes a las sesiones en
+espera** (`messages.auto_deliver`, **activado por defecto**, o sea automático). Pasar un proyecto a
+automático deja salir solo lo que estaba retenido.
+
+Aun en automático, panal se frena cuando escribir una línea podría salir mal, y deja el mensaje
+pendiente con **Entregar ahora**:
 
 - el agente no tiene hooks de mensajes y solo se quedó callado (panal adivinó por el silencio que
   está inactivo): puede seguir pensando, y una línea escrita ahora caería en medio de su trabajo;
+- la sesión es un shell (la línea se ejecutaría como comando), está trabajando, o espera una
+  aprobación o una respuesta;
+- lo último que se escribió en ella no fue un Enter solo (o Ctrl-C): su línea puede tener texto que
+  no enviaste, que la línea y su Enter mandarían. Una línea nueva en un borrador (Shift+Enter,
+  Option+Enter, `\` Enter) sigue contando como borrador. Enviarlo (o borrarlo con Ctrl-C) lo
+  destraba en unos segundos;
+- escribiste en ella hace unos segundos;
+- ya se le entregó automáticamente 5 veces desde la última vez que hiciste algo en esa sesión
+  (enviaste un prompt, le mandaste un mensaje o pulsaste **Entregar**), lo que reinicia la cuenta;
+  y, pase lo que pase, como mucho 20 entregas automáticas por proyecto cada 10 minutos. Así los
+  agentes no se despiertan entre ellos para siempre: la sesión dice que está en pausa, y
+  **Entregar** la reanuda.
 
-- el mensaje no amerita despertarla: solo **tus** mensajes y las **respuestas** despiertan a una
-  sesión (un mensaje de una sesión a la que ella le escribió y que no le había contestado desde
-  entonces). Un aviso que nadie pidió espera a su siguiente turno, en el que sus hooks se lo
-  entregan, para que los agentes no gasten turnos en los avisos de los demás;
-- la sesión no es de Claude (los demás agentes y las shells siguen con el botón), o está trabajando,
-  o espera una aprobación o una respuesta;
-- lo último que se escribió en ella no fue un Enter solo (o Ctrl-C): su línea de entrada puede
-  tener texto que no enviaste, que la línea y su Enter enviarían. Una línea nueva en un borrador
-  (Shift+Enter, Option+Enter, `\` Enter) sigue contando como borrador. Enviarlo (o borrarlo con
-  Ctrl-C) lo destraba en unos segundos;
-- escribiste en ella en los últimos segundos;
-- ya se le entregó automáticamente 5 veces desde la última vez que interviniste en esa sesión
-  (enviaste un prompt en ella, le mandaste un mensaje desde la app o hiciste clic en **Entregar**),
-  lo que reinicia la cuenta; y, pase lo que pase, como mucho 20 entregas automáticas por proyecto
-  cada 10 minutos. Así los agentes no pueden despertarse entre sí sin fin.
-
-La pestaña **Mensajes** dice cuál de estos casos aplica (o que ya van en camino), así que un mensaje
-que espera nunca parece trabado sin motivo. Con el ajuste apagado, todo mensaje espera a
-**Entregar**.
+La pestaña **Mensajes** dice cuál de estos casos aplica (o que van en camino), así un mensaje que
+espera nunca parece trabado sin motivo.
 
 ## En la app
 
 - La pestaña **Mensajes**, junto a Terminal y Cambios, lista lo que la sesión envió y recibió, con
   quién lo mandó, cuándo y si se entregó. Desde ahí puedes escribirle a la sesión (⌘↩ envía); tus
   mensajes quedan marcados como tuyos.
+- **La conversación del proyecto** (💬 junto al nombre del proyecto): todos los mensajes entre sus
+  sesiones y los tuyos, en orden, cada sesión con su color, y si *espera por ti* (manual), va *en
+  camino* o está *entregado*. Puedes filtrar por sesión, entregar lo retenido, cambiar el modo y
+  escribirle a una sesión o a todas (⌘↩ envía).
+- **Quién le habla a quién, en el momento:** cuando se envía un mensaje, la fila del que lo manda
+  en la barra lateral muestra `→ fake-b: el comienzo del mensaje` y la del que lo recibe
+  `← fake-a: …` durante unos segundos, con el nombre de la otra sesión en su color (⏸ si está
+  retenido).
 - Una sesión con mensajes esperando muestra en el sidebar un sobre con la cantidad.
 - **Ajustes → General → Mensajes entre sesiones** (`messages.enabled`, activado por defecto) lo
   apaga todo: `msg send` se rechaza y los hooks no entregan nada.

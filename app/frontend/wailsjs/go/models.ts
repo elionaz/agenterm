@@ -424,6 +424,7 @@ export namespace mailbox {
 	    at: any;
 	    // Go type: time
 	    deliveredAt?: any;
+	    held?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Message(source);
@@ -440,6 +441,7 @@ export namespace mailbox {
 	        this.body = source["body"];
 	        this.at = this.convertValues(source["at"], null);
 	        this.deliveredAt = this.convertValues(source["deliveredAt"], null);
+	        this.held = source["held"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -743,6 +745,7 @@ export namespace project {
 	    addedAt: any;
 	    color?: string;
 	    icon?: string;
+	    messages?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Project(source);
@@ -756,6 +759,7 @@ export namespace project {
 	        this.addedAt = this.convertValues(source["addedAt"], null);
 	        this.color = source["color"];
 	        this.icon = source["icon"];
+	        this.messages = source["messages"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1295,6 +1299,7 @@ export namespace protocol {
 	    name?: string;
 	    color?: string;
 	    icon?: string;
+	    messages?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ProjectUpdateParams(source);
@@ -1306,6 +1311,7 @@ export namespace protocol {
 	        this.name = source["name"];
 	        this.color = source["color"];
 	        this.icon = source["icon"];
+	        this.messages = source["messages"];
 	    }
 	}
 	export class Progress {

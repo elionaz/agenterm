@@ -112,6 +112,9 @@ const (
 	MethodMsgTake    = "msg.take"
 	MethodMsgDeliver = "msg.deliver"
 	MethodMsgAck     = "msg.ack"
+	// MethodMsgRelease delivers every held message of a project (manual
+	// mode): only the user can.
+	MethodMsgRelease = "msg.release"
 
 	// The user's standing instructions for the agents (topic files),
 	// handed to sessions when they start.
@@ -227,6 +230,8 @@ type ProjectUpdateParams struct {
 	Name  *string `json:"name,omitempty"`
 	Color *string `json:"color,omitempty"`
 	Icon  *string `json:"icon,omitempty"`
+	// Messages: auto | manual | default (see project.Project.Messages).
+	Messages *string `json:"messages,omitempty"`
 }
 
 // ProjectReorderParams moves project IDs to the front, in order.
@@ -750,8 +755,8 @@ type SessionInfo struct {
 	// MsgPending: messages from other sessions it has not got yet.
 	MsgPending int `json:"msgPending,omitempty"`
 	// MsgHold: why they wait (automatic delivery's reason: "unsent input",
-	// "not a reply", "no turn end", "off"…; "" when they will arrive by
-	// themselves).
+	// "no turn end", "held" (manual project: the user delivers them),
+	// "off"…; "" when they will arrive by themselves).
 	MsgHold string `json:"msgHold,omitempty"`
 	// Model: the agent's model id, when known (hooks or command line).
 	Model string `json:"model,omitempty"`
@@ -824,6 +829,10 @@ const (
 	// EventMessages: messages to or from SessionID (in ProjectID) changed:
 	// sent or delivered. MsgPending is how many wait for SessionID.
 	EventMessages = "message.changed"
+	// EventMessageSent: a session (or the user) sent a message (MsgFrom →
+	// MsgTo, in ProjectID): UIs show who is talking to whom. MsgHeld: it
+	// waits for the user (manual mode).
+	EventMessageSent = "message.sent"
 	// EventProfiles: the agent list changed (a rescan found an agent that
 	// was just installed…): clients reload profile.list.
 	EventProfiles = "profile.changed"
@@ -869,6 +878,15 @@ type Event struct {
 	// MsgHold why (see SessionInfo.MsgHold).
 	MsgPending int    `json:"msgPending,omitempty"`
 	MsgHold    string `json:"msgHold,omitempty"`
+	// message.sent: sender and recipient (session ids, or "user"), their
+	// names, the start of the text and whether it is held.
+	MsgID       int    `json:"msgId,omitempty"`
+	MsgFrom     string `json:"msgFrom,omitempty"`
+	MsgFromName string `json:"msgFromName,omitempty"`
+	MsgTo       string `json:"msgTo,omitempty"`
+	MsgToName   string `json:"msgToName,omitempty"`
+	MsgExcerpt  string `json:"msgExcerpt,omitempty"`
+	MsgHeld     bool   `json:"msgHeld,omitempty"`
 	// Model (session.model): the agent's model id.
 	Model string `json:"model,omitempty"`
 	// BrowserURL (session.browser): the session's Chrome opened ("" closed).
@@ -963,6 +981,11 @@ type MsgTakeResult struct {
 	// session's project, composed ("" when none). Sent even when messages
 	// are off.
 	Instructions string `json:"instructions,omitempty"`
+	// Auto: the project's messages travel by themselves (they wake an idle
+	// recipient); otherwise the user delivers them. Held: messages for the
+	// session that wait for the user.
+	Auto bool `json:"auto"`
+	Held int  `json:"held,omitempty"`
 }
 
 // InstructionsParams: ProjectID (id or name) also composes what a session
@@ -1034,6 +1057,11 @@ type InstructionTopicText struct {
 // MsgDeliverParams: the app's "Deliver" button for SessionID.
 type MsgDeliverParams struct {
 	SessionID string `json:"sessionId"`
+}
+
+// MsgReleaseParams: ProjectID is an id or a name.
+type MsgReleaseParams struct {
+	ProjectID string `json:"projectId"`
 }
 
 // WorktreeCopyParams copies Files (relative to the repository root) from

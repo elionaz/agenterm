@@ -16,6 +16,7 @@ import (
 	"github.com/elionaz/panal/internal/mailbox"
 	"github.com/elionaz/panal/internal/peercred"
 	"github.com/elionaz/panal/internal/profile"
+	"github.com/elionaz/panal/internal/project"
 	"github.com/elionaz/panal/internal/protocol"
 	"github.com/elionaz/panal/internal/session"
 	"github.com/elionaz/panal/internal/settings"
@@ -141,6 +142,12 @@ func (s *Server) handleMsg(conn net.Conn, req protocol.Request) (any, error) {
 			return nil, err
 		}
 		return s.msgDeliver(caller, p.SessionID)
+	case protocol.MethodMsgRelease:
+		p, err := decode[protocol.MsgReleaseParams](req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return s.msgRelease(caller, p.ProjectID)
 	}
 	return nil, apierr.New(apierr.UnknownMethod, map[string]string{"method": req.Method}, "unknown method %q", req.Method)
 }
@@ -293,15 +300,19 @@ func (s *Server) msgSend(caller *session.Session, p protocol.MsgSendParams) (pro
 		return protocol.MsgList{}, err
 	}
 	out := protocol.MsgList{Messages: []mailbox.Message{}}
+	held := !s.messagesAuto(projectID) // the user's own are never held (mailbox)
 	for _, sess := range to {
 		m, err := s.mail.Add(mailbox.Message{ProjectID: sess.ProjectID, From: from, FromName: fromName,
-			To: sess.ID, ToName: s.displayName(sess), Body: body})
+			To: sess.ID, ToName: s.displayName(sess), Body: body, Held: held})
 		if err != nil {
 			return out, err
 		}
 		out.Messages = append(out.Messages, m)
-		s.log.Info("message sent", "id", m.ID, "from", from, "to", sess.ID, "bytes", len(m.Body))
+		s.log.Info("message sent", "id", m.ID, "from", from, "to", sess.ID, "bytes", len(m.Body), "held", m.Held)
 		s.publishMessages(sess.ProjectID, sess.ID)
+		s.bus.publish(protocol.Event{Type: protocol.EventMessageSent, ProjectID: sess.ProjectID, SessionID: sess.ID,
+			MsgID: m.ID, MsgFrom: m.From, MsgFromName: m.FromName, MsgTo: m.To, MsgToName: m.ToName,
+			MsgExcerpt: excerpt(m.Body), MsgHeld: m.Held, At: m.At})
 	}
 	for _, sess := range to {
 		if caller == nil {
@@ -320,7 +331,8 @@ func (s *Server) msgTake(caller *session.Session, p protocol.MsgTakeParams) (pro
 		return protocol.MsgTakeResult{}, apierr.New(apierr.MsgNotInSession, nil,
 			"only a session can read its messages: run it inside a panal session")
 	}
-	res := protocol.MsgTakeResult{Messages: []mailbox.Message{}, Enabled: s.messagesEnabled(), Self: caller.ID}
+	res := protocol.MsgTakeResult{Messages: []mailbox.Message{}, Enabled: s.messagesEnabled(), Self: caller.ID,
+		Auto: s.messagesAuto(caller.ProjectID), Held: s.mail.Held(caller.ID)}
 	if p.Intro {
 		if proj, err := s.projects.Get(caller.ProjectID); err == nil {
 			res.Instructions = s.sessionInstructions(proj)
@@ -415,7 +427,20 @@ func (s *Server) msgDeliver(caller *session.Session, id string) (map[string]any,
 	if n == 0 {
 		return map[string]any{"pending": 0}, nil
 	}
+	// Held messages (manual mode) are the user's to send on: delivering
+	// lets the recipient take them. An agent at work then gets them from
+	// its hooks (or its next msg read) without a line typed in.
+	released, err := s.releaseTo(sess)
+	if err != nil {
+		return nil, err
+	}
+	if released && sess.State() != status.Idle {
+		return map[string]any{"pending": n, "released": true}, nil
+	}
 	if isShell(sess) {
+		if released {
+			return map[string]any{"pending": n, "released": true}, nil
+		}
 		return nil, errNotAgent
 	}
 	// Only at its prompt: a permission dialog or a question would take
@@ -446,6 +471,83 @@ func (s *Server) msgDeliver(caller *session.Session, id string) (map[string]any,
 	s.log.Info("messages nudged", "to", sess.ID, "pending", n)
 	s.noteNudged(sess)
 	return map[string]any{"pending": n}, nil
+}
+
+// releaseTo lets sess take the messages held for it; true when there were.
+func (s *Server) releaseTo(sess *session.Session) (bool, error) {
+	to, err := s.mail.Release(mailbox.Filter{To: sess.ID})
+	if err != nil || len(to) == 0 {
+		return false, err
+	}
+	s.log.Info("held messages released", "to", sess.ID)
+	s.publishMessages(sess.ProjectID, sess.ID)
+	return true, nil
+}
+
+// msgRelease delivers every held message of a project: each recipient may
+// take them, and an idle one is told (as by Deliver) when it can be.
+func (s *Server) msgRelease(caller *session.Session, projectID string) (map[string]any, error) {
+	if caller != nil {
+		return nil, apierr.New(apierr.MsgFromSession, nil, "only the user can deliver held messages, not a session")
+	}
+	proj, err := s.projects.Get(projectID)
+	if err != nil {
+		return nil, err
+	}
+	n := s.releaseProject(proj.ID, true)
+	return map[string]any{"released": n}, nil
+}
+
+// releaseProject releases a project's held messages and returns for how
+// many sessions. With nudge, each idle recipient is told, as by Deliver
+// (errors, like a draft in its prompt, leave its messages for later).
+func (s *Server) releaseProject(projectID string, nudge bool) int {
+	to, err := s.mail.Release(mailbox.Filter{ProjectID: projectID})
+	if err != nil {
+		s.log.Warn("messages", "err", err)
+		return 0
+	}
+	for _, id := range to {
+		s.publishMessages(projectID, id)
+		if !nudge {
+			continue
+		}
+		if sess, err := s.lookup(id); err == nil && !isShell(sess) && sess.State() == status.Idle {
+			if _, err := s.msgDeliver(nil, id); err != nil {
+				s.log.Info("released messages left for later", "to", id, "err", err)
+			}
+		}
+	}
+	if len(to) > 0 {
+		s.log.Info("held messages released", "project", projectID, "sessions", len(to))
+	}
+	return len(to)
+}
+
+// messagesModeChanged: a project switched between automatic and manual
+// messages. Going automatic lets what was held go out by itself; either
+// way the UIs get the new reasons.
+func (s *Server) messagesModeChanged(proj project.Project) {
+	auto := s.messagesAuto(proj.ID)
+	s.log.Info("messages mode", "project", proj.ID, "mode", proj.Messages, "auto", auto)
+	if auto {
+		s.releaseProject(proj.ID, false)
+	}
+	for _, sess := range s.projectSessions(proj.ID) {
+		if auto {
+			s.scheduleAutoDeliver(sess.ID)
+		}
+		s.publishMessages(proj.ID, sess.ID)
+	}
+}
+
+// excerpt is the start of a message for the UIs' activity line.
+func excerpt(body string) string {
+	line, _, _ := strings.Cut(strings.TrimSpace(body), "\n")
+	if r := []rune(line); len(r) > 120 {
+		line = string(r[:119]) + "…"
+	}
+	return line
 }
 
 // nudge types the fixed "you have messages" line into sess and submits it.

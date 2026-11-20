@@ -36,6 +36,9 @@ Usage:
   panal project list
   panal project rm <id>
   panal project set <id|name> [--name N] [--color C|auto] [--icon E|none]
+                [--messages auto|manual|default]
+                                      messages between its sessions: by themselves (auto)
+                                      or delivered by you (manual)
   panal profiles                   list agent profiles (catalog + profiles.yaml)
   panal profiles scan              re-detect installed agents and list them
   panal spawn [--cols C --rows R] [--worktree [--branch B] [--base X] [--trust-setup|--no-setup]
@@ -324,7 +327,7 @@ func cmdProject(ctx context.Context, c *client.Client, args []string) error {
 	return fmt.Errorf("unknown project subcommand %q", args[0])
 }
 
-const projectSetUsage = "usage: panal project set <id|name> [--name N] [--color C|auto] [--icon E|none]"
+const projectSetUsage = "usage: panal project set <id|name> [--name N] [--color C|auto] [--icon E|none] [--messages auto|manual|default]"
 
 // cmdProjectSet renames a project or changes its sidebar badge.
 func cmdProjectSet(ctx context.Context, c *client.Client, args []string) error {
@@ -332,6 +335,7 @@ func cmdProjectSet(ctx context.Context, c *client.Client, args []string) error {
 	name := fs.String("name", "", "new display name")
 	color := fs.String("color", "", "badge color: "+strings.Join(project.Colors, ", ")+", or auto")
 	icon := fs.String("icon", "", "an emoji shown instead of the initials, or none")
+	messages := fs.String("messages", "", "messages between its sessions: auto, manual or default (Settings)")
 	if err := parseInterspersed(fs, args); err != nil {
 		return err
 	}
@@ -349,9 +353,11 @@ func cmdProjectSet(ctx context.Context, c *client.Client, args []string) error {
 		case "icon":
 			v := autoNone(*icon, "none")
 			params.Icon = &v
+		case "messages":
+			params.Messages = messages
 		}
 	})
-	if params.Name == nil && params.Color == nil && params.Icon == nil {
+	if params.Name == nil && params.Color == nil && params.Icon == nil && params.Messages == nil {
 		return errors.New(projectSetUsage)
 	}
 	params.ID = fs.Arg(0) // an id or a name: the daemon resolves it
@@ -359,7 +365,7 @@ func cmdProjectSet(ctx context.Context, c *client.Client, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%s\t%s\t%s\t%s\n", p.ID, p.Name, cmp.Or(p.Color, "auto"), cmp.Or(p.Icon, "-"))
+	fmt.Printf("%s\t%s\t%s\t%s\tmessages %s\n", p.ID, p.Name, cmp.Or(p.Color, "auto"), cmp.Or(p.Icon, "-"), cmp.Or(p.Messages, "default"))
 	return nil
 }
 

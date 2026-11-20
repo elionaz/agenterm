@@ -6,20 +6,20 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/elionaz/panal/internal/project"
 	"github.com/elionaz/panal/internal/session"
 	"github.com/elionaz/panal/internal/settings"
 	"github.com/elionaz/panal/internal/status"
 )
 
-// Automatic delivery (settings messages.auto_deliver): when a Claude session
-// sits idle at its prompt with messages waiting, the daemon does what the
-// Deliver button does (types the fixed "you have messages" line and Enter),
-// so a reply that arrives after its turn ended doesn't wait for the user.
+// Automatic delivery (a project whose messages are automatic: its own
+// choice, else messages.auto_deliver): when a session sits idle at its
+// prompt with messages waiting, the daemon does what the Deliver button
+// does (types the fixed "you have messages" line and Enter), so a message
+// never waits for the user. In manual projects messages are held instead
+// (mailbox.Message.Held) until the user delivers them.
 //
 // It holds back when that could go wrong:
-//   - only for a message worth waking it for: from the user, or a reply to
-//     what the session sent (mailbox.Wakes); a heads-up waits for its next
-//     turn, so agents don't spend turns on each other's FYIs;
 //   - only Claude (its hooks hand the messages over) and only idle at its
 //     prompt, never while it waits for an approval or an answer;
 //   - never over a draft: when what was last typed into the session was not
@@ -134,7 +134,8 @@ func (s *Server) userActed(id string) {
 func (s *Server) scheduleAutoDeliver(id string) { s.scheduleAutoDeliverIn(id, autoDelay.get()) }
 
 func (s *Server) scheduleAutoDeliverIn(id string, delay time.Duration) {
-	if !s.autoDeliverOn() {
+	sess, err := s.lookup(id)
+	if err != nil || !s.messagesAuto(sess.ProjectID) {
 		return
 	}
 	s.auto.mu.Lock()
@@ -159,9 +160,23 @@ func (s *Server) scheduleAutoDeliverIn(id string, delay time.Duration) {
 	s.auto.timers[id] = t
 }
 
-func (s *Server) autoDeliverOn() bool {
+// messagesAuto reports whether messages in project projectID travel by
+// themselves (automatic mode): the project's own choice, else the
+// messages.auto_deliver setting. Messages off means neither.
+func (s *Server) messagesAuto(projectID string) bool {
 	st, _ := settings.Load(s.cfg.Paths.Settings())
-	return st.Messages.Enabled && st.Messages.AutoDeliver
+	if !st.Messages.Enabled {
+		return false
+	}
+	if p, err := s.projects.Get(projectID); err == nil && p.ID == projectID {
+		switch p.Messages {
+		case project.MessagesAuto:
+			return true
+		case project.MessagesManual:
+			return false
+		}
+	}
+	return st.Messages.AutoDeliver
 }
 
 // Hold reasons that lift by themselves (checked again every autoRetry).
@@ -170,11 +185,9 @@ const (
 	holdTyping = "typed just now"
 )
 
-// holdNotReply: what waits is not from the user nor an answer to the
-// session (a heads-up): it gets it on its next turn, as without automatic
-// delivery. It lifts when a message that wakes arrives (a new send
-// schedules a check).
-const holdNotReply = "not a reply"
+// holdHeld: the messages wait for the user to deliver them (the
+// project's messages are manual).
+const holdHeld = "held"
 
 // holdNudged: the line was typed into the session (automatically or by
 // Deliver): the messages stay pending until the agent takes them (Claude's
@@ -305,7 +318,7 @@ func (s *Server) giveAutoSlot(sess *session.Session) {
 // autoDeliverBlock is why sess can't get an automatic delivery now ("" when
 // it can); lastNudge is when it was last nudged.
 func (s *Server) autoDeliverBlock(sess *session.Session, lastNudge time.Time) string {
-	if !s.autoDeliverOn() {
+	if !s.messagesAuto(sess.ProjectID) {
 		return "off"
 	}
 	if sess.Suspended() {
@@ -314,8 +327,8 @@ func (s *Server) autoDeliverBlock(sess *session.Session, lastNudge time.Time) st
 	if s.mail.Pending(sess.ID) == 0 {
 		return "nothing pending"
 	}
-	if !s.mail.Wakes(sess.ID) {
-		return holdNotReply
+	if s.mail.Held(sess.ID) == s.mail.Pending(sess.ID) {
+		return holdHeld // sent while the project was manual: the user delivers them
 	}
 	if isShell(sess) {
 		return "shell"
@@ -352,7 +365,11 @@ func (s *Server) msgHold(id string) string {
 	if s.mail.Pending(id) == 0 {
 		return ""
 	}
-	if !s.autoDeliverOn() {
+	if s.mail.Held(id) > 0 {
+		return holdHeld
+	}
+	sess, err := s.lookup(id)
+	if err != nil || !s.messagesAuto(sess.ProjectID) {
 		return "off"
 	}
 	s.auto.mu.Lock()

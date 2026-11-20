@@ -207,7 +207,10 @@ func TestAutoDeliver(t *testing.T) {
 // A heads-up from another session (nobody asked for it) does not wake an
 // idle Claude session: it waits for its next turn. A message from the
 // user still does.
-func TestAutoDeliverOnlyReplies(t *testing.T) {
+// Automatic projects deliver any message (a heads-up too); manual ones hold
+// the sessions' messages until the user delivers them; switching to
+// automatic lets the held ones out.
+func TestMessagesModes(t *testing.T) {
 	defer daemon.SetAutoTiming(100*time.Millisecond, 300*time.Millisecond, 200*time.Millisecond)()
 	cli := panalCLI(t)
 	c, p, stop := startDaemon(t)
@@ -254,16 +257,103 @@ func TestAutoDeliverOnlyReplies(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	runIn(t, c, sh.ID, cli+" msg send "+b.ID+" 'heads-up' >/dev/null")
-	out.waitNudges(t, 0, "a heads-up from another session")
-	if l, err := c.MsgList(ctx, protocol.MsgListParams{SessionID: b.ID}); err != nil || len(l) != 1 || !l[0].Pending() {
-		t.Fatalf("the heads-up should stay pending: %+v, %v", l, err)
+	evc := eventStream(t, c, protocol.ClientUI)
+	send := func(text string) {
+		t.Helper()
+		runIn(t, c, sh.ID, cli+" msg send "+b.ID+" '"+text+"' >/dev/null")
+	}
+	setMode := func(m string) {
+		t.Helper()
+		if _, err := c.UpdateProject(ctx, protocol.ProjectUpdateParams{ID: proj.ID, Messages: &m}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	idle := func() {
+		t.Helper()
+		if _, err := c.Notify(ctx, b.ID, "running"); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := c.Notify(ctx, b.ID, "idle"); err != nil {
+			t.Fatal(err)
+		}
 	}
 
-	if _, err := c.MsgSend(ctx, protocol.MsgSendParams{To: b.ID, Body: "from the user"}); err != nil {
+	// Automatic: a heads-up from another session wakes it, and the UIs see it.
+	send("heads-up")
+	e := waitEvent(t, evc, "message.sent", func(e protocol.Event) bool { return e.Type == protocol.EventMessageSent && e.MsgTo == b.ID })
+	if e.MsgFrom != sh.ID || e.MsgExcerpt != "heads-up" || e.MsgHeld || e.ProjectID != proj.ID {
+		t.Fatalf("sent event = %+v", e)
+	}
+	out.waitNudges(t, 1, "a heads-up in an automatic project")
+	idle()
+
+	// Manual: held, nothing typed, the hook gets nothing.
+	setMode("manual")
+	send("held one")
+	e = waitEvent(t, evc, "held message.sent", func(e protocol.Event) bool { return e.Type == protocol.EventMessageSent && e.MsgExcerpt == "held one" })
+	if !e.MsgHeld {
+		t.Fatalf("not held: %+v", e)
+	}
+	out.waitNudges(t, 1, "a message in a manual project")
+	if !held(t, c, b.ID, "held one") {
+		t.Fatal("the message is not held")
+	}
+	if s := findSession(t, c, b.ID); s.MsgPending != 2 || s.MsgHold != "held" {
+		t.Fatalf("session = pending %d hold %q", s.MsgPending, s.MsgHold)
+	}
+	// The user's own message is never held.
+	if l, _ := c.MsgSend(ctx, protocol.MsgSendParams{To: b.ID, Body: "from the user"}); len(l) != 1 || l[0].Held {
+		t.Fatalf("user message = %+v", l)
+	}
+	// Deliver releases and nudges.
+	if _, err := c.MsgDeliver(ctx, b.ID); err != nil {
 		t.Fatal(err)
 	}
-	out.waitNudges(t, 1, "a message from the user")
+	out.waitNudges(t, 2, "Deliver in a manual project")
+	if held(t, c, b.ID, "held one") {
+		t.Fatal("still held after Deliver")
+	}
+	idle()
+
+	// Held, then the project goes automatic: it goes out by itself.
+	send("waiting")
+	waitEvent(t, evc, "third send", func(e protocol.Event) bool { return e.Type == protocol.EventMessageSent && e.MsgExcerpt == "waiting" })
+	out.waitNudges(t, 2, "still manual")
+	setMode("auto")
+	out.waitNudges(t, 3, "switched to automatic")
+	if held(t, c, b.ID, "waiting") {
+		t.Fatal("still held after switching to automatic")
+	}
+
+	// Release of a whole project.
+	setMode("manual")
+	send("one more")
+	waitEvent(t, evc, "fourth send", func(e protocol.Event) bool { return e.Type == protocol.EventMessageSent && e.MsgExcerpt == "one more" })
+	if !held(t, c, b.ID, "one more") {
+		t.Fatal("not held")
+	}
+	if n, err := c.MsgRelease(ctx, proj.ID); err != nil || n != 1 {
+		t.Fatalf("release = %d, %v", n, err)
+	}
+	if held(t, c, b.ID, "one more") {
+		t.Fatal("still held after release")
+	}
+}
+
+// held reports whether the message with body to session id is held.
+func held(t *testing.T, c *client.Client, id, body string) bool {
+	t.Helper()
+	l, err := c.MsgList(ctxT(t), protocol.MsgListParams{SessionID: id})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range l {
+		if m.Body == body {
+			return m.Held
+		}
+	}
+	t.Fatalf("no message %q in %+v", body, l)
+	return false
 }
 
 // On by default; agents without message hooks get the "msg read" line only

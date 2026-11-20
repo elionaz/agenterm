@@ -115,3 +115,29 @@ func TestBadgeFieldsOptional(t *testing.T) {
 		t.Fatalf("empty badge fields written: %s", data)
 	}
 }
+
+func TestUpdateMessages(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "projects.json")
+	r, err := Open(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, _ := r.Add(t.TempDir(), "api")
+	for in, want := range map[string]string{"manual": MessagesManual, " auto ": MessagesAuto, "default": "", "": ""} {
+		got, err := r.Update(a.ID, Patch{Messages: ptr(in)})
+		if err != nil || got.Messages != want {
+			t.Fatalf("messages %q = %+v, %v", in, got, err)
+		}
+	}
+	if _, err := r.Update(a.ID, Patch{Messages: ptr("loud")}); err == nil {
+		t.Fatal("unknown mode accepted")
+	}
+	r.Update(a.ID, Patch{Messages: ptr("manual")})
+	re, _ := Open(file)
+	if p, _ := re.Get(a.ID); p.Messages != MessagesManual {
+		t.Fatalf("after reload: %+v", p)
+	}
+	if p, _ := r.Update(a.ID, Patch{Name: ptr("x")}); p.Messages != MessagesManual {
+		t.Fatal("a name change reset the mode")
+	}
+}

@@ -692,6 +692,16 @@ func (c *Client) MsgAck(ctx context.Context, ids []int) error {
 }
 
 // MsgDeliver nudges sessionID about its pending messages (the user only).
+// MsgRelease delivers every message held in a project (manual mode) and
+// returns for how many sessions there were.
+func (c *Client) MsgRelease(ctx context.Context, projectID string) (int, error) {
+	var r struct {
+		Released int `json:"released"`
+	}
+	err := c.Call(ctx, protocol.MethodMsgRelease, protocol.MsgReleaseParams{ProjectID: projectID}, &r)
+	return r.Released, err
+}
+
 func (c *Client) MsgDeliver(ctx context.Context, sessionID string) (int, error) {
 	var r struct {
 		Pending int `json:"pending"`
