@@ -80,7 +80,7 @@ tiene un `id` obligatorio y único, y se **superpone** al catálogo:
 | `setup_hooks` | `claude`, `codex` o `none` |
 | `idle_seconds` | segundos sin salida para pasar a inactivo (sobrescribe el valor del daemon, 3 s) |
 | `attention_patterns` | expresiones regulares (sintaxis de Go) sobre la salida reciente sin ANSI; una coincidencia marca la sesión como esperando tu respuesta |
-| `resume_args` | argumentos que se añaden (después de `args`) al reanudar una sesión de este perfil tras un reinicio del daemon cuando no hay id de sesión del agente que reanudar; p. ej. `["--continue"]`. El catálogo lo define para opencode (`--continue`) y Hermes (`-c`): la última sesión del proyecto. claude y codex reanudan por id y solo lo usan como alternativa. No aparece en el editor de la app (guardar desde la app lo conserva) |
+| `resume_args` | argumentos que se añaden (después de `args`) al reanudar una sesión de este perfil tras un reinicio del daemon cuando no hay id de sesión del agente que reanudar; p. ej. `["--continue"]`. El catálogo lo define para opencode y Cursor CLI (`--continue`) y Hermes (`-c`): la última sesión del proyecto. claude y codex reanudan por id y solo lo usan como alternativa. No aparece en el editor de la app (guardar desde la app lo conserva) |
 
 ### Reglas de combinación
 

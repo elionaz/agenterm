@@ -349,7 +349,7 @@ On macOS the Inkscape CLI isn't on the `PATH`; it's at
   24.04 (`scripts/package-linux.sh`), but it's lightly tested on real desktops.
 - **A daemon restart (or a computer restart) kills the processes.** Sessions come back as
   `suspended`, with their scrollback, and are respawned on resume: Claude Code and codex continue
-  their conversation by id, opencode with `--continue` and Hermes with `-c` (each project's *last*
+  their conversation by id, opencode and Cursor CLI with `--continue` and Hermes with `-c` (each project's *last*
   session, which may not be the same one if several run in one folder), other agents only with
   `resume_args`. A shell comes back in its starting folder, without whatever was running in it. codex only reports its
   thread id after the first turn, so a codex session that never finished a turn starts fresh.

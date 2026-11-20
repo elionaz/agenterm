@@ -29,6 +29,14 @@ releases may include breaking changes.
 - **Move to a worktree** in the *Shared folder* notice of the Changes tab: the same, preset to the
   session's agent and a new worktree, so two agents stop editing the same folder.
 
+### Fixed
+
+- **Cursor CLI sessions keep their chat across a daemon restart** (an update, for example): they
+  come back with `cursor-agent --continue` instead of a fresh chat.
+- **The daemon log says who closed a session** (`session kill requested`, with the requesting
+  process and, when another session asked, its id). Before, a closed session only showed its exit
+  code, which looks the same as the agent quitting on a hangup.
+
 ## [0.12.0] - 2026-11-19
 
 ### Added

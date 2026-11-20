@@ -78,7 +78,7 @@ from before 0.4.0 are just the list, and are still read). Each entry has a requi
 | `setup_hooks` | `claude`, `codex` or `none` |
 | `idle_seconds` | seconds without output before going idle (overrides the daemon's value, 3 s) |
 | `attention_patterns` | regular expressions (Go syntax) over recent output with ANSI stripped; a match marks the session as waiting for your reply |
-| `resume_args` | arguments appended (after `args`) when a session of this profile is resumed after a daemon restart and there is no agent session id to resume; e.g. `["--continue"]`. The catalog sets it for opencode (`--continue`) and Hermes (`-c`): the project's last session. claude and codex resume by id and only use it as a fallback. Not shown in the app's editor (saving from the app keeps it) |
+| `resume_args` | arguments appended (after `args`) when a session of this profile is resumed after a daemon restart and there is no agent session id to resume; e.g. `["--continue"]`. The catalog sets it for opencode and Cursor CLI (`--continue`) and Hermes (`-c`): the project's last session. claude and codex resume by id and only use it as a fallback. Not shown in the app's editor (saving from the app keeps it) |
 
 ### Merge rules
 
