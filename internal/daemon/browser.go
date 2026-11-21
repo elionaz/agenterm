@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,7 +10,6 @@ import (
 	"time"
 
 	"github.com/elionaz/panal/internal/browser"
-	"github.com/elionaz/panal/internal/hooks"
 	"github.com/elionaz/panal/internal/profile"
 	"github.com/elionaz/panal/internal/protocol"
 	"github.com/elionaz/panal/internal/settings"
@@ -306,35 +304,3 @@ const browserNote = "## Browser\n\nFor browser work (opening pages, testing a we
 	"isolated Chrome for this session: the `panal-browser` MCP tools, or run `panal browser` for its " +
 	"DevTools URL (also in $PANAL_BROWSER_URL, e.g. for Playwright's connectOverCDP). Never drive the " +
 	"user's own Chrome (no Claude in Chrome or other extension tools): it has their tabs and logins."
-
-// browserMCPArgs are the agent arguments that give a session the browser
-// MCP server (`panal browser mcp`), for agents with an integration;
-// nil when the browser is off or misses Chrome or npx.
-func (s *Server) browserMCPArgs(agent string) []string {
-	if !hooks.ReceivesInstructions(agent) || !s.browserReady() {
-		return nil
-	}
-	argv := []string{"browser", "mcp", "--sock", s.sock}
-	switch agent {
-	case hooks.AgentClaude:
-		cfg, _ := json.Marshal(map[string]any{"mcpServers": map[string]any{
-			"panal-browser": map[string]any{"type": "stdio", "command": s.cfg.Exe, "args": argv},
-		}})
-		file := filepath.Join(s.cfg.Paths.HooksDir(), "browser-mcp.json")
-		if err := hooks.WriteIfChanged(file, append(cfg, '\n')); err != nil {
-			s.log.Warn("browser MCP config", "err", err)
-			return nil
-		}
-		// Before --settings: --mcp-config takes several values, a flag
-		// ends them (a profile's positional prompt must not become one).
-		return []string{"--mcp-config", file}
-	case hooks.AgentCodex:
-		cmd, _ := json.Marshal(s.cfg.Exe)
-		args, _ := json.Marshal(argv)
-		return []string{
-			"-c", "mcp_servers.panal-browser.command=" + string(cmd),
-			"-c", "mcp_servers.panal-browser.args=" + string(args),
-		}
-	}
-	return nil
-}

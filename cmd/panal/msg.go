@@ -13,7 +13,6 @@ import (
 	"github.com/elionaz/panal/internal/client"
 	"github.com/elionaz/panal/internal/mailbox"
 	"github.com/elionaz/panal/internal/protocol"
-	"github.com/elionaz/panal/internal/status"
 )
 
 const msgUsage = `usage:
@@ -153,16 +152,6 @@ func formatListLine(m mailbox.Message) string {
 		strings.ReplaceAll(m.Body, "\n", " ⏎ "))
 }
 
-// waitDone reports whether state ends `panal wait`: the session
-// finished its turn (idle), waits for its user, or exited.
-func waitDone(state string) bool {
-	switch status.State(state) {
-	case status.Idle, status.WaitingInput, status.Exited:
-		return true
-	}
-	return false
-}
-
 func cmdWait(ctx context.Context, c *client.Client, args []string) error {
 	fs := flag.NewFlagSet("wait", flag.ContinueOnError)
 	timeout := fs.Duration("timeout", 30*time.Minute, "give up after this long (exit status 2)")
@@ -176,52 +165,14 @@ func cmdWait(ctx context.Context, c *client.Client, args []string) error {
 	id := fs.Arg(0)
 	ctx, cancel := context.WithTimeout(ctx, *timeout)
 	defer cancel()
-	// Subscribe first, then look: a change in between is not missed.
-	ev, err := c.Subscribe(ctx)
+	st, err := c.WaitIdle(ctx, id)
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			fmt.Fprintf(os.Stderr, "panal: %s is still busy after %s\n", id, *timeout)
+			os.Exit(2)
+		}
 		return err
 	}
-	defer ev.Close()
-	go func() {
-		<-ctx.Done()
-		ev.Close()
-	}()
-	ss, err := c.Sessions(ctx)
-	if err != nil {
-		return err
-	}
-	found := false
-	for _, s := range ss {
-		if s.ID == id {
-			found = true
-			if waitDone(s.State) {
-				fmt.Printf("%s %s\n", id, s.State)
-				return nil
-			}
-		}
-	}
-	if !found {
-		return fmt.Errorf("session not found: %s", id)
-	}
-	for {
-		e, err := ev.Next()
-		if err != nil {
-			if ctx.Err() != nil {
-				fmt.Fprintf(os.Stderr, "panal: %s is still busy after %s\n", id, *timeout)
-				os.Exit(2)
-			}
-			return err
-		}
-		if e.SessionID != id {
-			continue
-		}
-		if e.Type == protocol.EventSessionRemoved {
-			fmt.Printf("%s removed\n", id)
-			return nil
-		}
-		if e.Type == protocol.EventSessionState && waitDone(e.State) {
-			fmt.Printf("%s %s\n", id, e.State)
-			return nil
-		}
-	}
+	fmt.Printf("%s %s\n", id, st)
+	return nil
 }

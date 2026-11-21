@@ -296,6 +296,24 @@ func TestBrowserSettings(t *testing.T) {
 	}
 }
 
+func TestMCPSettings(t *testing.T) {
+	if !Defaults().MCP.Enabled {
+		t.Fatal("the MCP server is on by default")
+	}
+	if s, err := Parse([]byte("mcp:\n  enabled: false\n")); err != nil || s.MCP.Enabled {
+		t.Fatalf("parse = %+v, %v", s.MCP, err)
+	}
+	path := filepath.Join(t.TempDir(), "settings.yaml")
+	in := Defaults()
+	in.MCP.Enabled = false
+	if err := Save(path, in); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := Load(path); err != nil || out.MCP.Enabled {
+		t.Fatalf("round trip = %+v, %v", out.MCP, err)
+	}
+}
+
 func TestHistoryDefaults(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "settings.yaml")
 	if st, _ := Load(p); !st.History.Enabled || st.History.Keep != DefaultHistoryKeep {

@@ -7,6 +7,15 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- **panal tools for agents (MCP).** Agent sessions get panal's own MCP server, `panal`: `peers`,
+  `msg_send`, `msg_read`, `wait`, `session_status`, `history_search` and `history_get`, so agents
+  coordinate and look things up without running `panal` commands. It only reads and messages. Claude
+  Code, codex, Gemini CLI, opencode and Cursor CLI get it for that session only (their own
+  configuration is left alone); anything else can run `panal mcp`. Off with `mcp.enabled: false`
+  (**Settings → General**). See [docs/mcp.md](docs/mcp.md).
+
 ### Fixed
 
 - Adding a project shows it right away, with its buttons to start a session. Before, the session

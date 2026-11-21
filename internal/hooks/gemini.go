@@ -3,6 +3,7 @@ package hooks
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -47,7 +48,7 @@ func geminiSystemPath() string {
 
 // setupGemini writes dir/gemini-settings.json and returns the environment
 // that makes Gemini CLI read it as its system settings.
-func setupGemini(dir, exe, sock string) (Injection, error) {
+func setupGemini(dir, exe, sock string, mcp map[string]MCPServer) (Injection, error) {
 	file := filepath.Join(dir, "gemini-settings.json")
 	real := os.Getenv(geminiSystemEnv)
 	if real == "" || real == file {
@@ -59,7 +60,7 @@ func setupGemini(dir, exe, sock string) (Injection, error) {
 		// replacing it would drop the administrator's settings.
 		return Injection{Note: fmt.Sprintf("gemini hooks off: %v", err)}, nil
 	}
-	data, err := GeminiSettings(exe, sock, base)
+	data, err := GeminiSettings(exe, sock, base, mcp)
 	if err != nil {
 		return Injection{}, err
 	}
@@ -72,7 +73,7 @@ func setupGemini(dir, exe, sock string) (Injection, error) {
 		// settings: keep it pointing at the real one.
 		env = append(env, geminiDefaultsEnv+"="+filepath.Join(filepath.Dir(real), "system-defaults.json"))
 	}
-	return Injection{Env: env}, nil
+	return Injection{Env: env, MCP: mcp}, nil
 }
 
 // readGeminiBase reads the real system settings file (nil if there is
@@ -98,7 +99,7 @@ func readGeminiBase(path, own string) (map[string]any, error) {
 // GeminiSettings returns base (the real system settings, may be nil) with
 // a hook per geminiEvents entry calling `<exe> notify [--sock S]
 // --from-hook gemini` added to its own hooks.
-func GeminiSettings(exe, sock string, base map[string]any) ([]byte, error) {
+func GeminiSettings(exe, sock string, base map[string]any, mcp map[string]MCPServer) ([]byte, error) {
 	out := make(map[string]any, len(base)+1)
 	for k, v := range base {
 		out[k] = v
@@ -125,6 +126,15 @@ func GeminiSettings(exe, sock string, base map[string]any) ([]byte, error) {
 		hooks[ev] = list
 	}
 	out["hooks"] = hooks
+	if len(mcp) > 0 {
+		// The system file's own servers stay; ours are added by name.
+		servers := map[string]any{}
+		if m, ok := base["mcpServers"].(map[string]any); ok {
+			maps.Copy(servers, m)
+		}
+		maps.Copy(servers, stdioServers(mcp))
+		out["mcpServers"] = servers
+	}
 	b, err := json.MarshalIndent(out, "", "  ")
 	if err != nil {
 		return nil, err

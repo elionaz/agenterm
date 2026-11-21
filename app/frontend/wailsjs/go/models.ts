@@ -526,6 +526,7 @@ export namespace main {
 	    terminal?: settings.Terminal;
 	    messages?: settings.Messages;
 	    browser?: settings.Browser;
+	    mcp?: settings.MCP;
 	    history?: settings.History;
 	
 	    static createFrom(source: any = {}) {
@@ -542,6 +543,7 @@ export namespace main {
 	        this.terminal = this.convertValues(source["terminal"], settings.Terminal);
 	        this.messages = this.convertValues(source["messages"], settings.Messages);
 	        this.browser = this.convertValues(source["browser"], settings.Browser);
+	        this.mcp = this.convertValues(source["mcp"], settings.MCP);
 	        this.history = this.convertValues(source["history"], settings.History);
 	    }
 	
@@ -1727,6 +1729,18 @@ export namespace settings {
 	        this.keep = source["keep"];
 	    }
 	}
+	export class MCP {
+	    enabled: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new MCP(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	    }
+	}
 	export class Messages {
 	    enabled: boolean;
 	    autoDeliver: boolean;
@@ -1822,6 +1836,7 @@ export namespace settings {
 	    terminal: Terminal;
 	    messages: Messages;
 	    browser: Browser;
+	    mcp: MCP;
 	    history: History;
 	
 	    static createFrom(source: any = {}) {
@@ -1838,6 +1853,7 @@ export namespace settings {
 	        this.terminal = this.convertValues(source["terminal"], Terminal);
 	        this.messages = this.convertValues(source["messages"], Messages);
 	        this.browser = this.convertValues(source["browser"], Browser);
+	        this.mcp = this.convertValues(source["mcp"], MCP);
 	        this.history = this.convertValues(source["history"], History);
 	    }
 	

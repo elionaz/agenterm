@@ -339,6 +339,21 @@
     }
   }
 
+  /** panal's MCP server for agents (mcp.enabled). */
+  let mcpOn = $state(true)
+  let mcpError = $state<string | null>(null)
+  async function saveMCP(enabled: boolean) {
+    const prev = mcpOn
+    mcpOn = enabled
+    mcpError = null
+    try {
+      mcpOn = (await api.saveSettings({ mcp: { enabled } })).mcp?.enabled ?? enabled
+    } catch (e) {
+      mcpOn = prev
+      mcpError = errorMessage(e)
+    }
+  }
+
   /** The agents' browser (browser.*): saved whole, right away. */
   let browserCfg = $state<Settings['browser'] | null>(null)
   let browserInfo = $state<BrowserStatus | null>(null)
@@ -711,6 +726,7 @@
     messagesOn = s.messages?.enabled ?? true
     autoDeliver = s.messages?.autoDeliver ?? true
     browserCfg = s.browser ?? { enabled: true, headless: false, path: '' }
+    mcpOn = s.mcp?.enabled ?? true
     historyCfg = s.history ?? { enabled: true, keep: 300 }
     setAppearance(s.ui?.appearance)
     setTermPrefs(s.terminal)
@@ -913,6 +929,14 @@
           </span>
         </label>
         {#if messagesError}<div class="error">{messagesError}</div>{/if}
+        <label class="check">
+          <input type="checkbox" checked={mcpOn} onchange={(e) => void saveMCP(e.currentTarget.checked)} />
+          <span>
+            <b>{t('settings.mcp.enabled')}</b>
+            <em>{@html th('settings.mcp.enabledHelp')}</em>
+          </span>
+        </label>
+        {#if mcpError}<div class="error">{mcpError}</div>{/if}
 
         <h3 class="group">{t('settings.b.head')}</h3>
         {#if browserCfg}

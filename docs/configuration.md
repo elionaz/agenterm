@@ -163,6 +163,7 @@ Every key is optional; missing ones take the default value.
 | `messages.enabled` | `true` | messages between the sessions of a project (`panal msg`): when off, sending is refused and agent hooks hand nothing over. See [messages.md](messages.md) |
 | `messages.auto_deliver` | `true` | the messages mode of projects that haven't chosen one (each project switches with the ⇄ / ⏸ button in the sidebar or `panal project set --messages`): `true` is automatic (a message reaches its session as soon as it can take it, waking it when idle, never over text typed without sending, at most 5 times per session until you act on it again and 20 per project every 10 minutes), `false` is manual (messages wait for you to deliver them). See [messages.md](messages.md#automatic-or-manual-per-project) |
 | `browser.enabled` | `true` | each session gets its own isolated Chrome; see [Browser for agents](#browser-for-agents) |
+| `mcp.enabled` | `true` | agent sessions get panal's MCP server (peers, messages, wait, status, history); see [mcp.md](mcp.md) |
 | `browser.headless` | `false` | run those browsers without a window |
 | `browser.path` | `""` | a Chrome-compatible executable; empty: Google Chrome, Chromium, Microsoft Edge or Brave, whichever is installed |
 | `history.enabled` | `true` | keep ended agent sessions, searchable; see [Past sessions](#past-sessions) |
@@ -220,7 +221,7 @@ fields a client doesn't send keep their value. If the file can't be parsed, the 
 (and this is logged); saving replaces it.
 
 **Settings → Git** edits `git.editor`, `git.worktree_dir` and `git.default_mode`. **Settings →
-General** edits `ui.language`, `sessions.restore`, `messages.enabled`, `messages.auto_deliver`, `browser.enabled`, `browser.headless` and `history.enabled` (saved right away). **Settings →
+General** edits `ui.language`, `sessions.restore`, `messages.enabled`, `messages.auto_deliver`, `browser.enabled`, `browser.headless`, `mcp.enabled` and `history.enabled` (saved right away). **Settings →
 Appearance** edits `ui.appearance` and `terminal.*`, with a live preview; changes apply to the open
 terminals at once and are saved right away.
 

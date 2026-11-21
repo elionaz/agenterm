@@ -287,12 +287,13 @@ func TestWorktreeMergeAndSameMode(t *testing.T) {
 	}
 
 	// Hook integration works the same in a worktree: it goes through
-	// --settings (a file in the daemon's hooks dir), never project files.
+	// --settings (a file in the daemon's hooks dir, after the MCP servers'
+	// --mcp-config), never project files.
 	hk, err := c.Spawn(ctx, protocol.SpawnParams{ProjectID: proj.ID, ProfileID: "hookedclaude", Mode: protocol.ModeWorktree})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(hk.Args) < 2 || hk.Args[0] != "--settings" || !filepath.IsAbs(hk.Args[1]) || strings.HasPrefix(hk.Args[1], hk.WorktreePath) {
+	if len(hk.Args) < 4 || hk.Args[0] != "--mcp-config" || hk.Args[2] != "--settings" || !filepath.IsAbs(hk.Args[3]) || strings.HasPrefix(hk.Args[3], hk.WorktreePath) {
 		t.Fatalf("hook args in worktree = %v (worktree %s)", hk.Args, hk.WorktreePath)
 	}
 	if _, err := os.Stat(filepath.Join(hk.WorktreePath, ".claude")); !os.IsNotExist(err) {

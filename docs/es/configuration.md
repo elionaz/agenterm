@@ -167,6 +167,7 @@ Todas las claves son opcionales; las que faltan toman el valor por defecto.
 | `messages.enabled` | `true` | mensajes entre las sesiones de un proyecto (`panal msg`): si se apaga, los envíos se rechazan y los hooks de los agentes no entregan nada. Ver [messages.md](messages.md) |
 | `messages.auto_deliver` | `true` | el modo de mensajes de los proyectos que no eligieron uno (cada proyecto lo cambia con el botón ⇄ / ⏸ de la barra lateral o con `panal project set --messages`): `true` es automático (el mensaje le llega a su sesión en cuanto puede recibirlo y la despierta si está inactiva, nunca sobre texto escrito sin enviar, como mucho 5 veces por sesión hasta que vuelvas a intervenir en ella y 20 por proyecto cada 10 minutos), `false` es manual (los mensajes esperan a que los entregues tú). Ver [messages.md](messages.md#automático-o-manual-por-proyecto) |
 | `browser.enabled` | `true` | cada sesión tiene su propio Chrome aislado; ver [Navegador para los agentes](#navegador-para-los-agentes) |
+| `mcp.enabled` | `true` | las sesiones de agente reciben el servidor MCP de panal (sesiones, mensajes, esperar, estado, historial); ver [mcp.md](mcp.md) |
 | `browser.headless` | `false` | corre esos navegadores sin ventana |
 | `browser.path` | `""` | un ejecutable compatible con Chrome; vacío: Google Chrome, Chromium, Microsoft Edge o Brave, el que esté instalado |
 | `history.enabled` | `true` | guardar las sesiones de agente que terminan, para buscarlas; ver [Sesiones pasadas](#sesiones-pasadas) |
@@ -225,7 +226,7 @@ archivo no se puede interpretar se usan los valores por defecto (y se anota en e
 se reemplaza.
 
 *Ajustes → Git* edita `git.editor`, `git.worktree_dir` y `git.default_mode`. *Ajustes → General*
-edita `ui.language`, `sessions.restore`, `messages.enabled`, `messages.auto_deliver`, `browser.enabled`, `browser.headless` y `history.enabled` (se guardan al momento). *Ajustes → Apariencia* edita
+edita `ui.language`, `sessions.restore`, `messages.enabled`, `messages.auto_deliver`, `browser.enabled`, `browser.headless`, `mcp.enabled` y `history.enabled` (se guardan al momento). *Ajustes → Apariencia* edita
 `ui.appearance` y `terminal.*`, con vista previa; los cambios se aplican al momento a las terminales
 abiertas y se guardan enseguida.
 

@@ -518,7 +518,7 @@ func (s *Server) resolveLaunch(profileID string) (launchProfile, error) {
 		// opencode 1.x has neither the plugin API nor --standalone.
 		inj.Note = "opencode hooks off: needs opencode 2 or later"
 	default:
-		inj, err = hooks.Setup(prof.SetupHooks, s.cfg.Paths.HooksDir(), s.cfg.Exe, s.sock)
+		inj, err = hooks.Setup(prof.SetupHooks, s.cfg.Paths.HooksDir(), s.cfg.Exe, s.sock, hooks.WithMCP(s.hookMCP(prof.SetupHooks)))
 	}
 	if err != nil {
 		return launchProfile{}, fmt.Errorf("profile %s: %w", prof.ID, err)

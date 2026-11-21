@@ -388,6 +388,7 @@ y diff: [docs/es/worktrees.md](docs/es/worktrees.md).
   notificaciones, actividad, «¿trabado?» y progreso.
 - [docs/es/worktrees.md](docs/es/worktrees.md): worktrees por sesión, diff, merge y borrado.
 - [docs/es/messages.md](docs/es/messages.md): mensajes entre las sesiones de un proyecto.
+- [docs/es/mcp.md](docs/es/mcp.md): las herramientas MCP de panal para los agentes.
 - [docs/es/architecture.md](docs/es/architecture.md): daemon, app y CLI, protocolo, eventos y
   persistencia.
 - [docs/es/development.md](docs/es/development.md): desarrollo, tests, publicación de releases,

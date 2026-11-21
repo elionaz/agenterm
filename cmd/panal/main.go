@@ -88,6 +88,8 @@ Usage:
   panal browser [open|url|close|status|mcp] [--session ID]
                                       the session's own isolated Chrome (open: start it, print
                                       its DevTools URL; mcp: the browser MCP server bound to it)
+  panal mcp                        panal's MCP server on stdio (what agent sessions get):
+                                      peers, msg_send, msg_read, wait, session_status, history
   panal version                    print the version and commit (also --version)
 
 Environment:
@@ -207,6 +209,8 @@ func run(args []string) error {
 		return cmdInstructions(ctx, c, rest)
 	case "browser":
 		return cmdBrowser(ctx, c, rest)
+	case "mcp":
+		return cmdMcp(ctx, c, rest)
 	case "handoff":
 		return cmdHandoff(ctx, c, rest)
 	case "kill":

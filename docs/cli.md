@@ -186,6 +186,7 @@ Messages between the sessions of a project; see [messages.md](messages.md).
 | `panal instructions show <topic>` | one topic's text (what an agent runs for an on-demand topic) |
 | `panal handoff [--worktree] [--keep] [--note FILE\|-] <sessionId> <profile>` | continue a session's work with another agent (or the same one in a new worktree): a drafted summary (or `--note`) as its first prompt; the session closes unless `--keep`. `--into <sessionId>` hands it to a live session instead; `--print <sessionId>` shows the summary. See [worktrees.md](worktrees.md#continue-with-another-agent) |
 | `panal browser [open\|url\|close\|status\|mcp] [--session ID]` | the session's own Chrome (inside a session: its own). `open` (default) starts it and prints its DevTools URL; `url` only prints it; `close` stops it; `status` shows the settings and the Chrome and `npx` found; `mcp` runs the browser MCP server bound to it (what Claude Code and codex get). See [configuration.md](configuration.md#browser-for-agents) |
+| `panal mcp [--sock S]` | panal's MCP server on stdio, bound to the session it runs in: `peers`, `msg_send`, `msg_read`, `wait`, `session_status`, `history_search`, `history_get` (what agent sessions get). See [mcp.md](mcp.md) |
 
 ## Git
 
