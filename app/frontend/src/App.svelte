@@ -821,7 +821,10 @@
     const p = await guard(api.addProject())
     if (!p) return
     if (!projects.some((x) => x.id === p.id)) projects = [...projects, p]
-    currentProjectId = p.id
+    // Show the project, not the session that was open: a new one has no
+    // sessions, so the empty view offers to start one.
+    gridOpen = false
+    selectProject(p.id)
   }
 
   async function removeProject(id: string) {
