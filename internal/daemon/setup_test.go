@@ -188,5 +188,9 @@ func TestWorktreeSetupFails(t *testing.T) {
 	if err := st.Input([]byte("\n")); err != nil {
 		t.Fatal(err)
 	}
-	runIn(t, c, info.ID, "true") // the agent (a shell) started anyway
+	// The agent (a shell) starts anyway: wait for its prompt before typing.
+	// runIn types on another connection, whose input may reach the
+	// terminal before this Enter and be eaten by the setup's read.
+	readUntil(t, st, func(out []byte, _ protocol.Frame) bool { return bytes.Contains(out, []byte("$ ")) })
+	runIn(t, c, info.ID, "true")
 }
