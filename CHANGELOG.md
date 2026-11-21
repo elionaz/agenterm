@@ -7,6 +7,11 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Adding a project shows it right away, with its buttons to start a session. Before, the session
+  that was open stayed on screen.
+
 ## [0.14.0] - 2026-11-20
 
 ### Added
