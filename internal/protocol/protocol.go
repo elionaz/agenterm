@@ -986,6 +986,9 @@ type MsgTakeResult struct {
 	// session that wait for the user.
 	Auto bool `json:"auto"`
 	Held int  `json:"held,omitempty"`
+	// MCP: the session has panal's MCP server (peers, msg_send, msg_read,
+	// wait…), so the intro points at its tools.
+	MCP bool `json:"mcp,omitempty"`
 }
 
 // InstructionsParams: ProjectID (id or name) also composes what a session

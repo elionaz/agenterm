@@ -370,6 +370,7 @@ type SettingsPatch struct {
 	Terminal *settings.Terminal `json:"terminal,omitempty"`
 	Messages *settings.Messages `json:"messages,omitempty"`
 	Browser  *settings.Browser  `json:"browser,omitempty"`
+	MCP      *settings.MCP      `json:"mcp,omitempty"`
 	History  *settings.History  `json:"history,omitempty"`
 }
 

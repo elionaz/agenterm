@@ -240,7 +240,7 @@ func TestRestorePolicies(t *testing.T) {
 }
 
 // A claude session resumes its own conversation: the session id reported
-// by its hooks ends up as --resume, after the --settings injection.
+// by its hooks ends up as --resume, after the MCP and --settings injection.
 func TestClaudeResumeUsesHookSessionID(t *testing.T) {
 	c, p, stop := startDaemon(t)
 	script := filepath.Join(p.ConfigDir, "fakeclaude")
@@ -255,7 +255,8 @@ func TestClaudeResumeUsesHookSessionID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := spawnWith(t, c, proj.ID, "fakeclaude", "", "ARGV: --settings")
+	mcp := "--mcp-config " + filepath.Join(p.HooksDir(), "mcp.json") + " "
+	s := spawnWith(t, c, proj.ID, "fakeclaude", "", "ARGV: "+mcp+"--settings")
 	// What `notify --from-hook claude` sends for a SessionStart payload.
 	if _, err := c.NotifyEvent(ctxT(t), protocol.NotifyParams{SessionID: s.ID, Agent: "claude",
 		AgentSessionID: "0b5e7f2a-1111-2222-3333-444455556666", TranscriptPath: "/x/t.jsonl"}); err != nil {
@@ -275,7 +276,7 @@ func TestClaudeResumeUsesHookSessionID(t *testing.T) {
 		t.Fatal(err)
 	}
 	st, snap := attachSnapshot(t, c, s.ID)
-	want := "ARGV: --settings " + filepath.Join(p.HooksDir(), "claude-settings.json") + " --resume 0b5e7f2a-1111-2222-3333-444455556666 --model x"
+	want := "ARGV: " + mcp + "--settings " + filepath.Join(p.HooksDir(), "claude-settings.json") + " --resume 0b5e7f2a-1111-2222-3333-444455556666 --model x"
 	if !bytes.Contains(snap, []byte(want)) {
 		readUntil(t, st, func(out []byte, _ protocol.Frame) bool { return bytes.Contains(out, []byte(want)) })
 	}

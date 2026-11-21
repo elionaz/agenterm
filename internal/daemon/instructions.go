@@ -149,9 +149,9 @@ func (s *Server) instructionsFile(proj project.Project) string {
 // hook integration, plus the instructions for codex (unless the user's
 // config.toml sets its own developer_instructions).
 func (s *Server) agentArgs(lp launchProfile, proj project.Project) []string {
-	// The browser MCP server first: claude's --mcp-config takes several
+	// The MCP servers first: claude's --mcp-config takes several
 	// values, and the --settings that follows ends them.
-	args := append(s.browserMCPArgs(lp.prof.SetupHooks), lp.inj.Args...)
+	args := append(s.agentMCPArgs(lp.prof.SetupHooks), lp.inj.Args...)
 	if lp.prof.SetupHooks == hooks.AgentCodex && !hooks.CodexOwnInstructions() {
 		args = append(args, hooks.CodexInstructionArgs(s.sessionInstructions(proj))...)
 	}

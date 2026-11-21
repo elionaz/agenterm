@@ -17,6 +17,9 @@ ella llega a su propio daemon:
 | `panal msg list [--pending]` | los mensajes que enviaste y recibiste |
 | `panal wait <id> [--timeout 30m]` | espera hasta que esa sesión quede inactiva, esperando a su usuario o terminada (código de salida 2 si se agota el tiempo) |
 
+Los agentes con integración también reciben lo mismo como herramientas MCP (`peers`, `msg_send`,
+`msg_read`, `wait`…): ver [mcp.md](mcp.md).
+
 Fuera de una sesión (desde tu propia terminal), `msg peers` y `msg send` necesitan saber el
 proyecto: usa `--session <id>` para `peers`, un id de sesión como `<a>`, o `--project <id>` con un
 nombre o `all`. Esos mensajes vienen *del usuario*. `msg read` solo funciona dentro de una sesión.

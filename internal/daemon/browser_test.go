@@ -164,7 +164,11 @@ func TestBrowserOff(t *testing.T) {
 		t.Fatalf("open with the browser off: %v", err)
 	}
 	cl, err := c.Spawn(ctx, protocol.SpawnParams{ProjectID: proj.ID, ProfileID: "hookedclaude"})
-	if err != nil || slices.Contains(cl.Args, "--mcp-config") {
+	if err != nil || len(cl.Args) < 2 || cl.Args[0] != "--mcp-config" {
 		t.Fatalf("claude args with the browser off = %q, %v", cl.Args, err)
+	}
+	// Only panal's own MCP server.
+	if cfg, err := os.ReadFile(cl.Args[1]); err != nil || strings.Contains(string(cfg), `"panal-browser"`) || !strings.Contains(string(cfg), `"panal"`) {
+		t.Fatalf("mcp config with the browser off %s: %v", cfg, err)
 	}
 }

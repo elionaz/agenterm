@@ -332,7 +332,7 @@ func (s *Server) msgTake(caller *session.Session, p protocol.MsgTakeParams) (pro
 			"only a session can read its messages: run it inside a panal session")
 	}
 	res := protocol.MsgTakeResult{Messages: []mailbox.Message{}, Enabled: s.messagesEnabled(), Self: caller.ID,
-		Auto: s.messagesAuto(caller.ProjectID), Held: s.mail.Held(caller.ID)}
+		Auto: s.messagesAuto(caller.ProjectID), Held: s.mail.Held(caller.ID), MCP: s.hasMCP(caller.ProfileID)}
 	if p.Intro {
 		if proj, err := s.projects.Get(caller.ProjectID); err == nil {
 			res.Instructions = s.sessionInstructions(proj)
@@ -401,6 +401,16 @@ var errNudgeInterrupted = errors.New("you typed while the line was going in: it 
 
 // errNotIdle: msg.deliver to a session that is not at its prompt.
 var errNotIdle = errors.New("the session is busy or waiting for an answer: deliver when it is idle")
+
+// hasMCP reports whether sessions of profileID get panal's MCP server.
+func (s *Server) hasMCP(profileID string) bool {
+	ps, err := s.profiles.List()
+	if err != nil {
+		return false
+	}
+	p, ok := profile.Find(ps, profileID)
+	return ok && slices.Contains(hooks.Agents, p.SetupHooks) && s.mcpOn()
+}
 
 // hookDelivers reports whether profileID's hooks hand messages over.
 func (s *Server) hookDelivers(profileID string) bool {

@@ -243,6 +243,15 @@ type Browser struct {
 	Path string `json:"path"`
 }
 
+// MCP configures panal's own MCP server for agents (panal mcp).
+type MCP struct {
+	// Enabled (default): agent sessions with an integration (Claude Code,
+	// codex, Gemini CLI, opencode, Cursor CLI) get the "panal" MCP server:
+	// tools to message and wait for the other sessions and read panal's
+	// state.
+	Enabled bool `json:"enabled"`
+}
+
 // History configures the archive of ended agent sessions (see
 // internal/history).
 type History struct {
@@ -265,12 +274,17 @@ type Settings struct {
 	Terminal Terminal `json:"terminal"`
 	Messages Messages `json:"messages"`
 	Browser  Browser  `json:"browser"`
+	MCP      MCP      `json:"mcp"`
 	History  History  `json:"history"`
 }
 
 type fileHistory struct {
 	Enabled *bool `yaml:"enabled"`
 	Keep    *int  `yaml:"keep"`
+}
+
+type fileMCP struct {
+	Enabled *bool `yaml:"enabled"`
 }
 
 type fileBrowser struct {
@@ -337,6 +351,7 @@ type file struct {
 	Terminal fileTerminal `yaml:"terminal"`
 	Messages fileMessages `yaml:"messages"`
 	Browser  fileBrowser  `yaml:"browser"`
+	MCP      fileMCP      `yaml:"mcp"`
 	History  fileHistory  `yaml:"history"`
 }
 
@@ -384,6 +399,7 @@ func Save(path string, s Settings) error {
 	setKey(root, []string{"browser", "enabled"}, b(s.Browser.Enabled), "!!bool")
 	setKey(root, []string{"browser", "headless"}, b(s.Browser.Headless), "!!bool")
 	setKey(root, []string{"browser", "path"}, strings.TrimSpace(s.Browser.Path), "!!str")
+	setKey(root, []string{"mcp", "enabled"}, b(s.MCP.Enabled), "!!bool")
 	setKey(root, []string{"history", "enabled"}, b(s.History.Enabled), "!!bool")
 	setKey(root, []string{"history", "keep"}, strconv.Itoa(normKeep(s.History.Keep)), "!!int")
 	term := normTerminal(s.Terminal)
@@ -457,6 +473,7 @@ func Defaults() Settings {
 		Terminal: normTerminal(Terminal{}),
 		Messages: Messages{Enabled: true, AutoDeliver: true},
 		Browser:  Browser{Enabled: true},
+		MCP:      MCP{Enabled: true},
 		History:  History{Enabled: true, Keep: DefaultHistoryKeep},
 	}
 }
@@ -506,6 +523,7 @@ func Parse(data []byte) (Settings, error) {
 	set(&s.Messages.Enabled, f.Messages.Enabled)
 	set(&s.Messages.AutoDeliver, f.Messages.AutoDeliver)
 	set(&s.Browser.Enabled, f.Browser.Enabled)
+	set(&s.MCP.Enabled, f.MCP.Enabled)
 	set(&s.History.Enabled, f.History.Enabled)
 	if f.History.Keep != nil {
 		s.History.Keep = normKeep(*f.History.Keep)

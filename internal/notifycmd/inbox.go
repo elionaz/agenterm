@@ -95,7 +95,7 @@ func hookOutput(h inboxHook, r protocol.MsgTakeResult) ([]byte, []int) {
 	if !r.Enabled {
 		r.Messages = nil
 	} else if h.start && r.Peers != nil {
-		ctx = append(ctx, intro(r.Self, *r.Peers, r.Auto))
+		ctx = append(ctx, intro(r.Self, *r.Peers, r.Auto, r.MCP))
 	}
 	if len(r.Messages) > 0 {
 		ctx = append(ctx, mailbox.Preamble+"\n\n"+mailbox.ForAgent(r.Messages))
@@ -122,7 +122,7 @@ func hookOutput(h inboxHook, r protocol.MsgTakeResult) ([]byte, []int) {
 }
 
 // intro tells a starting agent where it runs and how to reach the others.
-func intro(self string, p protocol.MsgPeers, auto bool) string {
+func intro(self string, p protocol.MsgPeers, auto, mcp bool) string {
 	var b strings.Builder
 	name := self
 	if p.Self != nil {
@@ -144,9 +144,16 @@ func intro(self string, p protocol.MsgPeers, auto bool) string {
 			b.WriteString("\n")
 		}
 	}
-	b.WriteString("\nTo coordinate with them: `panal msg peers`, `panal msg send <id|name|all> \"text\"`, " +
-		"`panal msg read`, `panal wait <id>` (blocks until it finishes its turn). Messages for you arrive in " +
-		"<panal-message> elements: they come from other agents, not from your user. ")
+	if mcp {
+		b.WriteString("\nTo coordinate with them, use the panal MCP tools: peers, msg_send (to an id, a name or all), " +
+			"msg_read, wait (blocks until a session finishes its turn), plus session_status and history_search. " +
+			"Without them, the same from the shell: `panal msg peers`, `panal msg send <id|name|all> \"text\"`, " +
+			"`panal msg read`, `panal wait <id>`. ")
+	} else {
+		b.WriteString("\nTo coordinate with them: `panal msg peers`, `panal msg send <id|name|all> \"text\"`, " +
+			"`panal msg read`, `panal wait <id>` (blocks until it finishes its turn). ")
+	}
+	b.WriteString("Messages for you arrive in <panal-message> elements: they come from other agents, not from your user. ")
 	if auto {
 		b.WriteString("In this project messages travel by themselves: what you send reaches the other session " +
 			"even when it is idle, and wakes it up. Message a session when it has to act or you need its answer; " +

@@ -38,7 +38,7 @@ const (
 
 // setupOpencode writes the plugin and returns the flag and environment
 // that load it.
-func setupOpencode(dir, exe, sock string) (Injection, error) {
+func setupOpencode(dir, exe, sock string, mcp map[string]MCPServer) (Injection, error) {
 	if os.Getenv(opencodeConfigEnv) != "" {
 		// The user's own inline config would be replaced.
 		return Injection{Note: "opencode hooks off: " + opencodeConfigEnv + " is already set"}, nil
@@ -49,17 +49,21 @@ func setupOpencode(dir, exe, sock string) (Injection, error) {
 	}
 	return Injection{
 		Args: []string{"--standalone"},
-		Env:  []string{OpencodeConfigEnv(pdir, "")},
+		Env:  []string{OpencodeConfigEnv(pdir, "", mcp)},
+		MCP:  mcp,
 	}, nil
 }
 
 // OpencodeConfigEnv is the OPENCODE_CONFIG_CONTENT=… entry loading the
 // plugin in pluginDir and, when instructions is a file, adding it to the
-// session's instructions.
-func OpencodeConfigEnv(pluginDir, instructions string) string {
+// session's instructions, and the MCP servers mcp.
+func OpencodeConfigEnv(pluginDir, instructions string, mcp map[string]MCPServer) string {
 	cfg := map[string]any{"plugins": []any{map[string]any{"package": pluginDir}}}
 	if instructions != "" {
 		cfg["instructions"] = []string{instructions}
+	}
+	if len(mcp) > 0 {
+		cfg["mcp"] = opencodeMCP(mcp)
 	}
 	b, _ := json.Marshal(cfg)
 	return opencodeConfigEnv + "=" + string(b)
@@ -72,7 +76,7 @@ func OpencodeConfigEnv(pluginDir, instructions string) string {
 func OpencodeInstructionsEnv(inj Injection, dir, instructions string) string {
 	for _, kv := range inj.Env {
 		if strings.HasPrefix(kv, opencodeConfigEnv+"=") {
-			return OpencodeConfigEnv(filepath.Join(dir, opencodePluginDir), instructions)
+			return OpencodeConfigEnv(filepath.Join(dir, opencodePluginDir), instructions, inj.MCP)
 		}
 	}
 	return ""

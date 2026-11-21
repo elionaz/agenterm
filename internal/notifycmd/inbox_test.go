@@ -97,3 +97,16 @@ func TestClaudeOutputInstructions(t *testing.T) {
 		t.Fatalf("subagent printed %s", out)
 	}
 }
+
+// With panal's MCP server, the intro points at its tools (the CLI stays
+// as the fallback); without it, only at the CLI.
+func TestIntroMCP(t *testing.T) {
+	p := protocol.MsgPeers{ProjectName: "app", Self: &protocol.MsgPeer{ID: "a1", Name: "alpha"}}
+	with := intro("a1", p, true, true)
+	if !strings.Contains(with, "panal MCP tools: peers, msg_send") || !strings.Contains(with, "`panal msg read`") {
+		t.Fatalf("with MCP: %s", with)
+	}
+	if without := intro("a1", p, true, false); strings.Contains(without, "MCP") || !strings.Contains(without, "`panal wait <id>`") {
+		t.Fatalf("without MCP: %s", without)
+	}
+}

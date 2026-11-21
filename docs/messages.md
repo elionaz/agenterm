@@ -17,6 +17,9 @@ own daemon:
 | `panal msg list [--pending]` | the messages you sent and received |
 | `panal wait <id> [--timeout 30m]` | blocks until that session is idle, waiting for its user or exited (exit status 2 on timeout) |
 
+Agents with an integration also get the same as MCP tools (`peers`, `msg_send`, `msg_read`,
+`wait`…): see [mcp.md](mcp.md).
+
 Run outside a session (from your own terminal), `msg peers` and `msg send` need to know the
 project: use `--session <id>` for `peers`, a session id as `<to>`, or `--project <id>` with a name
 or `all`. Such messages come from *the user*. `msg read` only works inside a session.

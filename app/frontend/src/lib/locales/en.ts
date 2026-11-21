@@ -282,6 +282,9 @@ export const en = {
   'convo.toAll': 'All sessions',
   'convo.placeholder': 'Write to the sessions (⌘↩ sends)',
   'convo.send': 'Send',
+  'settings.mcp.enabled': 'Give agents panal tools (MCP)',
+  'settings.mcp.enabledHelp':
+    'Claude Code, codex, Gemini CLI, opencode and Cursor CLI sessions get the <code>panal</code> MCP server: tools to see the other sessions, message them, wait for them and search past sessions, without running commands. Only that session gets it; their own configuration is left alone.',
   'settings.h.head': 'Past sessions',
   'settings.h.enabled': 'Keep ended agent sessions',
   'settings.h.enabledHelp': 'Their prompts and terminal text stay searchable (the clock in the sidebar); secrets that look like keys or tokens are masked. The last {n} are kept (history.keep). Shells are not kept.',

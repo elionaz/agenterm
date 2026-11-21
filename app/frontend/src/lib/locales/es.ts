@@ -261,6 +261,9 @@ export const es: Dict = {
   'convo.toAll': 'Todas las sesiones',
   'convo.placeholder': 'Escribe a las sesiones (⌘↩ envía)',
   'convo.send': 'Enviar',
+  'settings.mcp.enabled': 'Dar a los agentes las herramientas de panal (MCP)',
+  'settings.mcp.enabledHelp':
+    'Las sesiones de Claude Code, codex, Gemini CLI, opencode y Cursor CLI reciben el servidor MCP <code>panal</code>: herramientas para ver las otras sesiones, escribirles, esperarlas y buscar sesiones pasadas, sin correr comandos. Solo lo recibe esa sesión; su configuración propia no se toca.',
   'settings.h.head': 'Sesiones pasadas',
   'settings.h.enabled': 'Guardar las sesiones de agente que terminan',
   'settings.h.enabledHelp': 'Sus prompts y el texto de su terminal se pueden buscar (el reloj de la barra lateral); lo que parece una clave o un token se tapa. Se guardan las últimas {n} (history.keep). Los shells no se guardan.',

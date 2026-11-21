@@ -17,6 +17,9 @@ type Injection struct {
 	// Note says why an agent's integration is off for this launch (the
 	// session then runs without it); "" normally.
 	Note string
+	// MCP are the MCP servers carried in the integration (WithMCP), kept
+	// for what rewrites it later (OpencodeInstructionsEnv).
+	MCP map[string]MCPServer
 }
 
 // Agents with built-in hook integration (profile `setup_hooks`).
@@ -61,7 +64,8 @@ const (
 // written outside dir: the user's agent configuration and the project are
 // left alone, and the integration only applies to sessions panal spawns.
 // An empty agent (or "none") means no integration.
-func Setup(agent, dir, exe, sock string) (Injection, error) {
+func Setup(agent, dir, exe, sock string, opts ...Option) (Injection, error) {
+	o := setupOptions(opts)
 	switch agent {
 	case "", "none":
 		return Injection{}, nil
@@ -86,11 +90,11 @@ func Setup(agent, dir, exe, sock string) (Injection, error) {
 			"-c", `tui.notification_condition="always"`,
 		}}, nil
 	case AgentGemini:
-		return setupGemini(dir, exe, sock)
+		return setupGemini(dir, exe, sock, o.mcp)
 	case AgentOpencode:
-		return setupOpencode(dir, exe, sock)
+		return setupOpencode(dir, exe, sock, o.mcp)
 	case AgentCursor:
-		return setupCursor(dir, exe, sock)
+		return setupCursor(dir, exe, sock, o.mcp)
 	}
 	return Injection{}, fmt.Errorf("unknown setup_hooks %q (want %s or none)", agent, strings.Join(Agents, ", "))
 }
