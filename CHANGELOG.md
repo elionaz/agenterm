@@ -7,6 +7,8 @@ releases may include breaking changes.
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-11-20
+
 ### Added
 
 - **Messages between agents, open and visible.** Each project picks how its sessions' messages
@@ -579,7 +581,8 @@ First public release: a macOS desktop app (universal: Apple Silicon and Intel, m
   `.zip` downloads, CLI archives for macOS and Linux, and a Homebrew cask
   (`brew install --cask elionaz/tap/agenterm`).
 
-[Unreleased]: https://github.com/elionaz/panal/compare/v0.13.1...HEAD
+[Unreleased]: https://github.com/elionaz/panal/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/elionaz/panal/compare/v0.13.1...v0.14.0
 [0.13.1]: https://github.com/elionaz/panal/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/elionaz/panal/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/elionaz/panal/compare/v0.11.0...v0.12.0
